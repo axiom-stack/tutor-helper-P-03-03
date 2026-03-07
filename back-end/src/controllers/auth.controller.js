@@ -1,11 +1,8 @@
-import express from "express";
 import bcrypt from "bcryptjs";
 import { turso } from "../lib/turso.js";
 import { signToken } from "../lib/jwt.js";
 
-const router = express.Router();
-
-router.post("/login", async (req, res) => {
+export async function login(req, res) {
   try {
     const { username, password } = req.body;
 
@@ -58,10 +55,8 @@ router.post("/login", async (req, res) => {
     );
     res.status(500).json({ error: "Login failed" });
   }
-});
+}
 
-router.post("/logout", (req, res) => {
+export async function logout(req, res) {
   res.json({ ok: true });
-});
-
-export default router;
+}
