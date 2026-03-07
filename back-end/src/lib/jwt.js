@@ -16,4 +16,3 @@ export async function verifyToken(token) {
   const { payload } = await jose.jwtVerify(token, secret);
   return payload;
 }
-s;

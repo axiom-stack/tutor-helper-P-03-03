@@ -1,8 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { MdMenuBook, MdErrorOutline } from 'react-icons/md';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
 import './auth.css';
-import { login } from './auth.services';
+import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router';
 
 export type LoginCredentials = {
@@ -18,6 +18,14 @@ function Auth() {
   const [showPassword, setShowPassword] = useState(false);
 
   const navigate = useNavigate();
+  const { login, isAuthenticated } = useAuth();
+
+  // Redirect if already authenticated
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/');
+    }
+  }, [isAuthenticated, navigate]);
 
   const clearError = () => setError(null);
 
