@@ -1,8 +1,11 @@
 // POST
 export async function createClass(req, res) {
   try {
-    const { name, description } = req.body;
-    const { id: teacher_id } = req.user;
+    const { name, description, teacher_id } = req.body;
+
+    if (!teacher_id) {
+      return res.status(400).json({ error: "teacher_id is required" });
+    }
 
     if (!name || !description) {
       return res.status(400).json({ error: "Missing required fields" });
