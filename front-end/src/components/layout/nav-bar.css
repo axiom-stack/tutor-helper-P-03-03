@@ -4,10 +4,6 @@
    --------------------------------------------------------------------------- */
 
 .nav-bar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
   height: var(--topbar-height);
   background-color: var(--surface);
   border-bottom: 1px solid var(--border);
@@ -18,6 +14,7 @@
   z-index: 50;
   font-family: var(--font-main);
   box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
 }
 
 .nav-bar__brand {

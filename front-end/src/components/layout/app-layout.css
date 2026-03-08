@@ -1,15 +1,35 @@
 /* ---------------------------------------------------------------------------
-   AppLayout – NavBar + Sidebar + main content
+   AppLayout – CSS Grid: row1 = NavBar (full width), row2 = Main | Sidebar
    --------------------------------------------------------------------------- */
 
 .app-layout {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  /* With dir=rtl, col1 is right: put sidebar there (fixed), col2 is left: main (1fr) */
+  grid-template-columns: var(--sidebar-width) 1fr;
   min-height: 100vh;
   background-color: var(--bg);
 }
 
-.app-layout__main {
-  padding: var(--space-xl);
-  padding-top: var(--topbar-height);
-  padding-inline-start: calc(var(--sidebar-width) + var(--space-xl));
-  min-height: 100vh;
+/* Row 1: NavBar spans both columns */
+.app-layout > .nav-bar {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+
+/* Row 2: col1 = sidebar (right in RTL), col2 = main (1fr, left in RTL) */
+.app-layout > .app-layout__main {
+  grid-column: 2;
+  grid-row: 2;
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-lg) var(--space-xl);
+  overflow-y: auto;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.app-layout > .sidebar {
+  grid-column: 1;
+  grid-row: 2;
 }

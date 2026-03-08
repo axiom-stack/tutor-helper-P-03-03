@@ -4,18 +4,14 @@
    --------------------------------------------------------------------------- */
 
 .sidebar {
-  position: fixed;
-  top: var(--topbar-height);
-  right: 0;
-  bottom: 0;
   width: var(--sidebar-width);
   background-color: var(--surface);
   border-inline-start: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  z-index: 40;
   overflow-y: auto;
   font-family: var(--font-main);
+  min-height: 0;
 }
 
 .sidebar__nav {
