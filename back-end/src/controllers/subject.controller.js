@@ -1,8 +1,7 @@
 // POST
 export async function createSubject(req, res) {
   try {
-    const { name, description, class_id } = req.body;
-    const { id: teacher_id } = req.user;
+    const { name, description, class_id, teacher_id } = req.body;
 
     if (!class_id) {
       return res.status(400).json({ error: "class_id is required" });
@@ -144,7 +143,12 @@ export async function updateSubjectBySubjectId(req, res) {
 
     const updatedSubject = await turso.execute({
       sql: "UPDATE subjects SET name = ?, description = ?, class_id = ? WHERE id = ?",
-      args: [name, description, class_id || subject.rows[0].class_id, subjectId],
+      args: [
+        name,
+        description,
+        class_id || subject.rows[0].class_id,
+        subjectId,
+      ],
     });
 
     return res.status(200).json({ subject: updatedSubject });

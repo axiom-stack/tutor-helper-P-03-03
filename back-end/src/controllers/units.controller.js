@@ -1,8 +1,7 @@
 // POST
 export async function createUnit(req, res) {
   try {
-    const { name, description, subject_id } = req.body;
-    const { id: teacher_id } = req.user;
+    const { name, description, subject_id, teacher_id } = req.body;
 
     if (!subject_id) {
       return res.status(400).json({ error: "subject_id is required" });
@@ -22,7 +21,12 @@ export async function createUnit(req, res) {
     }
 
     if (subjectCheck.rows[0].teacher_id !== teacher_id) {
-      return res.status(403).json({ error: "Unauthorized: You can only create units for your own subjects" });
+      return res
+        .status(403)
+        .json({
+          error:
+            "Unauthorized: You can only create units for your own subjects",
+        });
     }
 
     const createdUnit = await turso.execute({
@@ -170,7 +174,11 @@ export async function updateUnitByUnitId(req, res) {
       }
 
       if (subjectCheck.rows[0].teacher_id !== userId && userRole !== "admin") {
-        return res.status(403).json({ error: "Unauthorized: You can only move units to your own subjects" });
+        return res
+          .status(403)
+          .json({
+            error: "Unauthorized: You can only move units to your own subjects",
+          });
       }
     }
 
