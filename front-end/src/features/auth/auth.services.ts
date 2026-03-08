@@ -39,6 +39,7 @@ export async function login(username: string, password: string) {
     username,
     password,
   });
+  console.log(response.data, 'FROM LOGIN SERVICE');
   const { token, user } = response.data;
   setAuth(token, user);
   return response.data;
