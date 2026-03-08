@@ -15,7 +15,7 @@ export async function authenticateToken(req, res, next) {
 
     // Get user details from database including role
     const userResult = await turso.execute({
-      sql: "SELECT id, username, role FROM users WHERE id = ?",
+      sql: "SELECT id, username, role FROM Users WHERE id = ?",
       args: [decoded.sub],
     });
 

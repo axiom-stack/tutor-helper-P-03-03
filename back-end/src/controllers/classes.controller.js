@@ -1,3 +1,5 @@
+import { turso } from "../lib/turso.js";
+
 // POST
 export async function createClass(req, res) {
   try {
@@ -16,7 +18,7 @@ export async function createClass(req, res) {
     }
 
     const createdClass = await turso.execute({
-      sql: "INSERT INTO classes (name, description, teacher_id) VALUES (?, ?, ?)",
+      sql: "INSERT INTO Classes (name, description, teacher_id) VALUES (?, ?, ?)",
       args: [name, description, teacher_id],
     });
 
@@ -32,12 +34,13 @@ export async function getClassesByTeacherId(req, res) {
     const { id: userId } = req.user;
 
     const classes = await turso.execute({
-      sql: "SELECT * FROM classes WHERE teacher_id = ?",
+      sql: "SELECT * FROM Classes WHERE teacher_id = ?",
       args: [userId],
     });
 
     return res.status(200).json({ classes: classes.rows });
   } catch (error) {
+    console.error("getClassesByTeacherId error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 }
@@ -48,7 +51,7 @@ export async function getClassByClassId(req, res) {
     const { id: userId, role: userRole } = req.user;
 
     const returnedClass = await turso.execute({
-      sql: "SELECT * FROM classes WHERE id = ?",
+      sql: "SELECT * FROM Classes WHERE id = ?",
       args: [classId],
     });
 
@@ -77,7 +80,7 @@ export async function getAllClassesInTheSystem(req, res) {
     }
 
     const classes = await turso.execute({
-      sql: "SELECT * FROM classes",
+      sql: "SELECT * FROM Classes",
     });
     return res.status(200).json({ classes: classes.rows });
   } catch (error) {
@@ -107,7 +110,7 @@ export async function updateClassByClassId(req, res) {
 
     // Fetch the class to check ownership
     const returnedClass = await turso.execute({
-      sql: "SELECT * FROM classes WHERE id = ?",
+      sql: "SELECT * FROM Classes WHERE id = ?",
       args: [classId],
     });
 
@@ -120,7 +123,7 @@ export async function updateClassByClassId(req, res) {
     }
 
     const updatedClass = await turso.execute({
-      sql: "UPDATE classes SET name = ?, description = ? WHERE id = ?",
+      sql: "UPDATE Classes SET name = ?, description = ? WHERE id = ?",
       args: [name, description, classId],
     });
 
@@ -138,7 +141,7 @@ export async function deleteClassByClassId(req, res) {
 
     // Fetch the class to delete
     const classToDelete = await turso.execute({
-      sql: "SELECT * FROM classes WHERE id = ?",
+      sql: "SELECT * FROM Classes WHERE id = ?",
       args: [classId],
     });
 
@@ -149,7 +152,7 @@ export async function deleteClassByClassId(req, res) {
       return res.status(403).json({ error: "Unauthorized" });
     }
     const deletedClass = await turso.execute({
-      sql: "DELETE FROM classes WHERE id = ?",
+      sql: "DELETE FROM Classes WHERE id = ?",
       args: [classId],
     });
     return res.status(200).json({ class: deletedClass });

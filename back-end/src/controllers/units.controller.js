@@ -1,3 +1,5 @@
+import { turso } from "../lib/turso.js";
+
 // POST
 export async function createUnit(req, res) {
   try {
@@ -16,7 +18,7 @@ export async function createUnit(req, res) {
 
     // Verify the subject belongs to the teacher
     const subjectCheck = await turso.execute({
-      sql: "SELECT teacher_id FROM subjects WHERE id = ?",
+      sql: "SELECT teacher_id FROM Subjects WHERE id = ?",
       args: [subject_id],
     });
 
@@ -31,7 +33,7 @@ export async function createUnit(req, res) {
     }
 
     const createdUnit = await turso.execute({
-      sql: "INSERT INTO units (name, description, subject_id, teacher_id) VALUES (?, ?, ?, ?)",
+      sql: "INSERT INTO Units (name, description, subject_id, teacher_id) VALUES (?, ?, ?, ?)",
       args: [name, description, subject_id, teacher_id],
     });
 
@@ -47,12 +49,13 @@ export async function getUnitsByTeacherId(req, res) {
     const { id: userId } = req.user;
 
     const units = await turso.execute({
-      sql: "SELECT * FROM units WHERE teacher_id = ?",
+      sql: "SELECT * FROM Units WHERE teacher_id = ?",
       args: [userId],
     });
 
     return res.status(200).json({ units: units.rows });
   } catch (error) {
+    console.error("getUnitsByTeacherId error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 }
@@ -63,7 +66,7 @@ export async function getUnitByUnitId(req, res) {
     const { id: userId, role: userRole } = req.user;
 
     const unit = await turso.execute({
-      sql: "SELECT * FROM units WHERE id = ?",
+      sql: "SELECT * FROM Units WHERE id = ?",
       args: [unitId],
     });
 
@@ -91,7 +94,7 @@ export async function getUnitsBySubjectId(req, res) {
     if (userRole !== "admin") {
       // First check if the user has access to this subject
       const subjectCheck = await turso.execute({
-        sql: "SELECT teacher_id FROM subjects WHERE id = ?",
+        sql: "SELECT teacher_id FROM Subjects WHERE id = ?",
         args: [subjectId],
       });
 
@@ -106,7 +109,7 @@ export async function getUnitsBySubjectId(req, res) {
     }
 
     const units = await turso.execute({
-      sql: "SELECT * FROM units WHERE subject_id = ?",
+      sql: "SELECT * FROM Units WHERE subject_id = ?",
       args: [subjectId],
     });
 
@@ -126,7 +129,7 @@ export async function getAllUnitsInTheSystem(req, res) {
     }
 
     const units = await turso.execute({
-      sql: "SELECT * FROM units",
+      sql: "SELECT * FROM Units",
     });
 
     return res.status(200).json({ units: units.rows });
@@ -154,7 +157,7 @@ export async function updateUnitByUnitId(req, res) {
 
     // Fetch the unit to check ownership
     const unit = await turso.execute({
-      sql: "SELECT * FROM units WHERE id = ?",
+      sql: "SELECT * FROM Units WHERE id = ?",
       args: [unitId],
     });
 
@@ -169,7 +172,7 @@ export async function updateUnitByUnitId(req, res) {
     // If subject_id is provided, verify the teacher owns that subject too
     if (subject_id) {
       const subjectCheck = await turso.execute({
-        sql: "SELECT teacher_id FROM subjects WHERE id = ?",
+        sql: "SELECT teacher_id FROM Subjects WHERE id = ?",
         args: [subject_id],
       });
 
@@ -185,7 +188,7 @@ export async function updateUnitByUnitId(req, res) {
     }
 
     const updatedUnit = await turso.execute({
-      sql: "UPDATE units SET name = ?, description = ?, subject_id = ? WHERE id = ?",
+      sql: "UPDATE Units SET name = ?, description = ?, subject_id = ? WHERE id = ?",
       args: [name, description, subject_id || unit.rows[0].subject_id, unitId],
     });
 
@@ -203,7 +206,7 @@ export async function deleteUnitByUnitId(req, res) {
 
     // Fetch the unit to delete and check ownership
     const unit = await turso.execute({
-      sql: "SELECT * FROM units WHERE id = ?",
+      sql: "SELECT * FROM Units WHERE id = ?",
       args: [unitId],
     });
 
@@ -216,7 +219,7 @@ export async function deleteUnitByUnitId(req, res) {
     }
 
     const deletedUnit = await turso.execute({
-      sql: "DELETE FROM units WHERE id = ?",
+      sql: "DELETE FROM Units WHERE id = ?",
       args: [unitId],
     });
 

@@ -1,3 +1,5 @@
+import { turso } from "../lib/turso.js";
+
 // POST
 export async function createSubject(req, res) {
   try {
@@ -14,7 +16,7 @@ export async function createSubject(req, res) {
       return res.status(400).json({ error: "Missing required fields" });
     }
     const createdSubject = await turso.execute({
-      sql: "INSERT INTO subjects (name, description, teacher_id, class_id) VALUES (?, ?, ?, ?)",
+      sql: "INSERT INTO Subjects (name, description, teacher_id, class_id) VALUES (?, ?, ?, ?)",
       args: [name, description, teacher_id, class_id],
     });
     return res.status(201).json({ subject: createdSubject });
@@ -29,12 +31,13 @@ export async function getSubjectsByTeacherId(req, res) {
     const { id: userId } = req.user;
 
     const subjects = await turso.execute({
-      sql: "SELECT * FROM subjects WHERE teacher_id = ?",
+      sql: "SELECT * FROM Subjects WHERE teacher_id = ?",
       args: [userId],
     });
 
     return res.status(200).json({ subjects: subjects.rows });
   } catch (error) {
+    console.error("getSubjectsByTeacherId error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 }
@@ -45,7 +48,7 @@ export async function getSubjectBySubjectId(req, res) {
     const { id: userId, role: userRole } = req.user;
 
     const subject = await turso.execute({
-      sql: "SELECT * FROM subjects WHERE id = ?",
+      sql: "SELECT * FROM Subjects WHERE id = ?",
       args: [subjectId],
     });
 
@@ -73,7 +76,7 @@ export async function getSubjectByClassId(req, res) {
     if (userRole !== "admin") {
       // First check if the user has access to this class
       const classCheck = await turso.execute({
-        sql: "SELECT teacher_id FROM classes WHERE id = ?",
+        sql: "SELECT teacher_id FROM Classes WHERE id = ?",
         args: [classId],
       });
 
@@ -88,7 +91,7 @@ export async function getSubjectByClassId(req, res) {
     }
 
     const subjects = await turso.execute({
-      sql: "SELECT * FROM subjects WHERE class_id = ?",
+      sql: "SELECT * FROM Subjects WHERE class_id = ?",
       args: [classId],
     });
 
@@ -108,7 +111,7 @@ export async function getAllSubjectsInTheSystem(req, res) {
     }
 
     const subjects = await turso.execute({
-      sql: "SELECT * FROM subjects",
+      sql: "SELECT * FROM Subjects",
     });
 
     return res.status(200).json({ subjects: subjects.rows });
@@ -136,7 +139,7 @@ export async function updateSubjectBySubjectId(req, res) {
 
     // Fetch the subject to check ownership
     const subject = await turso.execute({
-      sql: "SELECT * FROM subjects WHERE id = ?",
+      sql: "SELECT * FROM Subjects WHERE id = ?",
       args: [subjectId],
     });
 
@@ -149,7 +152,7 @@ export async function updateSubjectBySubjectId(req, res) {
     }
 
     const updatedSubject = await turso.execute({
-      sql: "UPDATE subjects SET name = ?, description = ?, class_id = ? WHERE id = ?",
+      sql: "UPDATE Subjects SET name = ?, description = ?, class_id = ? WHERE id = ?",
       args: [
         name,
         description,
@@ -172,7 +175,7 @@ export async function deleteSubjectBySubjectId(req, res) {
 
     // Fetch the subject to delete and check ownership
     const subject = await turso.execute({
-      sql: "SELECT * FROM subjects WHERE id = ?",
+      sql: "SELECT * FROM Subjects WHERE id = ?",
       args: [subjectId],
     });
 
@@ -185,7 +188,7 @@ export async function deleteSubjectBySubjectId(req, res) {
     }
 
     const deletedSubject = await turso.execute({
-      sql: "DELETE FROM subjects WHERE id = ?",
+      sql: "DELETE FROM Subjects WHERE id = ?",
       args: [subjectId],
     });
 
