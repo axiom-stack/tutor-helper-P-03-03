@@ -4,6 +4,10 @@ import { signToken } from "../lib/jwt.js";
 
 export async function login(req, res) {
   try {
+    if (!req.body) {
+      return res.status(400).json({ error: "Request body required" });
+    }
+
     const { username, password } = req.body;
 
     if (!username || !password) {

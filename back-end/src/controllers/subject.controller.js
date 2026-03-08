@@ -1,6 +1,10 @@
 // POST
 export async function createSubject(req, res) {
   try {
+    if (!req.body) {
+      return res.status(400).json({ error: "Request body required" });
+    }
+
     const { name, description, class_id, teacher_id } = req.body;
 
     if (!class_id) {
@@ -117,6 +121,9 @@ export async function getAllSubjectsInTheSystem(req, res) {
 export async function updateSubjectBySubjectId(req, res) {
   try {
     const { subjectId } = req.params;
+    if (!req.body) {
+      return res.status(400).json({ error: "Request body required" });
+    }
     const { name, description, class_id } = req.body;
     const { id: userId, role: userRole } = req.user;
 

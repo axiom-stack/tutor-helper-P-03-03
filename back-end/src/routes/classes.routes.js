@@ -1,4 +1,13 @@
 import { authenticateToken } from "../middleware/auth.js";
+import {
+  createClass,
+  getClassesByTeacherId,
+  getClassByClassId,
+  getAllClassesInTheSystem,
+  updateClassByClassId,
+  deleteClassByClassId,
+} from "../controllers/classes.controller.js";
+import express from "express";
 
 const router = express.Router();
 

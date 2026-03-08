@@ -1,6 +1,10 @@
 // POST
 export async function createUnit(req, res) {
   try {
+    if (!req.body) {
+      return res.status(400).json({ error: "Request body required" });
+    }
+
     const { name, description, subject_id, teacher_id } = req.body;
 
     if (!subject_id) {
@@ -138,6 +142,9 @@ export async function getAllUnitsInTheSystem(req, res) {
 export async function updateUnitByUnitId(req, res) {
   try {
     const { unitId } = req.params;
+    if (!req.body) {
+      return res.status(400).json({ error: "Request body required" });
+    }
     const { name, description, subject_id } = req.body;
     const { id: userId, role: userRole } = req.user;
 

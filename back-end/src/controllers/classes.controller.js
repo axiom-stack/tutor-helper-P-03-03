@@ -1,6 +1,10 @@
 // POST
 export async function createClass(req, res) {
   try {
+    if (!req.body) {
+      return res.status(400).json({ error: "Request body required" });
+    }
+
     const { name, description, teacher_id } = req.body;
 
     if (!teacher_id) {
@@ -85,6 +89,9 @@ export async function getAllClassesInTheSystem(req, res) {
 export async function updateClassByClassId(req, res) {
   try {
     const { classId } = req.params;
+    if (!req.body) {
+      return res.status(400).json({ error: "Request body required" });
+    }
     const { name, description } = req.body;
     const { id: userId, role: userRole } = req.user;
 
