@@ -150,10 +150,21 @@ export interface CreateLessonFilePayload {
   file: File;
 }
 
+export interface CreateLessonFileResponse {
+  lesson?: Lesson;
+  message: string;
+  fileProcessed: boolean;
+  extractionStatus: 'success' | 'partial' | 'failed';
+  contentLength: number;
+  fileName?: string;
+  fileType?: string;
+  warnings?: string[];
+}
+
 /** Create a lesson with PDF/Word file (FormData). Do not set Content-Type so browser sets multipart boundary. */
 export async function createLessonFile(
   payload: CreateLessonFilePayload
-): Promise<{ message: string; fileProcessed: boolean }> {
+): Promise<CreateLessonFileResponse> {
   const form = new FormData();
   form.append('name', payload.name);
   form.append('description', payload.description);
@@ -162,15 +173,8 @@ export async function createLessonFile(
   form.append('id', String(payload.teacher_id));
   form.append('file', payload.file);
 
-  const response = await api().post<{
-    message?: string;
-    fileProcessed?: boolean;
-  }>('/api/lessons', form);
-  // FormData: do not set Content-Type so browser sets multipart/form-data with boundary
-  return {
-    message: response.data.message ?? 'تم رفع الملف',
-    fileProcessed: response.data.fileProcessed ?? false,
-  };
+  const response = await api().post<CreateLessonFileResponse>('/api/lessons', form);
+  return response.data;
 }
 
 export async function updateLesson(

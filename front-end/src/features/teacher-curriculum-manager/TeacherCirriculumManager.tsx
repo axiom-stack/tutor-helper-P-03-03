@@ -16,6 +16,10 @@ import {
   MdAdd,
   MdPictureAsPdf,
   MdDescription,
+  MdAutorenew,
+  MdCheckCircle,
+  MdErrorOutline,
+  MdWarningAmber,
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -28,18 +32,54 @@ import {
   createLessonFile,
   deleteUnit,
   deleteLesson,
+  type CreateLessonFileResponse,
 } from './teacher-curriculum-manager.services';
 import type { Class, Subject, Unit, Lesson } from '../../types';
 import './teacher-cirriculum-manager.css';
 
 type TabId = 'structure' | 'add' | 'upload';
+type UploadStatus = 'processing' | 'success' | 'partial' | 'failed';
+
+const MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024;
 
 interface UploadedFileItem {
   id: string;
   name: string;
   size: number;
   type: 'pdf' | 'word';
-  status: 'success' | 'pending';
+  status: UploadStatus;
+  message: string;
+  contentLength?: number;
+}
+
+function getUploadStatusLabel(status: UploadStatus) {
+  if (status === 'success') return 'تم الاستخراج';
+  if (status === 'partial') return 'استخراج جزئي';
+  if (status === 'failed') return 'فشل الاستخراج';
+  return 'جارٍ المعالجة...';
+}
+
+function getUploadStatusClassName(status: UploadStatus) {
+  if (status === 'success') return 'tcm__file-status--success';
+  if (status === 'partial') return 'tcm__file-status--partial';
+  if (status === 'failed') return 'tcm__file-status--failed';
+  return 'tcm__file-status--processing';
+}
+
+function getUploadStatusIcon(status: UploadStatus) {
+  if (status === 'success') {
+    return <MdCheckCircle aria-hidden />;
+  }
+
+  if (status === 'partial') {
+    return <MdWarningAmber aria-hidden />;
+  }
+
+  if (status === 'failed') {
+    return <MdErrorOutline aria-hidden />;
+  }
+
+  return <MdAutorenew className="tcm__spin" aria-hidden />;
 }
 
 function TeacherCirriculumManager() {
@@ -296,22 +336,55 @@ function TeacherCirriculumManager() {
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !uploadUnitId || !uploadLessonName.trim() || !teacherId) return;
+    if (!file || !uploadUnitId || !uploadLessonName.trim() || !teacherId) {
+      return;
+    }
+
+    const uploadId = `${Date.now()}-${file.name}`;
     const isPdf =
       file.type === 'application/pdf' ||
       file.name.toLowerCase().endsWith('.pdf');
-    const isWord =
+    const isLegacyDoc =
+      file.type === 'application/msword' ||
+      file.name.toLowerCase().endsWith('.doc');
+    const isDocx =
       file.type ===
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-      file.type === 'application/msword' ||
-      file.name.toLowerCase().endsWith('.docx') ||
-      file.name.toLowerCase().endsWith('.doc');
-    const contentType = isPdf ? 'pdf' : isWord ? 'word' : null;
-    if (!contentType) {
-      setError('يدعم الملفات PDF أو Word فقط');
+      file.name.toLowerCase().endsWith('.docx');
+    const contentType = isPdf ? 'pdf' : isDocx ? 'word' : null;
+
+    if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+      setError('حجم الملف يتجاوز الحد الأقصى المسموح وهو 25 ميجابايت');
+      e.target.value = '';
       return;
     }
+
+    if (isLegacyDoc) {
+      setError('ملفات DOC غير مدعومة. يرجى تحويل الملف إلى DOCX أولاً');
+      e.target.value = '';
+      return;
+    }
+
+    if (!contentType) {
+      setError('يدعم الملفات PDF أو DOCX فقط');
+      e.target.value = '';
+      return;
+    }
+
+    setError(null);
     setUploading(true);
+    setFileList((prev) => [
+      {
+        id: uploadId,
+        name: file.name,
+        size: file.size,
+        type: contentType,
+        status: 'processing',
+        message: 'جارٍ استخراج النص من الملف...',
+      },
+      ...prev,
+    ]);
+
     createLessonFile({
       name: uploadLessonName.trim(),
       description: uploadLessonDesc.trim() || '—',
@@ -320,22 +393,50 @@ function TeacherCirriculumManager() {
       teacher_id: teacherId,
       file,
     })
-      .then((res) => {
-        setFileList((prev) => [
-          ...prev,
-          {
-            id: `${Date.now()}-${file.name}`,
-            name: file.name,
-            size: file.size,
-            type: contentType,
-            status: res.fileProcessed ? 'success' : 'pending',
-          },
-        ]);
+      .then((res: CreateLessonFileResponse) => {
+        const nextStatus: UploadStatus =
+          res.extractionStatus === 'partial'
+            ? 'partial'
+            : res.fileProcessed
+              ? 'success'
+              : 'failed';
+
+        setFileList((prev) =>
+          prev.map((item) =>
+            item.id === uploadId
+              ? {
+                  ...item,
+                  status: nextStatus,
+                  message: res.message,
+                  contentLength: res.contentLength,
+                }
+              : item
+          )
+        );
         setUploadLessonName('');
         setUploadLessonDesc('');
+
+        if (selectedSubjectId && selectedSubjectId === uploadSubjectId) {
+          loadStructure();
+        }
       })
       .catch((err) => {
-        setError(err?.response?.data?.error ?? 'فشل رفع الملف');
+        const uploadError =
+          err?.response?.data?.error ?? 'فشل رفع الملف ومعالجة المحتوى';
+
+        setError(uploadError);
+        setFileList((prev) =>
+          prev.map((item) =>
+            item.id === uploadId
+              ? {
+                  ...item,
+                  status: 'failed',
+                  message: uploadError,
+                  contentLength: 0,
+                }
+              : item
+          )
+        );
       })
       .finally(() => {
         setUploading(false);
@@ -924,7 +1025,7 @@ function TeacherCirriculumManager() {
               <input
                 id="tcm-file-input"
                 type="file"
-                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 className="sr-only"
                 onChange={handleFileSelect}
                 disabled={
@@ -936,7 +1037,7 @@ function TeacherCirriculumManager() {
               </div>
               <p className="tcm__dropzone-text">اسحب وأفلت الملف هنا</p>
               <p className="tcm__dropzone-hint">
-                يدعم ملفات PDF و Word حتى ٢٥ ميجابايت
+                يدعم ملفات PDF و DOCX حتى ٢٥ ميجابايت
               </p>
               <button
                 type="button"
@@ -973,15 +1074,21 @@ function TeacherCirriculumManager() {
                       <div>
                         <p className="tcm__file-name">{f.name}</p>
                         <p className="tcm__file-meta">
-                          {f.type.toUpperCase()} •{' '}
+                          {f.type === 'pdf' ? 'PDF' : 'DOCX'} •{' '}
                           {(f.size / 1024 / 1024).toFixed(1)} ميجابايت
+                          {typeof f.contentLength === 'number' &&
+                          f.contentLength > 0
+                            ? ` • ${f.contentLength} حرف`
+                            : ''}
                         </p>
+                        <p className="tcm__file-note">{f.message}</p>
                       </div>
                     </div>
                     <span
-                      className={`tcm__file-status ${f.status === 'success' ? 'tcm__file-status--success' : 'tcm__file-status--pending'}`}
+                      className={`tcm__file-status ${getUploadStatusClassName(f.status)}`}
                     >
-                      {f.status === 'success' ? 'تم الاستخراج' : 'جارٍ المعالجة...'}
+                      {getUploadStatusIcon(f.status)}
+                      {getUploadStatusLabel(f.status)}
                     </span>
                   </div>
                 ))}
