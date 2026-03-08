@@ -1,6 +1,6 @@
-import bcrypt from "bcryptjs";
 import { turso } from "../lib/turso.js";
 import { signToken } from "../lib/jwt.js";
+import { verifyPassword } from "../utils/utils.js";
 
 export async function login(req, res) {
   try {
@@ -25,6 +25,8 @@ export async function login(req, res) {
       args: [username],
     });
 
+    console.log(result.rows);
+
     if (result.rows.length === 0) {
       req.log.warn({ username }, "User not found");
       return res.status(401).json({ error: "Invalid credentials" });
@@ -36,7 +38,9 @@ export async function login(req, res) {
       "User found, checking password",
     );
 
-    const match = await bcrypt.compare(password, user.password);
+    const match = await verifyPassword(password, user.password);
+
+    console.log(match);
     if (!match) {
       req.log.warn({ userId: user.id, username }, "Invalid password");
       return res.status(401).json({ error: "Invalid credentials" });

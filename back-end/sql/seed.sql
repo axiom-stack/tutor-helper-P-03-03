@@ -2,13 +2,13 @@
 
 -- Insert users (teachers and students)
 INSERT INTO Users (username, password, role) VALUES
-('admin', 'admin', 'admin'),
-('john_doe', 'password123', 'teacher'),
-('sarah_smith', 'password123', 'teacher'),
-('mike_johnson', 'password123', 'teacher'),
-('emily_brown', 'password123', 'teacher'),
-('david_wilson', 'password123', 'teacher'),
-('lisa_garcia', 'password123', 'teacher');
+('admin', '$2a$10$rnn6QKsH7VHgJ3TKzAuyk.8P5WW7Yb4/PWA1XF6XCzErrr5ZuJ2dO', 'admin'),
+('john_doe', '$2a$10$rnn6QKsH7VHgJ3TKzAuyk.8P5WW7Yb4/PWA1XF6XCzErrr5ZuJ2dO', 'teacher'),
+('sarah_smith', '$2a$10$rnn6QKsH7VHgJ3TKzAuyk.8P5WW7Yb4/PWA1XF6XCzErrr5ZuJ2dO', 'teacher'),
+('mike_johnson', '$2a$10$rnn6QKsH7VHgJ3TKzAuyk.8P5WW7Yb4/PWA1XF6XCzErrr5ZuJ2dO', 'teacher'),
+('emily_brown', '$2a$10$rnn6QKsH7VHgJ3TKzAuyk.8P5WW7Yb4/PWA1XF6XCzErrr5ZuJ2dO', 'teacher'),
+('david_wilson', '$2a$10$rnn6QKsH7VHgJ3TKzAuyk.8P5WW7Yb4/PWA1XF6XCzErrr5ZuJ2dO', 'teacher'),
+('lisa_garcia', '$2a$10$rnn6QKsH7VHgJ3TKzAuyk.8P5WW7Yb4/PWA1XF6XCzErrr5ZuJ2dO', 'teacher');
 
 -- Insert classes
 INSERT INTO Classes (name, description, teacher_id) VALUES
