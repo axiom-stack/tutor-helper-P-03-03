@@ -452,6 +452,7 @@ const promptsHelper = {
         "duration": ""
       },
       "objectives": [],
+      "strategy": "",
       // Each row in lesson_flow maps to one time block in the lesson.
       // activity_type must correspond to a phase:
       // intro | presentation | activity | assessment

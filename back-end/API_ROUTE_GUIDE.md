@@ -3,6 +3,60 @@
 ## Overview
 This API provides endpoints for managing educational content including classes, subjects, units, and lessons. All endpoints except authentication require JWT token authentication.
 
+## Phase 2 Lesson-Plan Pipeline (MVP)
+
+### Required Environment Variables
+
+- `GROQ_API_KEY`: Groq API key used for lesson-plan generation
+- `GROQ_MODEL` (optional): Groq model name (default: `llama-3.3-70b-versatile`)
+- `GROQ_TIMEOUT_MS` (optional): request timeout in milliseconds (default: `30000`)
+- `TURSO_DATABASE_URL`: Turso/libSQL database URL
+- `TURSO_AUTH_TOKEN`: Turso auth token
+
+### Run
+
+1. Start backend:
+   ```bash
+   npm run dev
+   ```
+2. Generate a lesson plan:
+   - `POST /api/generate-plan`
+3. Read saved plans:
+   - `GET /api/plans`
+   - `GET /api/plans/:id`
+
+### `POST /api/generate-plan` Request Body
+
+```json
+{
+  "lesson_title": "Fractions Basics",
+  "lesson_content": "Lesson content text here...",
+  "subject": "Mathematics",
+  "grade": "7",
+  "unit": "Rational Numbers",
+  "duration_minutes": 45,
+  "plan_type": "traditional"
+}
+```
+
+`plan_type` must be one of:
+- `traditional`
+- `active_learning`
+
+### `POST /api/generate-plan` Response (201)
+
+```json
+{
+  "id": 1,
+  "plan_type": "traditional",
+  "plan_json": {},
+  "validation_status": "passed",
+  "retry_occurred": false,
+  "created_at": "2026-03-08 12:00:00",
+  "updated_at": "2026-03-08 12:00:00"
+}
+```
+
 ## Authentication
 All API endpoints except login/logout require authentication via JWT token in the Authorization header.
 

@@ -41,3 +41,17 @@ Create Table Lessons (
   content TEXT NOT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+Create Table LessonPlans (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  teacher_id INTEGER NOT NULL REFERENCES users(id),
+  lesson_title TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  grade TEXT NOT NULL,
+  unit TEXT NOT NULL,
+  duration_minutes INTEGER NOT NULL,
+  plan_type TEXT NOT NULL CHECK(plan_type IN ('traditional', 'active_learning')),
+  plan_json TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
