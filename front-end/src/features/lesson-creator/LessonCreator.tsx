@@ -551,6 +551,10 @@ function LessonCreator() {
   const traditionalActivities = toTextList(planObject.activities);
   const traditionalResources = toTextList(planObject.resources);
   const traditionalAssessment = toTextList(planObject.assessment);
+  const traditionalIntro = toDisplayText(planObject.intro);
+  const traditionalStrategy = toDisplayText(planObject.strategy);
+  const traditionalHomework = toDisplayText(planObject.homework);
+  const traditionalSource = toDisplayText(planObject.source);
 
   const activeObjectives = toTextList(planObject.objectives);
   const lessonFlow = Array.isArray(planObject.lesson_flow)
@@ -654,147 +658,198 @@ function LessonCreator() {
                 </span>
               </div>
 
-              <div className="lcp__meta-grid">
-                <div>
-                  <label>التاريخ</label>
-                  <p>{extractHeaderValue(header, 'date')}</p>
+              {generatedPlan.plan_type !== 'traditional' && (
+                <div className="lcp__meta-grid">
+                  <div>
+                    <label>التاريخ</label>
+                    <p>{extractHeaderValue(header, 'date')}</p>
+                  </div>
+                  <div>
+                    <label>اليوم</label>
+                    <p>{extractHeaderValue(header, 'day')}</p>
+                  </div>
+                  <div>
+                    <label>الصف</label>
+                    <p>
+                      {extractHeaderValue(header, 'grade') !== '—'
+                        ? extractHeaderValue(header, 'grade')
+                        : selectedClass?.name ?? '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <label>الشعبة</label>
+                    <p>{extractHeaderValue(header, 'class')}</p>
+                  </div>
+                  <div>
+                    <label>الدرس</label>
+                    <p>
+                      {extractHeaderValue(header, 'lesson_title') !== '—'
+                        ? extractHeaderValue(header, 'lesson_title')
+                        : selectedLesson?.name ?? '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <label>الوحدة</label>
+                    <p>
+                      {extractHeaderValue(header, 'unit') !== '—'
+                        ? extractHeaderValue(header, 'unit')
+                        : selectedUnit?.name ?? '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <label>المدة</label>
+                    <p>
+                      {extractHeaderValue(header, 'duration') !== '—'
+                        ? extractHeaderValue(header, 'duration')
+                        : `${durationMinutes} دقيقة`}
+                    </p>
+                  </div>
+                  <div>
+                    <label>الخطة</label>
+                    <p>تعلم نشط</p>
+                  </div>
                 </div>
-                <div>
-                  <label>اليوم</label>
-                  <p>{extractHeaderValue(header, 'day')}</p>
-                </div>
-                <div>
-                  <label>الصف</label>
-                  <p>
-                    {extractHeaderValue(header, 'grade') !== '—'
-                      ? extractHeaderValue(header, 'grade')
-                      : selectedClass?.name ?? '—'}
-                  </p>
-                </div>
-                <div>
-                  <label>الشعبة</label>
-                  <p>{extractHeaderValue(header, 'class')}</p>
-                </div>
-                <div>
-                  <label>الدرس</label>
-                  <p>
-                    {extractHeaderValue(header, 'lesson_title') !== '—'
-                      ? extractHeaderValue(header, 'lesson_title')
-                      : selectedLesson?.name ?? '—'}
-                  </p>
-                </div>
-                <div>
-                  <label>الوحدة</label>
-                  <p>
-                    {extractHeaderValue(header, 'unit') !== '—'
-                      ? extractHeaderValue(header, 'unit')
-                      : selectedUnit?.name ?? '—'}
-                  </p>
-                </div>
-                <div>
-                  <label>المدة</label>
-                  <p>
-                    {extractHeaderValue(header, 'duration') !== '—'
-                      ? extractHeaderValue(header, 'duration')
-                      : `${durationMinutes} دقيقة`}
-                  </p>
-                </div>
-                <div>
-                  <label>الخطة</label>
-                  <p>
-                    {generatedPlan.plan_type === 'traditional'
-                      ? 'تقليدية'
-                      : 'تعلم نشط'}
-                  </p>
-                </div>
-              </div>
+              )}
 
               {generatedPlan.plan_type === 'traditional' ? (
-                <div className="lcp__plan-sections">
-                  <section>
-                    <h3>التمهيد</h3>
-                    <p>{toDisplayText(planObject.intro)}</p>
-                  </section>
+                <div className="lcp__traditional-card">
+                  <div className="lcp__traditional-shell">
+                    <div className="lcp__traditional-header-grid">
+                      <div>
+                        <label>التاريخ</label>
+                        <p>{extractHeaderValue(header, 'date')}</p>
+                      </div>
+                      <div>
+                        <label>اليوم</label>
+                        <p>{extractHeaderValue(header, 'day')}</p>
+                      </div>
+                      <div>
+                        <label>الصف</label>
+                        <p>
+                          {extractHeaderValue(header, 'grade') !== '—'
+                            ? extractHeaderValue(header, 'grade')
+                            : selectedClass?.name ?? '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <label>الشعبة</label>
+                        <p>{extractHeaderValue(header, 'class')}</p>
+                      </div>
+                      <div>
+                        <label>الحصة</label>
+                        <p>
+                          {extractHeaderValue(header, 'lesson_title') !== '—'
+                            ? extractHeaderValue(header, 'lesson_title')
+                            : selectedLesson?.name ?? '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <label>العنوان</label>
+                        <p>
+                          {extractHeaderValue(header, 'lesson_title') !== '—'
+                            ? extractHeaderValue(header, 'lesson_title')
+                            : selectedLesson?.name ?? '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <label>الوحدة</label>
+                        <p>
+                          {extractHeaderValue(header, 'unit') !== '—'
+                            ? extractHeaderValue(header, 'unit')
+                            : selectedUnit?.name ?? '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <label>الوقت</label>
+                        <p>
+                          {extractHeaderValue(header, 'duration') !== '—'
+                            ? extractHeaderValue(header, 'duration')
+                            : `${durationMinutes} دقيقة`}
+                        </p>
+                      </div>
+                    </div>
 
-                  <section>
-                    <h3>المفاهيم</h3>
-                    <ul>
-                      {traditionalConcepts.length > 0 ? (
-                        traditionalConcepts.map((item, index) => (
-                          <li key={`${item}-${index}`}>{item}</li>
-                        ))
-                      ) : (
-                        <li>لا توجد بيانات.</li>
-                      )}
-                    </ul>
-                  </section>
+                    <div className="lcp__traditional-intro">
+                      <h3>التمهيد</h3>
+                      <p>{traditionalIntro}</p>
+                      <h4>المفاهيم</h4>
+                      <ul>
+                        {traditionalConcepts.length > 0 ? (
+                          traditionalConcepts.map((item, index) => (
+                            <li key={`${item}-${index}`}>{item}</li>
+                          ))
+                        ) : (
+                          <li>لا توجد مفاهيم مدخلة.</li>
+                        )}
+                      </ul>
+                    </div>
 
-                  <section>
-                    <h3>الأهداف التعليمية</h3>
-                    <ul>
-                      {traditionalObjectives.length > 0 ? (
-                        traditionalObjectives.map((item, index) => (
-                          <li key={`${item}-${index}`}>{item}</li>
-                        ))
-                      ) : (
-                        <li>لا توجد بيانات.</li>
-                      )}
-                    </ul>
-                  </section>
+                    <div className="lcp__traditional-grid">
+                      <section>
+                        <h4>الأهداف / المخرجات التعليمية</h4>
+                        <ul>
+                          {traditionalObjectives.length > 0 ? (
+                            traditionalObjectives.map((item, index) => (
+                              <li key={`${item}-${index}`}>{item}</li>
+                            ))
+                          ) : (
+                            <li>لا توجد أهداف مدخلة.</li>
+                          )}
+                        </ul>
+                      </section>
+                      <section>
+                        <h4>الاستراتيجيات / طرق التدريس</h4>
+                        <p>{traditionalStrategy}</p>
+                      </section>
+                      <section>
+                        <h4>الأنشطة</h4>
+                        <ul>
+                          {traditionalActivities.length > 0 ? (
+                            traditionalActivities.map((item, index) => (
+                              <li key={`${item}-${index}`}>{item}</li>
+                            ))
+                          ) : (
+                            <li>لا توجد أنشطة مدخلة.</li>
+                          )}
+                        </ul>
+                      </section>
+                      <section>
+                        <h4>الوسائل / مصادر التعلم</h4>
+                        <ul>
+                          {traditionalResources.length > 0 ? (
+                            traditionalResources.map((item, index) => (
+                              <li key={`${item}-${index}`}>{item}</li>
+                            ))
+                          ) : (
+                            <li>لا توجد وسائل مدخلة.</li>
+                          )}
+                        </ul>
+                      </section>
+                      <section>
+                        <h4>التقويم</h4>
+                        <ul>
+                          {traditionalAssessment.length > 0 ? (
+                            traditionalAssessment.map((item, index) => (
+                              <li key={`${item}-${index}`}>{item}</li>
+                            ))
+                          ) : (
+                            <li>لا توجد أدوات تقويم مدخلة.</li>
+                          )}
+                        </ul>
+                      </section>
+                    </div>
 
-                  <section>
-                    <h3>الاستراتيجية</h3>
-                    <p>{toDisplayText(planObject.strategy)}</p>
-                  </section>
-
-                  <section>
-                    <h3>الأنشطة</h3>
-                    <ul>
-                      {traditionalActivities.length > 0 ? (
-                        traditionalActivities.map((item, index) => (
-                          <li key={`${item}-${index}`}>{item}</li>
-                        ))
-                      ) : (
-                        <li>لا توجد بيانات.</li>
-                      )}
-                    </ul>
-                  </section>
-
-                  <section>
-                    <h3>الوسائل</h3>
-                    <ul>
-                      {traditionalResources.length > 0 ? (
-                        traditionalResources.map((item, index) => (
-                          <li key={`${item}-${index}`}>{item}</li>
-                        ))
-                      ) : (
-                        <li>لا توجد بيانات.</li>
-                      )}
-                    </ul>
-                  </section>
-
-                  <section>
-                    <h3>التقويم</h3>
-                    <ul>
-                      {traditionalAssessment.length > 0 ? (
-                        traditionalAssessment.map((item, index) => (
-                          <li key={`${item}-${index}`}>{item}</li>
-                        ))
-                      ) : (
-                        <li>لا توجد بيانات.</li>
-                      )}
-                    </ul>
-                  </section>
-
-                  <section>
-                    <h3>الواجب</h3>
-                    <p>{toDisplayText(planObject.homework)}</p>
-                  </section>
-
-                  <section>
-                    <h3>المصدر</h3>
-                    <p>{toDisplayText(planObject.source)}</p>
-                  </section>
+                    <div className="lcp__traditional-footer">
+                      <div>
+                        <h4>الواجب</h4>
+                        <p>{traditionalHomework}</p>
+                      </div>
+                      <div>
+                        <h4>المصدر</h4>
+                        <p>{traditionalSource}</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="lcp__plan-sections">

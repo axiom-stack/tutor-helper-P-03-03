@@ -12,6 +12,7 @@ export function buildPrompt2PedagogicalTuner({
   const lessonContent = typeof request.lesson_content === "string" ? request.lesson_content.trim() : "";
   const maxLessonContentChars = 8000;
   const boundedLessonContent = lessonContent.slice(0, maxLessonContentChars);
+  const isTraditional = planType === "traditional";
   const normalizedValidationErrors = Array.isArray(validationErrors)
     ? validationErrors.map((error) => ({
         code: error?.code || "",
@@ -49,6 +50,9 @@ export function buildPrompt2PedagogicalTuner({
     "Strategy must be selected only from the provided allowed strategy bank.",
     "Objectives must be measurable and avoid forbidden verbs.",
     "Fix alignment, timing, and assessment quality issues.",
+    isTraditional
+      ? "For traditional plans, ensure rich pedagogical depth: specific intro, diverse activities, practical resources, and specific assessment items."
+      : "For active_learning plans, keep lesson_flow rows concise and realistic.",
     "Do not include instruction, plan_type, lesson_metadata, lesson_content, draft_plan_json, target_output_schema, or validation_errors in the output.",
     "Return JSON only with no markdown and no commentary.",
   ].join(" ");
@@ -79,6 +83,20 @@ export function buildPrompt2PedagogicalTuner({
       allowed_strategy_bank: simplifiedStrategyBank,
       target_output_schema: targetSchema,
       validation_errors: normalizedValidationErrors,
+      traditional_quality_targets: isTraditional
+        ? {
+            intro_min_sentences: 2,
+            minimum_items_per_array_field: {
+              concepts: 3,
+              objectives: 3,
+              activities: 3,
+              resources: 3,
+              assessment: 3,
+            },
+            objective_must_start_with: "أن",
+            include_time_hints_in_activities: true,
+          }
+        : null,
     },
   };
 

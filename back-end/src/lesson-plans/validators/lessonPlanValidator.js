@@ -41,6 +41,19 @@ function extractMinutes(value) {
   return Number.isFinite(numericValue) ? numericValue : null;
 }
 
+function countWords(value) {
+  if (typeof value !== "string") {
+    return 0;
+  }
+
+  const normalized = value.trim();
+  if (!normalized) {
+    return 0;
+  }
+
+  return normalized.split(/\s+/).filter(Boolean).length;
+}
+
 function objectiveToText(objective) {
   if (typeof objective === "string") {
     return objective;
@@ -409,6 +422,66 @@ function validateActiveFlowActivityTypes(plan, planType, errors) {
   }
 }
 
+function validateTraditionalRichness(plan, planType, errors) {
+  if (planType !== PLAN_TYPES.TRADITIONAL) {
+    return;
+  }
+
+  const introText = typeof plan?.intro === "string" ? plan.intro.trim() : "";
+  if (!introText || countWords(introText) < 12) {
+    addError(
+      errors,
+      "business.traditional.intro.too_short",
+      "intro",
+      "traditional intro must be specific and contain at least 12 words",
+    );
+  }
+
+  const fieldsWithMinimumItems = [
+    { field: "concepts", minimum: 3 },
+    { field: "objectives", minimum: 3 },
+    { field: "activities", minimum: 3 },
+    { field: "resources", minimum: 3 },
+    { field: "assessment", minimum: 3 },
+  ];
+
+  for (const rule of fieldsWithMinimumItems) {
+    const items = Array.isArray(plan?.[rule.field]) ? plan[rule.field] : [];
+    if (items.length < rule.minimum) {
+      addError(
+        errors,
+        "business.traditional.field.not_rich_enough",
+        rule.field,
+        `${rule.field} must include at least ${rule.minimum} items for traditional plans`,
+      );
+    }
+  }
+
+  const objectives = Array.isArray(plan?.objectives) ? plan.objectives : [];
+  for (let i = 0; i < objectives.length; i += 1) {
+    const objectiveText = objectiveToText(objectives[i]).trim();
+
+    if (!objectiveText) {
+      addError(
+        errors,
+        "business.traditional.objective.empty",
+        `objectives.${i}`,
+        "objective must be non-empty",
+      );
+      continue;
+    }
+
+    if (!objectiveText.startsWith("أن")) {
+      addError(
+        errors,
+        "business.traditional.objective.format",
+        `objectives.${i}`,
+        "objective should start with أن to keep behavioral format",
+      );
+    }
+  }
+}
+
 export function validateLessonPlan({
   plan,
   planType,
@@ -426,6 +499,7 @@ export function validateLessonPlan({
   validateAssessment(plan, planType, errors);
   validateHomework(plan, errors);
   validateActiveFlowActivityTypes(plan, planType, errors);
+  validateTraditionalRichness(plan, planType, errors);
 
   return {
     isValid: errors.length === 0,

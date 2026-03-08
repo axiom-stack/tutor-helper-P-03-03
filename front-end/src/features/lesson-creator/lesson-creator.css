@@ -230,6 +230,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+  background: linear-gradient(145deg, #ffffff 0%, #f7faff 100%);
 }
 
 .lcp__plan-banner {
@@ -301,6 +302,145 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+}
+
+.lcp__traditional-card {
+  border-radius: calc(var(--radius-xl) + 10px);
+  background: radial-gradient(circle at 15% 12%, #2e4f83 0%, #1f3f75 55%, #173868 100%);
+  padding: 1.1rem;
+  box-shadow: 0 18px 30px rgba(15, 23, 42, 0.22);
+}
+
+.lcp__traditional-shell {
+  border: 1px solid rgba(226, 238, 255, 0.45);
+  border-radius: calc(var(--radius-xl) + 6px);
+  color: #ecf4ff;
+  overflow: hidden;
+}
+
+.lcp__traditional-header-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-bottom: 1px solid rgba(226, 238, 255, 0.3);
+}
+
+.lcp__traditional-header-grid > div {
+  border-left: 1px solid rgba(226, 238, 255, 0.22);
+  border-bottom: 1px solid rgba(226, 238, 255, 0.22);
+  padding: 0.6rem 0.75rem;
+}
+
+.lcp__traditional-header-grid > div:nth-child(4n) {
+  border-left: none;
+}
+
+.lcp__traditional-header-grid label {
+  display: block;
+  font-size: var(--text-xs);
+  color: rgba(228, 240, 255, 0.86);
+  margin-bottom: 4px;
+  font-weight: 700;
+}
+
+.lcp__traditional-header-grid p {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  font-weight: 600;
+}
+
+.lcp__traditional-intro {
+  padding: 0.75rem;
+  border-bottom: 1px solid rgba(226, 238, 255, 0.28);
+}
+
+.lcp__traditional-intro h3,
+.lcp__traditional-intro h4 {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: #f7fbff;
+}
+
+.lcp__traditional-intro h4 {
+  margin-top: 0.55rem;
+}
+
+.lcp__traditional-intro p {
+  margin: 0.35rem 0 0;
+  line-height: 1.75;
+  color: rgba(236, 244, 255, 0.96);
+}
+
+.lcp__traditional-intro ul {
+  margin: 0.4rem 0 0;
+  padding: 0 1.1rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  color: rgba(236, 244, 255, 0.96);
+}
+
+.lcp__traditional-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-bottom: 1px solid rgba(226, 238, 255, 0.28);
+}
+
+.lcp__traditional-grid section {
+  border-left: 1px solid rgba(226, 238, 255, 0.22);
+  padding: 0.7rem;
+  min-height: 220px;
+}
+
+.lcp__traditional-grid section:last-child {
+  border-left: none;
+}
+
+.lcp__traditional-grid h4 {
+  margin: 0 0 0.35rem;
+  font-size: var(--text-sm);
+  color: #f7fbff;
+}
+
+.lcp__traditional-grid p {
+  margin: 0;
+  line-height: 1.65;
+  color: rgba(236, 244, 255, 0.96);
+}
+
+.lcp__traditional-grid ul {
+  margin: 0;
+  padding: 0 1.05rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  color: rgba(236, 244, 255, 0.96);
+}
+
+.lcp__traditional-footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.lcp__traditional-footer > div {
+  padding: 0.65rem 0.75rem;
+  border-left: 1px solid rgba(226, 238, 255, 0.22);
+}
+
+.lcp__traditional-footer > div:last-child {
+  border-left: none;
+}
+
+.lcp__traditional-footer h4 {
+  margin: 0 0 0.2rem;
+  font-size: var(--text-sm);
+  color: #f7fbff;
+}
+
+.lcp__traditional-footer p {
+  margin: 0;
+  line-height: 1.7;
+  color: rgba(236, 244, 255, 0.96);
 }
 
 .lcp__table-wrap {
@@ -528,5 +668,44 @@
 
   .lcp__meta-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lcp__traditional-header-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lcp__traditional-header-grid > div:nth-child(4n) {
+    border-left: 1px solid rgba(226, 238, 255, 0.22);
+  }
+
+  .lcp__traditional-header-grid > div:nth-child(2n) {
+    border-left: none;
+  }
+
+  .lcp__traditional-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lcp__traditional-grid section {
+    min-height: auto;
+    border-left: none;
+    border-bottom: 1px solid rgba(226, 238, 255, 0.22);
+  }
+
+  .lcp__traditional-grid section:last-child {
+    border-bottom: none;
+  }
+
+  .lcp__traditional-footer {
+    grid-template-columns: 1fr;
+  }
+
+  .lcp__traditional-footer > div {
+    border-left: none;
+    border-bottom: 1px solid rgba(226, 238, 255, 0.22);
+  }
+
+  .lcp__traditional-footer > div:last-child {
+    border-bottom: none;
   }
 }

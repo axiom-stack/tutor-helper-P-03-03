@@ -3,6 +3,7 @@ export function buildPrompt1DraftGenerator({ request, planType, targetSchema }) 
   const lessonContent = typeof request.lesson_content === "string" ? request.lesson_content.trim() : "";
   const maxLessonContentChars = 8000;
   const boundedLessonContent = lessonContent.slice(0, maxLessonContentChars);
+  const isTraditional = planType === "traditional";
 
   const systemPrompt = [
     "You are a lesson-plan draft generator.",
@@ -14,6 +15,9 @@ export function buildPrompt1DraftGenerator({ request, planType, targetSchema }) 
     "Objectives must be measurable and action-oriented.",
     "Keep the total lesson suitable for the requested duration.",
     "Activities must be coherent with the lesson content and metadata.",
+    isTraditional
+      ? "For traditional plans: provide a rich draft with concrete intro, multiple concepts/objectives/activities/resources/assessment items."
+      : "For active_learning plans: keep lesson_flow coherent and time-aware.",
   ].join(" ");
 
   const payload = {
