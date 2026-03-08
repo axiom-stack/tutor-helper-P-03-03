@@ -54,7 +54,12 @@ export async function login(req, res) {
     const token = await signToken({ sub: user.id, username: user.username });
     res.json({
       token,
-      user: { id: user.id, username: user.username },
+      user: {
+        id: user.id,
+        username: user.username,
+        userRole: user.role,
+        createdAt: user.created_at,
+      },
     });
   } catch (err) {
     req.log.error(

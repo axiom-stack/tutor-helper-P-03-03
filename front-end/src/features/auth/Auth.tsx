@@ -18,12 +18,12 @@ function Auth() {
   const [showPassword, setShowPassword] = useState(false);
 
   const navigate = useNavigate();
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
 
   // Redirect if already authenticated
   React.useEffect(() => {
     if (isAuthenticated) {
-      navigate('/');
+      user?.userRole === 'admin' ? navigate('/admin') : navigate('/teacher');
     }
   }, [isAuthenticated, navigate]);
 

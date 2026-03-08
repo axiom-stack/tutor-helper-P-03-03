@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { AuthUser } from '../../types';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
@@ -9,12 +10,12 @@ export function getStoredToken(): string | null {
   return localStorage.getItem(AUTH_TOKEN_KEY);
 }
 
-export function getStoredUser(): { id: number; username: string } | null {
+export function getStoredUser(): AuthUser | null {
   const raw = localStorage.getItem(AUTH_USER_KEY);
   return raw ? JSON.parse(raw) : null;
 }
 
-function setAuth(token: string, user: { id: number; username: string }) {
+function setAuth(token: string, user: AuthUser) {
   localStorage.setItem(AUTH_TOKEN_KEY, token);
   localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
 }

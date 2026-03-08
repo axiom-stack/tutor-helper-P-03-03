@@ -1,13 +1,14 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { login as authLogin, logout as authLogout, getStoredToken, getStoredUser } from '../features/auth/auth.services';
-
-interface User {
-  id: number;
-  username: string;
-}
+import type { AuthUser } from '../types';
+import {
+  login as authLogin,
+  logout as authLogout,
+  getStoredToken,
+  getStoredUser,
+} from '../features/auth/auth.services';
 
 interface AuthContextType {
-  user: User | null;
+  user: AuthUser | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -30,7 +31,7 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -83,9 +84,5 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     logout,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
