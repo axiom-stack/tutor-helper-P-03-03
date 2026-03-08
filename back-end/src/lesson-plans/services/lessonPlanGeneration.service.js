@@ -24,17 +24,146 @@ function normalizeLogger(logger) {
   };
 }
 
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function hasExactTopLevelKeys(value, expectedKeys) {
+  if (!isPlainObject(value)) {
+    return false;
+  }
+
+  const actualKeys = Object.keys(value).sort();
+  const sortedExpectedKeys = [...expectedKeys].sort();
+
+  if (actualKeys.length !== sortedExpectedKeys.length) {
+    return false;
+  }
+
+  return actualKeys.every((key, index) => key === sortedExpectedKeys[index]);
+}
+
+function hasAllExpectedTopLevelKeys(value, expectedKeys) {
+  if (!isPlainObject(value)) {
+    return false;
+  }
+
+  return expectedKeys.every((key) => Object.prototype.hasOwnProperty.call(value, key));
+}
+
+function projectToExpectedTopLevelKeys(value, expectedKeys) {
+  return expectedKeys.reduce((acc, key) => {
+    acc[key] = value[key];
+    return acc;
+  }, {});
+}
+
+const PLAN_WRAPPER_KEYS = [
+  "plan_json",
+  "final_plan_json",
+  "final_plan",
+  "repaired_plan",
+  "tuned_plan",
+  "lesson_plan",
+  "draft_plan_json",
+  "output",
+  "result",
+  "data",
+];
+
+function extractPlanObject(value, expectedKeys, path = "$", depth = 0) {
+  if (depth > 6 || !isPlainObject(value)) {
+    return null;
+  }
+
+  if (hasExactTopLevelKeys(value, expectedKeys)) {
+    return { plan: value, path };
+  }
+
+  if (hasAllExpectedTopLevelKeys(value, expectedKeys)) {
+    return {
+      plan: projectToExpectedTopLevelKeys(value, expectedKeys),
+      path,
+    };
+  }
+
+  for (const key of PLAN_WRAPPER_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(value, key)) {
+      continue;
+    }
+
+    const nestedValue = value[key];
+    const extracted = extractPlanObject(nestedValue, expectedKeys, `${path}.${key}`, depth + 1);
+
+    if (extracted) {
+      return extracted;
+    }
+  }
+
+  for (const [key, nestedValue] of Object.entries(value)) {
+    if (PLAN_WRAPPER_KEYS.includes(key)) {
+      continue;
+    }
+
+    if (!isPlainObject(nestedValue)) {
+      continue;
+    }
+
+    const extracted = extractPlanObject(nestedValue, expectedKeys, `${path}.${key}`, depth + 1);
+
+    if (extracted) {
+      return extracted;
+    }
+  }
+
+  return null;
+}
+
+function normalizeGeneratedPlanOutput(rawOutput, targetSchema, logger, stageName) {
+  const expectedTopLevelKeys = Object.keys(targetSchema || {});
+  if (expectedTopLevelKeys.length === 0) {
+    return rawOutput;
+  }
+
+  const extracted = extractPlanObject(rawOutput, expectedTopLevelKeys);
+
+  if (!extracted) {
+    return rawOutput;
+  }
+
+  if (extracted.path !== "$") {
+    logger.warn(
+      { stage: stageName, extracted_path: extracted.path },
+      "LLM output contained wrapper keys; extracted nested plan object",
+    );
+  }
+
+  return extracted.plan;
+}
+
 function ensureLlmSuccess(result, stageName) {
   if (result?.ok) {
     return;
   }
 
-  throw new LessonPlanPipelineError(502, "llm_generation_failed", `${stageName} failed`, [
+  const details = [
     {
       code: result?.errorType || "llm_error",
       path: "$",
       message: result?.message || "Unknown LLM error",
     },
+  ];
+
+  if (result?.status) {
+    details.push({
+      code: "llm_http_status",
+      path: "$",
+      message: `Groq API status: ${result.status}`,
+    });
+  }
+
+  throw new LessonPlanPipelineError(502, "llm_generation_failed", `${stageName} failed`, [
+    ...details,
   ]);
 }
 
@@ -84,11 +213,17 @@ export function createLessonPlanGenerationService(dependencies = {}) {
       const draftResult = await llmClient.generateJson(prompt1);
       ensureLlmSuccess(draftResult, "Prompt 1 draft generation");
       logger.info({ raw_prompt_1_output: draftResult.rawText }, "prompt 1 raw output");
+      const normalizedDraftPlan = normalizeGeneratedPlanOutput(
+        draftResult.data,
+        targetSchema,
+        logger,
+        "prompt_1",
+      );
 
       const prompt2Initial = prompt2Builder({
         request,
         planType: request.plan_type,
-        draftPlanJson: draftResult.data,
+        draftPlanJson: normalizedDraftPlan,
         pedagogicalRules: knowledge.pedagogical_rules,
         bloomVerbsGeneration: knowledge.bloom_verbs_generation,
         strategyBank,
@@ -100,7 +235,12 @@ export function createLessonPlanGenerationService(dependencies = {}) {
       logger.info({ raw_prompt_2_output: tunedResult.rawText }, "prompt 2 raw output");
 
       let retryOccurred = false;
-      let candidatePlan = tunedResult.data;
+      let candidatePlan = normalizeGeneratedPlanOutput(
+        tunedResult.data,
+        targetSchema,
+        logger,
+        "prompt_2_initial",
+      );
 
       let validationResult = validator({
         plan: candidatePlan,
@@ -133,7 +273,12 @@ export function createLessonPlanGenerationService(dependencies = {}) {
         ensureLlmSuccess(retryResult, "Prompt 2 retry with validation errors");
         logger.info({ raw_prompt_2_retry_output: retryResult.rawText }, "prompt 2 retry raw output");
 
-        candidatePlan = retryResult.data;
+        candidatePlan = normalizeGeneratedPlanOutput(
+          retryResult.data,
+          targetSchema,
+          logger,
+          "prompt_2_retry",
+        );
 
         validationResult = validator({
           plan: candidatePlan,

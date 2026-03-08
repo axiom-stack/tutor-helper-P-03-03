@@ -1,8 +1,14 @@
 export function buildPrompt1DraftGenerator({ request, planType, targetSchema }) {
+  const outputKeys = Object.keys(targetSchema ?? {});
+  const lessonContent = typeof request.lesson_content === "string" ? request.lesson_content.trim() : "";
+  const maxLessonContentChars = 8000;
+  const boundedLessonContent = lessonContent.slice(0, maxLessonContentChars);
+
   const systemPrompt = [
     "You are a lesson-plan draft generator.",
     "Return exactly one JSON object only.",
     "No markdown, no comments, no extra text.",
+    "All natural-language fields must be written in Arabic.",
     "Follow the provided target schema exactly.",
     "Do not add extra keys and do not omit required keys.",
     "Objectives must be measurable and action-oriented.",
@@ -12,6 +18,7 @@ export function buildPrompt1DraftGenerator({ request, planType, targetSchema }) 
 
   const payload = {
     instruction: "Generate a first draft lesson plan JSON.",
+    required_top_level_keys: outputKeys,
     plan_type: planType,
     lesson_metadata: {
       lesson_title: request.lesson_title,
@@ -20,7 +27,8 @@ export function buildPrompt1DraftGenerator({ request, planType, targetSchema }) 
       unit: request.unit,
       duration_minutes: request.duration_minutes,
     },
-    lesson_content: request.lesson_content,
+    lesson_content: boundedLessonContent,
+    lesson_content_truncated: lessonContent.length > maxLessonContentChars,
     target_output_schema: targetSchema,
   };
 
