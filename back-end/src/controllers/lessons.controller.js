@@ -6,8 +6,14 @@ export async function createLesson(req, res) {
       return res.status(400).json({ error: "Request body required" });
     }
 
-    const { name, description, unit_id, content, content_type } = req.body;
-    const { id: teacher_id } = req.user;
+    const {
+      name,
+      description,
+      unit_id,
+      content,
+      content_type,
+      id: teacher_id,
+    } = req.body;
 
     console.log("req.body:", req.body);
     console.log("req.file:", req.file);
