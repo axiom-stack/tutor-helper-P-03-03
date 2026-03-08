@@ -8,25 +8,37 @@ export async function createUnit(req, res) {
     }
 
     const { name, description, subject_id, teacher_id } = req.body;
+    const { id: userId, role: userRole } = req.user;
+    const parsedSubjectId = Number(subject_id);
+    const parsedTeacherId = Number(teacher_id);
 
-    if (!subject_id) {
+    if (!subject_id || Number.isNaN(parsedSubjectId)) {
       return res.status(400).json({ error: "subject_id is required" });
+    }
+    if (!teacher_id || Number.isNaN(parsedTeacherId)) {
+      return res.status(400).json({ error: "teacher_id is required" });
     }
     if (!name || !description) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
+    if (userRole !== "admin" && parsedTeacherId !== Number(userId)) {
+      return res.status(403).json({
+        error: "Unauthorized: You can only create units for your own account",
+      });
+    }
+
     // Verify the subject belongs to the teacher
     const subjectCheck = await turso.execute({
       sql: "SELECT teacher_id FROM Subjects WHERE id = ?",
-      args: [subject_id],
+      args: [parsedSubjectId],
     });
 
     if (subjectCheck.rows.length === 0) {
       return res.status(404).json({ error: "Subject not found" });
     }
 
-    if (subjectCheck.rows[0].teacher_id !== teacher_id) {
+    if (Number(subjectCheck.rows[0].teacher_id) !== parsedTeacherId) {
       return res.status(403).json({
         error: "Unauthorized: You can only create units for your own subjects",
       });
@@ -34,10 +46,16 @@ export async function createUnit(req, res) {
 
     const createdUnit = await turso.execute({
       sql: "INSERT INTO Units (name, description, subject_id, teacher_id) VALUES (?, ?, ?, ?)",
-      args: [name, description, subject_id, teacher_id],
+      args: [name.trim(), description.trim(), parsedSubjectId, parsedTeacherId],
     });
 
-    return res.status(201).json({ unit: createdUnit });
+    // Get the inserted unit data
+    const insertedUnit = await turso.execute({
+      sql: "SELECT * FROM Units WHERE id = ?",
+      args: [createdUnit.lastInsertRowid],
+    });
+
+    return res.status(201).json({ unit: insertedUnit.rows[0] });
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }
@@ -169,11 +187,19 @@ export async function updateUnitByUnitId(req, res) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
+    let targetSubjectId = unit.rows[0].subject_id;
+
     // If subject_id is provided, verify the teacher owns that subject too
-    if (subject_id) {
+    if (subject_id !== undefined) {
+      const parsedSubjectId = Number(subject_id);
+
+      if (Number.isNaN(parsedSubjectId)) {
+        return res.status(400).json({ error: "subject_id must be a valid number" });
+      }
+
       const subjectCheck = await turso.execute({
         sql: "SELECT teacher_id FROM Subjects WHERE id = ?",
-        args: [subject_id],
+        args: [parsedSubjectId],
       });
 
       if (subjectCheck.rows.length === 0) {
@@ -185,14 +211,28 @@ export async function updateUnitByUnitId(req, res) {
           error: "Unauthorized: You can only move units to your own subjects",
         });
       }
+
+      if (Number(subjectCheck.rows[0].teacher_id) !== Number(unit.rows[0].teacher_id)) {
+        return res.status(400).json({
+          error: "Cannot move unit to a subject owned by a different teacher",
+        });
+      }
+
+      targetSubjectId = parsedSubjectId;
     }
 
     const updatedUnit = await turso.execute({
       sql: "UPDATE Units SET name = ?, description = ?, subject_id = ? WHERE id = ?",
-      args: [name, description, subject_id || unit.rows[0].subject_id, unitId],
+      args: [name.trim(), description.trim(), targetSubjectId, unitId],
     });
 
-    return res.status(200).json({ unit: updatedUnit });
+    // Get the updated unit data
+    const updatedUnitData = await turso.execute({
+      sql: "SELECT * FROM Units WHERE id = ?",
+      args: [unitId],
+    });
+
+    return res.status(200).json({ unit: updatedUnitData.rows[0] });
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }
@@ -218,12 +258,24 @@ export async function deleteUnitByUnitId(req, res) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
+    const linkedLessons = await turso.execute({
+      sql: "SELECT COUNT(*) AS count FROM Lessons WHERE unit_id = ?",
+      args: [unitId],
+    });
+
+    if (Number(linkedLessons.rows[0]?.count ?? 0) > 0) {
+      return res.status(409).json({
+        error:
+          "Cannot delete this unit because it still contains lessons. Delete lessons first.",
+      });
+    }
+
     const deletedUnit = await turso.execute({
       sql: "DELETE FROM Units WHERE id = ?",
       args: [unitId],
     });
 
-    return res.status(200).json({ unit: deletedUnit });
+    return res.status(200).json({ unit: unit.rows[0] });
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }
