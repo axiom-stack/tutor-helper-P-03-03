@@ -1,0 +1,112 @@
+/* ---------------------------------------------------------------------------
+   NavBar – Top bar aligned with design system
+   Uses: --primary, --surface, --text-*, --font-main, --topbar-height
+   --------------------------------------------------------------------------- */
+
+.nav-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--topbar-height);
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: var(--space-lg);
+  z-index: 50;
+  font-family: var(--font-main);
+  box-shadow: var(--shadow-sm);
+}
+
+.nav-bar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.nav-bar__logo {
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-lg);
+  background: var(--primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nav-bar__logo-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.nav-bar__title {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.nav-bar__user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.nav-bar__greeting {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.nav-bar__user-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.nav-bar__avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  background: var(--primary);
+  color: white;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nav-bar__logout {
+  padding: var(--space-sm);
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.nav-bar__logout:hover {
+  color: var(--error);
+  background: var(--bg);
+}
+
+.nav-bar__logout-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.nav-bar__logout:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
