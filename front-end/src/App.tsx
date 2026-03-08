@@ -1,11 +1,20 @@
+import { BrowserRouter, Route, Routes } from 'react-router';
+import Auth from './features/auth/Auth';
+import AdminDashboard from './features/admin-dashboard/AdminDashboard';
+import TeacherDashboard from './features/teacher-dashboard/TeacherDashboard';
+import { AppLayout } from './components/layout';
 
-type Props = {};
-
-function App({}: Props) {
+function App() {
   return (
-    <div>
-      <h1>Hello World</h1>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/authentication" element={<Auth />} />
+        <Route element={<AppLayout />}>
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/teacher" element={<TeacherDashboard />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
 

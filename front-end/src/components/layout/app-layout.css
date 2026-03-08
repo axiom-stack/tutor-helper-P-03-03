@@ -1,0 +1,15 @@
+/* ---------------------------------------------------------------------------
+   AppLayout – NavBar + Sidebar + main content
+   --------------------------------------------------------------------------- */
+
+.app-layout {
+  min-height: 100vh;
+  background-color: var(--bg);
+}
+
+.app-layout__main {
+  padding: var(--space-xl);
+  padding-top: var(--topbar-height);
+  padding-inline-start: calc(var(--sidebar-width) + var(--space-xl));
+  min-height: 100vh;
+}
