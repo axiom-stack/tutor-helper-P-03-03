@@ -1,4 +1,47 @@
 import { turso } from "../lib/turso.js";
+import { cleanExtractedText } from "../utils/textCleanup.js";
+import {
+  extractTextFromPDF,
+  extractTextFromWord,
+} from "../utils/textExtraction.js";
+
+const DOCX_MIME =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+function buildExtractionFailureResponse(error) {
+  return {
+    error,
+    fileProcessed: false,
+    extractionStatus: "failed",
+    contentLength: 0,
+  };
+}
+
+function getFileExtension(fileName = "") {
+  const lowerCaseName = fileName.toLowerCase();
+
+  if (lowerCaseName.endsWith(".pdf")) return ".pdf";
+  if (lowerCaseName.endsWith(".docx")) return ".docx";
+  if (lowerCaseName.endsWith(".doc")) return ".doc";
+
+  return "";
+}
+
+function isPdfUpload(file) {
+  const extension = getFileExtension(file?.originalname);
+  return file?.mimetype === "application/pdf" || extension === ".pdf";
+}
+
+function isDocxUpload(file) {
+  const extension = getFileExtension(file?.originalname);
+  return file?.mimetype === DOCX_MIME || extension === ".docx";
+}
+
+function isLegacyDocUpload(file) {
+  const extension = getFileExtension(file?.originalname);
+  return file?.mimetype === "application/msword" || extension === ".doc";
+}
+
 // POST
 export async function createLesson(req, res) {
   try {
@@ -15,12 +58,15 @@ export async function createLesson(req, res) {
       id: teacher_id,
     } = req.body;
 
-    console.log("req.body:", req.body);
-    console.log("req.file:", req.file);
-    console.log("req.user:", req.user);
+    const parsedUnitId = Number(unit_id);
+    const parsedTeacherId = Number(teacher_id);
+    const normalizedContentType = content_type?.toLowerCase();
 
-    if (!unit_id) {
+    if (!unit_id || Number.isNaN(parsedUnitId)) {
       return res.status(400).json({ error: "unit_id is required" });
+    }
+    if (!teacher_id || Number.isNaN(parsedTeacherId)) {
+      return res.status(400).json({ error: "Teacher id is required" });
     }
     if (!name || !description) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -32,14 +78,14 @@ export async function createLesson(req, res) {
     // Verify the unit belongs to the teacher
     const unitCheck = await turso.execute({
       sql: "SELECT teacher_id FROM units WHERE id = ?",
-      args: [unit_id],
+      args: [parsedUnitId],
     });
 
     if (unitCheck.rows.length === 0) {
       return res.status(404).json({ error: "Unit not found" });
     }
 
-    if (unitCheck.rows[0].teacher_id !== teacher_id) {
+    if (Number(unitCheck.rows[0].teacher_id) !== parsedTeacherId) {
       return res.status(403).json({
         error: "Unauthorized: You can only create lessons for your own units",
       });
@@ -47,75 +93,79 @@ export async function createLesson(req, res) {
 
     let finalContent = null;
     let detectedFileType = null;
+    let fileProcessed = false;
+    let extractionStatus = null;
+    let warnings = [];
 
-    if (content_type.toLowerCase() === "text") {
+    if (normalizedContentType === "text") {
       // TEXT content - expect content in the form field
-      console.log("📝 Text content type detected");
       if (!content) {
         return res
           .status(400)
           .json({ error: "Content field is required for text lessons" });
       }
       finalContent = content;
-    } else if (
-      content_type.toLowerCase() === "pdf" ||
-      content_type.toLowerCase() === "word"
-    ) {
+    } else if (normalizedContentType === "pdf" || normalizedContentType === "word") {
       // FILE content - expect file upload
-      console.log(`📁 ${content_type.toUpperCase()} content type detected`);
-
       if (!req.file) {
         return res
           .status(400)
-          .json({ error: `${content_type} file is required` });
+          .json(buildExtractionFailureResponse(`${content_type} file is required`));
       }
 
       detectedFileType = req.file.mimetype;
-      console.log(
-        `📁 File uploaded: ${req.file.originalname}, Type: ${detectedFileType}, Size: ${req.file.size} bytes`,
-      );
 
-      // Validate file type matches content_type
-      const isPdf =
-        content_type.toLowerCase() === "pdf" &&
-        (detectedFileType === "application/pdf" ||
-          req.file.originalname.toLowerCase().endsWith(".pdf"));
-
-      const isWord =
-        content_type.toLowerCase() === "word" &&
-        (detectedFileType ===
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-          detectedFileType === "application/msword" ||
-          req.file.originalname.toLowerCase().endsWith(".docx") ||
-          req.file.originalname.toLowerCase().endsWith(".doc"));
-
-      if (!isPdf && !isWord) {
-        console.log(
-          `❌ File type mismatch. Expected: ${content_type}, Got: ${detectedFileType}`,
+      if (normalizedContentType === "pdf" && !isPdfUpload(req.file)) {
+        return res.status(415).json(
+          buildExtractionFailureResponse(
+            "File type does not match content_type. Expected a PDF file.",
+          ),
         );
-        return res.status(400).json({
-          error: `File type does not match content_type. Expected ${content_type} file.`,
-        });
       }
 
-      if (content_type.toLowerCase() === "pdf") {
-        console.log("📄 PDF file detected - processing...");
-        // TODO: Extract PDF content here
-        finalContent = "PDF content will be extracted here";
-      } else if (content_type.toLowerCase() === "word") {
-        console.log("📝 Word file detected - processing...");
-        // TODO: Extract Word content here
-        finalContent = "Word content will be extracted here";
+      if (normalizedContentType === "word" && isLegacyDocUpload(req.file)) {
+        return res.status(415).json(
+          buildExtractionFailureResponse(
+            "Legacy DOC files are not supported. Please convert the file to DOCX first.",
+          ),
+        );
       }
 
-      console.log("✅ File processed successfully (placeholder)");
-      return res.status(201).json({
-        message: "Lesson created successfully",
-        fileProcessed: true,
-        content_type: content_type,
-        fileType: detectedFileType,
-        fileName: req.file.originalname,
-      });
+      if (normalizedContentType === "word" && !isDocxUpload(req.file)) {
+        return res.status(415).json(
+          buildExtractionFailureResponse(
+            "File type does not match content_type. Expected a DOCX file.",
+          ),
+        );
+      }
+
+      const extractionResult =
+        normalizedContentType === "pdf"
+          ? await extractTextFromPDF(req.file.buffer)
+          : await extractTextFromWord(req.file.buffer);
+
+      warnings = extractionResult.warnings ?? [];
+
+      if (extractionResult.extractionStatus === "failed") {
+        return res.status(422).json(
+          buildExtractionFailureResponse(
+            extractionResult.errorMessage || "Failed to extract text from the file.",
+          ),
+        );
+      }
+
+      finalContent = cleanExtractedText(extractionResult.text);
+
+      if (!finalContent) {
+        return res.status(422).json(
+          buildExtractionFailureResponse(
+            "No readable text could be extracted from the uploaded file.",
+          ),
+        );
+      }
+
+      fileProcessed = extractionResult.fileProcessed;
+      extractionStatus = extractionResult.extractionStatus;
     } else {
       return res.status(400).json({
         error: "Invalid content_type. Must be 'text', 'pdf', or 'word'",
@@ -129,7 +179,7 @@ export async function createLesson(req, res) {
 
     const createdLesson = await turso.execute({
       sql: "INSERT INTO lessons (name, description, unit_id, teacher_id, content) VALUES (?, ?, ?, ?, ?)",
-      args: [name, description, unit_id, teacher_id, finalContent],
+      args: [name, description, parsedUnitId, parsedTeacherId, finalContent],
     });
 
     // Get the inserted lesson data
@@ -138,9 +188,26 @@ export async function createLesson(req, res) {
       args: [createdLesson.lastInsertRowid],
     });
 
+    if (normalizedContentType === "pdf" || normalizedContentType === "word") {
+      return res.status(201).json({
+        lesson: insertedLesson.rows[0],
+        message:
+          extractionStatus === "partial"
+            ? "Lesson created with partial text extraction."
+            : "Lesson created and file processed successfully.",
+        fileProcessed,
+        extractionStatus,
+        contentLength: finalContent.length,
+        fileName: req.file.originalname,
+        fileType: detectedFileType,
+        warnings,
+        content_type,
+      });
+    }
+
     return res.status(201).json({
       lesson: insertedLesson.rows[0],
-      content_type: content_type,
+      content_type,
     });
   } catch (error) {
     console.error("❌ Error in createLesson:", error);
