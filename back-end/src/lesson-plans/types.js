@@ -14,3 +14,13 @@ export const ACTIVE_FLOW_ACTIVITY_TYPES = Object.freeze([
   "activity",
   "assessment",
 ]);
+
+export const PLAN_PUBLIC_ID_PREFIXES = Object.freeze({
+  [PLAN_TYPES.TRADITIONAL]: "trd_",
+  [PLAN_TYPES.ACTIVE_LEARNING]: "act_",
+});
+
+export const PLAN_TABLES = Object.freeze({
+  [PLAN_TYPES.TRADITIONAL]: "TraditionalLessonPlans",
+  [PLAN_TYPES.ACTIVE_LEARNING]: "ActiveLearningLessonPlans",
+});

@@ -65,7 +65,7 @@ function objectiveToText(objective) {
     if (typeof objective.description === "string") return objective.description;
   }
 
-  return JSON.stringify(objective);
+  return "";
 }
 
 function validateHeaderShape(plan, schema, errors) {
@@ -102,9 +102,10 @@ function validateHeaderShape(plan, schema, errors) {
 function validateTraditionalShape(plan, errors) {
   const arrayFields = [
     "concepts",
-    "objectives",
+    "learning_outcomes",
+    "teaching_strategies",
     "activities",
-    "resources",
+    "learning_resources",
     "assessment",
   ];
 
@@ -116,10 +117,6 @@ function validateTraditionalShape(plan, errors) {
     if (!Array.isArray(plan[field])) {
       addError(errors, "schema.field_type", field, `${field} must be an array`);
     }
-  }
-
-  if (typeof plan.strategy !== "string") {
-    addError(errors, "schema.field_type", "strategy", "strategy must be a string");
   }
 
   if (typeof plan.homework !== "string") {
@@ -136,10 +133,6 @@ function validateActiveLearningShape(plan, errors) {
     addError(errors, "schema.field_type", "objectives", "objectives must be an array");
   }
 
-  if (typeof plan.strategy !== "string") {
-    addError(errors, "schema.field_type", "strategy", "strategy must be a string");
-  }
-
   if (!Array.isArray(plan.lesson_flow)) {
     addError(errors, "schema.field_type", "lesson_flow", "lesson_flow must be an array");
     return;
@@ -149,9 +142,9 @@ function validateActiveLearningShape(plan, errors) {
     "time",
     "content",
     "activity_type",
-    "teacher_action",
-    "student_action",
-    "resources",
+    "teacher_activity",
+    "student_activity",
+    "learning_resources",
   ];
 
   for (let i = 0; i < plan.lesson_flow.length; i += 1) {
@@ -203,30 +196,30 @@ function validateActiveLearningShape(plan, errors) {
       );
     }
 
-    if (typeof row.teacher_action !== "string") {
+    if (typeof row.teacher_activity !== "string") {
       addError(
         errors,
-        "schema.lesson_flow_teacher_action_type",
-        `lesson_flow.${i}.teacher_action`,
-        "lesson_flow row teacher_action must be a string",
+        "schema.lesson_flow_teacher_activity_type",
+        `lesson_flow.${i}.teacher_activity`,
+        "lesson_flow row teacher_activity must be a string",
       );
     }
 
-    if (typeof row.student_action !== "string") {
+    if (typeof row.student_activity !== "string") {
       addError(
         errors,
-        "schema.lesson_flow_student_action_type",
-        `lesson_flow.${i}.student_action`,
-        "lesson_flow row student_action must be a string",
+        "schema.lesson_flow_student_activity_type",
+        `lesson_flow.${i}.student_activity`,
+        "lesson_flow row student_activity must be a string",
       );
     }
 
-    if (!Array.isArray(row.resources)) {
+    if (!Array.isArray(row.learning_resources)) {
       addError(
         errors,
-        "schema.lesson_flow_resources_type",
-        `lesson_flow.${i}.resources`,
-        "lesson_flow row resources must be an array",
+        "schema.lesson_flow_learning_resources_type",
+        `lesson_flow.${i}.learning_resources`,
+        "lesson_flow row learning_resources must be an array",
       );
     }
   }
@@ -257,31 +250,53 @@ function validateSchemaShape(plan, planType, targetSchema, errors) {
 
   if (planType === PLAN_TYPES.TRADITIONAL) {
     validateTraditionalShape(plan, errors);
-  } else if (planType === PLAN_TYPES.ACTIVE_LEARNING) {
+    return;
+  }
+
+  if (planType === PLAN_TYPES.ACTIVE_LEARNING) {
     validateActiveLearningShape(plan, errors);
   }
 }
 
-function validateObjectives(plan, forbiddenVerbs, errors) {
-  if (!Array.isArray(plan.objectives) || plan.objectives.length < 1) {
+function getPlanObjectives(plan, planType) {
+  if (planType === PLAN_TYPES.TRADITIONAL) {
+    return Array.isArray(plan?.learning_outcomes) ? plan.learning_outcomes : [];
+  }
+
+  return Array.isArray(plan?.objectives) ? plan.objectives : [];
+}
+
+function validateObjectives(plan, planType, forbiddenVerbs, errors) {
+  const objectives = getPlanObjectives(plan, planType);
+
+  if (objectives.length < 1) {
     addError(
       errors,
       "business.objectives.minimum",
-      "objectives",
+      planType === PLAN_TYPES.TRADITIONAL ? "learning_outcomes" : "objectives",
       "at least one objective is required",
     );
     return;
   }
 
-  for (let i = 0; i < plan.objectives.length; i += 1) {
-    const objectiveText = objectiveToText(plan.objectives[i]);
+  for (let i = 0; i < objectives.length; i += 1) {
+    const objectiveText = objectiveToText(objectives[i]);
+
+    if (planType === PLAN_TYPES.TRADITIONAL && objectiveText && !objectiveText.trim().startsWith("أن")) {
+      addError(
+        errors,
+        "business.traditional.objective.format",
+        `learning_outcomes.${i}`,
+        "learning outcome should start with أن",
+      );
+    }
 
     for (const forbiddenVerb of forbiddenVerbs) {
       if (objectiveText.includes(forbiddenVerb)) {
         addError(
           errors,
           "business.objectives.forbidden_verb",
-          `objectives.${i}`,
+          `${planType === PLAN_TYPES.TRADITIONAL ? "learning_outcomes" : "objectives"}.${i}`,
           `objective contains forbidden verb: ${forbiddenVerb}`,
         );
       }
@@ -289,23 +304,42 @@ function validateObjectives(plan, forbiddenVerbs, errors) {
   }
 }
 
-function validateStrategy(plan, allowedStrategies, errors) {
+function validateTraditionalStrategies(plan, allowedStrategies, errors) {
+  const strategies = Array.isArray(plan?.teaching_strategies) ? plan.teaching_strategies : [];
   const allowedNames = allowedStrategies
     .map((strategy) => strategy?.name)
     .filter((name) => typeof name === "string" && name.trim().length > 0);
 
-  if (!plan.strategy || typeof plan.strategy !== "string") {
-    addError(errors, "business.strategy.required", "strategy", "strategy is required");
+  if (strategies.length < 1) {
+    addError(
+      errors,
+      "business.traditional.strategies.required",
+      "teaching_strategies",
+      "at least one teaching strategy is required",
+    );
     return;
   }
 
-  if (!allowedNames.includes(plan.strategy)) {
-    addError(
-      errors,
-      "business.strategy.invalid",
-      "strategy",
-      "strategy must belong to the selected plan type strategy bank",
-    );
+  for (let i = 0; i < strategies.length; i += 1) {
+    const strategy = strategies[i];
+    if (typeof strategy !== "string" || !strategy.trim()) {
+      addError(
+        errors,
+        "business.traditional.strategies.invalid_item",
+        `teaching_strategies.${i}`,
+        "teaching_strategies items must be non-empty strings",
+      );
+      continue;
+    }
+
+    if (!allowedNames.includes(strategy)) {
+      addError(
+        errors,
+        "business.traditional.strategies.not_allowed",
+        `teaching_strategies.${i}`,
+        "teaching strategy must belong to allowed traditional strategy bank",
+      );
+    }
   }
 }
 
@@ -335,37 +369,35 @@ function validateLessonTime(plan, planType, durationMinutes, errors) {
     return;
   }
 
-  if (planType === PLAN_TYPES.ACTIVE_LEARNING) {
-    if (!Array.isArray(plan.lesson_flow)) {
-      return;
-    }
+  if (!Array.isArray(plan.lesson_flow)) {
+    return;
+  }
 
-    let totalMinutes = 0;
+  let totalMinutes = 0;
 
-    for (let i = 0; i < plan.lesson_flow.length; i += 1) {
-      const minutes = extractMinutes(plan.lesson_flow[i]?.time);
+  for (let i = 0; i < plan.lesson_flow.length; i += 1) {
+    const minutes = extractMinutes(plan.lesson_flow[i]?.time);
 
-      if (!minutes) {
-        addError(
-          errors,
-          "business.lesson_flow.time.unparseable",
-          `lesson_flow.${i}.time`,
-          "lesson_flow row time must include a parseable numeric duration",
-        );
-        continue;
-      }
-
-      totalMinutes += minutes;
-    }
-
-    if (totalMinutes > durationMinutes) {
+    if (!minutes) {
       addError(
         errors,
-        "business.duration.exceeded",
-        "lesson_flow",
-        "total lesson_flow time exceeds requested duration_minutes",
+        "business.lesson_flow.time.unparseable",
+        `lesson_flow.${i}.time`,
+        "lesson_flow row time must include a parseable numeric duration",
       );
+      continue;
     }
+
+    totalMinutes += minutes;
+  }
+
+  if (totalMinutes > durationMinutes) {
+    addError(
+      errors,
+      "business.duration.exceeded",
+      "lesson_flow",
+      "total lesson_flow time exceeds requested duration_minutes",
+    );
   }
 }
 
@@ -379,22 +411,19 @@ function validateAssessment(plan, planType, errors) {
         "assessment must include at least one item",
       );
     }
-
     return;
   }
 
-  if (planType === PLAN_TYPES.ACTIVE_LEARNING) {
-    const rows = Array.isArray(plan.lesson_flow) ? plan.lesson_flow : [];
-    const hasAssessmentRow = rows.some((row) => row?.activity_type === "assessment");
+  const rows = Array.isArray(plan.lesson_flow) ? plan.lesson_flow : [];
+  const hasAssessmentRow = rows.some((row) => row?.activity_type === "assessment");
 
-    if (!hasAssessmentRow) {
-      addError(
-        errors,
-        "business.assessment.required",
-        "lesson_flow",
-        "active_learning plan must include at least one assessment row",
-      );
-    }
+  if (!hasAssessmentRow) {
+    addError(
+      errors,
+      "business.assessment.required",
+      "lesson_flow",
+      "active_learning plan must include at least one assessment row",
+    );
   }
 }
 
@@ -439,9 +468,9 @@ function validateTraditionalRichness(plan, planType, errors) {
 
   const fieldsWithMinimumItems = [
     { field: "concepts", minimum: 3 },
-    { field: "objectives", minimum: 3 },
+    { field: "learning_outcomes", minimum: 3 },
     { field: "activities", minimum: 3 },
-    { field: "resources", minimum: 3 },
+    { field: "learning_resources", minimum: 3 },
     { field: "assessment", minimum: 3 },
   ];
 
@@ -457,28 +486,15 @@ function validateTraditionalRichness(plan, planType, errors) {
     }
   }
 
-  const objectives = Array.isArray(plan?.objectives) ? plan.objectives : [];
-  for (let i = 0; i < objectives.length; i += 1) {
-    const objectiveText = objectiveToText(objectives[i]).trim();
-
-    if (!objectiveText) {
-      addError(
-        errors,
-        "business.traditional.objective.empty",
-        `objectives.${i}`,
-        "objective must be non-empty",
-      );
-      continue;
-    }
-
-    if (!objectiveText.startsWith("أن")) {
-      addError(
-        errors,
-        "business.traditional.objective.format",
-        `objectives.${i}`,
-        "objective should start with أن to keep behavioral format",
-      );
-    }
+  const outcomesCount = Array.isArray(plan?.learning_outcomes) ? plan.learning_outcomes.length : 0;
+  const assessmentCount = Array.isArray(plan?.assessment) ? plan.assessment.length : 0;
+  if (outcomesCount > 0 && assessmentCount > 0 && assessmentCount < outcomesCount) {
+    addError(
+      errors,
+      "business.traditional.alignment.assessment_coverage",
+      "assessment",
+      "assessment items should not be fewer than learning outcomes",
+    );
   }
 }
 
@@ -493,8 +509,12 @@ export function validateLessonPlan({
   const errors = [];
 
   validateSchemaShape(plan, planType, targetSchema, errors);
-  validateObjectives(plan, forbiddenVerbs, errors);
-  validateStrategy(plan, allowedStrategies, errors);
+  validateObjectives(plan, planType, forbiddenVerbs, errors);
+
+  if (planType === PLAN_TYPES.TRADITIONAL) {
+    validateTraditionalStrategies(plan, allowedStrategies, errors);
+  }
+
   validateLessonTime(plan, planType, durationMinutes, errors);
   validateAssessment(plan, planType, errors);
   validateHomework(plan, errors);

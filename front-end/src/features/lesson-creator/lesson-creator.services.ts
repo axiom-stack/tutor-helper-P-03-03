@@ -30,7 +30,7 @@ export interface GeneratePlanErrorResponse {
 }
 
 export interface GeneratedPlanResponse {
-  id: number;
+  id: string;
   plan_type: PlanType;
   plan_json: Record<string, unknown>;
   validation_status: string;

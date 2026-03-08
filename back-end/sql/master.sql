@@ -10,6 +10,10 @@ CREATE TABLE Classes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   description TEXT NOT NULL,
+  grade_label TEXT NOT NULL,
+  section_label TEXT NOT NULL,
+  academic_year TEXT NOT NULL,
+  default_duration_minutes INTEGER NOT NULL DEFAULT 45,
   teacher_id INTEGER NOT NULL REFERENCES users(id),
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -42,16 +46,34 @@ Create Table Lessons (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-Create Table LessonPlans (
+Create Table TraditionalLessonPlans (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  public_id TEXT UNIQUE,
   teacher_id INTEGER NOT NULL REFERENCES users(id),
   lesson_title TEXT NOT NULL,
   subject TEXT NOT NULL,
   grade TEXT NOT NULL,
   unit TEXT NOT NULL,
   duration_minutes INTEGER NOT NULL,
-  plan_type TEXT NOT NULL CHECK(plan_type IN ('traditional', 'active_learning')),
   plan_json TEXT NOT NULL,
+  validation_status TEXT NOT NULL,
+  retry_occurred INTEGER NOT NULL DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+Create Table ActiveLearningLessonPlans (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  public_id TEXT UNIQUE,
+  teacher_id INTEGER NOT NULL REFERENCES users(id),
+  lesson_title TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  grade TEXT NOT NULL,
+  unit TEXT NOT NULL,
+  duration_minutes INTEGER NOT NULL,
+  plan_json TEXT NOT NULL,
+  validation_status TEXT NOT NULL,
+  retry_occurred INTEGER NOT NULL DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

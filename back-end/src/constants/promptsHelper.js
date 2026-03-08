@@ -408,62 +408,50 @@ const promptsHelper = {
   "output_templates": {
 
     // Schema for traditional lesson plans.
-    // Used by Prompt 1 as the target output format.
-    // Prompt 2 must not change field names — only improve values.
+    // Structured as a classic matrix layout:
+    // learning_outcomes | teaching_strategies | activities | learning_resources | assessment
     "traditional_plan_schema": {
-      // Unified header — same fields across both plan types
-      // for consistent rendering and validation.
       "header": {
         "date": "",
         "day": "",
         "grade": "",
-        "class": "",
+        "section": "",
         "lesson_title": "",
         "unit": "",
         "duration": ""
       },
       "intro": "",
       "concepts": [],
-      "objectives": [],
-      // Single strategy selected from traditional_strategies list.
-      "strategy": "",
+      "learning_outcomes": [],
+      "teaching_strategies": [],
       "activities": [],
-      "resources": [],
+      "learning_resources": [],
       "assessment": [],
       "homework": "",
-      // Source reference: كتاب الطالب، الصفحة ...
-      // Required field per official document template.
       "source": ""
     },
 
     // Schema for active learning lesson plans.
-    // lesson_flow replaces the flat activities/assessment structure
-    // with a time-sequenced table matching the official template.
+    // Structured as a time-sequenced lesson_flow table.
     "active_learning_plan_schema": {
-      // Unified header — class field added to match traditional schema
-      // for consistent rendering and backend validation across both plan types.
       "header": {
         "date": "",
         "day": "",
+        "subject": "",
         "grade": "",
-        "class": "",
         "lesson_title": "",
         "unit": "",
         "duration": ""
       },
       "objectives": [],
-      "strategy": "",
-      // Each row in lesson_flow maps to one time block in the lesson.
-      // activity_type must correspond to a phase:
-      // intro | presentation | activity | assessment
       "lesson_flow": [
         {
           "time": "",
           "content": "",
           "activity_type": "",
-          "teacher_action": "",
-          "student_action": "",
-          "resources": []
+          "teacher_activity": "",
+          "student_activity": "",
+          "learning_resources": []
         }
       ],
       "homework": ""

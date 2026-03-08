@@ -14,6 +14,10 @@ export interface Class {
   id: number;
   name: string;
   description: string;
+  grade_label: string;
+  section_label: string;
+  academic_year: string;
+  default_duration_minutes: number;
   teacher_id: number;
   created_at: string; // ISO date string
 }
@@ -71,6 +75,10 @@ export interface CreateUserData {
 export interface CreateClassData {
   name: string;
   description: string;
+  grade_label: string;
+  section_label: string;
+  academic_year: string;
+  default_duration_minutes?: number;
   teacher_id: number;
 }
 

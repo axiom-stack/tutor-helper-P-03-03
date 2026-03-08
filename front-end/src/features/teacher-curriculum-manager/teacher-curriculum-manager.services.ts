@@ -27,7 +27,14 @@ export async function createClass(
 
 export async function updateClass(
   classId: number,
-  data: { name: string; description: string }
+  data: {
+    name: string;
+    description: string;
+    grade_label: string;
+    section_label: string;
+    academic_year: string;
+    default_duration_minutes?: number;
+  }
 ): Promise<{ class: Class }> {
   const response = await api().put<{ class: Class }>(`/api/classes/${classId}`, data);
   return response.data;

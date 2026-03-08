@@ -313,14 +313,16 @@ export function createLessonPlanGenerationService(dependencies = {}) {
         durationMinutes: request.duration_minutes,
         planType: request.plan_type,
         planJson: candidatePlan,
+        validationStatus: "passed",
+        retryOccurred,
       });
 
       return {
-        id: savedPlan.id,
+        id: savedPlan.public_id,
         plan_type: savedPlan.plan_type,
         plan_json: savedPlan.plan_json,
-        validation_status: "passed",
-        retry_occurred: retryOccurred,
+        validation_status: savedPlan.validation_status,
+        retry_occurred: savedPlan.retry_occurred,
         created_at: savedPlan.created_at,
         updated_at: savedPlan.updated_at,
       };

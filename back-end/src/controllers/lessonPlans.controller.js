@@ -11,6 +11,18 @@ export async function generatePlan(req, res) {
     const validation = validateGeneratePlanRequest(req.body);
 
     if (!validation.ok) {
+      req.log?.warn?.(
+        {
+          validation_errors: validation.errors,
+          request_shape: {
+            keys: Object.keys(req.body || {}),
+            plan_type: req.body?.plan_type,
+            duration_minutes: req.body?.duration_minutes,
+          },
+        },
+        "invalid generate-plan request body",
+      );
+
       return res.status(400).json({
         error: {
           code: "invalid_request",
@@ -49,18 +61,18 @@ export async function generatePlan(req, res) {
 
 export async function getPlanById(req, res) {
   try {
-    const planId = Number(req.params.id);
+    const planPublicId = String(req.params.id || "").trim();
 
-    if (!Number.isInteger(planId) || planId <= 0) {
+    if (!planPublicId || !/^(trd|act)_\d+$/.test(planPublicId)) {
       return res.status(400).json({
         error: {
           code: "invalid_id",
-          message: "Plan id must be a positive integer",
+          message: "Plan id must match trd_<number> or act_<number>",
         },
       });
     }
 
-    const plan = await lessonPlansRepository.getById(planId, {
+    const plan = await lessonPlansRepository.getByPublicId(planPublicId, {
       userId: req.user.id,
       role: req.user.role,
     });

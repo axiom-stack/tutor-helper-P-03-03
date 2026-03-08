@@ -172,6 +172,8 @@ function LessonCreator() {
 
   const [planType, setPlanType] = useState<PlanType>('traditional');
   const [durationMinutes, setDurationMinutes] = useState<number>(45);
+  const [isDurationManuallySelected, setIsDurationManuallySelected] =
+    useState(false);
 
   const [initialLoading, setInitialLoading] = useState(true);
   const [unitsLoading, setUnitsLoading] = useState(false);
@@ -374,12 +376,25 @@ function LessonCreator() {
 
   const handleClassSelect = (value: string) => {
     const nextClassId = value ? Number(value) : '';
+    const nextClass =
+      nextClassId === ''
+        ? null
+        : classes.find((classItem) => classItem.id === nextClassId) ?? null;
+
     setSelectedClassId(nextClassId);
     setSelectedSubjectId('');
     setSelectedUnitId('');
     setSelectedLessonId('');
     setUnits([]);
     setLessons([]);
+
+    if (!isDurationManuallySelected && nextClass) {
+      const classDuration = Number(nextClass.default_duration_minutes);
+      if (Number.isInteger(classDuration) && classDuration > 0) {
+        setDurationMinutes(classDuration);
+      }
+    }
+
     setPageError(null);
     setGenerationError(null);
   };
@@ -429,17 +444,40 @@ function LessonCreator() {
         throw new Error('لا يمكن توليد الخطة لأن محتوى الدرس فارغ.');
       }
 
+      const lessonTitle = lesson?.name?.trim() || selectedLesson?.name?.trim() || '';
+      const subjectName = selectedSubject.name?.trim() || '';
+      const unitName = selectedUnit.name?.trim() || '';
+      const gradeValue =
+        selectedClass.grade_label?.trim() || selectedClass.name?.trim() || '';
+      const safeDurationMinutes = Number(durationMinutes);
+
+      if (!lessonTitle) {
+        throw new Error('تعذر تحديد عنوان الدرس للتوليد.');
+      }
+      if (!subjectName) {
+        throw new Error('تعذر تحديد اسم المادة للتوليد.');
+      }
+      if (!unitName) {
+        throw new Error('تعذر تحديد اسم الوحدة للتوليد.');
+      }
+      if (!gradeValue) {
+        throw new Error('يرجى تحديد صف يحتوي على المرحلة/الصف قبل التوليد.');
+      }
+      if (!Number.isInteger(safeDurationMinutes) || safeDurationMinutes <= 0) {
+        throw new Error('مدة الحصة يجب أن تكون رقمًا صحيحًا موجبًا.');
+      }
+
       setGenerationState('generating_draft_estimated');
       setActiveTimelineIndex(1);
       startEstimatedTimeline();
 
       const generated = await generatePlan({
-        lesson_title: lesson.name,
+        lesson_title: lessonTitle,
         lesson_content: lessonContent,
-        subject: selectedSubject.name,
-        grade: selectedClass.name,
-        unit: selectedUnit.name,
-        duration_minutes: durationMinutes,
+        subject: subjectName,
+        grade: gradeValue,
+        unit: unitName,
+        duration_minutes: safeDurationMinutes,
         plan_type: planType,
       });
 
@@ -547,12 +585,12 @@ function LessonCreator() {
   const header = isRecord(planObject.header) ? planObject.header : {};
 
   const traditionalConcepts = toTextList(planObject.concepts);
-  const traditionalObjectives = toTextList(planObject.objectives);
+  const traditionalLearningOutcomes = toTextList(planObject.learning_outcomes);
+  const traditionalTeachingStrategies = toTextList(planObject.teaching_strategies);
   const traditionalActivities = toTextList(planObject.activities);
-  const traditionalResources = toTextList(planObject.resources);
+  const traditionalResources = toTextList(planObject.learning_resources);
   const traditionalAssessment = toTextList(planObject.assessment);
   const traditionalIntro = toDisplayText(planObject.intro);
-  const traditionalStrategy = toDisplayText(planObject.strategy);
   const traditionalHomework = toDisplayText(planObject.homework);
   const traditionalSource = toDisplayText(planObject.source);
 
@@ -669,16 +707,20 @@ function LessonCreator() {
                     <p>{extractHeaderValue(header, 'day')}</p>
                   </div>
                   <div>
+                    <label>المادة</label>
+                    <p>
+                      {extractHeaderValue(header, 'subject') !== '—'
+                        ? extractHeaderValue(header, 'subject')
+                        : selectedSubject?.name ?? '—'}
+                    </p>
+                  </div>
+                  <div>
                     <label>الصف</label>
                     <p>
                       {extractHeaderValue(header, 'grade') !== '—'
                         ? extractHeaderValue(header, 'grade')
-                        : selectedClass?.name ?? '—'}
+                        : selectedClass?.grade_label ?? '—'}
                     </p>
-                  </div>
-                  <div>
-                    <label>الشعبة</label>
-                    <p>{extractHeaderValue(header, 'class')}</p>
                   </div>
                   <div>
                     <label>الدرس</label>
@@ -728,12 +770,16 @@ function LessonCreator() {
                         <p>
                           {extractHeaderValue(header, 'grade') !== '—'
                             ? extractHeaderValue(header, 'grade')
-                            : selectedClass?.name ?? '—'}
+                            : selectedClass?.grade_label ?? '—'}
                         </p>
                       </div>
                       <div>
                         <label>الشعبة</label>
-                        <p>{extractHeaderValue(header, 'class')}</p>
+                        <p>
+                          {extractHeaderValue(header, 'section') !== '—'
+                            ? extractHeaderValue(header, 'section')
+                            : selectedClass?.section_label ?? '—'}
+                        </p>
                       </div>
                       <div>
                         <label>الحصة</label>
@@ -788,8 +834,8 @@ function LessonCreator() {
                       <section>
                         <h4>الأهداف / المخرجات التعليمية</h4>
                         <ul>
-                          {traditionalObjectives.length > 0 ? (
-                            traditionalObjectives.map((item, index) => (
+                          {traditionalLearningOutcomes.length > 0 ? (
+                            traditionalLearningOutcomes.map((item, index) => (
                               <li key={`${item}-${index}`}>{item}</li>
                             ))
                           ) : (
@@ -799,7 +845,15 @@ function LessonCreator() {
                       </section>
                       <section>
                         <h4>الاستراتيجيات / طرق التدريس</h4>
-                        <p>{traditionalStrategy}</p>
+                        <ul>
+                          {traditionalTeachingStrategies.length > 0 ? (
+                            traditionalTeachingStrategies.map((item, index) => (
+                              <li key={`${item}-${index}`}>{item}</li>
+                            ))
+                          ) : (
+                            <li>لا توجد استراتيجيات مدخلة.</li>
+                          )}
+                        </ul>
                       </section>
                       <section>
                         <h4>الأنشطة</h4>
@@ -867,11 +921,6 @@ function LessonCreator() {
                   </section>
 
                   <section>
-                    <h3>الاستراتيجية</h3>
-                    <p>{toDisplayText(planObject.strategy)}</p>
-                  </section>
-
-                  <section>
                     <h3>تدفق الدرس</h3>
                     <div className="lcp__table-wrap">
                       <table className="lcp__flow-table">
@@ -888,8 +937,10 @@ function LessonCreator() {
                         <tbody>
                           {lessonFlow.length > 0 ? (
                             lessonFlow.map((row, index) => {
-                              const resources = Array.isArray(row.resources)
-                                ? row.resources.map((item) => toDisplayText(item)).join('، ')
+                              const resources = Array.isArray(row.learning_resources)
+                                ? row.learning_resources
+                                    .map((item) => toDisplayText(item))
+                                    .join('، ')
                                 : '—';
 
                               return (
@@ -897,8 +948,8 @@ function LessonCreator() {
                                   <td>{toDisplayText(row.time)}</td>
                                   <td>{toDisplayText(row.content)}</td>
                                   <td>{toDisplayText(row.activity_type)}</td>
-                                  <td>{toDisplayText(row.teacher_action)}</td>
-                                  <td>{toDisplayText(row.student_action)}</td>
+                                  <td>{toDisplayText(row.teacher_activity)}</td>
+                                  <td>{toDisplayText(row.student_activity)}</td>
                                   <td>{resources || '—'}</td>
                                 </tr>
                               );
@@ -1039,7 +1090,10 @@ function LessonCreator() {
               <select
                 id="lcp-duration"
                 value={durationMinutes}
-                onChange={(event) => setDurationMinutes(Number(event.target.value))}
+                onChange={(event) => {
+                  setDurationMinutes(Number(event.target.value));
+                  setIsDurationManuallySelected(true);
+                }}
                 disabled={selectedLessonId === '' || isGenerating}
               >
                 {DURATION_OPTIONS.map((duration) => (
