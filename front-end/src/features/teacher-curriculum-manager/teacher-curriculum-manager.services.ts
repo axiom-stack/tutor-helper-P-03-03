@@ -4,6 +4,7 @@ import type {
   Subject,
   Unit,
   Lesson,
+  LessonContentType,
   CreateClassData,
   CreateSubjectData,
   CreateUnitData,
@@ -114,57 +115,52 @@ export async function getLessonsByUnit(
   return response.data;
 }
 
-export interface CreateLessonTextPayload {
+interface CreateLessonPayloadBase {
   name: string;
   description: string;
   unit_id: number;
-  content: string;
   teacher_id: number;
+  content_type: LessonContentType;
 }
 
-/** Create a text lesson (JSON body). */
-export async function createLessonText(
-  payload: CreateLessonTextPayload
-): Promise<{ lesson: Lesson; content_type: string }> {
-  const body = {
-    name: payload.name,
-    description: payload.description,
-    unit_id: payload.unit_id,
-    content_type: 'text',
-    content: payload.content,
-    id: payload.teacher_id,
-  };
-  const response = await api().post<{
-    lesson: Lesson;
-    content_type: string;
-  }>('/api/lessons', body);
-  return response.data;
-}
+export type CreateLessonPayload =
+  | (CreateLessonPayloadBase & {
+      content_type: 'text';
+      content: string;
+    })
+  | (CreateLessonPayloadBase & {
+      content_type: 'pdf' | 'word';
+      file: File;
+    });
 
-export interface CreateLessonFilePayload {
-  name: string;
-  description: string;
-  unit_id: number;
-  content_type: 'pdf' | 'word';
-  teacher_id: number;
-  file: File;
-}
-
-export interface CreateLessonFileResponse {
+export interface CreateLessonResponse {
   lesson?: Lesson;
-  message: string;
-  fileProcessed: boolean;
-  extractionStatus: 'success' | 'partial' | 'failed';
-  contentLength: number;
+  message?: string;
+  fileProcessed?: boolean;
+  extractionStatus?: 'success' | 'partial' | 'failed';
+  contentLength?: number;
   fileName?: string;
   fileType?: string;
   warnings?: string[];
+  content_type: LessonContentType;
 }
 
-/** Create a lesson with PDF/Word file (FormData). Do not set Content-Type so browser sets multipart boundary. */
-export async function createLessonFile(
-  payload: CreateLessonFilePayload
-): Promise<CreateLessonFileResponse> {
+export async function createLesson(
+  payload: CreateLessonPayload
+): Promise<CreateLessonResponse> {
+  if (payload.content_type === 'text') {
+    const body = {
+      name: payload.name,
+      description: payload.description,
+      unit_id: payload.unit_id,
+      content_type: payload.content_type,
+      content: payload.content,
+      id: payload.teacher_id,
+    };
+    const response = await api().post<CreateLessonResponse>('/api/lessons', body);
+    return response.data;
+  }
+
   const form = new FormData();
   form.append('name', payload.name);
   form.append('description', payload.description);
@@ -173,7 +169,7 @@ export async function createLessonFile(
   form.append('id', String(payload.teacher_id));
   form.append('file', payload.file);
 
-  const response = await api().post<CreateLessonFileResponse>('/api/lessons', form);
+  const response = await api().post<CreateLessonResponse>('/api/lessons', form);
   return response.data;
 }
 

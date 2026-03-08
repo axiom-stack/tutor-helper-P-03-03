@@ -57,6 +57,7 @@ export async function createLesson(req, res) {
       content_type,
       id: teacher_id,
     } = req.body;
+    const { id: userId, role: userRole } = req.user;
 
     const parsedUnitId = Number(unit_id);
     const parsedTeacherId = Number(teacher_id);
@@ -73,6 +74,12 @@ export async function createLesson(req, res) {
     }
     if (!content_type) {
       return res.status(400).json({ error: "content_type is required" });
+    }
+
+    if (userRole !== "admin" && parsedTeacherId !== Number(userId)) {
+      return res.status(403).json({
+        error: "Unauthorized: You can only create lessons for your own account",
+      });
     }
 
     // Verify the unit belongs to the teacher
@@ -179,7 +186,13 @@ export async function createLesson(req, res) {
 
     const createdLesson = await turso.execute({
       sql: "INSERT INTO lessons (name, description, unit_id, teacher_id, content) VALUES (?, ?, ?, ?, ?)",
-      args: [name, description, parsedUnitId, parsedTeacherId, finalContent],
+      args: [
+        name.trim(),
+        description.trim(),
+        parsedUnitId,
+        parsedTeacherId,
+        finalContent,
+      ],
     });
 
     // Get the inserted lesson data
@@ -343,11 +356,19 @@ export async function updateLessonByLessonId(req, res) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
+    let targetUnitId = lesson.rows[0].unit_id;
+
     // If unit_id is provided, verify the teacher owns that unit too
-    if (unit_id) {
+    if (unit_id !== undefined) {
+      const parsedUnitId = Number(unit_id);
+
+      if (Number.isNaN(parsedUnitId)) {
+        return res.status(400).json({ error: "unit_id must be a valid number" });
+      }
+
       const unitCheck = await turso.execute({
         sql: "SELECT teacher_id FROM units WHERE id = ?",
-        args: [unit_id],
+        args: [parsedUnitId],
       });
 
       if (unitCheck.rows.length === 0) {
@@ -359,17 +380,19 @@ export async function updateLessonByLessonId(req, res) {
           error: "Unauthorized: You can only move lessons to your own units",
         });
       }
+
+      if (Number(unitCheck.rows[0].teacher_id) !== Number(lesson.rows[0].teacher_id)) {
+        return res.status(400).json({
+          error: "Cannot move lesson to a unit owned by a different teacher",
+        });
+      }
+
+      targetUnitId = parsedUnitId;
     }
 
     const updatedLesson = await turso.execute({
       sql: "UPDATE lessons SET name = ?, description = ?, content = ?, unit_id = ? WHERE id = ?",
-      args: [
-        name,
-        description,
-        content,
-        unit_id || lesson.rows[0].unit_id,
-        lessonId,
-      ],
+      args: [name.trim(), description.trim(), content, targetUnitId, lessonId],
     });
 
     // Get the updated lesson data

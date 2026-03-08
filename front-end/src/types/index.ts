@@ -46,6 +46,8 @@ export interface Lesson {
   created_at: string; // ISO date string
 }
 
+export type LessonContentType = 'text' | 'pdf' | 'word';
+
 // API response types (for login responses)
 export interface AuthUser {
   id: number;
@@ -92,11 +94,12 @@ export interface CreateLessonData {
   name: string;
   description: string;
   content: string;
+  content_type?: LessonContentType;
 }
 
 // Update types (partial updates)
-export interface UpdateUserData extends Partial<CreateUserData> {}
-export interface UpdateClassData extends Partial<CreateClassData> {}
-export interface UpdateSubjectData extends Partial<CreateSubjectData> {}
-export interface UpdateUnitData extends Partial<CreateUnitData> {}
-export interface UpdateLessonData extends Partial<CreateLessonData> {}
+export type UpdateUserData = Partial<CreateUserData>;
+export type UpdateClassData = Partial<CreateClassData>;
+export type UpdateSubjectData = Partial<CreateSubjectData>;
+export type UpdateUnitData = Partial<CreateUnitData>;
+export type UpdateLessonData = Partial<CreateLessonData>;

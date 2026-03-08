@@ -1,1246 +1,1542 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import {
-  MdFolderSpecial,
-  MdAddBox,
-  MdUploadFile,
-  MdFilterList,
-  MdExpandMore,
-  MdChevronRight,
-  MdDelete,
-  MdArticle,
-  MdPostAdd,
-  MdCloudUpload,
-  MdInfoOutline,
-  MdCreateNewFolder,
   MdAdd,
-  MdPictureAsPdf,
-  MdDescription,
-  MdAutorenew,
-  MdCheckCircle,
-  MdErrorOutline,
-  MdWarningAmber,
+  MdDelete,
+  MdEdit,
+  MdExpandLess,
+  MdExpandMore,
+  MdMenuBook,
+  MdSchool,
+  MdSubject,
+  MdViewModule,
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
+import type {
+  Class,
+  Lesson,
+  LessonContentType,
+  Subject,
+  Unit,
+} from '../../types';
 import {
+  createClass,
+  createLesson,
+  createSubject,
+  createUnit,
+  deleteClass,
+  deleteLesson,
+  deleteSubject,
+  deleteUnit,
+  getLessonsByUnit,
   getMyClasses,
   getMySubjects,
   getUnitsBySubject,
-  getLessonsByUnit,
-  createUnit,
-  createLessonText,
-  createLessonFile,
-  deleteUnit,
-  deleteLesson,
-  type CreateLessonFileResponse,
+  updateClass,
+  updateLesson,
+  updateSubject,
+  updateUnit,
+  type CreateLessonResponse,
 } from './teacher-curriculum-manager.services';
-import type { Class, Subject, Unit, Lesson } from '../../types';
 import './teacher-cirriculum-manager.css';
 
-type TabId = 'structure' | 'add' | 'upload';
-type UploadStatus = 'processing' | 'success' | 'partial' | 'failed';
+type SelectValue = number | '';
+type ClassMode = 'existing' | 'new';
+type LevelMode = 'skip' | 'existing' | 'new';
+type LessonMode = 'skip' | 'new';
+type EntityKind = 'class' | 'subject' | 'unit' | 'lesson';
+
+interface ApiErrorShape {
+  response?: {
+    data?: {
+      error?: string;
+    };
+  };
+  message?: string;
+}
+
+interface EditDraft {
+  kind: EntityKind;
+  id: number;
+  name: string;
+  description: string;
+  content?: string;
+  unitId?: number;
+}
 
 const MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024;
 
-interface UploadedFileItem {
-  id: string;
-  name: string;
-  size: number;
-  type: 'pdf' | 'word';
-  status: UploadStatus;
-  message: string;
-  contentLength?: number;
+function getErrorMessage(
+  error: unknown,
+  fallback = 'حدث خطأ غير متوقع. حاول مرة أخرى.'
+): string {
+  if (error && typeof error === 'object') {
+    const parsed = error as ApiErrorShape;
+    const backendError = parsed.response?.data?.error;
+    if (typeof backendError === 'string' && backendError.trim().length > 0) {
+      return backendError;
+    }
+    if (typeof parsed.message === 'string' && parsed.message.trim().length > 0) {
+      return parsed.message;
+    }
+  }
+  return fallback;
 }
 
-function getUploadStatusLabel(status: UploadStatus) {
-  if (status === 'success') return 'تم الاستخراج';
-  if (status === 'partial') return 'استخراج جزئي';
-  if (status === 'failed') return 'فشل الاستخراج';
-  return 'جارٍ المعالجة...';
+function isPdfFile(file: File): boolean {
+  const lowerName = file.name.toLowerCase();
+  return file.type === 'application/pdf' || lowerName.endsWith('.pdf');
 }
 
-function getUploadStatusClassName(status: UploadStatus) {
-  if (status === 'success') return 'tcm__file-status--success';
-  if (status === 'partial') return 'tcm__file-status--partial';
-  if (status === 'failed') return 'tcm__file-status--failed';
-  return 'tcm__file-status--processing';
+function isDocxFile(file: File): boolean {
+  const lowerName = file.name.toLowerCase();
+  return (
+    file.type ===
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+    lowerName.endsWith('.docx')
+  );
 }
 
-function getUploadStatusIcon(status: UploadStatus) {
-  if (status === 'success') {
-    return <MdCheckCircle aria-hidden />;
+function getLessonCreationMessage(result: CreateLessonResponse): string {
+  if (result.message) {
+    return result.message;
   }
-
-  if (status === 'partial') {
-    return <MdWarningAmber aria-hidden />;
+  if (result.content_type === 'text') {
+    return 'تم إنشاء الدرس النصي بنجاح.';
   }
-
-  if (status === 'failed') {
-    return <MdErrorOutline aria-hidden />;
-  }
-
-  return <MdAutorenew className="tcm__spin" aria-hidden />;
+  return 'تم إنشاء الدرس بنجاح.';
 }
 
 function TeacherCirriculumManager() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [classes, setClasses] = useState<Class[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [units, setUnits] = useState<Unit[]>([]);
-  const [uploadUnits, setUploadUnits] = useState<Unit[]>([]);
-  const [unitsLessons, setUnitsLessons] = useState<Record<number, Lesson[]>>({});
-  const [selectedClassId, setSelectedClassId] = useState<number | ''>('');
-  const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
-  const [activeTab, setActiveTab] = useState<TabId>('structure');
-  const [expandedUnitIds, setExpandedUnitIds] = useState<Set<number>>(new Set());
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [structureLoading, setStructureLoading] = useState(false);
-
-  // Add content form
-  const [addClassId, setAddClassId] = useState<number | ''>('');
-  const [addSubjectId, setAddSubjectId] = useState<number | ''>('');
-  const [addUnitName, setAddUnitName] = useState('');
-  const [addUnitDesc, setAddUnitDesc] = useState('');
-  const [addLessonName, setAddLessonName] = useState('');
-  const [addLessonDesc, setAddLessonDesc] = useState('');
-  const [addLessonContent, setAddLessonContent] = useState('');
-  const [addStep, setAddStep] = useState(1);
-
-  // Upload
-  const [uploadClassId, setUploadClassId] = useState<number | ''>('');
-  const [uploadSubjectId, setUploadSubjectId] = useState<number | ''>('');
-  const [uploadUnitId, setUploadUnitId] = useState<number | ''>('');
-  const [uploadLessonName, setUploadLessonName] = useState('');
-  const [uploadLessonDesc, setUploadLessonDesc] = useState('');
-  const [fileList, setFileList] = useState<UploadedFileItem[]>([]);
-  const [uploading, setUploading] = useState(false);
-
-  // Modals
-  const [modalAddUnit, setModalAddUnit] = useState(false);
-  const [modalAddLesson, setModalAddLesson] = useState(false);
-  const [modalUnitName, setModalUnitName] = useState('');
-  const [modalUnitDesc, setModalUnitDesc] = useState('');
-  const [modalLessonName, setModalLessonName] = useState('');
-  const [modalLessonDesc, setModalLessonDesc] = useState('');
-  const [modalLessonContent, setModalLessonContent] = useState('');
-  const [modalLessonUnitId, setModalLessonUnitId] = useState<number | null>(null);
-  const [submitLoading, setSubmitLoading] = useState(false);
+  const creatorSectionRef = useRef<HTMLDivElement | null>(null);
+  const hierarchyRequestIdRef = useRef(0);
+  const creatorUnitsRequestIdRef = useRef(0);
 
   const teacherId = user?.id ?? 0;
 
-  function redirectIfNotTeacher() {
-    if (!user) navigate('/authentication');
-    else if (user.userRole === 'admin') navigate('/admin');
-    else if (user.userRole === 'teacher') return;
-    else navigate('/teacher');
-  }
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [lessonsByUnit, setLessonsByUnit] = useState<Record<number, Lesson[]>>(
+    {}
+  );
+  const [expandedUnitIds, setExpandedUnitIds] = useState<Set<number>>(new Set());
 
-  useEffect(() => {
-    redirectIfNotTeacher();
-  }, [user?.userRole, navigate]);
+  const [selectedClassId, setSelectedClassId] = useState<SelectValue>('');
+  const [selectedSubjectId, setSelectedSubjectId] = useState<SelectValue>('');
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    Promise.all([getMyClasses(), getMySubjects()])
-      .then(([classesRes, subjectsRes]) => {
-        if (cancelled) return;
-        setClasses(classesRes.classes ?? []);
-        setSubjects(subjectsRes.subjects ?? []);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setError(err?.response?.data?.error ?? 'حدث خطأ أثناء تحميل البيانات');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const [loading, setLoading] = useState(true);
+  const [hierarchyLoading, setHierarchyLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
-  const subjectsForSelectedClass = useMemo(() => {
-    if (!selectedClassId) return subjects;
-    return subjects.filter((s) => s.class_id === selectedClassId);
-  }, [subjects, selectedClassId]);
+  const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
 
-  const subjectsForAddClass = useMemo(() => {
-    if (!addClassId) return [];
-    return subjects.filter((s) => s.class_id === addClassId);
-  }, [subjects, addClassId]);
+  const [creatorClassMode, setCreatorClassMode] = useState<ClassMode>('existing');
+  const [creatorExistingClassId, setCreatorExistingClassId] =
+    useState<SelectValue>('');
+  const [creatorNewClassName, setCreatorNewClassName] = useState('');
+  const [creatorNewClassDescription, setCreatorNewClassDescription] = useState('');
 
-  const unitsForUploadSubject = uploadUnits;
+  const [creatorSubjectMode, setCreatorSubjectMode] = useState<LevelMode>('skip');
+  const [creatorExistingSubjectId, setCreatorExistingSubjectId] =
+    useState<SelectValue>('');
+  const [creatorNewSubjectName, setCreatorNewSubjectName] = useState('');
+  const [creatorNewSubjectDescription, setCreatorNewSubjectDescription] =
+    useState('');
 
-  const loadStructure = useCallback(() => {
-    if (!selectedSubjectId) return;
-    setStructureLoading(true);
-    getUnitsBySubject(selectedSubjectId as number)
-      .then((res) => {
-        setUnits(res.units ?? []);
-        const ids = (res.units ?? []).map((u) => u.id);
-        setExpandedUnitIds(new Set(ids));
-        return Promise.all(
-          ids.map((id) =>
-            getLessonsByUnit(id).then((r) => ({ id, lessons: r.lessons ?? [] }))
-          )
-        );
-      })
-      .then((results) => {
-        const map: Record<number, Lesson[]> = {};
-        results.forEach(({ id, lessons }) => {
-          map[id] = lessons;
-        });
-        setUnitsLessons(map);
-      })
-      .catch((err) => {
-        setError(err?.response?.data?.error ?? 'حدث خطأ أثناء تحميل المنهج');
-      })
-      .finally(() => setStructureLoading(false));
-  }, [selectedSubjectId]);
+  const [creatorUnitMode, setCreatorUnitMode] = useState<LevelMode>('skip');
+  const [creatorExistingUnitId, setCreatorExistingUnitId] = useState<SelectValue>('');
+  const [creatorNewUnitName, setCreatorNewUnitName] = useState('');
+  const [creatorNewUnitDescription, setCreatorNewUnitDescription] = useState('');
+  const [creatorSubjectUnits, setCreatorSubjectUnits] = useState<Unit[]>([]);
 
-  const selectedClass = classes.find((c) => c.id === selectedClassId);
-  const selectedSubject = subjects.find((s) => s.id === selectedSubjectId);
-  const totalLessons = Object.values(unitsLessons).reduce(
-    (sum, arr) => sum + arr.length,
+  const [creatorLessonMode, setCreatorLessonMode] = useState<LessonMode>('skip');
+  const [creatorLessonName, setCreatorLessonName] = useState('');
+  const [creatorLessonDescription, setCreatorLessonDescription] = useState('');
+  const [creatorLessonContentType, setCreatorLessonContentType] =
+    useState<LessonContentType>('text');
+  const [creatorLessonTextContent, setCreatorLessonTextContent] = useState('');
+  const [creatorLessonFile, setCreatorLessonFile] = useState<File | null>(null);
+
+  const selectedClass =
+    selectedClassId === ''
+      ? null
+      : classes.find((classItem) => classItem.id === selectedClassId) ?? null;
+  const selectedSubject =
+    selectedSubjectId === ''
+      ? null
+      : subjects.find((subjectItem) => subjectItem.id === selectedSubjectId) ??
+        null;
+
+  const subjectsForSelectedClass =
+    selectedClassId === ''
+      ? []
+      : subjects.filter((subjectItem) => subjectItem.class_id === selectedClassId);
+
+  const creatorSubjectsForClass =
+    creatorClassMode === 'existing' && creatorExistingClassId !== ''
+      ? subjects.filter(
+          (subjectItem) => subjectItem.class_id === creatorExistingClassId
+        )
+      : [];
+
+  const totalLessons = units.reduce(
+    (sum, unitItem) => sum + (lessonsByUnit[unitItem.id]?.length ?? 0),
     0
   );
 
-  const toggleUnit = (id: number) => {
-    setExpandedUnitIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
+  const clearHierarchy = useCallback(() => {
+    hierarchyRequestIdRef.current += 1;
+    setUnits([]);
+    setLessonsByUnit({});
+    setExpandedUnitIds(new Set());
+    setHierarchyLoading(false);
+  }, []);
 
-  const handleAddUnit = () => {
-    if (!selectedSubjectId || !modalUnitName.trim() || !teacherId) return;
-    setSubmitLoading(true);
-    createUnit({
-      subject_id: selectedSubjectId as number,
-      teacher_id: teacherId,
-      name: modalUnitName.trim(),
-      description: modalUnitDesc.trim() || '—',
-    })
-      .then(() => {
-        setModalAddUnit(false);
-        setModalUnitName('');
-        setModalUnitDesc('');
-        loadStructure();
-      })
-      .catch((err) => {
-        setError(err?.response?.data?.error ?? 'فشل إضافة الوحدة');
-      })
-      .finally(() => setSubmitLoading(false));
-  };
+  const refreshBaseData = useCallback(async () => {
+    const [classesResponse, subjectsResponse] = await Promise.all([
+      getMyClasses(),
+      getMySubjects(),
+    ]);
+    setClasses(classesResponse.classes ?? []);
+    setSubjects(subjectsResponse.subjects ?? []);
+  }, []);
 
-  const handleAddLesson = () => {
-    if (!modalLessonUnitId || !modalLessonName.trim() || !teacherId) return;
-    setSubmitLoading(true);
-    createLessonText({
-      unit_id: modalLessonUnitId,
-      teacher_id: teacherId,
-      name: modalLessonName.trim(),
-      description: modalLessonDesc.trim() || '—',
-      content: modalLessonContent.trim() || '—',
-    })
-      .then(() => {
-        setModalAddLesson(false);
-        setModalLessonName('');
-        setModalLessonDesc('');
-        setModalLessonContent('');
-        setModalLessonUnitId(null);
-        loadStructure();
-      })
-      .catch((err) => {
-        setError(err?.response?.data?.error ?? 'فشل إضافة الدرس');
-      })
-      .finally(() => setSubmitLoading(false));
-  };
+  const loadHierarchyForSubject = useCallback(async (subjectId: number) => {
+    const requestId = ++hierarchyRequestIdRef.current;
+    setHierarchyLoading(true);
 
-  const handleDeleteUnit = (unitId: number) => {
-    if (!window.confirm('هل أنت متأكد من حذف هذه الوحدة؟')) return;
-    deleteUnit(unitId)
-      .then(loadStructure)
-      .catch((err) =>
-        setError(err?.response?.data?.error ?? 'فشل حذف الوحدة')
-      );
-  };
-
-  const handleDeleteLesson = (lessonId: number) => {
-    if (!window.confirm('هل أنت متأكد من حذف هذا الدرس؟')) return;
-    deleteLesson(lessonId)
-      .then(loadStructure)
-      .catch((err) =>
-        setError(err?.response?.data?.error ?? 'فشل حذف الدرس')
-      );
-  };
-
-  const handleAddContentSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!teacherId) return;
-    setSubmitLoading(true);
-    const doCreate = async () => {
-      let classId = addClassId;
-      let subjectId = addSubjectId;
-      if (!classId && classes.length > 0) {
-        classId = classes[0].id;
-        setAddClassId(classId);
+    try {
+      const unitsResponse = await getUnitsBySubject(subjectId);
+      if (requestId !== hierarchyRequestIdRef.current) {
+        return;
       }
-      if (!subjectId && addClassId) {
-        const sub = subjects.find((s) => s.class_id === addClassId);
-        if (sub) {
-          subjectId = sub.id;
-          setAddSubjectId(subjectId);
+
+      const fetchedUnits = unitsResponse.units ?? [];
+      setUnits(fetchedUnits);
+      setExpandedUnitIds(new Set(fetchedUnits.map((unitItem) => unitItem.id)));
+
+      const lessonResponses = await Promise.all(
+        fetchedUnits.map(async (unitItem) => {
+          const response = await getLessonsByUnit(unitItem.id);
+          return {
+            unitId: unitItem.id,
+            lessons: response.lessons ?? [],
+          };
+        })
+      );
+
+      if (requestId !== hierarchyRequestIdRef.current) {
+        return;
+      }
+
+      const nextLessonMap: Record<number, Lesson[]> = {};
+      lessonResponses.forEach((item) => {
+        nextLessonMap[item.unitId] = item.lessons;
+      });
+
+      setLessonsByUnit(nextLessonMap);
+    } catch (loadError: unknown) {
+      if (requestId === hierarchyRequestIdRef.current) {
+        setError(getErrorMessage(loadError, 'فشل تحميل هيكل المنهج.'));
+      }
+    } finally {
+      if (requestId === hierarchyRequestIdRef.current) {
+        setHierarchyLoading(false);
+      }
+    }
+  }, []);
+
+  const resetCreatorForm = () => {
+    setCreatorClassMode('existing');
+    setCreatorExistingClassId('');
+    setCreatorNewClassName('');
+    setCreatorNewClassDescription('');
+    setCreatorSubjectMode('skip');
+    setCreatorExistingSubjectId('');
+    setCreatorNewSubjectName('');
+    setCreatorNewSubjectDescription('');
+    setCreatorUnitMode('skip');
+    setCreatorExistingUnitId('');
+    setCreatorNewUnitName('');
+    setCreatorNewUnitDescription('');
+    setCreatorSubjectUnits([]);
+    setCreatorLessonMode('skip');
+    setCreatorLessonName('');
+    setCreatorLessonDescription('');
+    setCreatorLessonContentType('text');
+    setCreatorLessonTextContent('');
+    setCreatorLessonFile(null);
+  };
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/authentication');
+      return;
+    }
+    if (user.userRole === 'admin') {
+      navigate('/admin');
+    }
+  }, [user, navigate]);
+
+  useEffect(() => {
+    if (user?.userRole !== 'teacher') {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadInitialData = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const [classesResponse, subjectsResponse] = await Promise.all([
+          getMyClasses(),
+          getMySubjects(),
+        ]);
+
+        if (cancelled) {
+          return;
         }
-      }
-      if (addUnitName.trim()) {
-        if (!subjectId) throw new Error('اختر المادة أولاً');
-        const { unit } = await createUnit({
-          subject_id: subjectId as number,
-          teacher_id: teacherId,
-          name: addUnitName.trim(),
-          description: addUnitDesc.trim() || '—',
-        });
-        if (addLessonName.trim() && unit) {
-          await createLessonText({
-            unit_id: unit.id,
-            teacher_id: teacherId,
-            name: addLessonName.trim(),
-            description: addLessonDesc.trim() || '—',
-            content: addLessonContent.trim() || '—',
-          });
+
+        setClasses(classesResponse.classes ?? []);
+        setSubjects(subjectsResponse.subjects ?? []);
+      } catch (loadError: unknown) {
+        if (!cancelled) {
+          setError(getErrorMessage(loadError, 'فشل تحميل بيانات المنهج.'));
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
         }
       }
     };
-    doCreate()
-      .then(() => {
-        setAddUnitName('');
-        setAddUnitDesc('');
-        setAddLessonName('');
-        setAddLessonDesc('');
-        setAddLessonContent('');
-        setAddStep(1);
-        loadStructure();
-      })
-      .catch((err) => {
-        setError(err?.response?.data?.error ?? 'فشل حفظ المحتوى');
-      })
-      .finally(() => setSubmitLoading(false));
-  };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !uploadUnitId || !uploadLessonName.trim() || !teacherId) {
-      return;
-    }
+    void loadInitialData();
 
-    const uploadId = `${Date.now()}-${file.name}`;
-    const isPdf =
-      file.type === 'application/pdf' ||
-      file.name.toLowerCase().endsWith('.pdf');
-    const isLegacyDoc =
-      file.type === 'application/msword' ||
-      file.name.toLowerCase().endsWith('.doc');
-    const isDocx =
-      file.type ===
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-      file.name.toLowerCase().endsWith('.docx');
-    const contentType = isPdf ? 'pdf' : isDocx ? 'word' : null;
-
-    if (file.size > MAX_UPLOAD_SIZE_BYTES) {
-      setError('حجم الملف يتجاوز الحد الأقصى المسموح وهو 25 ميجابايت');
-      e.target.value = '';
-      return;
-    }
-
-    if (isLegacyDoc) {
-      setError('ملفات DOC غير مدعومة. يرجى تحويل الملف إلى DOCX أولاً');
-      e.target.value = '';
-      return;
-    }
-
-    if (!contentType) {
-      setError('يدعم الملفات PDF أو DOCX فقط');
-      e.target.value = '';
-      return;
-    }
-
-    setError(null);
-    setUploading(true);
-    setFileList((prev) => [
-      {
-        id: uploadId,
-        name: file.name,
-        size: file.size,
-        type: contentType,
-        status: 'processing',
-        message: 'جارٍ استخراج النص من الملف...',
-      },
-      ...prev,
-    ]);
-
-    createLessonFile({
-      name: uploadLessonName.trim(),
-      description: uploadLessonDesc.trim() || '—',
-      unit_id: uploadUnitId as number,
-      content_type: contentType,
-      teacher_id: teacherId,
-      file,
-    })
-      .then((res: CreateLessonFileResponse) => {
-        const nextStatus: UploadStatus =
-          res.extractionStatus === 'partial'
-            ? 'partial'
-            : res.fileProcessed
-              ? 'success'
-              : 'failed';
-
-        setFileList((prev) =>
-          prev.map((item) =>
-            item.id === uploadId
-              ? {
-                  ...item,
-                  status: nextStatus,
-                  message: res.message,
-                  contentLength: res.contentLength,
-                }
-              : item
-          )
-        );
-        setUploadLessonName('');
-        setUploadLessonDesc('');
-
-        if (selectedSubjectId && selectedSubjectId === uploadSubjectId) {
-          loadStructure();
-        }
-      })
-      .catch((err) => {
-        const uploadError =
-          err?.response?.data?.error ?? 'فشل رفع الملف ومعالجة المحتوى';
-
-        setError(uploadError);
-        setFileList((prev) =>
-          prev.map((item) =>
-            item.id === uploadId
-              ? {
-                  ...item,
-                  status: 'failed',
-                  message: uploadError,
-                  contentLength: 0,
-                }
-              : item
-          )
-        );
-      })
-      .finally(() => {
-        setUploading(false);
-        e.target.value = '';
-      });
-  };
-
-  const loadUploadUnits = useCallback(() => {
-    if (!uploadSubjectId) return;
-    getUnitsBySubject(uploadSubjectId as number).then((res) =>
-      setUploadUnits(res.units ?? [])
-    );
-  }, [uploadSubjectId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, user?.userRole]);
 
   useEffect(() => {
-    if (activeTab === 'upload' && uploadSubjectId) loadUploadUnits();
-  }, [activeTab, uploadSubjectId, loadUploadUnits]);
+    if (selectedSubjectId === '') {
+      hierarchyRequestIdRef.current += 1;
+      setUnits([]);
+      setLessonsByUnit({});
+      setExpandedUnitIds(new Set());
+      setHierarchyLoading(false);
+      return;
+    }
+
+    void loadHierarchyForSubject(selectedSubjectId);
+  }, [selectedSubjectId, loadHierarchyForSubject]);
+
+  useEffect(() => {
+    if (creatorSubjectMode !== 'existing' || creatorExistingSubjectId === '') {
+      creatorUnitsRequestIdRef.current += 1;
+      setCreatorSubjectUnits([]);
+      setCreatorExistingUnitId('');
+      return;
+    }
+
+    const requestId = ++creatorUnitsRequestIdRef.current;
+    getUnitsBySubject(creatorExistingSubjectId)
+      .then((response) => {
+        if (requestId !== creatorUnitsRequestIdRef.current) {
+          return;
+        }
+        setCreatorSubjectUnits(response.units ?? []);
+      })
+      .catch((loadError: unknown) => {
+        if (requestId !== creatorUnitsRequestIdRef.current) {
+          return;
+        }
+        setError(getErrorMessage(loadError, 'فشل تحميل وحدات المادة المختارة.'));
+      });
+  }, [creatorSubjectMode, creatorExistingSubjectId]);
 
   if (user?.userRole !== 'teacher') {
     return null;
   }
 
-  if (loading) {
-    return (
-      <div className="tcm" dir="rtl">
-        <div className="tcm__loading">جاري التحميل...</div>
-      </div>
-    );
-  }
+  const handleClassChange = (nextValue: SelectValue) => {
+    setError(null);
+    setSuccess(null);
+    setSelectedClassId(nextValue);
+    setSelectedSubjectId('');
+    clearHierarchy();
+  };
+
+  const handleSubjectChange = (nextValue: SelectValue) => {
+    setError(null);
+    setSuccess(null);
+    setSelectedSubjectId(nextValue);
+  };
+
+  const toggleUnitExpansion = (unitId: number) => {
+    setExpandedUnitIds((previous) => {
+      const next = new Set(previous);
+      if (next.has(unitId)) {
+        next.delete(unitId);
+      } else {
+        next.add(unitId);
+      }
+      return next;
+    });
+  };
+
+  const openEditForSelectedClass = () => {
+    if (!selectedClass) {
+      return;
+    }
+    setEditDraft({
+      kind: 'class',
+      id: selectedClass.id,
+      name: selectedClass.name,
+      description: selectedClass.description,
+    });
+  };
+
+  const openEditForSelectedSubject = () => {
+    if (!selectedSubject) {
+      return;
+    }
+    setEditDraft({
+      kind: 'subject',
+      id: selectedSubject.id,
+      name: selectedSubject.name,
+      description: selectedSubject.description,
+    });
+  };
+
+  const openEditForUnit = (unitItem: Unit) => {
+    setEditDraft({
+      kind: 'unit',
+      id: unitItem.id,
+      name: unitItem.name,
+      description: unitItem.description,
+    });
+  };
+
+  const openEditForLesson = (lessonItem: Lesson) => {
+    setEditDraft({
+      kind: 'lesson',
+      id: lessonItem.id,
+      name: lessonItem.name,
+      description: lessonItem.description,
+      content: lessonItem.content,
+      unitId: lessonItem.unit_id,
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editDraft) {
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      if (!editDraft.name.trim()) {
+        throw new Error('الاسم مطلوب.');
+      }
+      if (!editDraft.description.trim()) {
+        throw new Error('الوصف مطلوب.');
+      }
+
+      if (editDraft.kind === 'class') {
+        const response = await updateClass(editDraft.id, {
+          name: editDraft.name.trim(),
+          description: editDraft.description.trim(),
+        });
+        setClasses((previous) =>
+          previous.map((item) =>
+            item.id === response.class.id ? response.class : item
+          )
+        );
+      }
+
+      if (editDraft.kind === 'subject') {
+        const response = await updateSubject(editDraft.id, {
+          name: editDraft.name.trim(),
+          description: editDraft.description.trim(),
+        });
+        setSubjects((previous) =>
+          previous.map((item) =>
+            item.id === response.subject.id ? response.subject : item
+          )
+        );
+      }
+
+      if (editDraft.kind === 'unit') {
+        if (selectedSubjectId === '') {
+          throw new Error('اختر مادة قبل تعديل الوحدة.');
+        }
+        await updateUnit(editDraft.id, {
+          name: editDraft.name.trim(),
+          description: editDraft.description.trim(),
+          subject_id: selectedSubjectId,
+        });
+        await loadHierarchyForSubject(selectedSubjectId);
+      }
+
+      if (editDraft.kind === 'lesson') {
+        if (!editDraft.content || !editDraft.content.trim()) {
+          throw new Error('محتوى الدرس مطلوب.');
+        }
+        if (!editDraft.unitId) {
+          throw new Error('اختر وحدة للدرس.');
+        }
+        await updateLesson(editDraft.id, {
+          name: editDraft.name.trim(),
+          description: editDraft.description.trim(),
+          content: editDraft.content,
+          unit_id: editDraft.unitId,
+        });
+        if (selectedSubjectId !== '') {
+          await loadHierarchyForSubject(selectedSubjectId);
+        }
+      }
+
+      setEditDraft(null);
+      setSuccess('تم حفظ التعديلات بنجاح.');
+    } catch (saveError: unknown) {
+      setError(getErrorMessage(saveError, 'فشل حفظ التعديلات.'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteEntity = async (kind: EntityKind, id: number, label: string) => {
+    const accepted = window.confirm(`هل أنت متأكد من حذف ${label}؟`);
+    if (!accepted) {
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      if (kind === 'class') {
+        await deleteClass(id);
+        setClasses((previous) => previous.filter((item) => item.id !== id));
+        setSubjects((previous) => previous.filter((item) => item.class_id !== id));
+        if (selectedClassId === id) {
+          setSelectedClassId('');
+          setSelectedSubjectId('');
+          clearHierarchy();
+        }
+      }
+
+      if (kind === 'subject') {
+        await deleteSubject(id);
+        setSubjects((previous) => previous.filter((item) => item.id !== id));
+        if (selectedSubjectId === id) {
+          setSelectedSubjectId('');
+          clearHierarchy();
+        }
+      }
+
+      if (kind === 'unit') {
+        await deleteUnit(id);
+        if (selectedSubjectId !== '') {
+          await loadHierarchyForSubject(selectedSubjectId);
+        }
+      }
+
+      if (kind === 'lesson') {
+        await deleteLesson(id);
+        if (selectedSubjectId !== '') {
+          await loadHierarchyForSubject(selectedSubjectId);
+        }
+      }
+
+      setSuccess('تم الحذف بنجاح.');
+    } catch (deleteError: unknown) {
+      setError(getErrorMessage(deleteError, 'فشل تنفيذ عملية الحذف.'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const prefillCreatorForUnit = () => {
+    if (selectedClassId === '' || selectedSubjectId === '') {
+      return;
+    }
+
+    setCreatorClassMode('existing');
+    setCreatorExistingClassId(selectedClassId);
+    setCreatorSubjectMode('existing');
+    setCreatorExistingSubjectId(selectedSubjectId);
+    setCreatorUnitMode('new');
+    setCreatorLessonMode('skip');
+    setCreatorExistingUnitId('');
+    setCreatorLessonName('');
+    setCreatorLessonDescription('');
+    setCreatorLessonTextContent('');
+    setCreatorLessonFile(null);
+
+    creatorSectionRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  };
+
+  const prefillCreatorForLesson = () => {
+    if (selectedClassId === '' || selectedSubjectId === '' || units.length === 0) {
+      return;
+    }
+
+    setCreatorClassMode('existing');
+    setCreatorExistingClassId(selectedClassId);
+    setCreatorSubjectMode('existing');
+    setCreatorExistingSubjectId(selectedSubjectId);
+    setCreatorUnitMode('existing');
+    setCreatorExistingUnitId(units[0]?.id ?? '');
+    setCreatorLessonMode('new');
+    setCreatorLessonContentType('text');
+    setCreatorLessonTextContent('');
+    setCreatorLessonFile(null);
+
+    creatorSectionRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  };
+
+  const handleCreatorSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!teacherId) {
+      setError('المعلم غير معرف. قم بإعادة تسجيل الدخول.');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      let resolvedClassId: number;
+      let resolvedSubjectId: number | null = null;
+      let resolvedUnitId: number | null = null;
+      let lessonCreationResult: CreateLessonResponse | null = null;
+
+      if (creatorClassMode === 'existing') {
+        if (creatorExistingClassId === '') {
+          throw new Error('اختر صفاً موجوداً أو أنشئ صفاً جديداً.');
+        }
+        resolvedClassId = creatorExistingClassId;
+      } else {
+        if (!creatorNewClassName.trim() || !creatorNewClassDescription.trim()) {
+          throw new Error('يرجى إدخال اسم الصف ووصفه.');
+        }
+
+        const classResponse = await createClass({
+          name: creatorNewClassName.trim(),
+          description: creatorNewClassDescription.trim(),
+          teacher_id: teacherId,
+        });
+        resolvedClassId = classResponse.class.id;
+      }
+
+      if (creatorSubjectMode === 'skip') {
+        if (creatorUnitMode !== 'skip' || creatorLessonMode !== 'skip') {
+          throw new Error('لا يمكن إضافة وحدة أو درس بدون تحديد مادة.');
+        }
+      } else if (creatorSubjectMode === 'existing') {
+        if (creatorExistingSubjectId === '') {
+          throw new Error('اختر مادة موجودة.');
+        }
+
+        const selectedCreatorSubject = subjects.find(
+          (subjectItem) => subjectItem.id === creatorExistingSubjectId
+        );
+        if (!selectedCreatorSubject) {
+          throw new Error('المادة المختارة غير موجودة.');
+        }
+        if (selectedCreatorSubject.class_id !== resolvedClassId) {
+          throw new Error('المادة المختارة لا تتبع الصف المختار.');
+        }
+
+        resolvedSubjectId = creatorExistingSubjectId;
+      } else {
+        if (!creatorNewSubjectName.trim() || !creatorNewSubjectDescription.trim()) {
+          throw new Error('يرجى إدخال اسم المادة ووصفها.');
+        }
+
+        const subjectResponse = await createSubject({
+          class_id: resolvedClassId,
+          teacher_id: teacherId,
+          name: creatorNewSubjectName.trim(),
+          description: creatorNewSubjectDescription.trim(),
+        });
+        resolvedSubjectId = subjectResponse.subject.id;
+      }
+
+      if (creatorUnitMode === 'skip') {
+        if (creatorLessonMode !== 'skip') {
+          throw new Error('لا يمكن إضافة درس بدون تحديد وحدة.');
+        }
+      } else if (creatorUnitMode === 'existing') {
+        if (creatorExistingUnitId === '') {
+          throw new Error('اختر وحدة موجودة.');
+        }
+
+        const selectedCreatorUnit = creatorSubjectUnits.find(
+          (unitItem) => unitItem.id === creatorExistingUnitId
+        );
+        if (!selectedCreatorUnit) {
+          throw new Error('الوحدة المختارة غير موجودة ضمن المادة المختارة.');
+        }
+
+        resolvedUnitId = creatorExistingUnitId;
+      } else {
+        if (!resolvedSubjectId) {
+          throw new Error('لا يمكن إنشاء وحدة بدون مادة.');
+        }
+        if (!creatorNewUnitName.trim() || !creatorNewUnitDescription.trim()) {
+          throw new Error('يرجى إدخال اسم الوحدة ووصفها.');
+        }
+
+        const unitResponse = await createUnit({
+          subject_id: resolvedSubjectId,
+          teacher_id: teacherId,
+          name: creatorNewUnitName.trim(),
+          description: creatorNewUnitDescription.trim(),
+        });
+        resolvedUnitId = unitResponse.unit.id;
+      }
+
+      if (creatorLessonMode === 'new') {
+        if (!resolvedUnitId) {
+          throw new Error('لا يمكن إنشاء درس بدون وحدة.');
+        }
+        if (!creatorLessonName.trim() || !creatorLessonDescription.trim()) {
+          throw new Error('يرجى إدخال اسم الدرس ووصفه.');
+        }
+
+        if (creatorLessonContentType === 'text') {
+          if (!creatorLessonTextContent.trim()) {
+            throw new Error('يرجى إدخال المحتوى النصي للدرس.');
+          }
+          lessonCreationResult = await createLesson({
+            content_type: 'text',
+            content: creatorLessonTextContent.trim(),
+            description: creatorLessonDescription.trim(),
+            name: creatorLessonName.trim(),
+            teacher_id: teacherId,
+            unit_id: resolvedUnitId,
+          });
+        } else {
+          if (!creatorLessonFile) {
+            throw new Error('يرجى اختيار ملف للدرس.');
+          }
+          if (creatorLessonFile.size > MAX_UPLOAD_SIZE_BYTES) {
+            throw new Error('حجم الملف يتجاوز 25 ميجابايت.');
+          }
+          if (
+            creatorLessonContentType === 'pdf' &&
+            !isPdfFile(creatorLessonFile)
+          ) {
+            throw new Error('نوع الملف لا يطابق المحتوى المختار. المطلوب PDF.');
+          }
+          if (
+            creatorLessonContentType === 'word' &&
+            !isDocxFile(creatorLessonFile)
+          ) {
+            throw new Error('نوع الملف لا يطابق المحتوى المختار. المطلوب DOCX.');
+          }
+
+          lessonCreationResult = await createLesson({
+            content_type: creatorLessonContentType,
+            description: creatorLessonDescription.trim(),
+            file: creatorLessonFile,
+            name: creatorLessonName.trim(),
+            teacher_id: teacherId,
+            unit_id: resolvedUnitId,
+          });
+        }
+      }
+
+      await refreshBaseData();
+      setSelectedClassId(resolvedClassId);
+
+      if (resolvedSubjectId) {
+        setSelectedSubjectId(resolvedSubjectId);
+        await loadHierarchyForSubject(resolvedSubjectId);
+      } else {
+        setSelectedSubjectId('');
+        clearHierarchy();
+      }
+
+      resetCreatorForm();
+      setCreatorClassMode('existing');
+      setCreatorExistingClassId(resolvedClassId);
+      if (resolvedSubjectId) {
+        setCreatorSubjectMode('existing');
+        setCreatorExistingSubjectId(resolvedSubjectId);
+      }
+
+      if (lessonCreationResult) {
+        setSuccess(getLessonCreationMessage(lessonCreationResult));
+      } else {
+        setSuccess('تم حفظ التغييرات بنجاح.');
+      }
+    } catch (creatorError: unknown) {
+      setError(getErrorMessage(creatorError, 'فشل تنفيذ عملية الإنشاء.'));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <div className="tcm" dir="rtl">
-      <nav aria-label="مسار التنقل">
-        <ol className="tcm__breadcrumb">
+    <div className="tcm2" dir="rtl">
+      <nav aria-label="breadcrumb">
+        <ol className="tcm2__breadcrumb">
           <li>
             <Link to="/teacher">الرئيسية</Link>
           </li>
-          <li className="tcm__breadcrumb-current">المنهج الدراسي</li>
+          <li className="tcm2__breadcrumb-current">المنهج الدراسي</li>
         </ol>
       </nav>
-      <h1 className="tcm__title">إدارة المنهج الدراسي</h1>
 
-      <section className="tcm__quick" aria-labelledby="quick-access-heading">
-        <h2 id="quick-access-heading" className="tcm__quick-title">
-          وصول سريع
-        </h2>
-        <div className="tcm__quick-grid">
-          <button
-            type="button"
-            className="tcm__quick-card"
-            onClick={() => setActiveTab('structure')}
-          >
-            <div className="tcm__quick-card-icon">
-              <MdFolderSpecial aria-hidden />
-            </div>
-            <div>
-              <h3 className="tcm__quick-card-title">عرض هيكل المنهج</h3>
-              <p className="tcm__quick-card-desc">
-                اختر الصف والمادة ثم اعرض الوحدات والدروس
-              </p>
-            </div>
-          </button>
-          <button
-            type="button"
-            className="tcm__quick-card"
-            onClick={() => setActiveTab('add')}
-          >
-            <div className="tcm__quick-card-icon">
-              <MdAddBox aria-hidden />
-            </div>
-            <div>
-              <h3 className="tcm__quick-card-title">إضافة محتوى</h3>
-              <p className="tcm__quick-card-desc">
-                أضف وحدة أو درس جديد للمنهج
-              </p>
-            </div>
-          </button>
-          <button
-            type="button"
-            className="tcm__quick-card"
-            onClick={() => setActiveTab('upload')}
-          >
-            <div className="tcm__quick-card-icon">
-              <MdUploadFile aria-hidden />
-            </div>
-            <div>
-              <h3 className="tcm__quick-card-title">رفع ملفات المنهج</h3>
-              <p className="tcm__quick-card-desc">
-                ارفع ملفات PDF أو Word لمعالجتها تلقائياً
-              </p>
-            </div>
-          </button>
-        </div>
-      </section>
-
-      <div className="tcm__tabs">
-        <button
-          type="button"
-          className={`tcm__tab ${activeTab === 'structure' ? 'tcm__tab--active' : ''}`}
-          onClick={() => setActiveTab('structure')}
-        >
-          <MdFolderSpecial />
-          هيكل المنهج
-        </button>
-        <button
-          type="button"
-          className={`tcm__tab ${activeTab === 'add' ? 'tcm__tab--active' : ''}`}
-          onClick={() => setActiveTab('add')}
-        >
-          <MdAddBox />
-          إضافة محتوى
-        </button>
-        <button
-          type="button"
-          className={`tcm__tab ${activeTab === 'upload' ? 'tcm__tab--active' : ''}`}
-          onClick={() => setActiveTab('upload')}
-        >
-          <MdUploadFile />
-          رفع الملفات
-        </button>
-      </div>
+      <header className="tcm2__header">
+        <h1>إدارة المنهج الدراسي</h1>
+        <p>صفحة واحدة لإدارة الصفوف والمواد والوحدات والدروس بشكل مباشر.</p>
+      </header>
 
       {error && (
-        <div className="tcm__error" role="alert">
+        <div className="tcm2__alert tcm2__alert--error" role="alert">
           {error}
         </div>
       )}
 
-      {activeTab === 'structure' && (
-        <div className="tcm__structure">
-          <div className="tcm__filter">
-            <h3 className="tcm__filter-title">
-              <MdFilterList />
-              اختر الصف والمادة
-            </h3>
-            <div className="tcm__filter-group">
-              <label className="tcm__filter-label" htmlFor="tcm-class">
-                الصف الدراسي
-              </label>
-              <select
-                id="tcm-class"
-                className="tcm__filter-select"
-                value={selectedClassId}
-                onChange={(e) => {
-                  setSelectedClassId(
-                    e.target.value ? Number(e.target.value) : ''
-                  );
-                  setSelectedSubjectId('');
-                }}
-              >
-                <option value="">— اختر الصف —</option>
-                {classes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+      {success && (
+        <div className="tcm2__alert tcm2__alert--success" role="status">
+          {success}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="tcm2__loading">جاري تحميل بيانات المنهج...</div>
+      ) : (
+        <div className="tcm2__grid">
+          <section className="tcm2__panel">
+            <div className="tcm2__panel-head">
+              <h2>
+                <MdSchool aria-hidden />
+                هيكل المنهج
+              </h2>
+              <span>
+                {units.length} وحدة / {totalLessons} درس
+              </span>
             </div>
-            <div className="tcm__filter-group">
-              <label className="tcm__filter-label" htmlFor="tcm-subject">
-                المادة الدراسية
-              </label>
-              <select
-                id="tcm-subject"
-                className="tcm__filter-select"
-                value={selectedSubjectId}
-                onChange={(e) =>
-                  setSelectedSubjectId(
-                    e.target.value ? Number(e.target.value) : ''
-                  )
-                }
-              >
-                <option value="">— اختر المادة —</option>
-                {subjectsForSelectedClass.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button
-              type="button"
-              className="tcm__filter-btn"
-              onClick={loadStructure}
-              disabled={!selectedSubjectId || structureLoading}
-            >
-              عرض المنهج
-            </button>
-          </div>
-          <div className="tcm__tree-wrap">
-            {structureLoading ? (
-              <div className="tcm__loading">جاري التحميل...</div>
-            ) : !selectedSubjectId ? (
-              <div className="tcm__empty">
-                اختر الصف والمادة ثم اضغط «عرض المنهج».
+
+            <div className="tcm2__selectors">
+              <div className="tcm2__field">
+                <label htmlFor="active-class">الصف</label>
+                <select
+                  id="active-class"
+                  value={selectedClassId}
+                  onChange={(event) =>
+                    handleClassChange(
+                      event.target.value ? Number(event.target.value) : ''
+                    )
+                  }
+                >
+                  <option value="">اختر الصف</option>
+                  {classes.map((classItem) => (
+                    <option key={classItem.id} value={classItem.id}>
+                      {classItem.name}
+                    </option>
+                  ))}
+                </select>
               </div>
-            ) : (
-              <>
-                <div className="tcm__tree-head">
-                  <div>
-                    <h2 className="tcm__tree-title">
-                      هيكل المنهج: {selectedSubject?.name ?? '—'} —{' '}
-                      {selectedClass?.name ?? '—'}
-                    </h2>
-                    <p className="tcm__tree-subtitle">
-                      {units.length} وحدة / {totalLessons} درساً
-                    </p>
-                  </div>
-                  <div className="tcm__tree-actions">
-                    <button
-                      type="button"
-                      className="tcm__btn tcm__btn--secondary"
-                      onClick={() => setModalAddUnit(true)}
-                      disabled={!selectedSubjectId}
-                    >
-                      <MdCreateNewFolder />
-                      إضافة وحدة
-                    </button>
-                    <button
-                      type="button"
-                      className="tcm__btn tcm__btn--primary"
-                      onClick={() => {
-                        setModalLessonUnitId(units[0]?.id ?? null);
-                        setModalAddLesson(true);
-                      }}
-                      disabled={!selectedSubjectId || units.length === 0}
-                    >
-                      <MdAdd />
-                      إضافة درس
-                    </button>
-                  </div>
+
+              <div className="tcm2__field">
+                <label htmlFor="active-subject">المادة</label>
+                <select
+                  id="active-subject"
+                  value={selectedSubjectId}
+                  onChange={(event) =>
+                    handleSubjectChange(
+                      event.target.value ? Number(event.target.value) : ''
+                    )
+                  }
+                  disabled={selectedClassId === ''}
+                >
+                  <option value="">اختر المادة</option>
+                  {subjectsForSelectedClass.map((subjectItem) => (
+                    <option key={subjectItem.id} value={subjectItem.id}>
+                      {subjectItem.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {selectedClass && (
+              <div className="tcm2__meta">
+                <div>
+                  <h3>
+                    <MdSchool aria-hidden />
+                    {selectedClass.name}
+                  </h3>
+                  <p>{selectedClass.description}</p>
                 </div>
-                <div className="tcm__tree-list">
-                  {units.length === 0 ? (
-                    <div className="tcm__empty">لا توجد وحدات بعد.</div>
-                  ) : (
-                    units.map((unit) => {
-                      const isExpanded = expandedUnitIds.has(unit.id);
-                      const lessonList = unitsLessons[unit.id] ?? [];
-                      return (
-                        <div
-                          key={unit.id}
-                          className={`tcm__unit ${isExpanded ? 'tcm__unit--expanded' : 'tcm__unit--collapsed'}`}
+                <div className="tcm2__meta-actions">
+                  <button type="button" onClick={openEditForSelectedClass}>
+                    <MdEdit aria-hidden />
+                    تعديل
+                  </button>
+                  <button
+                    type="button"
+                    className="tcm2__danger"
+                    onClick={() =>
+                      void deleteEntity('class', selectedClass.id, 'هذا الصف')
+                    }
+                    disabled={saving}
+                  >
+                    <MdDelete aria-hidden />
+                    حذف
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {selectedSubject && (
+              <div className="tcm2__meta">
+                <div>
+                  <h3>
+                    <MdSubject aria-hidden />
+                    {selectedSubject.name}
+                  </h3>
+                  <p>{selectedSubject.description}</p>
+                </div>
+                <div className="tcm2__meta-actions">
+                  <button type="button" onClick={openEditForSelectedSubject}>
+                    <MdEdit aria-hidden />
+                    تعديل
+                  </button>
+                  <button
+                    type="button"
+                    className="tcm2__danger"
+                    onClick={() =>
+                      void deleteEntity('subject', selectedSubject.id, 'هذه المادة')
+                    }
+                    disabled={saving}
+                  >
+                    <MdDelete aria-hidden />
+                    حذف
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="tcm2__helper-actions">
+              <button
+                type="button"
+                onClick={prefillCreatorForUnit}
+                disabled={!selectedSubject}
+              >
+                <MdAdd aria-hidden />
+                إضافة وحدة للمادة الحالية
+              </button>
+              <button
+                type="button"
+                onClick={prefillCreatorForLesson}
+                disabled={!selectedSubject || units.length === 0}
+              >
+                <MdAdd aria-hidden />
+                إضافة درس للمادة الحالية
+              </button>
+            </div>
+
+            {!selectedSubject ? (
+              <div className="tcm2__empty">
+                اختر الصف والمادة لعرض الهيكل. التحميل يتم تلقائياً عند تغيير
+                الاختيار.
+              </div>
+            ) : hierarchyLoading ? (
+              <div className="tcm2__loading">جاري تحميل الوحدات والدروس...</div>
+            ) : units.length === 0 ? (
+              <div className="tcm2__empty">لا توجد وحدات بعد لهذه المادة.</div>
+            ) : (
+              <div className="tcm2__hierarchy">
+                {units.map((unitItem) => {
+                  const unitLessons = lessonsByUnit[unitItem.id] ?? [];
+                  const isExpanded = expandedUnitIds.has(unitItem.id);
+
+                  return (
+                    <article key={unitItem.id} className="tcm2__unit">
+                      <header className="tcm2__unit-head">
+                        <button
+                          type="button"
+                          className="tcm2__unit-toggle"
+                          onClick={() => toggleUnitExpansion(unitItem.id)}
                         >
-                          <div
-                            className="tcm__unit-header"
-                            onClick={() => toggleUnit(unit.id)}
-                            onKeyDown={(e) => {
-                              if (
-                                e.key === 'Enter' ||
-                                e.key === ' '
-                              ) {
-                                e.preventDefault();
-                                toggleUnit(unit.id);
-                              }
-                            }}
-                            role="button"
-                            tabIndex={0}
-                            aria-expanded={isExpanded}
+                          {isExpanded ? (
+                            <MdExpandLess aria-hidden />
+                          ) : (
+                            <MdExpandMore aria-hidden />
+                          )}
+                          <span>{unitItem.name}</span>
+                          <small>{unitLessons.length} درس</small>
+                        </button>
+                        <div className="tcm2__row-actions">
+                          <button
+                            type="button"
+                            onClick={() => openEditForUnit(unitItem)}
                           >
-                            <div className="tcm__unit-left">
-                              <span
-                                className="tcm__unit-expand-icon"
-                                aria-hidden
-                              >
-                                {isExpanded ? (
-                                  <MdExpandMore />
-                                ) : (
-                                  <MdChevronRight />
-                                )}
-                              </span>
-                              <span className="tcm__unit-title">
-                                {unit.name}
-                              </span>
-                              <span className="tcm__unit-badge">
-                                {lessonList.length} دروس
-                              </span>
-                            </div>
-                            <div
-                              className="tcm__unit-actions"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteUnit(unit.id)}
-                                className="tcm__unit-action--delete"
-                                aria-label="حذف الوحدة"
-                              >
-                                <MdDelete />
-                              </button>
-                            </div>
-                          </div>
-                          {isExpanded && (
-                            <div className="tcm__lessons">
-                              {lessonList.map((lesson) => (
-                                <div
-                                  key={lesson.id}
-                                  className="tcm__lesson-row"
-                                >
-                                  <div className="tcm__lesson-left">
-                                    <MdArticle aria-hidden />
-                                    <span className="tcm__lesson-title">
-                                      {lesson.name}
-                                    </span>
+                            <MdEdit aria-hidden />
+                          </button>
+                          <button
+                            type="button"
+                            className="tcm2__danger"
+                            onClick={() =>
+                              void deleteEntity('unit', unitItem.id, 'هذه الوحدة')
+                            }
+                            disabled={saving}
+                          >
+                            <MdDelete aria-hidden />
+                          </button>
+                        </div>
+                      </header>
+
+                      {isExpanded && (
+                        <div className="tcm2__unit-body">
+                          <p className="tcm2__unit-description">
+                            {unitItem.description}
+                          </p>
+                          {unitLessons.length === 0 ? (
+                            <p className="tcm2__empty-small">
+                              لا توجد دروس داخل هذه الوحدة.
+                            </p>
+                          ) : (
+                            <ul className="tcm2__lesson-list">
+                              {unitLessons.map((lessonItem) => (
+                                <li key={lessonItem.id} className="tcm2__lesson-row">
+                                  <div className="tcm2__lesson-main">
+                                    <MdMenuBook aria-hidden />
+                                    <div>
+                                      <strong>{lessonItem.name}</strong>
+                                      <p>{lessonItem.description}</p>
+                                    </div>
                                   </div>
-                                  <div className="tcm__lesson-actions">
+                                  <div className="tcm2__row-actions">
                                     <button
                                       type="button"
-                                      onClick={() =>
-                                        handleDeleteLesson(lesson.id)
-                                      }
-                                      className="tcm__lesson-action--delete"
-                                      aria-label="حذف الدرس"
+                                      onClick={() => openEditForLesson(lessonItem)}
                                     >
-                                      <MdDelete />
+                                      <MdEdit aria-hidden />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="tcm2__danger"
+                                      onClick={() =>
+                                        void deleteEntity(
+                                          'lesson',
+                                          lessonItem.id,
+                                          'هذا الدرس'
+                                        )
+                                      }
+                                      disabled={saving}
+                                    >
+                                      <MdDelete aria-hidden />
                                     </button>
                                   </div>
-                                </div>
+                                </li>
                               ))}
-                            </div>
+                            </ul>
                           )}
                         </div>
-                      );
-                    })
-                  )}
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <section className="tcm2__panel" ref={creatorSectionRef}>
+            <div className="tcm2__panel-head">
+              <h2>
+                <MdViewModule aria-hidden />
+                مسار إنشاء متكامل
+              </h2>
+              <span>Class → Subject → Unit → Lesson</span>
+            </div>
+
+            <form className="tcm2__form" onSubmit={handleCreatorSubmit}>
+              <div className="tcm2__step">
+                <h3>1) الصف</h3>
+                <div className="tcm2__mode-toggle">
+                  <button
+                    type="button"
+                    className={
+                      creatorClassMode === 'existing' ? 'tcm2__mode-active' : ''
+                    }
+                    onClick={() => setCreatorClassMode('existing')}
+                  >
+                    استخدام صف موجود
+                  </button>
+                  <button
+                    type="button"
+                    className={creatorClassMode === 'new' ? 'tcm2__mode-active' : ''}
+                    onClick={() => setCreatorClassMode('new')}
+                  >
+                    إنشاء صف جديد
+                  </button>
+                </div>
+
+                {creatorClassMode === 'existing' ? (
+                  <div className="tcm2__field">
+                    <label htmlFor="creator-existing-class">الصف الموجود</label>
+                    <select
+                      id="creator-existing-class"
+                      value={creatorExistingClassId}
+                      onChange={(event) => {
+                        const nextClassId = event.target.value
+                          ? Number(event.target.value)
+                          : '';
+                        setCreatorExistingClassId(nextClassId);
+                        if (
+                          creatorExistingSubjectId !== '' &&
+                          !subjects.some(
+                            (subjectItem) =>
+                              subjectItem.id === creatorExistingSubjectId &&
+                              subjectItem.class_id === nextClassId
+                          )
+                        ) {
+                          setCreatorExistingSubjectId('');
+                        }
+                      }}
+                    >
+                      <option value="">اختر الصف</option>
+                      {classes.map((classItem) => (
+                        <option key={classItem.id} value={classItem.id}>
+                          {classItem.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="tcm2__inline-grid">
+                    <div className="tcm2__field">
+                      <label htmlFor="creator-new-class-name">اسم الصف</label>
+                      <input
+                        id="creator-new-class-name"
+                        type="text"
+                        value={creatorNewClassName}
+                        onChange={(event) =>
+                          setCreatorNewClassName(event.target.value)
+                        }
+                      />
+                    </div>
+                    <div className="tcm2__field">
+                      <label htmlFor="creator-new-class-description">وصف الصف</label>
+                      <input
+                        id="creator-new-class-description"
+                        type="text"
+                        value={creatorNewClassDescription}
+                        onChange={(event) =>
+                          setCreatorNewClassDescription(event.target.value)
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="tcm2__step">
+                <h3>2) المادة</h3>
+                <div className="tcm2__field">
+                  <label htmlFor="creator-subject-mode">المادة</label>
+                  <select
+                    id="creator-subject-mode"
+                    value={creatorSubjectMode}
+                    onChange={(event) => {
+                      const nextMode = event.target.value as LevelMode;
+                      setCreatorSubjectMode(nextMode);
+                      if (nextMode === 'skip') {
+                        setCreatorUnitMode('skip');
+                        setCreatorLessonMode('skip');
+                      }
+                      if (nextMode !== 'existing') {
+                        setCreatorExistingSubjectId('');
+                      }
+                    }}
+                  >
+                    <option value="skip">عدم إضافة مادة</option>
+                    <option value="existing" disabled={creatorClassMode === 'new'}>
+                      استخدام مادة موجودة
+                    </option>
+                    <option value="new">إنشاء مادة جديدة</option>
+                  </select>
+                </div>
+
+                {creatorSubjectMode === 'existing' && (
+                  <div className="tcm2__field">
+                    <label htmlFor="creator-existing-subject">المادة الموجودة</label>
+                    <select
+                      id="creator-existing-subject"
+                      value={creatorExistingSubjectId}
+                      onChange={(event) =>
+                        setCreatorExistingSubjectId(
+                          event.target.value ? Number(event.target.value) : ''
+                        )
+                      }
+                      disabled={creatorExistingClassId === ''}
+                    >
+                      <option value="">اختر المادة</option>
+                      {creatorSubjectsForClass.map((subjectItem) => (
+                        <option key={subjectItem.id} value={subjectItem.id}>
+                          {subjectItem.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {creatorSubjectMode === 'new' && (
+                  <div className="tcm2__inline-grid">
+                    <div className="tcm2__field">
+                      <label htmlFor="creator-new-subject-name">اسم المادة</label>
+                      <input
+                        id="creator-new-subject-name"
+                        type="text"
+                        value={creatorNewSubjectName}
+                        onChange={(event) =>
+                          setCreatorNewSubjectName(event.target.value)
+                        }
+                      />
+                    </div>
+                    <div className="tcm2__field">
+                      <label htmlFor="creator-new-subject-description">
+                        وصف المادة
+                      </label>
+                      <input
+                        id="creator-new-subject-description"
+                        type="text"
+                        value={creatorNewSubjectDescription}
+                        onChange={(event) =>
+                          setCreatorNewSubjectDescription(event.target.value)
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="tcm2__step">
+                <h3>3) الوحدة</h3>
+                <div className="tcm2__field">
+                  <label htmlFor="creator-unit-mode">الوحدة</label>
+                  <select
+                    id="creator-unit-mode"
+                    value={creatorUnitMode}
+                    onChange={(event) => {
+                      const nextMode = event.target.value as LevelMode;
+                      setCreatorUnitMode(nextMode);
+                      if (nextMode === 'skip') {
+                        setCreatorLessonMode('skip');
+                      }
+                      if (nextMode !== 'existing') {
+                        setCreatorExistingUnitId('');
+                      }
+                    }}
+                  >
+                    <option value="skip">عدم إضافة وحدة</option>
+                    <option value="existing" disabled={creatorSubjectMode !== 'existing'}>
+                      استخدام وحدة موجودة
+                    </option>
+                    <option value="new" disabled={creatorSubjectMode === 'skip'}>
+                      إنشاء وحدة جديدة
+                    </option>
+                  </select>
+                </div>
+
+                {creatorUnitMode === 'existing' && (
+                  <div className="tcm2__field">
+                    <label htmlFor="creator-existing-unit">الوحدة الموجودة</label>
+                    <select
+                      id="creator-existing-unit"
+                      value={creatorExistingUnitId}
+                      onChange={(event) =>
+                        setCreatorExistingUnitId(
+                          event.target.value ? Number(event.target.value) : ''
+                        )
+                      }
+                      disabled={creatorExistingSubjectId === ''}
+                    >
+                      <option value="">اختر الوحدة</option>
+                      {creatorSubjectUnits.map((unitItem) => (
+                        <option key={unitItem.id} value={unitItem.id}>
+                          {unitItem.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {creatorUnitMode === 'new' && (
+                  <div className="tcm2__inline-grid">
+                    <div className="tcm2__field">
+                      <label htmlFor="creator-new-unit-name">اسم الوحدة</label>
+                      <input
+                        id="creator-new-unit-name"
+                        type="text"
+                        value={creatorNewUnitName}
+                        onChange={(event) => setCreatorNewUnitName(event.target.value)}
+                      />
+                    </div>
+                    <div className="tcm2__field">
+                      <label htmlFor="creator-new-unit-description">وصف الوحدة</label>
+                      <input
+                        id="creator-new-unit-description"
+                        type="text"
+                        value={creatorNewUnitDescription}
+                        onChange={(event) =>
+                          setCreatorNewUnitDescription(event.target.value)
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="tcm2__step">
+                <h3>4) الدرس</h3>
+                <div className="tcm2__field">
+                  <label htmlFor="creator-lesson-mode">الدرس</label>
+                  <select
+                    id="creator-lesson-mode"
+                    value={creatorLessonMode}
+                    onChange={(event) =>
+                      setCreatorLessonMode(event.target.value as LessonMode)
+                    }
+                    disabled={creatorUnitMode === 'skip'}
+                  >
+                    <option value="skip">عدم إضافة درس</option>
+                    <option value="new">إنشاء درس جديد</option>
+                  </select>
+                </div>
+
+                {creatorLessonMode === 'new' && (
+                  <>
+                    <div className="tcm2__inline-grid">
+                      <div className="tcm2__field">
+                        <label htmlFor="creator-lesson-name">اسم الدرس</label>
+                        <input
+                          id="creator-lesson-name"
+                          type="text"
+                          value={creatorLessonName}
+                          onChange={(event) =>
+                            setCreatorLessonName(event.target.value)
+                          }
+                        />
+                      </div>
+                      <div className="tcm2__field">
+                        <label htmlFor="creator-lesson-description">وصف الدرس</label>
+                        <input
+                          id="creator-lesson-description"
+                          type="text"
+                          value={creatorLessonDescription}
+                          onChange={(event) =>
+                            setCreatorLessonDescription(event.target.value)
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <div className="tcm2__field">
+                      <label htmlFor="creator-lesson-content-type">نوع المحتوى</label>
+                      <select
+                        id="creator-lesson-content-type"
+                        value={creatorLessonContentType}
+                        onChange={(event) => {
+                          setCreatorLessonContentType(
+                            event.target.value as LessonContentType
+                          );
+                          setCreatorLessonFile(null);
+                        }}
+                      >
+                        <option value="text">Text</option>
+                        <option value="pdf">PDF</option>
+                        <option value="word">Word (DOCX)</option>
+                      </select>
+                    </div>
+
+                    {creatorLessonContentType === 'text' ? (
+                      <div className="tcm2__field">
+                        <label htmlFor="creator-lesson-text-content">محتوى الدرس</label>
+                        <textarea
+                          id="creator-lesson-text-content"
+                          rows={5}
+                          value={creatorLessonTextContent}
+                          onChange={(event) =>
+                            setCreatorLessonTextContent(event.target.value)
+                          }
+                        />
+                      </div>
+                    ) : (
+                      <div className="tcm2__field">
+                        <label htmlFor="creator-lesson-file">ملف الدرس</label>
+                        <input
+                          id="creator-lesson-file"
+                          type="file"
+                          accept={
+                            creatorLessonContentType === 'pdf'
+                              ? '.pdf,application/pdf'
+                              : '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                          }
+                          onChange={(event) =>
+                            setCreatorLessonFile(event.target.files?.[0] ?? null)
+                          }
+                        />
+                        <small>الحد الأقصى لحجم الملف: 25 ميجابايت.</small>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <div className="tcm2__form-actions">
+                <button type="button" onClick={resetCreatorForm} disabled={saving}>
+                  إعادة تعيين
+                </button>
+                <button type="submit" className="tcm2__primary" disabled={saving}>
+                  {saving ? 'جارٍ الحفظ...' : 'تنفيذ المسار'}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {editDraft && (
+        <div
+          className="tcm2__modal-backdrop"
+          onClick={() => !saving && setEditDraft(null)}
+          role="presentation"
+        >
+          <div className="tcm2__modal" onClick={(event) => event.stopPropagation()}>
+            <h3>
+              {editDraft.kind === 'class' && 'تعديل الصف'}
+              {editDraft.kind === 'subject' && 'تعديل المادة'}
+              {editDraft.kind === 'unit' && 'تعديل الوحدة'}
+              {editDraft.kind === 'lesson' && 'تعديل الدرس'}
+            </h3>
+
+            <div className="tcm2__field">
+              <label htmlFor="edit-name">الاسم</label>
+              <input
+                id="edit-name"
+                type="text"
+                value={editDraft.name}
+                onChange={(event) =>
+                  setEditDraft((previous) =>
+                    previous
+                      ? {
+                          ...previous,
+                          name: event.target.value,
+                        }
+                      : previous
+                  )
+                }
+              />
+            </div>
+
+            <div className="tcm2__field">
+              <label htmlFor="edit-description">الوصف</label>
+              <textarea
+                id="edit-description"
+                rows={3}
+                value={editDraft.description}
+                onChange={(event) =>
+                  setEditDraft((previous) =>
+                    previous
+                      ? {
+                          ...previous,
+                          description: event.target.value,
+                        }
+                      : previous
+                  )
+                }
+              />
+            </div>
+
+            {editDraft.kind === 'lesson' && (
+              <>
+                <div className="tcm2__field">
+                  <label htmlFor="edit-lesson-unit">الوحدة</label>
+                  <select
+                    id="edit-lesson-unit"
+                    value={editDraft.unitId ?? ''}
+                    onChange={(event) =>
+                      setEditDraft((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              unitId: event.target.value
+                                ? Number(event.target.value)
+                                : undefined,
+                            }
+                          : previous
+                      )
+                    }
+                  >
+                    <option value="">اختر الوحدة</option>
+                    {units.map((unitItem) => (
+                      <option key={unitItem.id} value={unitItem.id}>
+                        {unitItem.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="tcm2__field">
+                  <label htmlFor="edit-lesson-content">المحتوى</label>
+                  <textarea
+                    id="edit-lesson-content"
+                    rows={6}
+                    value={editDraft.content ?? ''}
+                    onChange={(event) =>
+                      setEditDraft((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              content: event.target.value,
+                            }
+                          : previous
+                      )
+                    }
+                  />
                 </div>
               </>
             )}
-          </div>
-        </div>
-      )}
 
-      {activeTab === 'add' && (
-        <div className="tcm__add-panel">
-          <h2 className="tcm__add-title">
-            <MdPostAdd />
-            إضافة صف / مادة / وحدة / درس
-          </h2>
-          <div className="tcm__stepper">
-            {[
-              { step: 1, label: 'الصف الدراسي' },
-              { step: 2, label: 'المادة الدراسية' },
-              { step: 3, label: 'الوحدة الدراسية' },
-              { step: 4, label: 'الدرس' },
-            ].map(({ step, label }) => (
-              <div key={step} className="tcm__stepper-step">
-                <div
-                  className={`tcm__stepper-num ${addStep >= step ? 'tcm__stepper-num--active' : 'tcm__stepper-num--inactive'}`}
-                >
-                  {step}
-                </div>
-                <span
-                  className={`tcm__stepper-label ${addStep >= step ? 'tcm__stepper-label--active' : 'tcm__stepper-label--inactive'}`}
-                >
-                  {label}
-                </span>
-              </div>
-            ))}
-          </div>
-          <form
-            className="tcm__form"
-            onSubmit={handleAddContentSubmit}
-          >
-            <div className="tcm__form-grid">
-              <div className="tcm__form-group">
-                <label className="tcm__form-label" htmlFor="add-class">
-                  الصف الدراسي
-                </label>
-                <select
-                  id="add-class"
-                  className="tcm__form-select"
-                  value={addClassId}
-                  onChange={(e) => {
-                    setAddClassId(
-                      e.target.value ? Number(e.target.value) : ''
-                    );
-                    setAddSubjectId('');
-                  }}
-                >
-                  <option value="">— اختر الصف —</option>
-                  {classes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="tcm__form-group">
-                <label className="tcm__form-label" htmlFor="add-subject">
-                  المادة الدراسية
-                </label>
-                <select
-                  id="add-subject"
-                  className="tcm__form-select"
-                  value={addSubjectId}
-                  onChange={(e) =>
-                    setAddSubjectId(
-                      e.target.value ? Number(e.target.value) : ''
-                    )
-                  }
-                >
-                  <option value="">— اختر المادة —</option>
-                  {subjectsForAddClass.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="tcm__form-group">
-                <label className="tcm__form-label" htmlFor="add-unit-name">
-                  عنوان الوحدة
-                </label>
-                <input
-                  id="add-unit-name"
-                  type="text"
-                  className="tcm__form-input"
-                  placeholder="مثال: مدخلي إلى المادة"
-                  value={addUnitName}
-                  onChange={(e) => setAddUnitName(e.target.value)}
-                />
-              </div>
-              <div className="tcm__form-group">
-                <label className="tcm__form-label" htmlFor="add-lesson-name">
-                  اسم الدرس
-                </label>
-                <input
-                  id="add-lesson-name"
-                  type="text"
-                  className="tcm__form-input"
-                  placeholder="مثال: الدرس الأول"
-                  value={addLessonName}
-                  onChange={(e) => setAddLessonName(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="tcm__form-group">
-              <label className="tcm__form-label" htmlFor="add-lesson-content">
-                محتوى الدرس (نص)
-              </label>
-              <textarea
-                id="add-lesson-content"
-                className="tcm__form-textarea"
-                value={addLessonContent}
-                onChange={(e) => setAddLessonContent(e.target.value)}
-                placeholder="أضف محتوى الدرس هنا..."
-              />
-            </div>
-            <div className="tcm__form-actions">
-              <button
-                type="button"
-                className="tcm__btn tcm__btn--outline"
-                onClick={() => {
-                  setAddUnitName('');
-                  setAddUnitDesc('');
-                  setAddLessonName('');
-                  setAddLessonDesc('');
-                  setAddLessonContent('');
-                }}
-              >
-                مسح الحقول
-              </button>
-              <button
-                type="submit"
-                className="tcm__btn tcm__btn--success"
-                disabled={submitLoading}
-              >
-                حفظ المحتوى
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {activeTab === 'upload' && (
-        <div className="tcm__upload-panel">
-          <h2 className="tcm__upload-title">
-            <MdCloudUpload />
-            رفع ملفات المنهج
-          </h2>
-          <div className="tcm__upload-filters">
-            <div className="tcm__form-group">
-              <label className="tcm__filter-label">الصف الدراسي</label>
-              <select
-                className="tcm__filter-select"
-                value={uploadClassId}
-                onChange={(e) => {
-                  setUploadClassId(
-                    e.target.value ? Number(e.target.value) : ''
-                  );
-                  setUploadSubjectId('');
-                  setUploadUnitId('');
-                }}
-              >
-                <option value="">— اختر —</option>
-                {classes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="tcm__form-group">
-              <label className="tcm__filter-label">المادة</label>
-              <select
-                className="tcm__filter-select"
-                value={uploadSubjectId}
-                onChange={(e) => {
-                  setUploadSubjectId(
-                    e.target.value ? Number(e.target.value) : ''
-                  );
-                  setUploadUnitId('');
-                }}
-              >
-                <option value="">— اختر —</option>
-                {subjects
-                  .filter((s) => s.class_id === uploadClassId)
-                  .map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-              </select>
-            </div>
-          </div>
-          {uploadSubjectId && (
-            <>
-              <div className="tcm__form-group" style={{ maxWidth: '20rem' }}>
-                <label className="tcm__filter-label">الوحدة (لربط الدرس)</label>
-                <select
-                  className="tcm__filter-select"
-                  value={uploadUnitId}
-                  onChange={(e) =>
-                    setUploadUnitId(
-                      e.target.value ? Number(e.target.value) : ''
-                    )
-                  }
-                >
-                  <option value="">— اختر الوحدة —</option>
-                  {unitsForUploadSubject.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="tcm__form-grid" style={{ marginBottom: '1rem' }}>
-                <div className="tcm__form-group">
-                  <label className="tcm__form-label">اسم الدرس</label>
-                  <input
-                    type="text"
-                    className="tcm__form-input"
-                    value={uploadLessonName}
-                    onChange={(e) => setUploadLessonName(e.target.value)}
-                    placeholder="مثال: الدرس الأول"
-                  />
-                </div>
-                <div className="tcm__form-group">
-                  <label className="tcm__form-label">وصف الدرس</label>
-                  <input
-                    type="text"
-                    className="tcm__form-input"
-                    value={uploadLessonDesc}
-                    onChange={(e) => setUploadLessonDesc(e.target.value)}
-                    placeholder="اختياري"
-                  />
-                </div>
-              </div>
-            </>
-          )}
-          {uploadSubjectId && (
-            <div
-              className="tcm__dropzone"
-              onClick={() =>
-                document.getElementById('tcm-file-input')?.click()
-              }
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  document.getElementById('tcm-file-input')?.click();
-                }
-              }}
-              role="button"
-              tabIndex={0}
-            >
-              <input
-                id="tcm-file-input"
-                type="file"
-                accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                className="sr-only"
-                onChange={handleFileSelect}
-                disabled={
-                  !uploadUnitId || !uploadLessonName.trim() || uploading
-                }
-              />
-              <div className="tcm__dropzone-icon">
-                <MdCloudUpload aria-hidden />
-              </div>
-              <p className="tcm__dropzone-text">اسحب وأفلت الملف هنا</p>
-              <p className="tcm__dropzone-hint">
-                يدعم ملفات PDF و DOCX حتى ٢٥ ميجابايت
-              </p>
-              <button
-                type="button"
-                className="tcm__btn tcm__btn--primary"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  document.getElementById('tcm-file-input')?.click();
-                }}
-                disabled={
-                  !uploadUnitId || !uploadLessonName.trim() || uploading
-                }
-              >
-                اختر ملفاً من جهازك
-              </button>
-            </div>
-          )}
-          {fileList.length > 0 && (
-            <>
-              <h3 className="tcm__file-list-title">الملفات المرفوعة مؤخراً</h3>
-              <div className="tcm__file-list">
-                {fileList.map((f) => (
-                  <div key={f.id} className="tcm__file-item">
-                    <div className="tcm__file-item-left">
-                      <div
-                        className={`tcm__file-icon ${f.type === 'pdf' ? 'tcm__file-icon--pdf' : 'tcm__file-icon--doc'}`}
-                        aria-hidden
-                      >
-                        {f.type === 'pdf' ? (
-                          <MdPictureAsPdf aria-hidden />
-                        ) : (
-                          <MdDescription aria-hidden />
-                        )}
-                      </div>
-                      <div>
-                        <p className="tcm__file-name">{f.name}</p>
-                        <p className="tcm__file-meta">
-                          {f.type === 'pdf' ? 'PDF' : 'DOCX'} •{' '}
-                          {(f.size / 1024 / 1024).toFixed(1)} ميجابايت
-                          {typeof f.contentLength === 'number' &&
-                          f.contentLength > 0
-                            ? ` • ${f.contentLength} حرف`
-                            : ''}
-                        </p>
-                        <p className="tcm__file-note">{f.message}</p>
-                      </div>
-                    </div>
-                    <span
-                      className={`tcm__file-status ${getUploadStatusClassName(f.status)}`}
-                    >
-                      {getUploadStatusIcon(f.status)}
-                      {getUploadStatusLabel(f.status)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-          <div className="tcm__info-box">
-            <MdInfoOutline aria-hidden />
-            <div>
-              <p className="tcm__info-box-title">معالجة المحتوى التلقائية</p>
-              <p className="tcm__info-box-text">
-                يقوم المساعد الذكي بتحليل ملفات المنهج المرفوعة لاستخراج
-                الوحدات والدروس والأهداف التعليمية تلقائياً وبناء هيكل المنهج
-                دون تدخل يدوي منك.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {modalAddUnit && (
-        <div
-          className="tcm__modal-backdrop"
-          onClick={() => !submitLoading && setModalAddUnit(false)}
-          role="presentation"
-        >
-          <div
-            className="tcm__modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="tcm__modal-title">إضافة وحدة جديدة</h3>
-            <div className="tcm__form-group">
-              <label className="tcm__form-label">اسم الوحدة</label>
-              <input
-                type="text"
-                className="tcm__form-input"
-                value={modalUnitName}
-                onChange={(e) => setModalUnitName(e.target.value)}
-                placeholder="مثال: الوحدة الأولى"
-              />
-            </div>
-            <div className="tcm__form-group">
-              <label className="tcm__form-label">الوصف</label>
-              <textarea
-                className="tcm__form-textarea"
-                value={modalUnitDesc}
-                onChange={(e) => setModalUnitDesc(e.target.value)}
-                placeholder="اختياري"
-                rows={2}
-              />
-            </div>
-            <div className="tcm__modal-actions">
-              <button
-                type="button"
-                className="tcm__btn tcm__btn--outline"
-                onClick={() => !submitLoading && setModalAddUnit(false)}
-              >
+            <div className="tcm2__form-actions">
+              <button type="button" onClick={() => setEditDraft(null)} disabled={saving}>
                 إلغاء
               </button>
               <button
                 type="button"
-                className="tcm__btn tcm__btn--primary"
-                onClick={handleAddUnit}
-                disabled={!modalUnitName.trim() || submitLoading}
+                className="tcm2__primary"
+                onClick={() => void handleSaveEdit()}
+                disabled={saving}
               >
-                {submitLoading ? 'جاري الحفظ...' : 'إضافة'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {modalAddLesson && (
-        <div
-          className="tcm__modal-backdrop"
-          onClick={() => !submitLoading && setModalAddLesson(false)}
-          role="presentation"
-        >
-          <div
-            className="tcm__modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="tcm__modal-title">إضافة درس جديد</h3>
-            {units.length > 1 && (
-              <div className="tcm__form-group">
-                <label className="tcm__form-label">الوحدة</label>
-                <select
-                  className="tcm__form-select"
-                  value={modalLessonUnitId ?? ''}
-                  onChange={(e) =>
-                    setModalLessonUnitId(
-                      e.target.value ? Number(e.target.value) : null
-                    )
-                  }
-                >
-                  {units.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <div className="tcm__form-group">
-              <label className="tcm__form-label">اسم الدرس</label>
-              <input
-                type="text"
-                className="tcm__form-input"
-                value={modalLessonName}
-                onChange={(e) => setModalLessonName(e.target.value)}
-                placeholder="مثال: الدرس الأول"
-              />
-            </div>
-            <div className="tcm__form-group">
-              <label className="tcm__form-label">الوصف</label>
-              <input
-                type="text"
-                className="tcm__form-input"
-                value={modalLessonDesc}
-                onChange={(e) => setModalLessonDesc(e.target.value)}
-                placeholder="اختياري"
-              />
-            </div>
-            <div className="tcm__form-group">
-              <label className="tcm__form-label">المحتوى (نص)</label>
-              <textarea
-                className="tcm__form-textarea"
-                value={modalLessonContent}
-                onChange={(e) => setModalLessonContent(e.target.value)}
-                placeholder="محتوى الدرس..."
-                rows={3}
-              />
-            </div>
-            <div className="tcm__modal-actions">
-              <button
-                type="button"
-                className="tcm__btn tcm__btn--outline"
-                onClick={() => !submitLoading && setModalAddLesson(false)}
-              >
-                إلغاء
-              </button>
-              <button
-                type="button"
-                className="tcm__btn tcm__btn--primary"
-                onClick={handleAddLesson}
-                disabled={
-                  !modalLessonName.trim() ||
-                  !modalLessonUnitId ||
-                  submitLoading
-                }
-              >
-                {submitLoading ? 'جاري الحفظ...' : 'إضافة'}
+                {saving ? 'جارٍ الحفظ...' : 'حفظ'}
               </button>
             </div>
           </div>

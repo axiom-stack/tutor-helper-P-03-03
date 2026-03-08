@@ -8,8 +8,10 @@ export async function createClass(req, res) {
     }
 
     const { name, description, teacher_id } = req.body;
+    const { id: userId, role: userRole } = req.user;
+    const parsedTeacherId = Number(teacher_id);
 
-    if (!teacher_id) {
+    if (!teacher_id || Number.isNaN(parsedTeacherId)) {
       return res.status(400).json({ error: "teacher_id is required" });
     }
 
@@ -17,9 +19,15 @@ export async function createClass(req, res) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
+    if (userRole !== "admin" && parsedTeacherId !== Number(userId)) {
+      return res.status(403).json({
+        error: "Unauthorized: You can only create classes for your own account",
+      });
+    }
+
     const createdClass = await turso.execute({
       sql: "INSERT INTO Classes (name, description, teacher_id) VALUES (?, ?, ?)",
-      args: [name, description, teacher_id],
+      args: [name.trim(), description.trim(), parsedTeacherId],
     });
 
     // Get the inserted class data
@@ -162,6 +170,18 @@ export async function deleteClassByClassId(req, res) {
     }
     if (userRole !== "admin" && classToDelete.rows[0].teacher_id !== userId) {
       return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    const linkedSubjects = await turso.execute({
+      sql: "SELECT COUNT(*) AS count FROM Subjects WHERE class_id = ?",
+      args: [classId],
+    });
+
+    if (Number(linkedSubjects.rows[0]?.count ?? 0) > 0) {
+      return res.status(409).json({
+        error:
+          "Cannot delete this class because it still contains subjects. Delete subjects first.",
+      });
     }
 
     const deletedClass = await turso.execute({
