@@ -77,8 +77,11 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```json
 {
   "class": {
-    "columns": ["id", "name", "description", "teacher_id", "created_at"],
-    "rows": [[number, string, string, number, string]]
+    "id": number,
+    "name": string,
+    "description": string,
+    "teacher_id": number,
+    "created_at": string
   }
 }
 ```
@@ -184,8 +187,11 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```json
 {
   "class": {
-    "columns": ["id", "name", "description", "teacher_id", "created_at"],
-    "rows": [[number, string, string, number, string]]
+    "id": number,
+    "name": string,
+    "description": string,
+    "teacher_id": number,
+    "created_at": string
   }
 }
 ```
@@ -208,14 +214,17 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```json
 {
   "class": {
-    "columns": ["id", "name", "description", "teacher_id", "created_at"],
-    "rows": [[number, string, string, number, string]]
+    "id": number,
+    "name": string,
+    "description": string,
+    "teacher_id": number,
+    "created_at": string
   }
 }
 ```
 
 **Response Codes**:
-- `200`: Deleted successfully
+- `200`: Deleted successfully (returns deleted class data)
 - `403`: Unauthorized (not owner and not admin)
 - `404`: Class not found
 - `500`: Internal server error
@@ -241,8 +250,12 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```json
 {
   "subject": {
-    "columns": ["id", "name", "description", "teacher_id", "class_id", "created_at"],
-    "rows": [[number, string, string, number, number, string]]
+    "id": number,
+    "name": string,
+    "description": string,
+    "teacher_id": number,
+    "class_id": number,
+    "created_at": string
   }
 }
 ```
@@ -381,8 +394,12 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```json
 {
   "subject": {
-    "columns": ["id", "name", "description", "teacher_id", "class_id", "created_at"],
-    "rows": [[number, string, string, number, number, string]]
+    "id": number,
+    "name": string,
+    "description": string,
+    "teacher_id": number,
+    "class_id": number,
+    "created_at": string
   }
 }
 ```
@@ -397,7 +414,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ### DELETE `/subjects/:subjectId`
-**Summary**: Deletes a subject (admin can delete any, teachers only their own)
+**Summary**: Deletes a subject (admin can delete any, teachers only their own) - returns deleted subject data
 
 **Request Body**: None
 
@@ -405,8 +422,12 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```json
 {
   "subject": {
-    "columns": ["id", "name", "description", "teacher_id", "class_id", "created_at"],
-    "rows": [[number, string, string, number, number, string]]
+    "id": number,
+    "name": string,
+    "description": string,
+    "teacher_id": number,
+    "class_id": number,
+    "created_at": string
   }
 }
 ```
@@ -438,8 +459,12 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```json
 {
   "unit": {
-    "columns": ["id", "name", "description", "subject_id", "teacher_id", "created_at"],
-    "rows": [[number, string, string, number, number, string]]
+    "id": number,
+    "name": string,
+    "description": string,
+    "subject_id": number,
+    "teacher_id": number,
+    "created_at": string
   }
 }
 ```
@@ -580,8 +605,12 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```json
 {
   "unit": {
-    "columns": ["id", "name", "description", "subject_id", "teacher_id", "created_at"],
-    "rows": [[number, string, string, number, number, string]]
+    "id": number,
+    "name": string,
+    "description": string,
+    "subject_id": number,
+    "teacher_id": number,
+    "created_at": string
   }
 }
 ```
@@ -596,7 +625,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ### DELETE `/units/:unitId`
-**Summary**: Deletes a unit (admin can delete any, teachers only their own)
+**Summary**: Deletes a unit (admin can delete any, teachers only their own) - returns deleted unit data
 
 **Request Body**: None
 
@@ -604,8 +633,12 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```json
 {
   "unit": {
-    "columns": ["id", "name", "description", "subject_id", "teacher_id", "created_at"],
-    "rows": [[number, string, string, number, number, string]]
+    "id": number,
+    "name": string,
+    "description": string,
+    "subject_id": number,
+    "teacher_id": number,
+    "created_at": string
   }
 }
 ```
@@ -642,8 +675,13 @@ All API endpoints except login/logout require authentication via JWT token in th
 // Text lessons
 {
   "lesson": {
-    "columns": ["id", "name", "description", "unit_id", "teacher_id", "content", "created_at"],
-    "rows": [[number, string, string, number, number, string, string]]
+    "id": number,
+    "name": string,
+    "description": string,
+    "unit_id": number,
+    "teacher_id": number,
+    "content": string,
+    "created_at": string
   },
   "content_type": "text"
 }
@@ -805,8 +843,13 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```json
 {
   "lesson": {
-    "columns": ["id", "name", "description", "unit_id", "teacher_id", "content", "created_at"],
-    "rows": [[number, string, string, number, number, string, string]]
+    "id": number,
+    "name": string,
+    "description": string,
+    "unit_id": number,
+    "teacher_id": number,
+    "content": string,
+    "created_at": string
   }
 }
 ```
@@ -821,7 +864,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ### DELETE `/lessons/:lessonId`
-**Summary**: Deletes a lesson (admin can delete any, teachers only their own)
+**Summary**: Deletes a lesson (admin can delete any, teachers only their own) - returns deleted lesson data
 
 **Request Body**: None
 
@@ -829,8 +872,13 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```json
 {
   "lesson": {
-    "columns": ["id", "name", "description", "unit_id", "teacher_id", "content", "created_at"],
-    "rows": [[number, string, string, number, number, string, string]]
+    "id": number,
+    "name": string,
+    "description": string,
+    "unit_id": number,
+    "teacher_id": number,
+    "content": string,
+    "created_at": string
   }
 }
 ```

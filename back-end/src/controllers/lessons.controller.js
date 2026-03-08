@@ -132,8 +132,14 @@ export async function createLesson(req, res) {
       args: [name, description, unit_id, teacher_id, finalContent],
     });
 
+    // Get the inserted lesson data
+    const insertedLesson = await turso.execute({
+      sql: "SELECT * FROM lessons WHERE id = ?",
+      args: [createdLesson.lastInsertRowid],
+    });
+
     return res.status(201).json({
-      lesson: createdLesson,
+      lesson: insertedLesson.rows[0],
       content_type: content_type,
     });
   } catch (error) {
@@ -299,7 +305,13 @@ export async function updateLessonByLessonId(req, res) {
       ],
     });
 
-    return res.status(200).json({ lesson: updatedLesson });
+    // Get the updated lesson data
+    const updatedLessonData = await turso.execute({
+      sql: "SELECT * FROM lessons WHERE id = ?",
+      args: [lessonId],
+    });
+
+    return res.status(200).json({ lesson: updatedLessonData.rows[0] });
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }
@@ -330,7 +342,7 @@ export async function deleteLessonByLessonId(req, res) {
       args: [lessonId],
     });
 
-    return res.status(200).json({ lesson: deletedLesson });
+    return res.status(200).json({ lesson: lesson.rows[0] });
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }

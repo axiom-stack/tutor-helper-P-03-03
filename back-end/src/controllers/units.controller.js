@@ -37,7 +37,13 @@ export async function createUnit(req, res) {
       args: [name, description, subject_id, teacher_id],
     });
 
-    return res.status(201).json({ unit: createdUnit });
+    // Get the inserted unit data
+    const insertedUnit = await turso.execute({
+      sql: "SELECT * FROM Units WHERE id = ?",
+      args: [createdUnit.lastInsertRowid],
+    });
+
+    return res.status(201).json({ unit: insertedUnit.rows[0] });
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }
@@ -192,7 +198,13 @@ export async function updateUnitByUnitId(req, res) {
       args: [name, description, subject_id || unit.rows[0].subject_id, unitId],
     });
 
-    return res.status(200).json({ unit: updatedUnit });
+    // Get the updated unit data
+    const updatedUnitData = await turso.execute({
+      sql: "SELECT * FROM Units WHERE id = ?",
+      args: [unitId],
+    });
+
+    return res.status(200).json({ unit: updatedUnitData.rows[0] });
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }
@@ -223,7 +235,7 @@ export async function deleteUnitByUnitId(req, res) {
       args: [unitId],
     });
 
-    return res.status(200).json({ unit: deletedUnit });
+    return res.status(200).json({ unit: unit.rows[0] });
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }

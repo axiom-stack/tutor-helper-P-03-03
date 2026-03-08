@@ -22,7 +22,13 @@ export async function createClass(req, res) {
       args: [name, description, teacher_id],
     });
 
-    return res.status(201).json({ class: createdClass });
+    // Get the inserted class data
+    const insertedClass = await turso.execute({
+      sql: "SELECT * FROM Classes WHERE id = ?",
+      args: [createdClass.lastInsertRowid],
+    });
+
+    return res.status(201).json({ class: insertedClass.rows[0] });
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }
@@ -127,7 +133,13 @@ export async function updateClassByClassId(req, res) {
       args: [name, description, classId],
     });
 
-    return res.status(200).json({ class: updatedClass });
+    // Get the updated class data
+    const updatedClassData = await turso.execute({
+      sql: "SELECT * FROM Classes WHERE id = ?",
+      args: [classId],
+    });
+
+    return res.status(200).json({ class: updatedClassData.rows[0] });
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }
@@ -151,11 +163,13 @@ export async function deleteClassByClassId(req, res) {
     if (userRole !== "admin" && classToDelete.rows[0].teacher_id !== userId) {
       return res.status(403).json({ error: "Unauthorized" });
     }
+
     const deletedClass = await turso.execute({
       sql: "DELETE FROM Classes WHERE id = ?",
       args: [classId],
     });
-    return res.status(200).json({ class: deletedClass });
+
+    return res.status(200).json({ class: classToDelete.rows[0] });
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }

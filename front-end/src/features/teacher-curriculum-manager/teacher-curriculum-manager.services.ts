@@ -11,19 +11,6 @@ import type {
 
 const api = () => authAxios();
 
-/** Normalize backend create response that returns { columns, rows } */
-function rowFromResponse<T>(
-  res: { columns?: string[]; rows?: unknown[][] }
-): T | null {
-  if (!res.rows?.length || !res.columns?.length) return null;
-  const row = res.rows[0] as unknown[];
-  const obj: Record<string, unknown> = {};
-  res.columns.forEach((col, i) => {
-    obj[col] = row[i];
-  });
-  return obj as T;
-}
-
 // ——— Classes ———
 export async function getMyClasses(): Promise<{ classes: Class[] }> {
   const response = await api().get<{ classes: Class[] }>('/api/classes/mine');
@@ -33,22 +20,21 @@ export async function getMyClasses(): Promise<{ classes: Class[] }> {
 export async function createClass(
   data: CreateClassData
 ): Promise<{ class: Class }> {
-  const response = await api().post<{
-    class: { columns?: string[]; rows?: unknown[][] };
-  }>('/api/classes', data);
-  const created = rowFromResponse<Class>(response.data.class ?? {});
-  return { class: created ?? (response.data as unknown as { class: Class }).class };
+  const response = await api().post<{ class: Class }>('/api/classes', data);
+  return response.data;
 }
 
 export async function updateClass(
   classId: number,
   data: { name: string; description: string }
-): Promise<void> {
-  await api().put(`/api/classes/${classId}`, data);
+): Promise<{ class: Class }> {
+  const response = await api().put<{ class: Class }>(`/api/classes/${classId}`, data);
+  return response.data;
 }
 
-export async function deleteClass(classId: number): Promise<void> {
-  await api().delete(`/api/classes/${classId}`);
+export async function deleteClass(classId: number): Promise<{ class: Class }> {
+  const response = await api().delete<{ class: Class }>(`/api/classes/${classId}`);
+  return response.data;
 }
 
 // ——— Subjects ———
@@ -71,25 +57,21 @@ export async function getSubjectsByClass(
 export async function createSubject(
   data: CreateSubjectData
 ): Promise<{ subject: Subject }> {
-  const response = await api().post<{
-    subject: { columns?: string[]; rows?: unknown[][] };
-  }>('/api/subjects', data);
-  const created = rowFromResponse<Subject>(response.data.subject ?? {});
-  return {
-    subject:
-      created ?? (response.data as unknown as { subject: Subject }).subject,
-  };
+  const response = await api().post<{ subject: Subject }>('/api/subjects', data);
+  return response.data;
 }
 
 export async function updateSubject(
   subjectId: number,
   data: { name: string; description: string; class_id?: number }
-): Promise<void> {
-  await api().put(`/api/subjects/${subjectId}`, data);
+): Promise<{ subject: Subject }> {
+  const response = await api().put<{ subject: Subject }>(`/api/subjects/${subjectId}`, data);
+  return response.data;
 }
 
-export async function deleteSubject(subjectId: number): Promise<void> {
-  await api().delete(`/api/subjects/${subjectId}`);
+export async function deleteSubject(subjectId: number): Promise<{ subject: Subject }> {
+  const response = await api().delete<{ subject: Subject }>(`/api/subjects/${subjectId}`);
+  return response.data;
 }
 
 // ——— Units ———
@@ -105,22 +87,21 @@ export async function getUnitsBySubject(
 export async function createUnit(
   data: CreateUnitData
 ): Promise<{ unit: Unit }> {
-  const response = await api().post<{
-    unit: { columns?: string[]; rows?: unknown[][] };
-  }>('/api/units', data);
-  const created = rowFromResponse<Unit>(response.data.unit ?? {});
-  return { unit: created ?? (response.data as unknown as { unit: Unit }).unit };
+  const response = await api().post<{ unit: Unit }>('/api/units', data);
+  return response.data;
 }
 
 export async function updateUnit(
   unitId: number,
   data: { name: string; description: string; subject_id?: number }
-): Promise<void> {
-  await api().put(`/api/units/${unitId}`, data);
+): Promise<{ unit: Unit }> {
+  const response = await api().put<{ unit: Unit }>(`/api/units/${unitId}`, data);
+  return response.data;
 }
 
-export async function deleteUnit(unitId: number): Promise<void> {
-  await api().delete(`/api/units/${unitId}`);
+export async function deleteUnit(unitId: number): Promise<{ unit: Unit }> {
+  const response = await api().delete<{ unit: Unit }>(`/api/units/${unitId}`);
+  return response.data;
 }
 
 // ——— Lessons ———
@@ -144,7 +125,7 @@ export interface CreateLessonTextPayload {
 /** Create a text lesson (JSON body). */
 export async function createLessonText(
   payload: CreateLessonTextPayload
-): Promise<{ lesson: Lesson }> {
+): Promise<{ lesson: Lesson; content_type: string }> {
   const body = {
     name: payload.name,
     description: payload.description,
@@ -154,13 +135,10 @@ export async function createLessonText(
     id: payload.teacher_id,
   };
   const response = await api().post<{
-    lesson: { columns?: string[]; rows?: unknown[][] };
+    lesson: Lesson;
+    content_type: string;
   }>('/api/lessons', body);
-  const res = response.data.lesson ?? {};
-  const created = rowFromResponse<Lesson>(res);
-  return {
-    lesson: created ?? (response.data as unknown as { lesson: Lesson }).lesson,
-  };
+  return response.data;
 }
 
 export interface CreateLessonFilePayload {
@@ -198,10 +176,12 @@ export async function createLessonFile(
 export async function updateLesson(
   lessonId: number,
   data: { name: string; description: string; content: string; unit_id?: number }
-): Promise<void> {
-  await api().put(`/api/lessons/${lessonId}`, data);
+): Promise<{ lesson: Lesson }> {
+  const response = await api().put<{ lesson: Lesson }>(`/api/lessons/${lessonId}`, data);
+  return response.data;
 }
 
-export async function deleteLesson(lessonId: number): Promise<void> {
-  await api().delete(`/api/lessons/${lessonId}`);
+export async function deleteLesson(lessonId: number): Promise<{ lesson: Lesson }> {
+  const response = await api().delete<{ lesson: Lesson }>(`/api/lessons/${lessonId}`);
+  return response.data;
 }

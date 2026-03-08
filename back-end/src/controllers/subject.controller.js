@@ -19,7 +19,14 @@ export async function createSubject(req, res) {
       sql: "INSERT INTO Subjects (name, description, teacher_id, class_id) VALUES (?, ?, ?, ?)",
       args: [name, description, teacher_id, class_id],
     });
-    return res.status(201).json({ subject: createdSubject });
+
+    // Get the inserted subject data
+    const insertedSubject = await turso.execute({
+      sql: "SELECT * FROM Subjects WHERE id = ?",
+      args: [createdSubject.lastInsertRowid],
+    });
+
+    return res.status(201).json({ subject: insertedSubject.rows[0] });
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }
@@ -161,7 +168,13 @@ export async function updateSubjectBySubjectId(req, res) {
       ],
     });
 
-    return res.status(200).json({ subject: updatedSubject });
+    // Get the updated subject data
+    const updatedSubjectData = await turso.execute({
+      sql: "SELECT * FROM Subjects WHERE id = ?",
+      args: [subjectId],
+    });
+
+    return res.status(200).json({ subject: updatedSubjectData.rows[0] });
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }
@@ -192,7 +205,7 @@ export async function deleteSubjectBySubjectId(req, res) {
       args: [subjectId],
     });
 
-    return res.status(200).json({ subject: deletedSubject });
+    return res.status(200).json({ subject: subject.rows[0] });
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }
