@@ -5,6 +5,7 @@ import TeacherDashboard from './features/teacher-dashboard/TeacherDashboard';
 import TeacherCirriculumManager from './features/teacher-curriculum-manager/TeacherCirriculumManager';
 import LessonCreator from './features/lesson-creator/LessonCreator';
 import Assignments from './features/assignments/Assignments';
+import Quizzes from './features/quizzes/Quizzes';
 import { AppLayout } from './components/layout';
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
             path="/assignments/:lesson_plan_public_id/:lesson_id"
             element={<Assignments />}
           />
+          <Route path="/quizzes" element={<Quizzes />} />
           <Route path="/curriculum" element={<TeacherCirriculumManager />} />
         </Route>
       </Routes>

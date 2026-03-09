@@ -473,6 +473,7 @@ function LessonCreator() {
       startEstimatedTimeline();
 
       const generated = await generatePlan({
+        lesson_id: Number(selectedLessonId),
         lesson_title: lessonTitle,
         lesson_content: lessonContent,
         subject: subjectName,

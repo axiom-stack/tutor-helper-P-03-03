@@ -6,6 +6,7 @@ const api = () => authAxios();
 export type PlanType = 'traditional' | 'active_learning';
 
 export interface GeneratePlanRequest {
+  lesson_id: number;
   lesson_title: string;
   lesson_content: string;
   subject: string;
