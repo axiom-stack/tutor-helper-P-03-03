@@ -246,6 +246,31 @@
   font-weight: 600;
 }
 
+.lcp__plan-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.lcp__plan-actions button {
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  color: #1d4ed8;
+  background: rgba(37, 99, 235, 0.08);
+  border-radius: var(--radius-md);
+  padding: 0.55rem 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lcp__plan-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .lcp__meta-grid {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);

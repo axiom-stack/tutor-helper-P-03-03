@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import {
+  MdAssignment,
   MdCheckCircle,
   MdHistory,
   MdHourglassTop,
@@ -496,6 +497,24 @@ function LessonCreator() {
     }
   };
 
+  const handleOpenAssignments = () => {
+    if (!generatedPlan || selectedLessonId === '') {
+      return;
+    }
+
+    const lessonId = Number(selectedLessonId);
+    if (!Number.isInteger(lessonId) || lessonId <= 0) {
+      return;
+    }
+
+    navigate(`/assignments/${generatedPlan.id}/${lessonId}`, {
+      state: {
+        lesson_plan_public_id: generatedPlan.id,
+        lesson_id: lessonId,
+      },
+    });
+  };
+
   const getStepState = (step: 1 | 2 | 3 | 4): StepState => {
     if (step === 1) {
       return selectedClassId !== '' ? 'done' : 'active';
@@ -694,6 +713,17 @@ function LessonCreator() {
                   | التحقق: {generatedPlan.validation_status} | إعادة التحسين:{' '}
                   {generatedPlan.retry_occurred ? 'نعم' : 'لا'}
                 </span>
+              </div>
+
+              <div className="lcp__plan-actions">
+                <button
+                  type="button"
+                  onClick={handleOpenAssignments}
+                  disabled={selectedLessonId === ''}
+                >
+                  <MdAssignment aria-hidden />
+                  الانتقال إلى صفحة الواجبات
+                </button>
               </div>
 
               {generatedPlan.plan_type !== 'traditional' && (
