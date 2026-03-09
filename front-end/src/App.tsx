@@ -3,6 +3,7 @@ import Auth from './features/auth/Auth';
 import AdminDashboard from './features/admin-dashboard/AdminDashboard';
 import TeacherDashboard from './features/teacher-dashboard/TeacherDashboard';
 import TeacherCirriculumManager from './features/teacher-curriculum-manager/TeacherCirriculumManager';
+import LessonCreator from './features/lesson-creator/LessonCreator';
 import { AppLayout } from './components/layout';
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
         <Route element={<AppLayout />}>
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/teacher" element={<TeacherDashboard />} />
+          <Route path="/lessons" element={<LessonCreator />} />
           <Route path="/curriculum" element={<TeacherCirriculumManager />} />
         </Route>
       </Routes>

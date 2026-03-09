@@ -7,7 +7,7 @@
     "dev": "nodemon --watch --env-file=.env src/server.js",
     "start": "nodemon --env-file=.env src/server.js",
     "seed": "node --env-file=.env src/scripts/seed.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "TURSO_DATABASE_URL=http://localhost TURSO_AUTH_TOKEN=test-token node --test"
   },
   "keywords": [],
   "author": "",

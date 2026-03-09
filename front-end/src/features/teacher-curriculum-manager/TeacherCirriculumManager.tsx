@@ -60,6 +60,10 @@ interface EditDraft {
   id: number;
   name: string;
   description: string;
+  gradeLabel?: string;
+  sectionLabel?: string;
+  academicYear?: string;
+  defaultDurationMinutes?: number;
   content?: string;
   unitId?: number;
 }
@@ -140,6 +144,11 @@ function TeacherCirriculumManager() {
     useState<SelectValue>('');
   const [creatorNewClassName, setCreatorNewClassName] = useState('');
   const [creatorNewClassDescription, setCreatorNewClassDescription] = useState('');
+  const [creatorNewClassGradeLabel, setCreatorNewClassGradeLabel] = useState('');
+  const [creatorNewClassSectionLabel, setCreatorNewClassSectionLabel] = useState('');
+  const [creatorNewClassAcademicYear, setCreatorNewClassAcademicYear] = useState('');
+  const [creatorNewClassDefaultDuration, setCreatorNewClassDefaultDuration] =
+    useState<number>(45);
 
   const [creatorSubjectMode, setCreatorSubjectMode] = useState<LevelMode>('skip');
   const [creatorExistingSubjectId, setCreatorExistingSubjectId] =
@@ -256,6 +265,10 @@ function TeacherCirriculumManager() {
     setCreatorExistingClassId('');
     setCreatorNewClassName('');
     setCreatorNewClassDescription('');
+    setCreatorNewClassGradeLabel('');
+    setCreatorNewClassSectionLabel('');
+    setCreatorNewClassAcademicYear('');
+    setCreatorNewClassDefaultDuration(45);
     setCreatorSubjectMode('skip');
     setCreatorExistingSubjectId('');
     setCreatorNewSubjectName('');
@@ -400,6 +413,10 @@ function TeacherCirriculumManager() {
       id: selectedClass.id,
       name: selectedClass.name,
       description: selectedClass.description,
+      gradeLabel: selectedClass.grade_label,
+      sectionLabel: selectedClass.section_label,
+      academicYear: selectedClass.academic_year,
+      defaultDurationMinutes: selectedClass.default_duration_minutes,
     });
   };
 
@@ -453,9 +470,32 @@ function TeacherCirriculumManager() {
       }
 
       if (editDraft.kind === 'class') {
+        if (!editDraft.gradeLabel?.trim()) {
+          throw new Error('المرحلة/الصف مطلوب.');
+        }
+        if (!editDraft.sectionLabel?.trim()) {
+          throw new Error('الشعبة مطلوبة.');
+        }
+        if (!editDraft.academicYear?.trim()) {
+          throw new Error('العام الدراسي مطلوب.');
+        }
+        if (
+          editDraft.defaultDurationMinutes !== undefined &&
+          (!Number.isInteger(editDraft.defaultDurationMinutes) ||
+            editDraft.defaultDurationMinutes <= 0)
+        ) {
+          throw new Error('المدة الافتراضية يجب أن تكون رقمًا صحيحًا موجبًا.');
+        }
+      }
+
+      if (editDraft.kind === 'class') {
         const response = await updateClass(editDraft.id, {
           name: editDraft.name.trim(),
           description: editDraft.description.trim(),
+          grade_label: editDraft.gradeLabel?.trim() ?? '',
+          section_label: editDraft.sectionLabel?.trim() ?? '',
+          academic_year: editDraft.academicYear?.trim() ?? '',
+          default_duration_minutes: editDraft.defaultDurationMinutes ?? 45,
         });
         setClasses((previous) =>
           previous.map((item) =>
@@ -640,10 +680,29 @@ function TeacherCirriculumManager() {
         if (!creatorNewClassName.trim() || !creatorNewClassDescription.trim()) {
           throw new Error('يرجى إدخال اسم الصف ووصفه.');
         }
+        if (!creatorNewClassGradeLabel.trim()) {
+          throw new Error('يرجى إدخال المرحلة/الصف.');
+        }
+        if (!creatorNewClassSectionLabel.trim()) {
+          throw new Error('يرجى إدخال الشعبة.');
+        }
+        if (!creatorNewClassAcademicYear.trim()) {
+          throw new Error('يرجى إدخال العام الدراسي.');
+        }
+        if (
+          !Number.isInteger(creatorNewClassDefaultDuration) ||
+          creatorNewClassDefaultDuration <= 0
+        ) {
+          throw new Error('المدة الافتراضية يجب أن تكون رقمًا صحيحًا موجبًا.');
+        }
 
         const classResponse = await createClass({
           name: creatorNewClassName.trim(),
           description: creatorNewClassDescription.trim(),
+          grade_label: creatorNewClassGradeLabel.trim(),
+          section_label: creatorNewClassSectionLabel.trim(),
+          academic_year: creatorNewClassAcademicYear.trim(),
+          default_duration_minutes: creatorNewClassDefaultDuration,
           teacher_id: teacherId,
         });
         resolvedClassId = classResponse.class.id;
@@ -893,6 +952,14 @@ function TeacherCirriculumManager() {
                     {selectedClass.name}
                   </h3>
                   <p>{selectedClass.description}</p>
+                  <p>
+                    الصف/المرحلة: {selectedClass.grade_label} | الشعبة:{' '}
+                    {selectedClass.section_label}
+                  </p>
+                  <p>
+                    العام الدراسي: {selectedClass.academic_year} | المدة الافتراضية:{' '}
+                    {selectedClass.default_duration_minutes} دقيقة
+                  </p>
                 </div>
                 <div className="tcm2__meta-actions">
                   <button type="button" onClick={openEditForSelectedClass}>
@@ -1151,6 +1218,57 @@ function TeacherCirriculumManager() {
                         value={creatorNewClassDescription}
                         onChange={(event) =>
                           setCreatorNewClassDescription(event.target.value)
+                        }
+                      />
+                    </div>
+                    <div className="tcm2__field">
+                      <label htmlFor="creator-new-class-grade-label">
+                        المرحلة / الصف
+                      </label>
+                      <input
+                        id="creator-new-class-grade-label"
+                        type="text"
+                        value={creatorNewClassGradeLabel}
+                        onChange={(event) =>
+                          setCreatorNewClassGradeLabel(event.target.value)
+                        }
+                      />
+                    </div>
+                    <div className="tcm2__field">
+                      <label htmlFor="creator-new-class-section-label">الشعبة</label>
+                      <input
+                        id="creator-new-class-section-label"
+                        type="text"
+                        value={creatorNewClassSectionLabel}
+                        onChange={(event) =>
+                          setCreatorNewClassSectionLabel(event.target.value)
+                        }
+                      />
+                    </div>
+                    <div className="tcm2__field">
+                      <label htmlFor="creator-new-class-academic-year">
+                        العام الدراسي
+                      </label>
+                      <input
+                        id="creator-new-class-academic-year"
+                        type="text"
+                        value={creatorNewClassAcademicYear}
+                        onChange={(event) =>
+                          setCreatorNewClassAcademicYear(event.target.value)
+                        }
+                      />
+                    </div>
+                    <div className="tcm2__field">
+                      <label htmlFor="creator-new-class-default-duration">
+                        المدة الافتراضية (دقيقة)
+                      </label>
+                      <input
+                        id="creator-new-class-default-duration"
+                        type="number"
+                        min={1}
+                        value={creatorNewClassDefaultDuration}
+                        onChange={(event) =>
+                          setCreatorNewClassDefaultDuration(Number(event.target.value))
                         }
                       />
                     </div>
@@ -1475,6 +1593,91 @@ function TeacherCirriculumManager() {
                 }
               />
             </div>
+
+            {editDraft.kind === 'class' && (
+              <>
+                <div className="tcm2__inline-grid">
+                  <div className="tcm2__field">
+                    <label htmlFor="edit-class-grade-label">المرحلة / الصف</label>
+                    <input
+                      id="edit-class-grade-label"
+                      type="text"
+                      value={editDraft.gradeLabel ?? ''}
+                      onChange={(event) =>
+                        setEditDraft((previous) =>
+                          previous
+                            ? {
+                                ...previous,
+                                gradeLabel: event.target.value,
+                              }
+                            : previous
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="tcm2__field">
+                    <label htmlFor="edit-class-section-label">الشعبة</label>
+                    <input
+                      id="edit-class-section-label"
+                      type="text"
+                      value={editDraft.sectionLabel ?? ''}
+                      onChange={(event) =>
+                        setEditDraft((previous) =>
+                          previous
+                            ? {
+                                ...previous,
+                                sectionLabel: event.target.value,
+                              }
+                            : previous
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="tcm2__inline-grid">
+                  <div className="tcm2__field">
+                    <label htmlFor="edit-class-academic-year">العام الدراسي</label>
+                    <input
+                      id="edit-class-academic-year"
+                      type="text"
+                      value={editDraft.academicYear ?? ''}
+                      onChange={(event) =>
+                        setEditDraft((previous) =>
+                          previous
+                            ? {
+                                ...previous,
+                                academicYear: event.target.value,
+                              }
+                            : previous
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="tcm2__field">
+                    <label htmlFor="edit-class-default-duration">
+                      المدة الافتراضية (دقيقة)
+                    </label>
+                    <input
+                      id="edit-class-default-duration"
+                      type="number"
+                      min={1}
+                      value={editDraft.defaultDurationMinutes ?? 45}
+                      onChange={(event) =>
+                        setEditDraft((previous) =>
+                          previous
+                            ? {
+                                ...previous,
+                                defaultDurationMinutes: Number(event.target.value),
+                              }
+                            : previous
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
             {editDraft.kind === 'lesson' && (
               <>
