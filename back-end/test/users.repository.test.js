@@ -1,0 +1,127 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import { createUsersRepository } from "../src/users/repositories/users.repository.js";
+
+test("getProfileByUserId ensures a profile row and returns normalized profile", async () => {
+  const calls = [];
+  const repository = createUsersRepository({
+    async execute({ sql, args }) {
+      calls.push({ sql, args });
+
+      if (sql.includes("FROM Users u") && sql.includes("INNER JOIN UserProfiles")) {
+        return {
+          rows: [
+            {
+              user_id: 3,
+              username: "teacher_1",
+              role: "teacher",
+              user_created_at: "2026-03-09T00:00:00.000Z",
+              language: "ar",
+              educational_stage: "المرحلة المتوسطة",
+              subject: "الرياضيات",
+              preparation_type: "تحضير يومي",
+              default_lesson_duration_minutes: 50,
+              created_at: "2026-03-09T00:00:00.000Z",
+              updated_at: "2026-03-09T00:00:00.000Z",
+            },
+          ],
+        };
+      }
+
+      return { rows: [] };
+    },
+  });
+
+  const profile = await repository.getProfileByUserId(3);
+
+  assert.equal(profile?.user_id, 3);
+  assert.equal(profile?.language, "ar");
+  assert.equal(profile?.default_lesson_duration_minutes, 50);
+  assert.ok(
+    calls.some((call) => call.sql.includes("INSERT INTO UserProfiles")),
+    "expected ensureProfile insert query",
+  );
+});
+
+test("updateProfileByUserId updates only provided fields", async () => {
+  const calls = [];
+  const repository = createUsersRepository({
+    async execute({ sql, args }) {
+      calls.push({ sql, args });
+
+      if (sql.includes("FROM Users u") && sql.includes("INNER JOIN UserProfiles")) {
+        return {
+          rows: [
+            {
+              user_id: 7,
+              username: "teacher_7",
+              role: "teacher",
+              user_created_at: "2026-03-09T00:00:00.000Z",
+              language: "en",
+              educational_stage: null,
+              subject: "Science",
+              preparation_type: null,
+              default_lesson_duration_minutes: 40,
+              created_at: "2026-03-09T00:00:00.000Z",
+              updated_at: "2026-03-09T00:00:00.000Z",
+            },
+          ],
+        };
+      }
+
+      return { rows: [] };
+    },
+  });
+
+  const result = await repository.updateProfileByUserId(7, {
+    language: "en",
+    subject: "Science",
+    default_lesson_duration_minutes: 40,
+  });
+
+  assert.equal(result?.user_id, 7);
+
+  const updateCall = calls.find((call) => call.sql.includes("UPDATE UserProfiles"));
+  assert.ok(updateCall, "expected profile update query");
+  assert.ok(updateCall.sql.includes("language = ?"));
+  assert.ok(updateCall.sql.includes("subject = ?"));
+  assert.ok(updateCall.sql.includes("default_lesson_duration_minutes = ?"));
+});
+
+test("listTeachersWithUsage maps usage counters", async () => {
+  const repository = createUsersRepository({
+    async execute() {
+      return {
+        rows: [
+          {
+            id: 2,
+            username: "teacher_2",
+            role: "teacher",
+            created_at: "2026-03-09T00:00:00.000Z",
+            language: "ar",
+            educational_stage: null,
+            subject: null,
+            preparation_type: null,
+            default_lesson_duration_minutes: 45,
+            classes_count: 3,
+            subjects_count: 4,
+            units_count: 6,
+            lessons_count: 10,
+            generated_plans_count: 12,
+            plans_with_retry_count: 2,
+            generated_exams_count: 5,
+            generated_assignments_count: 8,
+            edited_assignments_count: 3,
+          },
+        ],
+      };
+    },
+  });
+
+  const teachers = await repository.listTeachersWithUsage();
+
+  assert.equal(teachers.length, 1);
+  assert.equal(teachers[0].usage.generated_plans_count, 12);
+  assert.equal(teachers[0].usage.edited_assignments_count, 3);
+});
