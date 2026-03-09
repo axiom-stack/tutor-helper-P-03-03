@@ -5,12 +5,15 @@ import {
   MdAutoAwesome,
   MdCheckCircle,
   MdErrorOutline,
+  MdOutlinePictureAsPdf,
+  MdOutlineTextSnippet,
   MdRefresh,
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
 import type { Assignment } from '../../types';
 import { ASSIGNMENT_TYPE_LABELS } from '../../types';
 import {
+  exportAssignment,
   generateAssignments,
   getAssignmentById,
   listAssignments,
@@ -199,6 +202,8 @@ export default function Assignments() {
   const [modifyError, setModifyError] = useState<NormalizedApiError | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -368,6 +373,24 @@ export default function Assignments() {
     }
   };
 
+  const handleExportPdf = () => {
+    if (!selectedAssignment?.public_id || isExporting) return;
+    setExportError(null);
+    setIsExporting(true);
+    exportAssignment(selectedAssignment.public_id, 'pdf')
+      .catch(() => setExportError('فشل تصدير PDF.'))
+      .finally(() => setIsExporting(false));
+  };
+
+  const handleExportWord = () => {
+    if (!selectedAssignment?.public_id || isExporting) return;
+    setExportError(null);
+    setIsExporting(true);
+    exportAssignment(selectedAssignment.public_id, 'docx')
+      .catch(() => setExportError('فشل تصدير Word.'))
+      .finally(() => setIsExporting(false));
+  };
+
   if (user?.userRole !== 'teacher') {
     return null;
   }
@@ -511,16 +534,45 @@ export default function Assignments() {
             <div className="asn__details-head">
               <h2>تفاصيل الواجب</h2>
               {selectedAssignment && (
-                <button
-                  type="button"
-                  className="asn-btn asn-btn--ghost"
-                  onClick={() => void handleOpenModifyModal(selectedAssignment)}
-                >
-                  <MdAutoAwesome aria-hidden />
-                  تعديل
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className="asn-btn asn-btn--ghost"
+                    onClick={() => void handleOpenModifyModal(selectedAssignment)}
+                  >
+                    <MdAutoAwesome aria-hidden />
+                    تعديل
+                  </button>
+                  <button
+                    type="button"
+                    className="asn-btn asn-btn--ghost"
+                    onClick={handleExportPdf}
+                    disabled={isExporting}
+                    aria-busy={isExporting}
+                  >
+                    <MdOutlinePictureAsPdf aria-hidden />
+                    تصدير PDF
+                  </button>
+                  <button
+                    type="button"
+                    className="asn-btn asn-btn--ghost"
+                    onClick={handleExportWord}
+                    disabled={isExporting}
+                    aria-busy={isExporting}
+                  >
+                    <MdOutlineTextSnippet aria-hidden />
+                    تصدير Word
+                  </button>
+                </>
               )}
             </div>
+
+            {exportError && (
+              <div className="asn-alert asn-alert--error" role="alert">
+                <MdErrorOutline aria-hidden />
+                <p>{exportError}</p>
+              </div>
+            )}
 
             {!selectedAssignment ? (
               <div className="asn__details-empty">

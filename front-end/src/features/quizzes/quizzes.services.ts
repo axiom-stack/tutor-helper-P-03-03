@@ -120,3 +120,27 @@ export async function deleteExamById(id: string): Promise<DeleteExamResponse> {
     throw normalizeApiError(error, 'فشل حذف الاختبار.');
   }
 }
+
+/**
+ * Download exam export (PDF or DOCX) and trigger browser save.
+ */
+export async function exportExam(
+  examId: string,
+  format: 'pdf' | 'docx'
+): Promise<void> {
+  const response = await api().get(`/api/exams/${examId}/export`, {
+    params: { format },
+    responseType: 'blob',
+  });
+  const blob = response.data as Blob;
+  const ext = format === 'pdf' ? 'pdf' : 'docx';
+  const filename = `exam_${examId}.${ext}`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

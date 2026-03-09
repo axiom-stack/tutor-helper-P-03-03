@@ -107,3 +107,27 @@ export async function getAssignmentById(id: string): Promise<GetAssignmentRespon
     throw normalizeApiError(error, 'فشل تحميل تفاصيل الواجب.');
   }
 }
+
+/**
+ * Download assignment export (PDF or DOCX) and trigger browser save.
+ */
+export async function exportAssignment(
+  assignmentId: string,
+  format: 'pdf' | 'docx'
+): Promise<void> {
+  const response = await api().get(`/api/assignments/${assignmentId}/export`, {
+    params: { format },
+    responseType: 'blob',
+  });
+  const blob = response.data as Blob;
+  const ext = format === 'pdf' ? 'pdf' : 'docx';
+  const filename = `assignment_${assignmentId}.${ext}`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

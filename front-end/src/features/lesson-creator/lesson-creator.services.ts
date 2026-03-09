@@ -81,3 +81,26 @@ export async function generatePlan(
   const response = await api().post<GeneratedPlanResponse>('/api/generate-plan', payload);
   return response.data;
 }
+
+/**
+ * Download plan export (PDF or DOCX) and trigger browser save.
+ * @param planId - Plan public_id (e.g. trd_1, act_1)
+ * @param format - 'pdf' | 'docx'
+ */
+export async function exportPlan(planId: string, format: 'pdf' | 'docx'): Promise<void> {
+  const response = await api().get(`/api/plans/${planId}/export`, {
+    params: { format },
+    responseType: 'blob',
+  });
+  const blob = response.data as Blob;
+  const ext = format === 'pdf' ? 'pdf' : 'docx';
+  const filename = `plan_${planId}.${ext}`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

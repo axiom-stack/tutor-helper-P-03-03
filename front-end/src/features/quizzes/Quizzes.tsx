@@ -5,6 +5,8 @@ import {
   MdCheckCircle,
   MdDelete,
   MdErrorOutline,
+  MdOutlinePictureAsPdf,
+  MdOutlineTextSnippet,
   MdQuiz,
   MdRefresh,
 } from 'react-icons/md';
@@ -15,6 +17,7 @@ import type { NormalizedApiError } from '../../utils/apiErrors';
 import { normalizeApiError } from '../../utils/apiErrors';
 import {
   deleteExamById,
+  exportExam,
   generateExam,
   getExamById,
   getLessonsByUnit,
@@ -83,6 +86,8 @@ export default function Quizzes() {
 
   const [error, setError] = useState<NormalizedApiError | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -327,6 +332,24 @@ export default function Quizzes() {
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleExportPdf = () => {
+    if (!selectedExam?.public_id || isExporting) return;
+    setExportError(null);
+    setIsExporting(true);
+    exportExam(selectedExam.public_id, 'pdf')
+      .catch(() => setExportError('فشل تصدير PDF.'))
+      .finally(() => setIsExporting(false));
+  };
+
+  const handleExportWord = () => {
+    if (!selectedExam?.public_id || isExporting) return;
+    setExportError(null);
+    setIsExporting(true);
+    exportExam(selectedExam.public_id, 'docx')
+      .catch(() => setExportError('فشل تصدير Word.'))
+      .finally(() => setIsExporting(false));
   };
 
   if (user?.userRole !== 'teacher') {
@@ -603,12 +626,40 @@ export default function Quizzes() {
                 <p>جارٍ تحميل التفاصيل...</p>
               ) : (
                 <div className="qz__details-body">
+                  {exportError && (
+                    <div className="qz-alert qz-alert--error" role="alert">
+                      <MdErrorOutline aria-hidden />
+                      <p>{exportError}</p>
+                    </div>
+                  )}
                   <header className="qz__details-head">
                     <h4>{selectedExam.title}</h4>
                     <p>
                       المعرف: {selectedExam.public_id} | {selectedExam.total_questions}{' '}
                       سؤال | {selectedExam.total_marks} درجة
                     </p>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="qz__refresh-btn"
+                        onClick={handleExportPdf}
+                        disabled={isExporting}
+                        aria-busy={isExporting}
+                      >
+                        <MdOutlinePictureAsPdf aria-hidden />
+                        تصدير PDF
+                      </button>
+                      <button
+                        type="button"
+                        className="qz__refresh-btn"
+                        onClick={handleExportWord}
+                        disabled={isExporting}
+                        aria-busy={isExporting}
+                      >
+                        <MdOutlineTextSnippet aria-hidden />
+                        تصدير Word
+                      </button>
+                    </div>
                   </header>
 
                   {selectedExam.blueprint?.cells && (

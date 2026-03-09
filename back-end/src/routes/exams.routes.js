@@ -6,6 +6,7 @@ import {
   getExamById,
   listExams,
 } from "../controllers/exams.controller.js";
+import { exportExamHandler } from "../controllers/export.controller.js";
 
 const router = express.Router();
 
@@ -13,6 +14,7 @@ router.use(authenticateToken);
 
 router.post("/generate", generateExam);
 router.get("/", listExams);
+router.get("/:id/export", exportExamHandler);
 router.get("/:id", getExamById);
 router.delete("/:id", deleteExamById);
 

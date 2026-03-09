@@ -14,6 +14,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import type { Class, Lesson, Subject, Unit } from '../../types';
 import {
+  exportPlan,
   generatePlan,
   getLessonById,
   getLessonsByUnit,
@@ -190,6 +191,8 @@ function LessonCreator() {
   const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlanResponse | null>(
     null
   );
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -516,6 +519,28 @@ function LessonCreator() {
     });
   };
 
+  const handleExportPdf = () => {
+    if (!generatedPlan?.id || isExporting) return;
+    setExportError(null);
+    setIsExporting(true);
+    exportPlan(generatedPlan.id, 'pdf').catch((err: unknown) => {
+      setExportError(getErrorMessage(err, 'فشل تصدير PDF.'));
+    }).finally(() => {
+      setIsExporting(false);
+    });
+  };
+
+  const handleExportWord = () => {
+    if (!generatedPlan?.id || isExporting) return;
+    setExportError(null);
+    setIsExporting(true);
+    exportPlan(generatedPlan.id, 'docx').catch((err: unknown) => {
+      setExportError(getErrorMessage(err, 'فشل تصدير Word.'));
+    }).finally(() => {
+      setIsExporting(false);
+    });
+  };
+
   const getStepState = (step: 1 | 2 | 3 | 4): StepState => {
     if (step === 1) {
       return selectedClassId !== '' ? 'done' : 'active';
@@ -636,16 +661,33 @@ function LessonCreator() {
           <button type="button" disabled>
             حفظ
           </button>
-          <button type="button" disabled>
+          <button
+            type="button"
+            onClick={handleExportPdf}
+            disabled={!generatedPlan || isExporting}
+            aria-busy={isExporting}
+          >
             <MdOutlinePictureAsPdf aria-hidden />
-            تصدير PDF
+            {isExporting ? 'جاري التصدير...' : 'تصدير PDF'}
           </button>
-          <button type="button" disabled>
+          <button
+            type="button"
+            onClick={handleExportWord}
+            disabled={!generatedPlan || isExporting}
+            aria-busy={isExporting}
+          >
             <MdOutlineTextSnippet aria-hidden />
-            تصدير Word
+            {isExporting ? 'جاري التصدير...' : 'تصدير Word'}
           </button>
         </div>
       </header>
+
+      {exportError && (
+        <div className="lcp__alert lcp__alert--error" role="alert">
+          <MdOutlineError aria-hidden />
+          <span>{exportError}</span>
+        </div>
+      )}
 
       {pageError && (
         <div className="lcp__alert lcp__alert--error" role="alert">
