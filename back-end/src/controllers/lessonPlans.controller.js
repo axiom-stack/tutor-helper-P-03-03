@@ -16,6 +16,7 @@ export async function generatePlan(req, res) {
           validation_errors: validation.errors,
           request_shape: {
             keys: Object.keys(req.body || {}),
+            lesson_id: req.body?.lesson_id,
             plan_type: req.body?.plan_type,
             duration_minutes: req.body?.duration_minutes,
           },
