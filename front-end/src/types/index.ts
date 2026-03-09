@@ -52,6 +52,55 @@ export interface Lesson {
 
 export type LessonContentType = 'text' | 'pdf' | 'word';
 
+export type AssignmentType = 'written' | 'varied' | 'practical';
+
+export const ASSIGNMENT_TYPE_LABELS: Record<AssignmentType, string> = {
+  written: 'واجبات كتابية',
+  varied: 'أسئلة تقويم متنوعة',
+  practical: 'أنشطة تطبيقية',
+};
+
+export interface Assignment {
+  id: string;
+  public_id: string;
+  teacher_id: number;
+  lesson_plan_public_id: string;
+  lesson_id: number;
+  name: string;
+  description: string | null;
+  type: AssignmentType;
+  content: string;
+  created_at: string; // ISO date string
+  updated_at: string; // ISO date string
+}
+
+export interface GenerateAssignmentsRequest {
+  lesson_plan_public_id: string;
+  lesson_id: number;
+  lesson_plan?: Record<string, unknown>;
+  lesson_content?: string;
+}
+
+export interface ModifyAssignmentRequest {
+  assignment_id: string;
+  modification_request: string;
+}
+
+export interface ApiErrorDetail {
+  code?: string;
+  path?: string;
+  field?: string;
+  message: string;
+}
+
+export interface AssignmentsApiError {
+  error: {
+    code: string;
+    message: string;
+    details?: ApiErrorDetail[];
+  };
+}
+
 // API response types (for login responses)
 export interface AuthUser {
   id: number;
