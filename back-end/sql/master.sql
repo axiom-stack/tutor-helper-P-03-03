@@ -77,3 +77,21 @@ Create Table ActiveLearningLessonPlans (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE Assignments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  public_id TEXT UNIQUE,
+  teacher_id INTEGER NOT NULL REFERENCES Users(id),
+  lesson_plan_public_id TEXT NOT NULL,
+  lesson_id INTEGER NOT NULL REFERENCES Lessons(id),
+  name TEXT NOT NULL,
+  description TEXT,
+  type TEXT NOT NULL CHECK(type IN ('written', 'varied', 'practical')),
+  content TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_assignments_lesson_plan_public_id ON Assignments(lesson_plan_public_id);
+CREATE INDEX idx_assignments_lesson_id ON Assignments(lesson_id);
+CREATE INDEX idx_assignments_teacher_id ON Assignments(teacher_id);
