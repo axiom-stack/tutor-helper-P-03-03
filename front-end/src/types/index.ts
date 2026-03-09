@@ -168,6 +168,76 @@ export interface Exam {
   updated_at: string;
 }
 
+export type PlanType = 'traditional' | 'active_learning';
+
+export interface LessonPlanRecord {
+  id: string;
+  db_id: number;
+  public_id: string;
+  teacher_id: number;
+  lesson_id: number | null;
+  lesson_title: string;
+  subject: string;
+  grade: string;
+  unit: string;
+  duration_minutes: number;
+  plan_type: PlanType;
+  plan_json: Record<string, unknown> | null;
+  validation_status: string;
+  retry_occurred: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserProfile {
+  user_id: number;
+  username: string;
+  role: UserRole;
+  user_created_at: string;
+  language: 'ar' | 'en';
+  educational_stage: string | null;
+  subject: string | null;
+  preparation_type: string | null;
+  default_lesson_duration_minutes: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserProfileUpdatePayload {
+  language?: 'ar' | 'en';
+  educational_stage?: string | null;
+  subject?: string | null;
+  preparation_type?: string | null;
+  default_lesson_duration_minutes?: number;
+}
+
+export interface TeacherUsageSummary {
+  classes_count: number;
+  subjects_count: number;
+  units_count: number;
+  lessons_count: number;
+  generated_plans_count: number;
+  plans_with_retry_count: number;
+  generated_exams_count: number;
+  generated_assignments_count: number;
+  edited_assignments_count: number;
+}
+
+export interface TeacherManagementRow {
+  id: number;
+  username: string;
+  role: UserRole;
+  created_at: string;
+  profile: {
+    language: 'ar' | 'en';
+    educational_stage: string | null;
+    subject: string | null;
+    preparation_type: string | null;
+    default_lesson_duration_minutes: number;
+  };
+  usage: TeacherUsageSummary;
+}
+
 export interface GenerateExamRequest {
   subject_id: number;
   lesson_ids: number[];

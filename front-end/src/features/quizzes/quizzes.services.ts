@@ -40,8 +40,18 @@ export async function getMyClasses(): Promise<{ classes: Class[] }> {
   return response.data;
 }
 
+export async function getAllClasses(): Promise<{ classes: Class[] }> {
+  const response = await api().get<{ classes: Class[] }>('/api/classes');
+  return response.data;
+}
+
 export async function getMySubjects(): Promise<{ subjects: Subject[] }> {
   const response = await api().get<{ subjects: Subject[] }>('/api/subjects/mine');
+  return response.data;
+}
+
+export async function getAllSubjects(): Promise<{ subjects: Subject[] }> {
+  const response = await api().get<{ subjects: Subject[] }>('/api/subjects');
   return response.data;
 }
 

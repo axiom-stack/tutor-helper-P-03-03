@@ -1,29 +1,70 @@
-import { BrowserRouter, Route, Routes } from 'react-router';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import Auth from './features/auth/Auth';
-import AdminDashboard from './features/admin-dashboard/AdminDashboard';
-import TeacherDashboard from './features/teacher-dashboard/TeacherDashboard';
-import TeacherCirriculumManager from './features/teacher-curriculum-manager/TeacherCirriculumManager';
 import LessonCreator from './features/lesson-creator/LessonCreator';
 import Assignments from './features/assignments/Assignments';
 import Quizzes from './features/quizzes/Quizzes';
 import { AppLayout } from './components/layout';
+import { RequireAdmin, RequireAuth, RequireTeacher } from './components/routing/RouteGuards';
+import ControlDashboard from './features/control-dashboard/ControlDashboard';
+import ControlCurriculum from './features/control-curriculum/ControlCurriculum';
+import PlansManager from './features/plans-manager/PlansManager';
+import Settings from './features/settings/Settings';
+import TeachersManagement from './features/teachers-management/TeachersManagement';
+import Stats from './features/stats/Stats';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/authentication" element={<Auth />} />
-        <Route element={<AppLayout />}>
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/teacher" element={<TeacherDashboard />} />
-          <Route path="/lessons" element={<LessonCreator />} />
-          <Route path="/assignments" element={<Assignments />} />
+        <Route
+          element={
+            <RequireAuth>
+              <AppLayout />
+            </RequireAuth>
+          }
+        >
+          <Route path="/" element={<ControlDashboard />} />
+          <Route path="/teacher" element={<Navigate to="/" replace />} />
+          <Route path="/admin" element={<Navigate to="/" replace />} />
+          <Route
+            path="/lessons"
+            element={
+              <RequireTeacher>
+                <LessonCreator />
+              </RequireTeacher>
+            }
+          />
+          <Route
+            path="/assignments"
+            element={
+              <RequireTeacher>
+                <Assignments />
+              </RequireTeacher>
+            }
+          />
           <Route
             path="/assignments/:lesson_plan_public_id/:lesson_id"
-            element={<Assignments />}
+            element={
+              <RequireTeacher>
+                <Assignments />
+              </RequireTeacher>
+            }
           />
           <Route path="/quizzes" element={<Quizzes />} />
-          <Route path="/curriculum" element={<TeacherCirriculumManager />} />
+          <Route path="/curriculum" element={<ControlCurriculum />} />
+          <Route path="/plans" element={<PlansManager />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/stats" element={<Stats />} />
+          <Route
+            path="/teachers"
+            element={
+              <RequireAdmin>
+                <TeachersManagement />
+              </RequireAdmin>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link } from 'react-router';
 import {
   MdAutoAwesome,
   MdCheckCircle,
@@ -19,6 +19,8 @@ import {
   deleteExamById,
   exportExam,
   generateExam,
+  getAllClasses,
+  getAllSubjects,
   getExamById,
   getLessonsByUnit,
   getMyClasses,
@@ -55,7 +57,8 @@ function autoTitle(subjectName: string): string {
 
 export default function Quizzes() {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const isAdmin = user?.userRole === 'admin';
+  const isTeacher = user?.userRole === 'teacher';
 
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -89,16 +92,6 @@ export default function Quizzes() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/authentication');
-      return;
-    }
-    if (user.userRole === 'admin') {
-      navigate('/admin');
-    }
-  }, [navigate, user]);
-
   const loadExams = useCallback(async () => {
     setIsListLoading(true);
     try {
@@ -117,7 +110,7 @@ export default function Quizzes() {
   }, [filterClassId, filterDateFrom, filterDateTo, filterSubjectId]);
 
   useEffect(() => {
-    if (user?.userRole !== 'teacher') {
+    if (!isTeacher && !isAdmin) {
       return;
     }
 
@@ -127,9 +120,11 @@ export default function Quizzes() {
       setIsBootLoading(true);
       setError(null);
       try {
+        const classesLoader = isAdmin ? getAllClasses : getMyClasses;
+        const subjectsLoader = isAdmin ? getAllSubjects : getMySubjects;
         const [classesResponse, subjectsResponse] = await Promise.all([
-          getMyClasses(),
-          getMySubjects(),
+          classesLoader(),
+          subjectsLoader(),
         ]);
 
         if (cancelled) {
@@ -155,7 +150,7 @@ export default function Quizzes() {
     return () => {
       cancelled = true;
     };
-  }, [loadExams, user?.userRole]);
+  }, [isAdmin, isTeacher, loadExams]);
 
   const selectedSubject = useMemo(
     () => subjects.find((subject) => subject.id === selectedSubjectId) ?? null,
@@ -255,6 +250,10 @@ export default function Quizzes() {
   };
 
   const handleGenerateExam = async () => {
+    if (!isTeacher) {
+      return;
+    }
+
     if (selectedSubjectId === '') {
       setError({ message: 'اختر مادة أولاً.' });
       return;
@@ -312,6 +311,10 @@ export default function Quizzes() {
   };
 
   const handleDeleteExam = async (examId: string) => {
+    if (!isTeacher) {
+      return;
+    }
+
     const accepted = window.confirm('هل تريد حذف هذا الاختبار نهائيًا؟');
     if (!accepted) {
       return;
@@ -352,7 +355,7 @@ export default function Quizzes() {
       .finally(() => setIsExporting(false));
   };
 
-  if (user?.userRole !== 'teacher') {
+  if (!user) {
     return null;
   }
 
@@ -361,14 +364,19 @@ export default function Quizzes() {
       <header className="qz__header">
         <div>
           <nav className="qz__breadcrumb" aria-label="breadcrumb">
-            <Link to="/teacher">الرئيسية</Link>
+            <Link to="/">الرئيسية</Link>
             <span>←</span>
             <span className="qz__breadcrumb-current">الاختبارات</span>
           </nav>
-          <h1>توليد الاختبارات بجدول المواصفات</h1>
+          <h1>
+            {isTeacher
+              ? 'توليد الاختبارات بجدول المواصفات'
+              : 'إدارة الاختبارات المولدة'}
+          </h1>
           <p>
-            اختر مادة ودروساً متعددة، ثم حدد عدد الأسئلة والدرجة الكلية ليتم توليد
-            اختبار موزون بشكل آلي وحفظه.
+            {isTeacher
+              ? 'اختر مادة ودروساً متعددة، ثم حدد عدد الأسئلة والدرجة الكلية ليتم توليد اختبار موزون بشكل آلي وحفظه.'
+              : 'عرض نظامي لجميع الاختبارات المولدة مع الفلترة والتفاصيل والتصدير.'}
           </p>
         </div>
       </header>
@@ -387,8 +395,9 @@ export default function Quizzes() {
         </div>
       )}
 
-      <div className="qz__layout">
-        <aside className="qz__panel">
+      <div className={`qz__layout ${isAdmin ? 'qz__layout--admin' : ''}`}>
+        {isTeacher ? (
+          <aside className="qz__panel">
           <h2>إعداد الاختبار</h2>
           {isBootLoading ? (
             <p>جارٍ تحميل المواد...</p>
@@ -496,7 +505,8 @@ export default function Quizzes() {
               </button>
             </>
           )}
-        </aside>
+          </aside>
+        ) : null}
 
         <section className="qz__content">
           <div className="qz__filters">
@@ -603,15 +613,17 @@ export default function Quizzes() {
                         </div>
                       </button>
 
-                      <button
-                        type="button"
-                        className="qz__delete-btn"
-                        onClick={() => void handleDeleteExam(exam.public_id)}
-                        disabled={isDeleting}
-                      >
-                        <MdDelete aria-hidden />
-                        حذف
-                      </button>
+                      {isTeacher ? (
+                        <button
+                          type="button"
+                          className="qz__delete-btn"
+                          onClick={() => void handleDeleteExam(exam.public_id)}
+                          disabled={isDeleting}
+                        >
+                          <MdDelete aria-hidden />
+                          حذف
+                        </button>
+                      ) : null}
                     </article>
                   );
                 })
@@ -748,7 +760,7 @@ export default function Quizzes() {
         </section>
       </div>
 
-      {selectedSubject && (
+      {isTeacher && selectedSubject && (
         <footer className="qz__subject-meta">
           المادة المختارة: {selectedSubject.name}
         </footer>

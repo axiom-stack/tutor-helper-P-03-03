@@ -59,6 +59,10 @@
   align-items: start;
 }
 
+.qz__layout--admin {
+  grid-template-columns: 1fr;
+}
+
 .qz__panel,
 .qz__content {
   background: #fff;
