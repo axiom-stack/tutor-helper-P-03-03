@@ -102,7 +102,7 @@ function TeacherDashboard() {
   const displayName = user?.username ?? 'المعلم';
 
   return (
-    <div className="td" dir="rtl">
+    <div className="td">
       <header className="td__header">
         <h1 className="td__title">مرحباً، {displayName} 👋</h1>
         <p className="td__subtitle">ماذا تريد أن تفعل اليوم؟</p>

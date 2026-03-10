@@ -65,7 +65,26 @@ interface EditDraft {
   academicYear?: string;
   defaultDurationMinutes?: number;
   content?: string;
+  contentType?: LessonContentType;
+  file?: File | null;
   unitId?: number;
+  numberOfPeriods?: number;
+}
+
+interface QuickAddDraft {
+  kind: EntityKind;
+  name: string;
+  description: string;
+  classId?: number;
+  subjectId?: number;
+  unitId?: number;
+  gradeLabel?: string;
+  sectionLabel?: string;
+  academicYear?: string;
+  defaultDurationMinutes?: number;
+  contentType?: LessonContentType;
+  content?: string;
+  file?: File | null;
   numberOfPeriods?: number;
 }
 
@@ -102,6 +121,29 @@ function isDocxFile(file: File): boolean {
   );
 }
 
+function matchesLessonFileType(
+  file: File,
+  contentType: Exclude<LessonContentType, 'text'>
+): boolean {
+  return contentType === 'pdf' ? isPdfFile(file) : isDocxFile(file);
+}
+
+function validateLessonFile(
+  file: File | null,
+  contentType: Exclude<LessonContentType, 'text'>
+): string | null {
+  if (!file) {
+    return 'اختر ملف الدرس.';
+  }
+  if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+    return 'حجم الملف أكبر من 25 ميجابايت.';
+  }
+  if (!matchesLessonFileType(file, contentType)) {
+    return contentType === 'pdf' ? 'الملف يجب أن يكون PDF.' : 'الملف يجب أن يكون DOCX.';
+  }
+  return null;
+}
+
 function getLessonCreationMessage(result: CreateLessonResponse): string {
   if (result.message) {
     return result.message;
@@ -115,7 +157,6 @@ function getLessonCreationMessage(result: CreateLessonResponse): string {
 function TeacherCirriculumManager() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const creatorSectionRef = useRef<HTMLDivElement | null>(null);
   const hierarchyRequestIdRef = useRef(0);
   const creatorUnitsRequestIdRef = useRef(0);
 
@@ -139,6 +180,8 @@ function TeacherCirriculumManager() {
   const [success, setSuccess] = useState<string | null>(null);
 
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
+  const [quickAddDraft, setQuickAddDraft] = useState<QuickAddDraft | null>(null);
+  const [showCreatorFlow, setShowCreatorFlow] = useState(false);
 
   const [creatorClassMode, setCreatorClassMode] = useState<ClassMode>('existing');
   const [creatorExistingClassId, setCreatorExistingClassId] =
@@ -200,6 +243,135 @@ function TeacherCirriculumManager() {
     (sum, unitItem) => sum + (lessonsByUnit[unitItem.id]?.length ?? 0),
     0
   );
+
+  const isCreatorValid = (() => {
+    if (creatorClassMode === 'existing') {
+      if (creatorExistingClassId === '') {
+        return false;
+      }
+    } else if (
+      !creatorNewClassName.trim() ||
+      !creatorNewClassDescription.trim() ||
+      !creatorNewClassGradeLabel.trim() ||
+      !creatorNewClassSectionLabel.trim() ||
+      !creatorNewClassAcademicYear.trim() ||
+      !Number.isInteger(creatorNewClassDefaultDuration) ||
+      creatorNewClassDefaultDuration <= 0
+    ) {
+      return false;
+    }
+
+    if (creatorSubjectMode === 'skip') {
+      return creatorUnitMode === 'skip' && creatorLessonMode === 'skip';
+    }
+    if (creatorSubjectMode === 'existing' && creatorExistingSubjectId === '') {
+      return false;
+    }
+    if (
+      creatorSubjectMode === 'new' &&
+      (!creatorNewSubjectName.trim() || !creatorNewSubjectDescription.trim())
+    ) {
+      return false;
+    }
+
+    if (creatorUnitMode === 'skip') {
+      return creatorLessonMode === 'skip';
+    }
+    if (creatorUnitMode === 'existing' && creatorExistingUnitId === '') {
+      return false;
+    }
+    if (
+      creatorUnitMode === 'new' &&
+      (!creatorNewUnitName.trim() || !creatorNewUnitDescription.trim())
+    ) {
+      return false;
+    }
+
+    if (creatorLessonMode !== 'new') {
+      return true;
+    }
+
+    if (
+      !creatorLessonName.trim() ||
+      !creatorLessonDescription.trim() ||
+      !Number.isInteger(creatorLessonNumberOfPeriods) ||
+      creatorLessonNumberOfPeriods <= 0
+    ) {
+      return false;
+    }
+
+    if (creatorLessonContentType === 'text') {
+      return creatorLessonTextContent.trim().length > 0;
+    }
+
+    if (!creatorLessonFile || creatorLessonFile.size > MAX_UPLOAD_SIZE_BYTES) {
+      return false;
+    }
+
+    return (
+      validateLessonFile(
+        creatorLessonFile,
+        creatorLessonContentType as Exclude<LessonContentType, 'text'>
+      ) === null
+    );
+  })();
+
+  const isQuickAddValid = (() => {
+    if (!quickAddDraft) {
+      return false;
+    }
+    if (!quickAddDraft.name.trim() || !quickAddDraft.description.trim()) {
+      return false;
+    }
+
+    if (quickAddDraft.kind === 'class') {
+      return Boolean(
+        quickAddDraft.gradeLabel?.trim() &&
+          quickAddDraft.sectionLabel?.trim() &&
+          quickAddDraft.academicYear?.trim() &&
+          Number.isInteger(quickAddDraft.defaultDurationMinutes) &&
+          Number(quickAddDraft.defaultDurationMinutes) > 0
+      );
+    }
+
+    if (quickAddDraft.kind === 'subject') {
+      return Boolean(quickAddDraft.classId);
+    }
+
+    if (quickAddDraft.kind === 'unit') {
+      return Boolean(quickAddDraft.subjectId);
+    }
+
+    if (quickAddDraft.kind === 'lesson') {
+      if (
+        !quickAddDraft.unitId ||
+        !Number.isInteger(quickAddDraft.numberOfPeriods) ||
+        Number(quickAddDraft.numberOfPeriods) <= 0
+      ) {
+        return false;
+      }
+      if (quickAddDraft.contentType === 'text') {
+        return Boolean(quickAddDraft.content?.trim());
+      }
+      if (
+        !quickAddDraft.file ||
+        quickAddDraft.file.size > MAX_UPLOAD_SIZE_BYTES
+      ) {
+        return false;
+      }
+      return (
+        validateLessonFile(
+          quickAddDraft.file,
+          (quickAddDraft.contentType === 'pdf' ? 'pdf' : 'word') as Exclude<
+            LessonContentType,
+            'text'
+          >
+        ) === null
+      );
+    }
+
+    return true;
+  })();
 
   const clearHierarchy = useCallback(() => {
     hierarchyRequestIdRef.current += 1;
@@ -410,6 +582,154 @@ function TeacherCirriculumManager() {
     });
   };
 
+  const openQuickAddClass = () => {
+    setQuickAddDraft({
+      kind: 'class',
+      name: '',
+      description: '',
+      gradeLabel: '',
+      sectionLabel: '',
+      academicYear: '',
+      defaultDurationMinutes: user?.profile?.default_lesson_duration_minutes ?? 45,
+    });
+  };
+
+  const openQuickAddSubject = (classId: number) => {
+    setQuickAddDraft({
+      kind: 'subject',
+      classId,
+      name: '',
+      description: '',
+    });
+  };
+
+  const openQuickAddUnit = (subjectId: number) => {
+    setQuickAddDraft({
+      kind: 'unit',
+      subjectId,
+      name: '',
+      description: '',
+    });
+  };
+
+  const openQuickAddLesson = (unitId: number) => {
+    setQuickAddDraft({
+      kind: 'lesson',
+      unitId,
+      name: '',
+      description: '',
+      contentType: 'text',
+      content: '',
+      file: null,
+      numberOfPeriods: 1,
+    });
+  };
+
+  const handleQuickAddSubmit = async () => {
+    if (!quickAddDraft) {
+      return;
+    }
+    if (!teacherId) {
+      setError('المعلم غير معروف. سجل الدخول مرة أخرى.');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      if (quickAddDraft.kind === 'class') {
+        await createClass({
+          name: quickAddDraft.name.trim(),
+          description: quickAddDraft.description.trim(),
+          grade_label: quickAddDraft.gradeLabel?.trim() ?? '',
+          section_label: quickAddDraft.sectionLabel?.trim() ?? '',
+          academic_year: quickAddDraft.academicYear?.trim() ?? '',
+          default_duration_minutes: quickAddDraft.defaultDurationMinutes ?? 45,
+          teacher_id: teacherId,
+        });
+        await refreshBaseData();
+      }
+
+      if (quickAddDraft.kind === 'subject') {
+        if (!quickAddDraft.classId) {
+          throw new Error('اختر الصف أولاً.');
+        }
+        const response = await createSubject({
+          class_id: quickAddDraft.classId,
+          teacher_id: teacherId,
+          name: quickAddDraft.name.trim(),
+          description: quickAddDraft.description.trim(),
+        });
+        await refreshBaseData();
+        setSelectedClassId(quickAddDraft.classId);
+        setSelectedSubjectId(response.subject.id);
+        await loadHierarchyForSubject(response.subject.id);
+      }
+
+      if (quickAddDraft.kind === 'unit') {
+        if (!quickAddDraft.subjectId) {
+          throw new Error('اختر المادة أولاً.');
+        }
+        await createUnit({
+          subject_id: quickAddDraft.subjectId,
+          teacher_id: teacherId,
+          name: quickAddDraft.name.trim(),
+          description: quickAddDraft.description.trim(),
+        });
+        if (selectedSubjectId !== quickAddDraft.subjectId) {
+          setSelectedSubjectId(quickAddDraft.subjectId);
+        }
+        await loadHierarchyForSubject(quickAddDraft.subjectId);
+      }
+
+      if (quickAddDraft.kind === 'lesson') {
+        if (!quickAddDraft.unitId) {
+          throw new Error('اختر الوحدة أولاً.');
+        }
+        if (quickAddDraft.contentType === 'text') {
+          await createLesson({
+            content_type: 'text',
+            content: quickAddDraft.content?.trim() ?? '',
+            description: quickAddDraft.description.trim(),
+            name: quickAddDraft.name.trim(),
+            number_of_periods: quickAddDraft.numberOfPeriods ?? 1,
+            teacher_id: teacherId,
+            unit_id: quickAddDraft.unitId,
+          });
+        } else {
+          const fileValidationError = validateLessonFile(
+            quickAddDraft.file ?? null,
+            quickAddDraft.contentType === 'pdf' ? 'pdf' : 'word'
+          );
+          if (fileValidationError) {
+            throw new Error(fileValidationError);
+          }
+          await createLesson({
+            content_type: quickAddDraft.contentType === 'pdf' ? 'pdf' : 'word',
+            file: quickAddDraft.file as File,
+            description: quickAddDraft.description.trim(),
+            name: quickAddDraft.name.trim(),
+            number_of_periods: quickAddDraft.numberOfPeriods ?? 1,
+            teacher_id: teacherId,
+            unit_id: quickAddDraft.unitId,
+          });
+        }
+        if (selectedSubjectId !== '') {
+          await loadHierarchyForSubject(selectedSubjectId);
+        }
+      }
+
+      setQuickAddDraft(null);
+      setSuccess('تمت الإضافة بنجاح.');
+    } catch (quickAddError: unknown) {
+      setError(getErrorMessage(quickAddError, 'تعذرت الإضافة.'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const openEditForSelectedClass = () => {
     if (!selectedClass) {
       return;
@@ -453,7 +773,9 @@ function TeacherCirriculumManager() {
       id: lessonItem.id,
       name: lessonItem.name,
       description: lessonItem.description,
+      contentType: 'text',
       content: lessonItem.content,
+      file: null,
       unitId: lessonItem.unit_id,
       numberOfPeriods: Number(lessonItem.number_of_periods ?? 1),
     });
@@ -536,9 +858,6 @@ function TeacherCirriculumManager() {
       }
 
       if (editDraft.kind === 'lesson') {
-        if (!editDraft.content || !editDraft.content.trim()) {
-          throw new Error('محتوى الدرس مطلوب.');
-        }
         if (!editDraft.unitId) {
           throw new Error('اختر وحدة للدرس.');
         }
@@ -548,13 +867,36 @@ function TeacherCirriculumManager() {
         ) {
           throw new Error('عدد الحصص يجب أن يكون رقمًا صحيحًا موجبًا.');
         }
-        await updateLesson(editDraft.id, {
-          name: editDraft.name.trim(),
-          description: editDraft.description.trim(),
-          content: editDraft.content,
-          unit_id: editDraft.unitId,
-          number_of_periods: Number(editDraft.numberOfPeriods),
-        });
+        const lessonContentType = editDraft.contentType ?? 'text';
+        if (lessonContentType === 'text') {
+          if (!editDraft.content || !editDraft.content.trim()) {
+            throw new Error('محتوى الدرس مطلوب.');
+          }
+          await updateLesson(editDraft.id, {
+            name: editDraft.name.trim(),
+            description: editDraft.description.trim(),
+            content_type: 'text',
+            content: editDraft.content,
+            unit_id: editDraft.unitId,
+            number_of_periods: Number(editDraft.numberOfPeriods),
+          });
+        } else {
+          const fileValidationError = validateLessonFile(
+            editDraft.file ?? null,
+            lessonContentType
+          );
+          if (fileValidationError) {
+            throw new Error(fileValidationError);
+          }
+          await updateLesson(editDraft.id, {
+            name: editDraft.name.trim(),
+            description: editDraft.description.trim(),
+            content_type: lessonContentType,
+            file: editDraft.file as File,
+            unit_id: editDraft.unitId,
+            number_of_periods: Number(editDraft.numberOfPeriods),
+          });
+        }
         if (selectedSubjectId !== '') {
           await loadHierarchyForSubject(selectedSubjectId);
         }
@@ -620,53 +962,6 @@ function TeacherCirriculumManager() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const prefillCreatorForUnit = () => {
-    if (selectedClassId === '' || selectedSubjectId === '') {
-      return;
-    }
-
-    setCreatorClassMode('existing');
-    setCreatorExistingClassId(selectedClassId);
-    setCreatorSubjectMode('existing');
-    setCreatorExistingSubjectId(selectedSubjectId);
-    setCreatorUnitMode('new');
-    setCreatorLessonMode('skip');
-    setCreatorExistingUnitId('');
-    setCreatorLessonName('');
-    setCreatorLessonDescription('');
-    setCreatorLessonNumberOfPeriods(1);
-    setCreatorLessonTextContent('');
-    setCreatorLessonFile(null);
-
-    creatorSectionRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start',
-    });
-  };
-
-  const prefillCreatorForLesson = () => {
-    if (selectedClassId === '' || selectedSubjectId === '' || units.length === 0) {
-      return;
-    }
-
-    setCreatorClassMode('existing');
-    setCreatorExistingClassId(selectedClassId);
-    setCreatorSubjectMode('existing');
-    setCreatorExistingSubjectId(selectedSubjectId);
-    setCreatorUnitMode('existing');
-    setCreatorExistingUnitId(units[0]?.id ?? '');
-    setCreatorLessonMode('new');
-    setCreatorLessonContentType('text');
-    setCreatorLessonNumberOfPeriods(1);
-    setCreatorLessonTextContent('');
-    setCreatorLessonFile(null);
-
-    creatorSectionRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start',
-    });
   };
 
   const handleCreatorSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -820,29 +1115,18 @@ function TeacherCirriculumManager() {
             unit_id: resolvedUnitId,
           });
         } else {
-          if (!creatorLessonFile) {
-            throw new Error('يرجى اختيار ملف للدرس.');
-          }
-          if (creatorLessonFile.size > MAX_UPLOAD_SIZE_BYTES) {
-            throw new Error('حجم الملف يتجاوز 25 ميجابايت.');
-          }
-          if (
-            creatorLessonContentType === 'pdf' &&
-            !isPdfFile(creatorLessonFile)
-          ) {
-            throw new Error('نوع الملف لا يطابق المحتوى المختار. المطلوب PDF.');
-          }
-          if (
-            creatorLessonContentType === 'word' &&
-            !isDocxFile(creatorLessonFile)
-          ) {
-            throw new Error('نوع الملف لا يطابق المحتوى المختار. المطلوب DOCX.');
+          const fileValidationError = validateLessonFile(
+            creatorLessonFile,
+            creatorLessonContentType
+          );
+          if (fileValidationError) {
+            throw new Error(fileValidationError);
           }
 
           lessonCreationResult = await createLesson({
             content_type: creatorLessonContentType,
             description: creatorLessonDescription.trim(),
-            file: creatorLessonFile,
+            file: creatorLessonFile as File,
             name: creatorLessonName.trim(),
             number_of_periods: creatorLessonNumberOfPeriods,
             teacher_id: teacherId,
@@ -895,7 +1179,7 @@ function TeacherCirriculumManager() {
 
       <header className="tcm2__header">
         <h1>إدارة المنهج الدراسي</h1>
-        <p>صفحة واحدة لإدارة الصفوف والمواد والوحدات والدروس بشكل مباشر.</p>
+        <p>إدارة الصفوف والمواد والوحدات والدروس من صفحة واحدة.</p>
       </header>
 
       {error && (
@@ -968,6 +1252,13 @@ function TeacherCirriculumManager() {
               </div>
             </div>
 
+            <div className="tcm2__top-actions">
+              <button type="button" className="tcm2__primary" onClick={openQuickAddClass}>
+                <MdAdd aria-hidden />
+                إضافة صف
+              </button>
+            </div>
+
             {selectedClass && (
               <div className="tcm2__meta">
                 <div>
@@ -986,6 +1277,14 @@ function TeacherCirriculumManager() {
                   </p>
                 </div>
                 <div className="tcm2__meta-actions">
+                  <button
+                    type="button"
+                    className="tcm2__primary-soft"
+                    onClick={() => openQuickAddSubject(selectedClass.id)}
+                  >
+                    <MdAdd aria-hidden />
+                    إضافة مادة
+                  </button>
                   <button type="button" onClick={openEditForSelectedClass}>
                     <MdEdit aria-hidden />
                     تعديل
@@ -1015,6 +1314,14 @@ function TeacherCirriculumManager() {
                   <p>{selectedSubject.description}</p>
                 </div>
                 <div className="tcm2__meta-actions">
+                  <button
+                    type="button"
+                    className="tcm2__primary-soft"
+                    onClick={() => openQuickAddUnit(selectedSubject.id)}
+                  >
+                    <MdAdd aria-hidden />
+                    إضافة وحدة
+                  </button>
                   <button type="button" onClick={openEditForSelectedSubject}>
                     <MdEdit aria-hidden />
                     تعديل
@@ -1037,26 +1344,31 @@ function TeacherCirriculumManager() {
             <div className="tcm2__helper-actions">
               <button
                 type="button"
-                onClick={prefillCreatorForUnit}
+                className="tcm2__primary-soft"
+                onClick={() =>
+                  selectedSubject ? openQuickAddUnit(selectedSubject.id) : undefined
+                }
                 disabled={!selectedSubject}
               >
                 <MdAdd aria-hidden />
-                إضافة وحدة للمادة الحالية
+                إضافة وحدة للمادة
               </button>
               <button
                 type="button"
-                onClick={prefillCreatorForLesson}
+                className="tcm2__primary-soft"
+                onClick={() =>
+                  units[0] ? openQuickAddLesson(units[0].id) : undefined
+                }
                 disabled={!selectedSubject || units.length === 0}
               >
                 <MdAdd aria-hidden />
-                إضافة درس للمادة الحالية
+                إضافة درس سريع
               </button>
             </div>
 
             {!selectedSubject ? (
               <div className="tcm2__empty">
-                اختر الصف والمادة لعرض الهيكل. التحميل يتم تلقائياً عند تغيير
-                الاختيار.
+                اختر الصف ثم المادة لعرض الهيكل.
               </div>
             ) : hierarchyLoading ? (
               <div className="tcm2__loading">جاري تحميل الوحدات والدروس...</div>
@@ -1087,9 +1399,18 @@ function TeacherCirriculumManager() {
                         <div className="tcm2__row-actions">
                           <button
                             type="button"
+                            className="tcm2__primary-soft"
+                            onClick={() => openQuickAddLesson(unitItem.id)}
+                          >
+                            <MdAdd aria-hidden />
+                            درس
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => openEditForUnit(unitItem)}
                           >
                             <MdEdit aria-hidden />
+                            تعديل
                           </button>
                           <button
                             type="button"
@@ -1100,6 +1421,7 @@ function TeacherCirriculumManager() {
                             disabled={saving}
                           >
                             <MdDelete aria-hidden />
+                            حذف
                           </button>
                         </div>
                       </header>
@@ -1133,6 +1455,7 @@ function TeacherCirriculumManager() {
                                       onClick={() => openEditForLesson(lessonItem)}
                                     >
                                       <MdEdit aria-hidden />
+                                      تعديل
                                     </button>
                                     <button
                                       type="button"
@@ -1147,6 +1470,7 @@ function TeacherCirriculumManager() {
                                       disabled={saving}
                                     >
                                       <MdDelete aria-hidden />
+                                      حذف
                                     </button>
                                   </div>
                                 </li>
@@ -1162,17 +1486,24 @@ function TeacherCirriculumManager() {
             )}
           </section>
 
-          <section className="tcm2__panel" ref={creatorSectionRef}>
+          <section className="tcm2__panel">
             <div className="tcm2__panel-head">
               <h2>
                 <MdViewModule aria-hidden />
-                مسار إنشاء متكامل
+                إنشاء متكامل - اختياري
               </h2>
-              <span>Class → Subject → Unit → Lesson</span>
+              <button
+                type="button"
+                onClick={() => setShowCreatorFlow((previous) => !previous)}
+              >
+                {showCreatorFlow ? 'إخفاء' : 'إظهار'}
+              </button>
             </div>
 
-            <form className="tcm2__form" onSubmit={handleCreatorSubmit}>
-              <div className="tcm2__step">
+            {showCreatorFlow ? (
+              <form className="tcm2__form" onSubmit={handleCreatorSubmit}>
+                <p className="tcm2__required-note">الحقول التي عليها * مطلوبة.</p>
+                <div className="tcm2__step">
                 <h3>1) الصف</h3>
                 <div className="tcm2__mode-toggle">
                   <button
@@ -1195,7 +1526,7 @@ function TeacherCirriculumManager() {
 
                 {creatorClassMode === 'existing' ? (
                   <div className="tcm2__field">
-                    <label htmlFor="creator-existing-class">الصف الموجود</label>
+                    <label htmlFor="creator-existing-class">الصف الحالي *</label>
                     <select
                       id="creator-existing-class"
                       value={creatorExistingClassId}
@@ -1227,7 +1558,7 @@ function TeacherCirriculumManager() {
                 ) : (
                   <div className="tcm2__inline-grid">
                     <div className="tcm2__field">
-                      <label htmlFor="creator-new-class-name">اسم الصف</label>
+                      <label htmlFor="creator-new-class-name">اسم الصف *</label>
                       <input
                         id="creator-new-class-name"
                         type="text"
@@ -1238,7 +1569,7 @@ function TeacherCirriculumManager() {
                       />
                     </div>
                     <div className="tcm2__field">
-                      <label htmlFor="creator-new-class-description">وصف الصف</label>
+                      <label htmlFor="creator-new-class-description">وصف الصف *</label>
                       <input
                         id="creator-new-class-description"
                         type="text"
@@ -1250,7 +1581,7 @@ function TeacherCirriculumManager() {
                     </div>
                     <div className="tcm2__field">
                       <label htmlFor="creator-new-class-grade-label">
-                        المرحلة / الصف
+                        المرحلة / الصف *
                       </label>
                       <input
                         id="creator-new-class-grade-label"
@@ -1262,7 +1593,7 @@ function TeacherCirriculumManager() {
                       />
                     </div>
                     <div className="tcm2__field">
-                      <label htmlFor="creator-new-class-section-label">الشعبة</label>
+                      <label htmlFor="creator-new-class-section-label">الشعبة *</label>
                       <input
                         id="creator-new-class-section-label"
                         type="text"
@@ -1274,7 +1605,7 @@ function TeacherCirriculumManager() {
                     </div>
                     <div className="tcm2__field">
                       <label htmlFor="creator-new-class-academic-year">
-                        العام الدراسي
+                        العام الدراسي *
                       </label>
                       <input
                         id="creator-new-class-academic-year"
@@ -1287,7 +1618,7 @@ function TeacherCirriculumManager() {
                     </div>
                     <div className="tcm2__field">
                       <label htmlFor="creator-new-class-default-duration">
-                        المدة الافتراضية (دقيقة)
+                        مدة الحصة الافتراضية (دقيقة) *
                       </label>
                       <input
                         id="creator-new-class-default-duration"
@@ -1332,7 +1663,7 @@ function TeacherCirriculumManager() {
 
                 {creatorSubjectMode === 'existing' && (
                   <div className="tcm2__field">
-                    <label htmlFor="creator-existing-subject">المادة الموجودة</label>
+                      <label htmlFor="creator-existing-subject">المادة الحالية *</label>
                     <select
                       id="creator-existing-subject"
                       value={creatorExistingSubjectId}
@@ -1356,7 +1687,7 @@ function TeacherCirriculumManager() {
                 {creatorSubjectMode === 'new' && (
                   <div className="tcm2__inline-grid">
                     <div className="tcm2__field">
-                      <label htmlFor="creator-new-subject-name">اسم المادة</label>
+                      <label htmlFor="creator-new-subject-name">اسم المادة *</label>
                       <input
                         id="creator-new-subject-name"
                         type="text"
@@ -1368,7 +1699,7 @@ function TeacherCirriculumManager() {
                     </div>
                     <div className="tcm2__field">
                       <label htmlFor="creator-new-subject-description">
-                        وصف المادة
+                        وصف المادة *
                       </label>
                       <input
                         id="creator-new-subject-description"
@@ -1413,7 +1744,7 @@ function TeacherCirriculumManager() {
 
                 {creatorUnitMode === 'existing' && (
                   <div className="tcm2__field">
-                    <label htmlFor="creator-existing-unit">الوحدة الموجودة</label>
+                    <label htmlFor="creator-existing-unit">الوحدة الحالية *</label>
                     <select
                       id="creator-existing-unit"
                       value={creatorExistingUnitId}
@@ -1437,7 +1768,7 @@ function TeacherCirriculumManager() {
                 {creatorUnitMode === 'new' && (
                   <div className="tcm2__inline-grid">
                     <div className="tcm2__field">
-                      <label htmlFor="creator-new-unit-name">اسم الوحدة</label>
+                      <label htmlFor="creator-new-unit-name">اسم الوحدة *</label>
                       <input
                         id="creator-new-unit-name"
                         type="text"
@@ -1446,7 +1777,7 @@ function TeacherCirriculumManager() {
                       />
                     </div>
                     <div className="tcm2__field">
-                      <label htmlFor="creator-new-unit-description">وصف الوحدة</label>
+                      <label htmlFor="creator-new-unit-description">وصف الوحدة *</label>
                       <input
                         id="creator-new-unit-description"
                         type="text"
@@ -1481,7 +1812,7 @@ function TeacherCirriculumManager() {
                   <>
                     <div className="tcm2__inline-grid">
                       <div className="tcm2__field">
-                        <label htmlFor="creator-lesson-name">اسم الدرس</label>
+                        <label htmlFor="creator-lesson-name">اسم الدرس *</label>
                         <input
                           id="creator-lesson-name"
                           type="text"
@@ -1492,7 +1823,7 @@ function TeacherCirriculumManager() {
                         />
                       </div>
                       <div className="tcm2__field">
-                        <label htmlFor="creator-lesson-description">وصف الدرس</label>
+                        <label htmlFor="creator-lesson-description">وصف الدرس *</label>
                         <input
                           id="creator-lesson-description"
                           type="text"
@@ -1503,7 +1834,7 @@ function TeacherCirriculumManager() {
                         />
                       </div>
                       <div className="tcm2__field">
-                        <label htmlFor="creator-lesson-periods">عدد الحصص</label>
+                        <label htmlFor="creator-lesson-periods">عدد الحصص *</label>
                         <input
                           id="creator-lesson-periods"
                           type="number"
@@ -1517,7 +1848,7 @@ function TeacherCirriculumManager() {
                     </div>
 
                     <div className="tcm2__field">
-                      <label htmlFor="creator-lesson-content-type">نوع المحتوى</label>
+                      <label htmlFor="creator-lesson-content-type">نوع المحتوى *</label>
                       <select
                         id="creator-lesson-content-type"
                         value={creatorLessonContentType}
@@ -1528,15 +1859,15 @@ function TeacherCirriculumManager() {
                           setCreatorLessonFile(null);
                         }}
                       >
-                        <option value="text">Text</option>
-                        <option value="pdf">PDF</option>
-                        <option value="word">Word (DOCX)</option>
+                        <option value="text">نص</option>
+                        <option value="pdf">ملف PDF</option>
+                        <option value="word">ملف وورد (DOCX)</option>
                       </select>
                     </div>
 
                     {creatorLessonContentType === 'text' ? (
                       <div className="tcm2__field">
-                        <label htmlFor="creator-lesson-text-content">محتوى الدرس</label>
+                        <label htmlFor="creator-lesson-text-content">محتوى الدرس *</label>
                         <textarea
                           id="creator-lesson-text-content"
                           rows={5}
@@ -1548,7 +1879,7 @@ function TeacherCirriculumManager() {
                       </div>
                     ) : (
                       <div className="tcm2__field">
-                        <label htmlFor="creator-lesson-file">ملف الدرس</label>
+                        <label htmlFor="creator-lesson-file">ملف الدرس *</label>
                         <input
                           id="creator-lesson-file"
                           type="file"
@@ -1570,14 +1901,266 @@ function TeacherCirriculumManager() {
 
               <div className="tcm2__form-actions">
                 <button type="button" onClick={resetCreatorForm} disabled={saving}>
-                  إعادة تعيين
+                  مسح
                 </button>
-                <button type="submit" className="tcm2__primary" disabled={saving}>
+                <button
+                  type="submit"
+                  className="tcm2__primary"
+                  disabled={saving || !isCreatorValid}
+                >
                   {saving ? 'جارٍ الحفظ...' : 'تنفيذ المسار'}
                 </button>
               </div>
-            </form>
+              </form>
+            ) : (
+              <div className="tcm2__empty">
+                هذا المسار ينفع إذا أردت إنشاء الصف ثم المادة ثم الوحدة ثم الدرس مرة واحدة.
+              </div>
+            )}
           </section>
+        </div>
+      )}
+
+      {quickAddDraft && (
+        <div
+          className="tcm2__modal-backdrop"
+          onClick={() => !saving && setQuickAddDraft(null)}
+          role="presentation"
+        >
+          <div className="tcm2__modal" onClick={(event) => event.stopPropagation()}>
+            <h3>
+              {quickAddDraft.kind === 'class' && 'إضافة صف'}
+              {quickAddDraft.kind === 'subject' && 'إضافة مادة'}
+              {quickAddDraft.kind === 'unit' && 'إضافة وحدة'}
+              {quickAddDraft.kind === 'lesson' && 'إضافة درس'}
+            </h3>
+            <p className="tcm2__required-note">الحقول التي عليها * مطلوبة.</p>
+
+            <div className="tcm2__field">
+              <label htmlFor="quick-add-name">الاسم *</label>
+              <input
+                id="quick-add-name"
+                type="text"
+                value={quickAddDraft.name}
+                onChange={(event) =>
+                  setQuickAddDraft((previous) =>
+                    previous
+                      ? {
+                          ...previous,
+                          name: event.target.value,
+                        }
+                      : previous
+                  )
+                }
+              />
+            </div>
+
+            <div className="tcm2__field">
+              <label htmlFor="quick-add-description">الوصف *</label>
+              <textarea
+                id="quick-add-description"
+                rows={3}
+                value={quickAddDraft.description}
+                onChange={(event) =>
+                  setQuickAddDraft((previous) =>
+                    previous
+                      ? {
+                          ...previous,
+                          description: event.target.value,
+                        }
+                      : previous
+                  )
+                }
+              />
+            </div>
+
+            {quickAddDraft.kind === 'class' && (
+              <div className="tcm2__inline-grid">
+                <div className="tcm2__field">
+                  <label htmlFor="quick-add-class-grade">المرحلة / الصف *</label>
+                  <input
+                    id="quick-add-class-grade"
+                    type="text"
+                    value={quickAddDraft.gradeLabel ?? ''}
+                    onChange={(event) =>
+                      setQuickAddDraft((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              gradeLabel: event.target.value,
+                            }
+                          : previous
+                      )
+                    }
+                  />
+                </div>
+                <div className="tcm2__field">
+                  <label htmlFor="quick-add-class-section">الشعبة *</label>
+                  <input
+                    id="quick-add-class-section"
+                    type="text"
+                    value={quickAddDraft.sectionLabel ?? ''}
+                    onChange={(event) =>
+                      setQuickAddDraft((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              sectionLabel: event.target.value,
+                            }
+                          : previous
+                      )
+                    }
+                  />
+                </div>
+                <div className="tcm2__field">
+                  <label htmlFor="quick-add-class-year">العام الدراسي *</label>
+                  <input
+                    id="quick-add-class-year"
+                    type="text"
+                    value={quickAddDraft.academicYear ?? ''}
+                    onChange={(event) =>
+                      setQuickAddDraft((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              academicYear: event.target.value,
+                            }
+                          : previous
+                      )
+                    }
+                  />
+                </div>
+                <div className="tcm2__field">
+                  <label htmlFor="quick-add-class-duration">
+                    مدة الحصة الافتراضية (دقيقة) *
+                  </label>
+                  <input
+                    id="quick-add-class-duration"
+                    type="number"
+                    min={1}
+                    value={quickAddDraft.defaultDurationMinutes ?? 45}
+                    onChange={(event) =>
+                      setQuickAddDraft((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              defaultDurationMinutes: Number(event.target.value),
+                            }
+                          : previous
+                      )
+                    }
+                  />
+                </div>
+              </div>
+            )}
+
+            {quickAddDraft.kind === 'lesson' && (
+              <>
+                <div className="tcm2__field">
+                  <label htmlFor="quick-add-lesson-periods">عدد الحصص *</label>
+                  <input
+                    id="quick-add-lesson-periods"
+                    type="number"
+                    min={1}
+                    value={quickAddDraft.numberOfPeriods ?? 1}
+                    onChange={(event) =>
+                      setQuickAddDraft((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              numberOfPeriods: Number(event.target.value),
+                            }
+                          : previous
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="tcm2__field">
+                  <label htmlFor="quick-add-content-type">نوع المحتوى *</label>
+                  <select
+                    id="quick-add-content-type"
+                    value={quickAddDraft.contentType ?? 'text'}
+                    onChange={(event) =>
+                      setQuickAddDraft((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              contentType: event.target.value as LessonContentType,
+                              content: '',
+                              file: null,
+                            }
+                          : previous
+                      )
+                    }
+                  >
+                    <option value="text">نص</option>
+                    <option value="pdf">ملف PDF</option>
+                    <option value="word">ملف وورد (DOCX)</option>
+                  </select>
+                </div>
+
+                {(quickAddDraft.contentType ?? 'text') === 'text' ? (
+                  <div className="tcm2__field">
+                    <label htmlFor="quick-add-content">المحتوى *</label>
+                    <textarea
+                      id="quick-add-content"
+                      rows={5}
+                      value={quickAddDraft.content ?? ''}
+                      onChange={(event) =>
+                        setQuickAddDraft((previous) =>
+                          previous
+                            ? {
+                                ...previous,
+                                content: event.target.value,
+                              }
+                            : previous
+                        )
+                      }
+                    />
+                  </div>
+                ) : (
+                  <div className="tcm2__field">
+                    <label htmlFor="quick-add-file">ملف الدرس *</label>
+                    <input
+                      id="quick-add-file"
+                      type="file"
+                      accept={
+                        (quickAddDraft.contentType ?? 'text') === 'pdf'
+                          ? '.pdf,application/pdf'
+                          : '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                      }
+                      onChange={(event) =>
+                        setQuickAddDraft((previous) =>
+                          previous
+                            ? {
+                                ...previous,
+                                file: event.target.files?.[0] ?? null,
+                              }
+                            : previous
+                        )
+                      }
+                    />
+                    <small>الحد الأقصى 25 ميجابايت.</small>
+                  </div>
+                )}
+              </>
+            )}
+
+            <div className="tcm2__form-actions">
+              <button type="button" onClick={() => setQuickAddDraft(null)} disabled={saving}>
+                إلغاء
+              </button>
+              <button
+                type="button"
+                className="tcm2__primary"
+                onClick={() => void handleQuickAddSubmit()}
+                disabled={saving || !isQuickAddValid}
+              >
+                {saving ? 'جارٍ الحفظ...' : 'إضافة'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1748,26 +2331,75 @@ function TeacherCirriculumManager() {
                 </div>
 
                 <div className="tcm2__field">
-                  <label htmlFor="edit-lesson-content">المحتوى</label>
-                  <textarea
-                    id="edit-lesson-content"
-                    rows={6}
-                    value={editDraft.content ?? ''}
+                  <label htmlFor="edit-lesson-content-type">نوع المحتوى *</label>
+                  <select
+                    id="edit-lesson-content-type"
+                    value={editDraft.contentType ?? 'text'}
                     onChange={(event) =>
                       setEditDraft((previous) =>
                         previous
                           ? {
                               ...previous,
-                              content: event.target.value,
+                              contentType: event.target.value as LessonContentType,
+                              file: null,
                             }
                           : previous
                       )
                     }
-                  />
+                  >
+                    <option value="text">نص</option>
+                    <option value="pdf">ملف PDF</option>
+                    <option value="word">ملف وورد (DOCX)</option>
+                  </select>
                 </div>
 
+                {(editDraft.contentType ?? 'text') === 'text' ? (
+                  <div className="tcm2__field">
+                    <label htmlFor="edit-lesson-content">المحتوى *</label>
+                    <textarea
+                      id="edit-lesson-content"
+                      rows={6}
+                      value={editDraft.content ?? ''}
+                      onChange={(event) =>
+                        setEditDraft((previous) =>
+                          previous
+                            ? {
+                                ...previous,
+                                content: event.target.value,
+                              }
+                            : previous
+                        )
+                      }
+                    />
+                  </div>
+                ) : (
+                  <div className="tcm2__field">
+                    <label htmlFor="edit-lesson-file">ملف الدرس *</label>
+                    <input
+                      id="edit-lesson-file"
+                      type="file"
+                      accept={
+                        (editDraft.contentType ?? 'text') === 'pdf'
+                          ? '.pdf,application/pdf'
+                          : '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                      }
+                      onChange={(event) =>
+                        setEditDraft((previous) =>
+                          previous
+                            ? {
+                                ...previous,
+                                file: event.target.files?.[0] ?? null,
+                              }
+                            : previous
+                        )
+                      }
+                    />
+                    <small>الحد الأقصى 25 ميجابايت.</small>
+                  </div>
+                )}
+
                 <div className="tcm2__field">
-                  <label htmlFor="edit-lesson-periods">عدد الحصص</label>
+                  <label htmlFor="edit-lesson-periods">عدد الحصص *</label>
                   <input
                     id="edit-lesson-periods"
                     type="number"

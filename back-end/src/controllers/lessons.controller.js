@@ -315,17 +315,22 @@ export async function updateLessonByLessonId(req, res) {
     if (!req.body) {
       return res.status(400).json({ error: "Request body required" });
     }
-    const { name, description, content, unit_id, number_of_periods } = req.body;
+    const {
+      name,
+      description,
+      content,
+      content_type,
+      unit_id,
+      number_of_periods,
+    } = req.body;
     const { id: userId, role: userRole } = req.user;
+    const normalizedContentType = content_type?.toLowerCase();
 
     if (!name) {
       return res.status(400).json({ error: "name is required" });
     }
     if (!description) {
       return res.status(400).json({ error: "description is required" });
-    }
-    if (!content) {
-      return res.status(400).json({ error: "content is required" });
     }
 
     // Fetch the lesson to check ownership
@@ -389,12 +394,104 @@ export async function updateLessonByLessonId(req, res) {
       targetNumberOfPeriods = parsedNumberOfPeriods;
     }
 
-    const updatedLesson = await turso.execute({
+    let finalContent = null;
+    let detectedFileType = null;
+    let fileProcessed = false;
+    let extractionStatus = null;
+    let warnings = [];
+
+    if (!normalizedContentType) {
+      if (!content) {
+        return res.status(400).json({ error: "content is required" });
+      }
+      if (req.file) {
+        return res.status(400).json({
+          error: "content_type is required when uploading a file",
+        });
+      }
+      finalContent = content;
+    } else if (normalizedContentType === "text") {
+      if (!content) {
+        return res.status(400).json({ error: "content is required" });
+      }
+      if (req.file) {
+        return res.status(400).json({
+          error: "file upload is not allowed for text content_type",
+        });
+      }
+      finalContent = content;
+    } else if (normalizedContentType === "pdf" || normalizedContentType === "word") {
+      if (!req.file) {
+        return res
+          .status(400)
+          .json(buildExtractionFailureResponse(`${content_type} file is required`));
+      }
+
+      detectedFileType = req.file.mimetype;
+
+      if (normalizedContentType === "pdf" && !isPdfUpload(req.file)) {
+        return res.status(415).json(
+          buildExtractionFailureResponse(
+            "File type does not match content_type. Expected a PDF file.",
+          ),
+        );
+      }
+
+      if (normalizedContentType === "word" && isLegacyDocUpload(req.file)) {
+        return res.status(415).json(
+          buildExtractionFailureResponse(
+            "Legacy DOC files are not supported. Please convert the file to DOCX first.",
+          ),
+        );
+      }
+
+      if (normalizedContentType === "word" && !isDocxUpload(req.file)) {
+        return res.status(415).json(
+          buildExtractionFailureResponse(
+            "File type does not match content_type. Expected a DOCX file.",
+          ),
+        );
+      }
+
+      const extractionResult =
+        normalizedContentType === "pdf"
+          ? await extractTextFromPDF(req.file.buffer)
+          : await extractTextFromWord(req.file.buffer);
+
+      warnings = extractionResult.warnings ?? [];
+
+      if (extractionResult.extractionStatus === "failed") {
+        return res.status(422).json(
+          buildExtractionFailureResponse(
+            extractionResult.errorMessage || "Failed to extract text from the file.",
+          ),
+        );
+      }
+
+      finalContent = cleanExtractedText(extractionResult.text);
+
+      if (!finalContent) {
+        return res.status(422).json(
+          buildExtractionFailureResponse(
+            "No readable text could be extracted from the uploaded file.",
+          ),
+        );
+      }
+
+      fileProcessed = extractionResult.fileProcessed;
+      extractionStatus = extractionResult.extractionStatus;
+    } else {
+      return res.status(400).json({
+        error: "Invalid content_type. Must be 'text', 'pdf', or 'word'",
+      });
+    }
+
+    await turso.execute({
       sql: "UPDATE lessons SET name = ?, description = ?, content = ?, unit_id = ?, number_of_periods = ? WHERE id = ?",
       args: [
         name.trim(),
         description.trim(),
-        content,
+        finalContent,
         targetUnitId,
         targetNumberOfPeriods,
         lessonId,
@@ -406,6 +503,23 @@ export async function updateLessonByLessonId(req, res) {
       sql: "SELECT * FROM lessons WHERE id = ?",
       args: [lessonId],
     });
+
+    if (normalizedContentType === "pdf" || normalizedContentType === "word") {
+      return res.status(200).json({
+        lesson: updatedLessonData.rows[0],
+        message:
+          extractionStatus === "partial"
+            ? "Lesson updated with partial text extraction."
+            : "Lesson updated and file processed successfully.",
+        fileProcessed,
+        extractionStatus,
+        contentLength: finalContent.length,
+        fileName: req.file.originalname,
+        fileType: detectedFileType,
+        warnings,
+        content_type: normalizedContentType,
+      });
+    }
 
     return res.status(200).json({ lesson: updatedLessonData.rows[0] });
   } catch (error) {
