@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { MdEdit, MdRefresh, MdSave } from 'react-icons/md';
+import { MdEdit, MdRefresh, MdSave, MdPersonAdd, MdClose } from 'react-icons/md';
 import { normalizeApiError } from '../../utils/apiErrors';
 import type { TeacherManagementRow, UserProfileUpdatePayload } from '../../types';
-import { listTeachers, updateTeacherProfile } from '../users/users.services';
+import { listTeachers, updateTeacherProfile, createTeacher } from '../users/users.services';
 import './teachers-management.css';
 
 interface EditDraft {
@@ -45,6 +45,11 @@ export default function TeachersManagement() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newTeacherUsername, setNewTeacherUsername] = useState('');
+  const [newTeacherPassword, setNewTeacherPassword] = useState('');
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const teacherById = useMemo(
     () => new Map(teachers.map((teacher) => [teacher.id, teacher])),
@@ -68,6 +73,40 @@ export default function TeachersManagement() {
   useEffect(() => {
     void loadTeachers();
   }, []);
+
+  const handleCreateTeacher = async () => {
+    // Client-side validation
+    if (newTeacherUsername.length < 4) {
+      setCreateError('اسم المستخدم يجب أن يكون 4 أحرف على الأقل');
+      return;
+    }
+
+    if (newTeacherPassword.length < 6) {
+      setCreateError('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+      return;
+    }
+
+    setCreating(true);
+    setCreateError(null);
+
+    try {
+      await createTeacher({
+        username: newTeacherUsername.trim(),
+        password: newTeacherPassword,
+      });
+
+      setSuccess('تم إضافة المعلم بنجاح.');
+      setShowCreateModal(false);
+      setNewTeacherUsername('');
+      setNewTeacherPassword('');
+      // Reload teachers list
+      await loadTeachers();
+    } catch (createError: unknown) {
+      setCreateError(normalizeApiError(createError, 'فشل إضافة المعلم.').message);
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!editDraft) {
@@ -127,6 +166,10 @@ export default function TeachersManagement() {
       </header>
 
       <div className="tm__top-actions">
+        <button type="button" onClick={() => setShowCreateModal(true)}>
+          <MdPersonAdd aria-hidden />
+          إضافة معلم جديد
+        </button>
         <button type="button" onClick={() => void loadTeachers()} disabled={loading}>
           <MdRefresh aria-hidden />
           {loading ? 'جارٍ التحديث...' : 'تحديث القائمة'}
@@ -293,6 +336,85 @@ export default function TeachersManagement() {
           )}
         </article>
       </section>
+
+      {/* Create Teacher Modal */}
+      {showCreateModal && (
+        <div className="tm-modal" role="dialog" aria-modal="true" aria-labelledby="create-teacher-title">
+          <div className="tm-modal__backdrop" onClick={() => setShowCreateModal(false)} />
+          <div className="tm-modal__panel">
+            <header className="tm-modal__header">
+              <h3 id="create-teacher-title">إضافة معلم جديد</h3>
+              <button
+                type="button"
+                className="tm-modal__close"
+                onClick={() => setShowCreateModal(false)}
+                disabled={creating}
+                aria-label="إغلاق نافذة إضافة المعلم"
+              >
+                <MdClose aria-hidden />
+              </button>
+            </header>
+
+            <form
+              className="tm-modal__form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleCreateTeacher();
+              }}
+            >
+              <label className="tm-modal__field" htmlFor="new-teacher-username">
+                <span>اسم المستخدم</span>
+                <input
+                  id="new-teacher-username"
+                  type="text"
+                  value={newTeacherUsername}
+                  onChange={(e) => setNewTeacherUsername(e.target.value)}
+                  placeholder="أدخل اسم المستخدم (4 أحرف على الأقل)"
+                  disabled={creating}
+                  required
+                />
+              </label>
+
+              <label className="tm-modal__field" htmlFor="new-teacher-password">
+                <span>كلمة المرور</span>
+                <input
+                  id="new-teacher-password"
+                  type="password"
+                  value={newTeacherPassword}
+                  onChange={(e) => setNewTeacherPassword(e.target.value)}
+                  placeholder="أدخل كلمة المرور (6 أحرف على الأقل)"
+                  disabled={creating}
+                  required
+                />
+              </label>
+
+              {createError && (
+                <div className="tm-modal__error" role="alert">
+                  {createError}
+                </div>
+              )}
+
+              <div className="tm-modal__actions">
+                <button
+                  type="button"
+                  className="tm-modal__btn tm-modal__btn--secondary"
+                  onClick={() => setShowCreateModal(false)}
+                  disabled={creating}
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  className="tm-modal__btn tm-modal__btn--primary"
+                  disabled={creating}
+                >
+                  {creating ? 'جارٍ الإضافة...' : 'إضافة المعلم'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

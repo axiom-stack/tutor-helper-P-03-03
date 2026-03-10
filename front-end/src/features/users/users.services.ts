@@ -31,6 +31,16 @@ export async function listTeachers(): Promise<{
   return response.data;
 }
 
+export async function createTeacher(payload: {
+  username: string;
+  password: string;
+}): Promise<{ teacher: { id: number; username: string; role: string } }> {
+  const response = await api().post<{
+    teacher: { id: number; username: string; role: string };
+  }>('/api/users/teachers', payload);
+  return response.data;
+}
+
 export async function updateTeacherProfile(
   teacherId: number,
   payload: UserProfileUpdatePayload

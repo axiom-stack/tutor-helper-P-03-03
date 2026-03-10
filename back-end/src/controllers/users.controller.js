@@ -1,4 +1,5 @@
 import { createUsersRepository } from "../users/repositories/users.repository.js";
+import { hashPassword } from "../utils/utils.js";
 
 const VALID_LANGUAGES = ["ar", "en"];
 
@@ -142,6 +143,55 @@ export function createUsersController(usersRepository = createUsersRepository())
       }
     },
 
+    async createTeacher(req, res) {
+      try {
+        if (req.user.role !== "admin") {
+          return res.status(403).json({ error: "Unauthorized" });
+        }
+
+        const { username, password } = req.body;
+
+        if (!username || !password) {
+          return res.status(400).json({ error: "Username and password are required" });
+        }
+
+        if (typeof username !== 'string' || username.length < 4) {
+          return res.status(400).json({ error: "Username must be at least 4 characters long" });
+        }
+
+        if (typeof password !== 'string' || password.length < 6) {
+          return res.status(400).json({ error: "Password must be at least 6 characters long" });
+        }
+
+        // Check if username already exists
+        const existingUser = await usersRepository.getUserByUsername(username);
+        if (existingUser) {
+          return res.status(409).json({ error: "Username already exists" });
+        }
+
+        // Hash the password
+        const hashedPassword = await hashPassword(password);
+
+        // Create the teacher
+        const teacherId = await usersRepository.createUser({
+          username,
+          password: hashedPassword,
+          role: 'teacher'
+        });
+
+        return res.status(201).json({
+          teacher: {
+            id: teacherId,
+            username,
+            role: 'teacher'
+          }
+        });
+      } catch (error) {
+        req.log?.error?.({ error }, "Failed to create teacher");
+        return res.status(500).json({ error: "Internal server error" });
+      }
+    },
+
     async updateTeacherProfile(req, res) {
       try {
         if (req.user.role !== "admin") {
@@ -187,5 +237,6 @@ const usersController = createUsersController();
 
 export const getMyProfile = usersController.getMyProfile;
 export const updateMyProfile = usersController.updateMyProfile;
+export const createTeacher = usersController.createTeacher;
 export const listTeachers = usersController.listTeachers;
 export const updateTeacherProfile = usersController.updateTeacherProfile;

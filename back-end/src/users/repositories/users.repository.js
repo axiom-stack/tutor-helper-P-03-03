@@ -113,6 +113,48 @@ export function createUsersRepository(dbClient = turso) {
       };
     },
 
+    async getUserByUsername(username) {
+      if (!username || typeof username !== 'string') {
+        return null;
+      }
+
+      const result = await dbClient.execute({
+        sql: `
+          SELECT id, username, role, created_at
+          FROM Users
+          WHERE username = ?
+          LIMIT 1
+        `,
+        args: [username],
+      });
+
+      const row = result.rows?.[0];
+      if (!row) {
+        return null;
+      }
+
+      return {
+        id: toNumber(row.id),
+        username: row.username,
+        role: row.role,
+        created_at: row.created_at,
+      };
+    },
+
+    async createUser(userData) {
+      const { username, password, role } = userData;
+
+      const result = await dbClient.execute({
+        sql: `
+          INSERT INTO Users (username, password, role)
+          VALUES (?, ?, ?)
+        `,
+        args: [username, password, role],
+      });
+
+      return result.lastInsertRowid;
+    },
+
     async getProfileByUserId(userId) {
       const parsedUserId = Number(userId);
       if (!Number.isInteger(parsedUserId) || parsedUserId <= 0) {
