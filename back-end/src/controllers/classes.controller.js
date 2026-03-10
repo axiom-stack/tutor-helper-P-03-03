@@ -1,6 +1,8 @@
 import { turso } from "../lib/turso.js";
-import { parsePositiveInteger } from "../utils/validation.js";
-import { normalizeString } from "../utils/normalization.js";
+import {
+  normalizeString,
+  parsePositiveInteger,
+} from "../utils/normalization.js";
 
 function validateRequiredClassFields(payload) {
   const normalized = {
@@ -33,6 +35,7 @@ function validateRequiredClassFields(payload) {
 }
 
 // POST
+// - createClass
 export async function createClass(req, res) {
   try {
     if (!req.body) {
@@ -99,6 +102,9 @@ export async function createClass(req, res) {
 }
 
 // GET
+// - getClassesByTeacherId
+// - getClassByClassId
+// - getAllClassesInTheSystem
 export async function getClassesByTeacherId(req, res) {
   try {
     const { id: userId } = req.user;
@@ -128,7 +134,10 @@ export async function getClassByClassId(req, res) {
       return res.status(404).json({ error: "Class not found" });
     }
 
-    if (userRole !== "admin" && Number(returnedClass.rows[0].teacher_id) !== Number(userId)) {
+    if (
+      userRole !== "admin" &&
+      Number(returnedClass.rows[0].teacher_id) !== Number(userId)
+    ) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
@@ -156,6 +165,7 @@ export async function getAllClassesInTheSystem(req, res) {
 }
 
 // PUT
+// - updateClassByClassId
 export async function updateClassByClassId(req, res) {
   try {
     const { classId } = req.params;
@@ -194,7 +204,10 @@ export async function updateClassByClassId(req, res) {
       return res.status(404).json({ error: "Class not found" });
     }
 
-    if (userRole !== "admin" && Number(returnedClass.rows[0].teacher_id) !== Number(userId)) {
+    if (
+      userRole !== "admin" &&
+      Number(returnedClass.rows[0].teacher_id) !== Number(userId)
+    ) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
@@ -233,6 +246,7 @@ export async function updateClassByClassId(req, res) {
 }
 
 // DELETE
+// - deleteClassByClassId
 export async function deleteClassByClassId(req, res) {
   try {
     const { classId } = req.params;
@@ -246,7 +260,10 @@ export async function deleteClassByClassId(req, res) {
     if (classToDelete.rows.length === 0) {
       return res.status(404).json({ error: "Class not found" });
     }
-    if (userRole !== "admin" && Number(classToDelete.rows[0].teacher_id) !== Number(userId)) {
+    if (
+      userRole !== "admin" &&
+      Number(classToDelete.rows[0].teacher_id) !== Number(userId)
+    ) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 

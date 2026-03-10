@@ -1,7 +1,9 @@
 import { createUsersRepository } from "../users/repositories/users.repository.js";
 import { hashPassword } from "../utils/utils.js";
-import { parsePositiveInteger } from "../utils/validation.js";
-import { normalizeOptionalText } from "../utils/normalization.js";
+import {
+  parsePositiveInteger,
+  normalizeOptionalText,
+} from "../utils/normalization.js";
 
 const VALID_LANGUAGES = ["ar", "en"];
 
@@ -50,7 +52,10 @@ function buildProfileUpdates(body = {}) {
   }
 
   if (
-    Object.prototype.hasOwnProperty.call(body, "default_lesson_duration_minutes")
+    Object.prototype.hasOwnProperty.call(
+      body,
+      "default_lesson_duration_minutes",
+    )
   ) {
     const parsedDuration = parsePositiveInteger(
       body.default_lesson_duration_minutes,
@@ -74,8 +79,70 @@ function buildProfileUpdates(body = {}) {
   };
 }
 
-export function createUsersController(usersRepository = createUsersRepository()) {
+export function createUsersController(
+  usersRepository = createUsersRepository(),
+) {
   return {
+    // POST
+    // - createTeacher
+    async createTeacher(req, res) {
+      try {
+        if (req.user.role !== "admin") {
+          return res.status(403).json({ error: "Unauthorized" });
+        }
+
+        const { username, password } = req.body;
+
+        if (!username || !password) {
+          return res
+            .status(400)
+            .json({ error: "Username and password are required" });
+        }
+
+        if (typeof username !== "string" || username.length < 4) {
+          return res
+            .status(400)
+            .json({ error: "Username must be at least 4 characters long" });
+        }
+
+        if (typeof password !== "string" || password.length < 6) {
+          return res
+            .status(400)
+            .json({ error: "Password must be at least 6 characters long" });
+        }
+
+        // Check if username already exists
+        const existingUser = await usersRepository.getUserByUsername(username);
+        if (existingUser) {
+          return res.status(409).json({ error: "Username already exists" });
+        }
+
+        // Hash the password
+        const hashedPassword = await hashPassword(password);
+
+        // Create the teacher
+        const teacherId = await usersRepository.createUser({
+          username,
+          password: hashedPassword,
+          role: "teacher",
+        });
+
+        return res.status(201).json({
+          teacher: {
+            id: teacherId,
+            username,
+            role: "teacher",
+          },
+        });
+      } catch (error) {
+        req.log?.error?.({ error }, "Failed to create teacher");
+        return res.status(500).json({ error: "Internal server error" });
+      }
+    },
+
+    // GET
+    // - getMyProfile
+    // - listTeachers
     async getMyProfile(req, res) {
       try {
         const profile = await usersRepository.getProfileByUserId(req.user.id);
@@ -91,6 +158,23 @@ export function createUsersController(usersRepository = createUsersRepository())
       }
     },
 
+    async listTeachers(req, res) {
+      try {
+        if (req.user.role !== "admin") {
+          return res.status(403).json({ error: "Unauthorized" });
+        }
+
+        const teachers = await usersRepository.listTeachersWithUsage();
+        return res.status(200).json({ teachers });
+      } catch (error) {
+        req.log?.error?.({ error }, "Failed to list teachers");
+        return res.status(500).json({ error: "Internal server error" });
+      }
+    },
+
+    // PUT
+    // - updateMyProfile
+    // - updateTeacherProfile
     async updateMyProfile(req, res) {
       try {
         const validation = buildProfileUpdates(req.body);
@@ -114,69 +198,6 @@ export function createUsersController(usersRepository = createUsersRepository())
       }
     },
 
-    async listTeachers(req, res) {
-      try {
-        if (req.user.role !== "admin") {
-          return res.status(403).json({ error: "Unauthorized" });
-        }
-
-        const teachers = await usersRepository.listTeachersWithUsage();
-        return res.status(200).json({ teachers });
-      } catch (error) {
-        req.log?.error?.({ error }, "Failed to list teachers");
-        return res.status(500).json({ error: "Internal server error" });
-      }
-    },
-
-    async createTeacher(req, res) {
-      try {
-        if (req.user.role !== "admin") {
-          return res.status(403).json({ error: "Unauthorized" });
-        }
-
-        const { username, password } = req.body;
-
-        if (!username || !password) {
-          return res.status(400).json({ error: "Username and password are required" });
-        }
-
-        if (typeof username !== 'string' || username.length < 4) {
-          return res.status(400).json({ error: "Username must be at least 4 characters long" });
-        }
-
-        if (typeof password !== 'string' || password.length < 6) {
-          return res.status(400).json({ error: "Password must be at least 6 characters long" });
-        }
-
-        // Check if username already exists
-        const existingUser = await usersRepository.getUserByUsername(username);
-        if (existingUser) {
-          return res.status(409).json({ error: "Username already exists" });
-        }
-
-        // Hash the password
-        const hashedPassword = await hashPassword(password);
-
-        // Create the teacher
-        const teacherId = await usersRepository.createUser({
-          username,
-          password: hashedPassword,
-          role: 'teacher'
-        });
-
-        return res.status(201).json({
-          teacher: {
-            id: teacherId,
-            username,
-            role: 'teacher'
-          }
-        });
-      } catch (error) {
-        req.log?.error?.({ error }, "Failed to create teacher");
-        return res.status(500).json({ error: "Internal server error" });
-      }
-    },
-
     async updateTeacherProfile(req, res) {
       try {
         if (req.user.role !== "admin") {
@@ -185,7 +206,9 @@ export function createUsersController(usersRepository = createUsersRepository())
 
         const teacherId = parsePositiveInteger(req.params.teacherId);
         if (!teacherId) {
-          return res.status(400).json({ error: "teacherId must be a positive integer" });
+          return res
+            .status(400)
+            .json({ error: "teacherId must be a positive integer" });
         }
 
         const teacher = await usersRepository.getUserById(teacherId);
