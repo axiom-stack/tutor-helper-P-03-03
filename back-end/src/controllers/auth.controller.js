@@ -1,6 +1,7 @@
 import { turso } from "../lib/turso.js";
 import { signToken } from "../lib/jwt.js";
 import { verifyPassword } from "../utils/utils.js";
+import { createUsersRepository } from "../users/repositories/users.repository.js";
 
 export async function login(req, res) {
   try {
@@ -66,6 +67,10 @@ export async function login(req, res) {
       "Login successful, generating token",
     );
 
+    const usersRepository = createUsersRepository();
+    await usersRepository.ensureProfile(user.id);
+    const profile = await usersRepository.getProfileByUserId(user.id);
+
     const token = await signToken({ sub: user.id, username: user.username });
     res.json({
       token,
@@ -74,6 +79,7 @@ export async function login(req, res) {
         username: user.username,
         userRole: user.role,
         createdAt: user.created_at,
+        profile: profile ?? undefined,
       },
     });
   } catch (err) {

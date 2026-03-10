@@ -7,20 +7,37 @@ import { getMyProfile, updateMyProfile } from '../users/users.services';
 import './settings.css';
 
 type LanguageValue = 'ar' | 'en';
+type DefaultPlanTypeValue = 'traditional' | 'active_learning';
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, updateUserProfile } = useAuth();
 
   const [language, setLanguage] = useState<LanguageValue>('ar');
   const [educationalStage, setEducationalStage] = useState('');
   const [subject, setSubject] = useState('');
   const [preparationType, setPreparationType] = useState('');
-  const [defaultLessonDuration, setDefaultLessonDuration] = useState<number>(45);
+  const [defaultPlanType, setDefaultPlanType] =
+    useState<DefaultPlanTypeValue>(
+      () =>
+        user?.profile?.default_plan_type === 'active_learning'
+          ? 'active_learning'
+          : 'traditional'
+    );
+  const [defaultLessonDuration, setDefaultLessonDuration] = useState<number>(
+    () => user?.profile?.default_lesson_duration_minutes ?? 45
+  );
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    const win = window as Window & { googleTranslateElementInit?: () => void };
+    if (typeof win.googleTranslateElementInit === 'function') {
+      win.googleTranslateElementInit();
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,6 +55,11 @@ export default function Settings() {
         setEducationalStage(profile.educational_stage ?? '');
         setSubject(profile.subject ?? '');
         setPreparationType(profile.preparation_type ?? '');
+        setDefaultPlanType(
+          profile.default_plan_type === 'active_learning'
+            ? 'active_learning'
+            : 'traditional'
+        );
         setDefaultLessonDuration(profile.default_lesson_duration_minutes ?? 45);
       })
       .catch((loadError: unknown) => {
@@ -68,11 +90,13 @@ export default function Settings() {
       educational_stage: educationalStage.trim() || null,
       subject: subject.trim() || null,
       preparation_type: preparationType.trim() || null,
+      default_plan_type: defaultPlanType,
       default_lesson_duration_minutes: defaultLessonDuration,
     };
 
     try {
-      await updateMyProfile(payload);
+      const response = await updateMyProfile(payload);
+      updateUserProfile(response.profile);
       setSuccess('تم حفظ الإعدادات بنجاح.');
     } catch (saveError: unknown) {
       setError(normalizeApiError(saveError, 'فشل حفظ الإعدادات.').message);
@@ -143,6 +167,20 @@ export default function Settings() {
               />
             </label>
 
+            <label className="st__field" htmlFor="settings-default-plan-type">
+              <span>نوع الخطة الافتراضي</span>
+              <select
+                id="settings-default-plan-type"
+                value={defaultPlanType}
+                onChange={(event) =>
+                  setDefaultPlanType(event.target.value as DefaultPlanTypeValue)
+                }
+              >
+                <option value="traditional">تقليدية</option>
+                <option value="active_learning">تعلم نشط</option>
+              </select>
+            </label>
+
             <label className="st__field" htmlFor="settings-duration">
               <span>المدة الافتراضية للحصة (دقيقة)</span>
               <input
@@ -183,6 +221,16 @@ export default function Settings() {
             {saving ? 'جارٍ الحفظ...' : 'حفظ الإعدادات'}
           </button>
         </div>
+      </section>
+
+      <section className="st__panel" aria-labelledby="st-translate-heading">
+        <h2 id="st-translate-heading" className="st__subheading">
+          ترجمة الصفحة
+        </h2>
+        <p className="st__hint">
+          اختر اللغة لترجمة محتوى الصفحة تلقائياً (العربية / English).
+        </p>
+        <div id="google_translate_element" className="st__translate-widget" />
       </section>
     </div>
   );

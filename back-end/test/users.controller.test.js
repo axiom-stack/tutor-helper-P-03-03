@@ -96,6 +96,7 @@ test("updateTeacherProfile updates a teacher profile for admin", async () => {
         preparation_type: updates.preparation_type ?? null,
         default_lesson_duration_minutes:
           updates.default_lesson_duration_minutes ?? 45,
+        default_plan_type: updates.default_plan_type ?? "traditional",
       };
     },
   });
@@ -117,4 +118,26 @@ test("updateTeacherProfile updates a teacher profile for admin", async () => {
   assert.equal(res.payload?.profile?.user_id, 5);
   assert.equal(res.payload?.profile?.language, "en");
   assert.equal(res.payload?.profile?.default_lesson_duration_minutes, 50);
+});
+
+test("updateMyProfile rejects invalid default_plan_type", async () => {
+  const controller = createUsersController({
+    async updateProfileByUserId() {
+      return null;
+    },
+  });
+
+  const req = {
+    user: { id: 2, role: "teacher" },
+    body: { default_plan_type: "invalid_type" },
+  };
+  const res = createMockRes();
+
+  await controller.updateMyProfile(req, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.match(
+    res.payload?.error || "",
+    /default_plan_type must be one of/i
+  );
 });

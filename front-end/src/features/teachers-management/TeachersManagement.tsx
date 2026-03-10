@@ -11,6 +11,7 @@ interface EditDraft {
   educational_stage: string;
   subject: string;
   preparation_type: string;
+  default_plan_type: 'traditional' | 'active_learning';
   default_lesson_duration_minutes: number;
 }
 
@@ -33,6 +34,10 @@ function toEditDraft(teacher: TeacherManagementRow): EditDraft {
     educational_stage: teacher.profile.educational_stage ?? '',
     subject: teacher.profile.subject ?? '',
     preparation_type: teacher.profile.preparation_type ?? '',
+    default_plan_type:
+      teacher.profile.default_plan_type === 'active_learning'
+        ? 'active_learning'
+        : 'traditional',
     default_lesson_duration_minutes:
       teacher.profile.default_lesson_duration_minutes ?? 45,
   };
@@ -122,6 +127,7 @@ export default function TeachersManagement() {
       educational_stage: editDraft.educational_stage.trim() || null,
       subject: editDraft.subject.trim() || null,
       preparation_type: editDraft.preparation_type.trim() || null,
+      default_plan_type: editDraft.default_plan_type,
       default_lesson_duration_minutes: editDraft.default_lesson_duration_minutes,
     };
 
@@ -138,6 +144,7 @@ export default function TeachersManagement() {
                   educational_stage: response.profile.educational_stage,
                   subject: response.profile.subject,
                   preparation_type: response.profile.preparation_type,
+                  default_plan_type: response.profile.default_plan_type,
                   default_lesson_duration_minutes:
                     response.profile.default_lesson_duration_minutes,
                 },
@@ -302,6 +309,28 @@ export default function TeachersManagement() {
                     )
                   }
                 />
+              </label>
+
+              <label className="tm__field" htmlFor="tm-default-plan-type">
+                <span>نوع الخطة الافتراضي</span>
+                <select
+                  id="tm-default-plan-type"
+                  value={editDraft.default_plan_type}
+                  onChange={(event) =>
+                    setEditDraft((current) =>
+                      current
+                        ? {
+                            ...current,
+                            default_plan_type: event.target
+                              .value as 'traditional' | 'active_learning',
+                          }
+                        : current
+                    )
+                  }
+                >
+                  <option value="traditional">تقليدية</option>
+                  <option value="active_learning">تعلم نشط</option>
+                </select>
               </label>
 
               <label className="tm__field" htmlFor="tm-duration">

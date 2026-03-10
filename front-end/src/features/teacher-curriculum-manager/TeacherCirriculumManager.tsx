@@ -149,7 +149,7 @@ function TeacherCirriculumManager() {
   const [creatorNewClassSectionLabel, setCreatorNewClassSectionLabel] = useState('');
   const [creatorNewClassAcademicYear, setCreatorNewClassAcademicYear] = useState('');
   const [creatorNewClassDefaultDuration, setCreatorNewClassDefaultDuration] =
-    useState<number>(45);
+    useState<number>(() => user?.profile?.default_lesson_duration_minutes ?? 45);
 
   const [creatorSubjectMode, setCreatorSubjectMode] = useState<LevelMode>('skip');
   const [creatorExistingSubjectId, setCreatorExistingSubjectId] =
@@ -271,7 +271,9 @@ function TeacherCirriculumManager() {
     setCreatorNewClassGradeLabel('');
     setCreatorNewClassSectionLabel('');
     setCreatorNewClassAcademicYear('');
-    setCreatorNewClassDefaultDuration(45);
+    setCreatorNewClassDefaultDuration(
+      user?.profile?.default_lesson_duration_minutes ?? 45
+    );
     setCreatorSubjectMode('skip');
     setCreatorExistingSubjectId('');
     setCreatorNewSubjectName('');

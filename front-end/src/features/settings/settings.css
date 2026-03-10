@@ -111,6 +111,22 @@
   box-shadow: var(--shadow-sm);
 }
 
+.st__subheading {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.st__hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.st__translate-widget {
+  min-height: 2rem;
+}
+
 @media (max-width: 900px) {
   .st__form-grid {
     grid-template-columns: 1fr;

@@ -6,6 +6,7 @@ import {
   getStoredToken,
   getStoredUser,
 } from '../features/auth/auth.services';
+import { getMyProfile } from '../features/users/users.services';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -14,6 +15,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (username: string, password: string) => Promise<any>;
   logout: () => Promise<void>;
+  updateUserProfile: (profile: NonNullable<AuthUser['profile']>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,16 +38,38 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Initialize auth state from localStorage on mount
-    const storedToken = getStoredToken();
-    const storedUser = getStoredUser();
+    let cancelled = false;
 
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(storedUser);
-    }
+    const init = async () => {
+      const storedToken = getStoredToken();
+      const storedUser = getStoredUser();
 
-    setIsLoading(false);
+      if (storedToken && storedUser) {
+        setToken(storedToken);
+        setUser(storedUser);
+        if (!storedUser.profile) {
+          try {
+            const { profile } = await getMyProfile();
+            if (!cancelled) {
+              setUser((prev) =>
+                prev ? { ...prev, profile } : null
+              );
+            }
+          } catch {
+            // keep storedUser without profile
+          }
+        }
+      }
+
+      if (!cancelled) {
+        setIsLoading(false);
+      }
+    };
+
+    void init();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = async (username: string, password: string) => {
@@ -75,6 +99,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  const updateUserProfile = (profile: NonNullable<AuthUser['profile']>) => {
+    setUser((prev) =>
+      prev ? { ...prev, profile: { ...prev.profile, ...profile } as NonNullable<AuthUser['profile']> } : null
+    );
+  };
+
   const value: AuthContextType = {
     user,
     token,
@@ -82,6 +112,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     isLoading,
     login,
     logout,
+    updateUserProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -175,8 +175,13 @@ function LessonCreator() {
   const [selectedUnitId, setSelectedUnitId] = useState<SelectValue>('');
   const [selectedLessonId, setSelectedLessonId] = useState<SelectValue>('');
 
-  const [planType, setPlanType] = useState<PlanType>('traditional');
-  const [durationMinutes, setDurationMinutes] = useState<number>(45);
+  const [planType, setPlanType] = useState<PlanType>(
+    () => user?.profile?.default_plan_type ?? 'traditional'
+  );
+  const [durationMinutes, setDurationMinutes] = useState<number>(() => {
+    const profileDuration = user?.profile?.default_lesson_duration_minutes ?? 45;
+    return DURATION_OPTIONS.includes(profileDuration) ? profileDuration : 45;
+  });
   const [isDurationManuallySelected, setIsDurationManuallySelected] =
     useState(false);
 

@@ -20,6 +20,7 @@ function toProfileRecord(row) {
     default_lesson_duration_minutes: toNumber(
       row.default_lesson_duration_minutes,
     ),
+    default_plan_type: row.default_plan_type || "traditional",
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -41,6 +42,7 @@ function toTeacherRecord(row) {
       default_lesson_duration_minutes: toNumber(
         row.default_lesson_duration_minutes,
       ),
+      default_plan_type: row.default_plan_type || "traditional",
     },
     usage: {
       classes_count: toNumber(row.classes_count),
@@ -72,9 +74,10 @@ export function createUsersRepository(dbClient = turso) {
             educational_stage,
             subject,
             preparation_type,
-            default_lesson_duration_minutes
+            default_lesson_duration_minutes,
+            default_plan_type
           )
-          SELECT ?, 'ar', NULL, NULL, NULL, 45
+          SELECT ?, 'ar', NULL, NULL, NULL, 45, 'traditional'
           WHERE EXISTS (SELECT 1 FROM Users WHERE id = ?)
             AND NOT EXISTS (SELECT 1 FROM UserProfiles WHERE user_id = ?)
         `,
@@ -175,6 +178,7 @@ export function createUsersRepository(dbClient = turso) {
             up.subject,
             up.preparation_type,
             up.default_lesson_duration_minutes,
+            up.default_plan_type,
             up.created_at,
             up.updated_at
           FROM Users u
@@ -229,6 +233,11 @@ export function createUsersRepository(dbClient = turso) {
         args.push(updates.default_lesson_duration_minutes);
       }
 
+      if (Object.prototype.hasOwnProperty.call(updates, "default_plan_type")) {
+        setClauses.push("default_plan_type = ?");
+        args.push(updates.default_plan_type);
+      }
+
       if (setClauses.length === 0) {
         return this.getProfileByUserId(parsedUserId);
       }
@@ -260,6 +269,7 @@ export function createUsersRepository(dbClient = turso) {
             up.subject,
             up.preparation_type,
             COALESCE(up.default_lesson_duration_minutes, 45) AS default_lesson_duration_minutes,
+            COALESCE(up.default_plan_type, 'traditional') AS default_plan_type,
             COALESCE(c.classes_count, 0) AS classes_count,
             COALESCE(s.subjects_count, 0) AS subjects_count,
             COALESCE(un.units_count, 0) AS units_count,

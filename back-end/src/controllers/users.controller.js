@@ -6,6 +6,7 @@ import {
 } from "../utils/normalization.js";
 
 const VALID_LANGUAGES = ["ar", "en"];
+const VALID_PLAN_TYPES = ["traditional", "active_learning"];
 
 function buildProfileUpdates(body = {}) {
   const updates = {};
@@ -65,6 +66,21 @@ function buildProfileUpdates(body = {}) {
       errors.push("default_lesson_duration_minutes must be a positive integer");
     } else {
       updates.default_lesson_duration_minutes = parsedDuration;
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "default_plan_type")) {
+    if (typeof body.default_plan_type !== "string") {
+      errors.push("default_plan_type must be a string");
+    } else {
+      const normalized = body.default_plan_type.trim().toLowerCase();
+      if (!VALID_PLAN_TYPES.includes(normalized)) {
+        errors.push(
+          `default_plan_type must be one of: ${VALID_PLAN_TYPES.join(", ")}`,
+        );
+      } else {
+        updates.default_plan_type = normalized;
+      }
     }
   }
 

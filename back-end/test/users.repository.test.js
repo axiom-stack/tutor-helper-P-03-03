@@ -22,6 +22,7 @@ test("getProfileByUserId ensures a profile row and returns normalized profile", 
               subject: "الرياضيات",
               preparation_type: "تحضير يومي",
               default_lesson_duration_minutes: 50,
+              default_plan_type: "traditional",
               created_at: "2026-03-09T00:00:00.000Z",
               updated_at: "2026-03-09T00:00:00.000Z",
             },
@@ -38,6 +39,7 @@ test("getProfileByUserId ensures a profile row and returns normalized profile", 
   assert.equal(profile?.user_id, 3);
   assert.equal(profile?.language, "ar");
   assert.equal(profile?.default_lesson_duration_minutes, 50);
+  assert.equal(profile?.default_plan_type, "traditional");
   assert.ok(
     calls.some((call) => call.sql.includes("INSERT INTO UserProfiles")),
     "expected ensureProfile insert query",
@@ -63,6 +65,7 @@ test("updateProfileByUserId updates only provided fields", async () => {
               subject: "Science",
               preparation_type: null,
               default_lesson_duration_minutes: 40,
+              default_plan_type: "traditional",
               created_at: "2026-03-09T00:00:00.000Z",
               updated_at: "2026-03-09T00:00:00.000Z",
             },
@@ -78,6 +81,7 @@ test("updateProfileByUserId updates only provided fields", async () => {
     language: "en",
     subject: "Science",
     default_lesson_duration_minutes: 40,
+    default_plan_type: "active_learning",
   });
 
   assert.equal(result?.user_id, 7);
@@ -87,6 +91,7 @@ test("updateProfileByUserId updates only provided fields", async () => {
   assert.ok(updateCall.sql.includes("language = ?"));
   assert.ok(updateCall.sql.includes("subject = ?"));
   assert.ok(updateCall.sql.includes("default_lesson_duration_minutes = ?"));
+  assert.ok(updateCall.sql.includes("default_plan_type = ?"));
 });
 
 test("listTeachersWithUsage maps usage counters", async () => {
@@ -104,6 +109,7 @@ test("listTeachersWithUsage maps usage counters", async () => {
             subject: null,
             preparation_type: null,
             default_lesson_duration_minutes: 45,
+            default_plan_type: "traditional",
             classes_count: 3,
             subjects_count: 4,
             units_count: 6,

@@ -13,6 +13,7 @@ CREATE TABLE UserProfiles (
   subject TEXT,
   preparation_type TEXT,
   default_lesson_duration_minutes INTEGER NOT NULL DEFAULT 45 CHECK(default_lesson_duration_minutes > 0),
+  default_plan_type TEXT NOT NULL DEFAULT 'traditional' CHECK(default_plan_type IN ('traditional', 'active_learning')),
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

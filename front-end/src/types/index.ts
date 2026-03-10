@@ -200,6 +200,7 @@ export interface UserProfile {
   subject: string | null;
   preparation_type: string | null;
   default_lesson_duration_minutes: number;
+  default_plan_type: 'traditional' | 'active_learning';
   created_at: string;
   updated_at: string;
 }
@@ -210,6 +211,7 @@ export interface UserProfileUpdatePayload {
   subject?: string | null;
   preparation_type?: string | null;
   default_lesson_duration_minutes?: number;
+  default_plan_type?: 'traditional' | 'active_learning';
 }
 
 export interface TeacherUsageSummary {
@@ -235,6 +237,7 @@ export interface TeacherManagementRow {
     subject: string | null;
     preparation_type: string | null;
     default_lesson_duration_minutes: number;
+    default_plan_type: 'traditional' | 'active_learning';
   };
   usage: TeacherUsageSummary;
 }
@@ -336,6 +339,7 @@ export interface AuthUser {
   username: string;
   userRole: UserRole;
   createdAt: string;
+  profile?: UserProfile;
 }
 
 export interface LoginResponse {
