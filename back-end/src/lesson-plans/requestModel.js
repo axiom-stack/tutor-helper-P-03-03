@@ -19,6 +19,7 @@ export function validateGeneratePlanRequest(payload) {
   const request = payload ?? {};
 
   const normalized = {
+    lesson_id: parsePositiveInteger(request.lesson_id),
     lesson_title: normalizeString(request.lesson_title),
     lesson_content: normalizeString(request.lesson_content),
     subject: normalizeString(request.subject),
@@ -27,6 +28,13 @@ export function validateGeneratePlanRequest(payload) {
     duration_minutes: parsePositiveInteger(request.duration_minutes),
     plan_type: normalizeString(request.plan_type),
   };
+
+  if (!normalized.lesson_id) {
+    errors.push({
+      field: "lesson_id",
+      message: "lesson_id must be a positive integer",
+    });
+  }
 
   if (!normalized.lesson_title) {
     errors.push({ field: "lesson_title", message: "lesson_title is required" });

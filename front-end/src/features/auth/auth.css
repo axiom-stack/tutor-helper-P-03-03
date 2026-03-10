@@ -17,6 +17,8 @@
   background-color: var(--bg);
   color: var(--text-primary);
   min-height: 100vh;
+  width: 100%;
+  min-width: 0;
   box-sizing: border-box;
 }
 
@@ -29,6 +31,7 @@
 /* Split container */
 .auth__container {
   min-height: 100vh;
+  width: 100%;
   display: flex;
   overflow: hidden;
 }
@@ -123,8 +126,8 @@
   position: absolute;
   bottom: 0;
   right: 0;
-  width: 400px;
-  height: 400px;
+  width: min(400px, 70vw);
+  height: min(400px, 70vw);
   opacity: 0.1;
   pointer-events: none;
   background: radial-gradient(circle, white 0%, white 100%);

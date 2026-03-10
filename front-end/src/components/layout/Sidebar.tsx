@@ -1,3 +1,4 @@
+import type { ComponentType } from 'react';
 import { NavLink } from 'react-router';
 import {
   MdHome,
@@ -9,28 +10,57 @@ import {
   MdGroup,
   MdInsights,
 } from 'react-icons/md';
+import { useAuth } from '../../context/AuthContext';
 import './sidebar.css';
 
-const MAIN_LINKS = [
+type SidebarLink = {
+  to: string;
+  label: string;
+  icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
+};
+
+const TEACHER_MAIN_LINKS: SidebarLink[] = [
   { to: '/', label: 'الرئيسية', icon: MdHome },
-  { to: '/lessons', label: 'خطط الدروس', icon: MdMenuBook },
+  { to: '/lessons', label: 'إنشاء الخطط', icon: MdMenuBook },
+  { to: '/plans', label: 'الخطط المولدة', icon: MdMenuBook },
   { to: '/assignments', label: 'الواجبات', icon: MdAssignment },
   { to: '/quizzes', label: 'الاختبارات', icon: MdQuiz },
   { to: '/curriculum', label: 'المنهج الدراسي', icon: MdSchool },
   { to: '/settings', label: 'الإعدادات', icon: MdSettings },
-] as const;
+];
 
-const SECONDARY_LINKS = [
+const ADMIN_MAIN_LINKS: SidebarLink[] = [
+  { to: '/', label: 'الرئيسية', icon: MdHome },
+  { to: '/plans', label: 'الخطط المولدة', icon: MdMenuBook },
+  { to: '/quizzes', label: 'الاختبارات', icon: MdQuiz },
+  { to: '/curriculum', label: 'المنهج الدراسي', icon: MdSchool },
+  { to: '/settings', label: 'الإعدادات', icon: MdSettings },
+];
+
+const TEACHER_SECONDARY_LINKS: SidebarLink[] = [
+  { to: '/stats', label: 'الإحصائيات', icon: MdInsights },
+];
+
+const ADMIN_SECONDARY_LINKS: SidebarLink[] = [
   { to: '/teachers', label: 'المعلمون', icon: MdGroup },
   { to: '/stats', label: 'الإحصائيات', icon: MdInsights },
-] as const;
+];
 
 export function Sidebar() {
+  const { user } = useAuth();
+
+  const mainLinks =
+    user?.userRole === 'admin' ? ADMIN_MAIN_LINKS : TEACHER_MAIN_LINKS;
+  const secondaryLinks =
+    user?.userRole === 'admin'
+      ? ADMIN_SECONDARY_LINKS
+      : TEACHER_SECONDARY_LINKS;
+
   return (
     <aside className="sidebar" role="navigation" aria-label="القائمة الجانبية">
       <nav className="sidebar__nav">
         <ul className="sidebar__list">
-          {MAIN_LINKS.map(({ to, label, icon: Icon }) => (
+          {mainLinks.map(({ to, label, icon: Icon }) => (
             <li key={to} className="sidebar__item">
               <NavLink
                 to={to}
@@ -51,7 +81,7 @@ export function Sidebar() {
         </div>
 
         <ul className="sidebar__list">
-          {SECONDARY_LINKS.map(({ to, label, icon: Icon }) => (
+          {secondaryLinks.map(({ to, label, icon: Icon }) => (
             <li key={to} className="sidebar__item">
               <NavLink
                 to={to}

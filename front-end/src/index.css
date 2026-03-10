@@ -77,6 +77,8 @@
   --sidebar-width: 280px;
   --topbar-height: 64px;
   --container-max-width: 1200px;
+  --content-max-width: 1500px;
+  --main-inline-padding: clamp(12px, 2vw, 32px);
 }
 
 /* Button Variants */
@@ -103,7 +105,9 @@
 }
 
 /* Global Styles */
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -115,6 +119,12 @@ html {
   background-color: var(--bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
@@ -123,6 +133,45 @@ body {
   font-family: inherit;
   background-color: inherit;
   color: inherit;
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+img,
+svg,
+video,
+canvas,
+iframe {
+  max-width: 100%;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  touch-action: manipulation;
+}
+
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+pre {
+  margin: 0;
+  font-family: inherit;
 }
 
 /* Print Styles */

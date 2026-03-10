@@ -1,0 +1,134 @@
+import { turso } from "../lib/turso.js";
+
+/**
+ * Get teacher display name (username) by user id.
+ * @param {number} teacherId
+ * @returns {Promise<string|null>}
+ */
+export async function getTeacherName(teacherId) {
+  if (teacherId == null) return null;
+  try {
+    const result = await turso.execute({
+      sql: "SELECT username FROM Users WHERE id = ? LIMIT 1",
+      args: [Number(teacherId)],
+    });
+    const row = result.rows[0];
+    return row?.username ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get class name by class id.
+ * @param {number} classId
+ * @returns {Promise<string|null>}
+ */
+export async function getClassName(classId) {
+  if (classId == null) return null;
+  try {
+    const result = await turso.execute({
+      sql: "SELECT name FROM Classes WHERE id = ? LIMIT 1",
+      args: [Number(classId)],
+    });
+    const row = result.rows[0];
+    return row?.name ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get subject name by subject id.
+ * @param {number} subjectId
+ * @returns {Promise<string|null>}
+ */
+export async function getSubjectName(subjectId) {
+  if (subjectId == null) return null;
+  try {
+    const result = await turso.execute({
+      sql: "SELECT name FROM Subjects WHERE id = ? LIMIT 1",
+      args: [Number(subjectId)],
+    });
+    const row = result.rows[0];
+    return row?.name ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get lesson name by lesson id.
+ * @param {number} lessonId
+ * @returns {Promise<string|null>}
+ */
+export async function getLessonName(lessonId) {
+  if (lessonId == null) return null;
+  try {
+    const result = await turso.execute({
+      sql: "SELECT name FROM Lessons WHERE id = ? LIMIT 1",
+      args: [Number(lessonId)],
+    });
+    const row = result.rows[0];
+    return row?.name ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Enrich lesson plan for export: add teacher_name, optional lesson_name.
+ * @param {object} plan - Plan record from repository
+ * @param {{ userId: number, role: string }} _accessContext - unused, for consistency
+ * @returns {Promise<object>} plan with teacher_name, lesson_name attached
+ */
+export async function enrichPlan(plan, _accessContext) {
+  if (!plan) return plan;
+  const [teacherName, lessonName] = await Promise.all([
+    getTeacherName(plan.teacher_id),
+    plan.lesson_id ? getLessonName(plan.lesson_id) : null,
+  ]);
+  return {
+    ...plan,
+    teacher_name: teacherName ?? "—",
+    lesson_name: lessonName ?? plan.lesson_title ?? "—",
+  };
+}
+
+/**
+ * Enrich assignment for export: add teacher_name, lesson_name (optional class/subject via lesson).
+ * @param {object} assignment - Assignment record from repository
+ * @returns {Promise<object>} assignment with teacher_name, lesson_name attached
+ */
+export async function enrichAssignment(assignment) {
+  if (!assignment) return assignment;
+  const [teacherName, lessonName] = await Promise.all([
+    getTeacherName(assignment.teacher_id),
+    getLessonName(assignment.lesson_id),
+  ]);
+  return {
+    ...assignment,
+    teacher_name: teacherName ?? "—",
+    lesson_name: lessonName ?? "—",
+  };
+}
+
+/**
+ * Enrich exam for export: add teacher_name, class_name, subject_name.
+ * @param {object} exam - Exam record from repository (with blueprint, questions)
+ * @returns {Promise<object>} exam with teacher_name, class_name, subject_name attached
+ */
+export async function enrichExam(exam) {
+  if (!exam) return exam;
+  const [teacherName, className, subjectName] = await Promise.all([
+    getTeacherName(exam.teacher_id),
+    getClassName(exam.class_id),
+    getSubjectName(exam.subject_id),
+  ]);
+  return {
+    ...exam,
+    teacher_name: teacherName ?? "—",
+    class_name: className ?? "—",
+    subject_name: subjectName ?? "—",
+  };
+}

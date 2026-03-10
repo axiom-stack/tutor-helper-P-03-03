@@ -66,6 +66,7 @@ interface EditDraft {
   defaultDurationMinutes?: number;
   content?: string;
   unitId?: number;
+  numberOfPeriods?: number;
 }
 
 const MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024;
@@ -168,6 +169,8 @@ function TeacherCirriculumManager() {
   const [creatorLessonDescription, setCreatorLessonDescription] = useState('');
   const [creatorLessonContentType, setCreatorLessonContentType] =
     useState<LessonContentType>('text');
+  const [creatorLessonNumberOfPeriods, setCreatorLessonNumberOfPeriods] =
+    useState<number>(1);
   const [creatorLessonTextContent, setCreatorLessonTextContent] = useState('');
   const [creatorLessonFile, setCreatorLessonFile] = useState<File | null>(null);
 
@@ -282,6 +285,7 @@ function TeacherCirriculumManager() {
     setCreatorLessonName('');
     setCreatorLessonDescription('');
     setCreatorLessonContentType('text');
+    setCreatorLessonNumberOfPeriods(1);
     setCreatorLessonTextContent('');
     setCreatorLessonFile(null);
   };
@@ -449,6 +453,7 @@ function TeacherCirriculumManager() {
       description: lessonItem.description,
       content: lessonItem.content,
       unitId: lessonItem.unit_id,
+      numberOfPeriods: Number(lessonItem.number_of_periods ?? 1),
     });
   };
 
@@ -535,11 +540,18 @@ function TeacherCirriculumManager() {
         if (!editDraft.unitId) {
           throw new Error('اختر وحدة للدرس.');
         }
+        if (
+          !Number.isInteger(editDraft.numberOfPeriods) ||
+          Number(editDraft.numberOfPeriods) <= 0
+        ) {
+          throw new Error('عدد الحصص يجب أن يكون رقمًا صحيحًا موجبًا.');
+        }
         await updateLesson(editDraft.id, {
           name: editDraft.name.trim(),
           description: editDraft.description.trim(),
           content: editDraft.content,
           unit_id: editDraft.unitId,
+          number_of_periods: Number(editDraft.numberOfPeriods),
         });
         if (selectedSubjectId !== '') {
           await loadHierarchyForSubject(selectedSubjectId);
@@ -622,6 +634,7 @@ function TeacherCirriculumManager() {
     setCreatorExistingUnitId('');
     setCreatorLessonName('');
     setCreatorLessonDescription('');
+    setCreatorLessonNumberOfPeriods(1);
     setCreatorLessonTextContent('');
     setCreatorLessonFile(null);
 
@@ -644,6 +657,7 @@ function TeacherCirriculumManager() {
     setCreatorExistingUnitId(units[0]?.id ?? '');
     setCreatorLessonMode('new');
     setCreatorLessonContentType('text');
+    setCreatorLessonNumberOfPeriods(1);
     setCreatorLessonTextContent('');
     setCreatorLessonFile(null);
 
@@ -783,6 +797,12 @@ function TeacherCirriculumManager() {
         if (!creatorLessonName.trim() || !creatorLessonDescription.trim()) {
           throw new Error('يرجى إدخال اسم الدرس ووصفه.');
         }
+        if (
+          !Number.isInteger(creatorLessonNumberOfPeriods) ||
+          creatorLessonNumberOfPeriods <= 0
+        ) {
+          throw new Error('عدد الحصص يجب أن يكون رقمًا صحيحًا موجبًا.');
+        }
 
         if (creatorLessonContentType === 'text') {
           if (!creatorLessonTextContent.trim()) {
@@ -793,6 +813,7 @@ function TeacherCirriculumManager() {
             content: creatorLessonTextContent.trim(),
             description: creatorLessonDescription.trim(),
             name: creatorLessonName.trim(),
+            number_of_periods: creatorLessonNumberOfPeriods,
             teacher_id: teacherId,
             unit_id: resolvedUnitId,
           });
@@ -821,6 +842,7 @@ function TeacherCirriculumManager() {
             description: creatorLessonDescription.trim(),
             file: creatorLessonFile,
             name: creatorLessonName.trim(),
+            number_of_periods: creatorLessonNumberOfPeriods,
             teacher_id: teacherId,
             unit_id: resolvedUnitId,
           });
@@ -1098,6 +1120,9 @@ function TeacherCirriculumManager() {
                                     <div>
                                       <strong>{lessonItem.name}</strong>
                                       <p>{lessonItem.description}</p>
+                                      <small>
+                                        عدد الحصص: {Number(lessonItem.number_of_periods ?? 1)}
+                                      </small>
                                     </div>
                                   </div>
                                   <div className="tcm2__row-actions">
@@ -1475,6 +1500,18 @@ function TeacherCirriculumManager() {
                           }
                         />
                       </div>
+                      <div className="tcm2__field">
+                        <label htmlFor="creator-lesson-periods">عدد الحصص</label>
+                        <input
+                          id="creator-lesson-periods"
+                          type="number"
+                          min={1}
+                          value={creatorLessonNumberOfPeriods}
+                          onChange={(event) =>
+                            setCreatorLessonNumberOfPeriods(Number(event.target.value))
+                          }
+                        />
+                      </div>
                     </div>
 
                     <div className="tcm2__field">
@@ -1720,6 +1757,26 @@ function TeacherCirriculumManager() {
                           ? {
                               ...previous,
                               content: event.target.value,
+                            }
+                          : previous
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="tcm2__field">
+                  <label htmlFor="edit-lesson-periods">عدد الحصص</label>
+                  <input
+                    id="edit-lesson-periods"
+                    type="number"
+                    min={1}
+                    value={editDraft.numberOfPeriods ?? 1}
+                    onChange={(event) =>
+                      setEditDraft((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              numberOfPeriods: Number(event.target.value),
                             }
                           : previous
                       )

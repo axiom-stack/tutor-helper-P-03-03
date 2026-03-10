@@ -8,7 +8,10 @@
   /* With dir=rtl, col1 is right: put sidebar there (fixed), col2 is left: main (1fr) */
   grid-template-columns: var(--sidebar-width) 1fr;
   min-height: 100vh;
+  height: 100vh;
+  min-width: 0;
   background-color: var(--bg);
+  overflow: hidden;
 }
 
 /* Row 1: NavBar spans both columns */
@@ -23,8 +26,8 @@
   grid-row: 2;
   width: 100%;
   min-width: 0;
-  padding: var(--space-lg) var(--space-xl);
-  overflow-y: auto;
+  padding: var(--space-lg) var(--main-inline-padding);
+  overflow: auto;
   min-height: 0;
   box-sizing: border-box;
 }
@@ -32,4 +35,36 @@
 .app-layout > .sidebar {
   grid-column: 1;
   grid-row: 2;
+}
+
+.app-layout > .app-layout__main > * {
+  width: min(100%, var(--content-max-width));
+  min-width: 0;
+  margin-inline: auto;
+}
+
+@media (max-width: 1024px) {
+  .app-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .app-layout > .sidebar {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .app-layout > .app-layout__main {
+    grid-column: 1;
+    grid-row: 3;
+    padding: var(--space-md) var(--main-inline-padding);
+  }
+}
+
+@media (max-width: 640px) {
+  .app-layout > .app-layout__main {
+    padding: var(--space-sm) var(--space-sm);
+  }
 }

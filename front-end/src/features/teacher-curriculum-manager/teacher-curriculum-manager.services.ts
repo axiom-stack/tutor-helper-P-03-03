@@ -127,6 +127,7 @@ interface CreateLessonPayloadBase {
   description: string;
   unit_id: number;
   teacher_id: number;
+  number_of_periods: number;
   content_type: LessonContentType;
 }
 
@@ -160,6 +161,7 @@ export async function createLesson(
       name: payload.name,
       description: payload.description,
       unit_id: payload.unit_id,
+      number_of_periods: payload.number_of_periods,
       content_type: payload.content_type,
       content: payload.content,
       id: payload.teacher_id,
@@ -172,6 +174,7 @@ export async function createLesson(
   form.append('name', payload.name);
   form.append('description', payload.description);
   form.append('unit_id', String(payload.unit_id));
+  form.append('number_of_periods', String(payload.number_of_periods));
   form.append('content_type', payload.content_type);
   form.append('id', String(payload.teacher_id));
   form.append('file', payload.file);
@@ -182,7 +185,13 @@ export async function createLesson(
 
 export async function updateLesson(
   lessonId: number,
-  data: { name: string; description: string; content: string; unit_id?: number }
+  data: {
+    name: string;
+    description: string;
+    content: string;
+    unit_id?: number;
+    number_of_periods?: number;
+  }
 ): Promise<{ lesson: Lesson }> {
   const response = await api().put<{ lesson: Lesson }>(`/api/lessons/${lessonId}`, data);
   return response.data;

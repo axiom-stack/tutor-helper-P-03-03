@@ -22,6 +22,7 @@ function toPlanRecord(row, planType) {
     db_id: Number(row.id),
     public_id: row.public_id,
     teacher_id: Number(row.teacher_id),
+    lesson_id: row.lesson_id != null ? Number(row.lesson_id) : null,
     lesson_title: row.lesson_title,
     subject: row.subject,
     grade: row.grade,
@@ -91,6 +92,7 @@ export function createLessonPlansRepository(dbClient = turso) {
   return {
     async create({
       teacherId,
+      lessonId,
       lessonTitle,
       subject,
       grade,
@@ -111,12 +113,13 @@ export function createLessonPlansRepository(dbClient = turso) {
       const insertResult = await dbClient.execute({
         sql: `
           INSERT INTO ${tableName}
-            (public_id, teacher_id, lesson_title, subject, grade, unit, duration_minutes, plan_json, validation_status, retry_occurred)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (public_id, teacher_id, lesson_id, lesson_title, subject, grade, unit, duration_minutes, plan_json, validation_status, retry_occurred)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         args: [
           null,
           teacherId,
+          lessonId,
           lessonTitle,
           subject,
           grade,
@@ -188,6 +191,57 @@ export function createLessonPlansRepository(dbClient = turso) {
         }
         return b.db_id - a.db_id;
       });
+    },
+
+    async getLatestByLessonId(lessonId, accessContext) {
+      const parsedLessonId = Number(lessonId);
+      if (!Number.isInteger(parsedLessonId) || parsedLessonId <= 0) {
+        return null;
+      }
+
+      async function findLatestInTable(planType) {
+        const tableName = PLAN_TABLES[planType];
+        const whereClauses = ["lesson_id = ?"];
+        const args = [parsedLessonId];
+
+        if (accessContext?.role !== "admin") {
+          whereClauses.push("teacher_id = ?");
+          args.push(accessContext?.userId);
+        }
+
+        const result = await dbClient.execute({
+          sql: `
+            SELECT *
+            FROM ${tableName}
+            WHERE ${whereClauses.join(" AND ")}
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+          `,
+          args,
+        });
+
+        return toPlanRecord(result.rows[0], planType);
+      }
+
+      const [latestTraditional, latestActive] = await Promise.all([
+        findLatestInTable(PLAN_TYPES.TRADITIONAL),
+        findLatestInTable(PLAN_TYPES.ACTIVE_LEARNING),
+      ]);
+
+      if (!latestTraditional) return latestActive;
+      if (!latestActive) return latestTraditional;
+
+      const dateDiff =
+        new Date(latestActive.created_at).getTime() -
+        new Date(latestTraditional.created_at).getTime();
+
+      if (dateDiff !== 0) {
+        return dateDiff > 0 ? latestActive : latestTraditional;
+      }
+
+      return latestActive.db_id >= latestTraditional.db_id
+        ? latestActive
+        : latestTraditional;
     },
   };
 }

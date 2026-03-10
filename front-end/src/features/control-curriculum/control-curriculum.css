@@ -1,0 +1,122 @@
+.cc {
+  display: grid;
+  gap: var(--space-md);
+  width: 100%;
+  min-width: 0;
+}
+
+.cc__header h1 {
+  margin: 0;
+  font-size: var(--text-xxl);
+  line-height: 1.25;
+}
+
+.cc__header p {
+  margin: var(--space-xs) 0 0;
+  color: var(--text-secondary);
+}
+
+.cc__filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+.cc__field {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.cc__field span {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.cc__field select {
+  height: 2.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0 var(--space-sm);
+  font-family: inherit;
+}
+
+.cc__summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+.cc__summary-grid article {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  padding: var(--space-md);
+  display: grid;
+  gap: var(--space-xs);
+  box-shadow: var(--shadow-sm);
+}
+
+.cc__summary-grid span {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.cc__summary-grid strong {
+  font-size: var(--text-xl);
+}
+
+.cc__table-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: var(--space-md);
+  display: grid;
+  gap: var(--space-sm);
+  box-shadow: var(--shadow-sm);
+}
+
+.cc__table-card h2 {
+  margin: 0;
+}
+
+.cc__table-wrap {
+  overflow: auto;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.cc__table-wrap table {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+}
+
+.cc__table-wrap th,
+.cc__table-wrap td {
+  text-align: right;
+  padding: var(--space-sm);
+  border-bottom: 1px solid var(--border-light);
+  font-size: var(--text-sm);
+}
+
+.cc__state {
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-secondary);
+  padding: var(--space-sm);
+}
+
+.cc__state--error {
+  border-color: rgba(220, 38, 38, 0.35);
+  background: rgba(254, 242, 242, 0.95);
+  color: var(--error);
+}
+
+@media (max-width: 1000px) {
+  .cc__filters,
+  .cc__summary-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -180,6 +180,7 @@ export function createLessonPlanGenerationService(dependencies = {}) {
     async generate(request, context = {}) {
       const logger = normalizeLogger(context.logger);
       const teacherId = Number(context.teacherId);
+      const lessonId = Number(request.lesson_id);
 
       if (!teacherId) {
         throw new LessonPlanPipelineError(
@@ -189,11 +190,20 @@ export function createLessonPlanGenerationService(dependencies = {}) {
         );
       }
 
+      if (!Number.isInteger(lessonId) || lessonId <= 0) {
+        throw new LessonPlanPipelineError(
+          400,
+          "invalid_lesson_id",
+          "lesson_id must be a positive integer",
+        );
+      }
+
       const knowledge = knowledgeLoader();
       const { targetSchema, strategyBank } = resourceSelector(request.plan_type, knowledge);
 
       logger.info(
         {
+          lesson_id: request.lesson_id,
           lesson_title: request.lesson_title,
           subject: request.subject,
           grade: request.grade,
@@ -306,6 +316,7 @@ export function createLessonPlanGenerationService(dependencies = {}) {
 
       const savedPlan = await repository.create({
         teacherId,
+        lessonId: request.lesson_id,
         lessonTitle: request.lesson_title,
         subject: request.subject,
         grade: request.grade,
