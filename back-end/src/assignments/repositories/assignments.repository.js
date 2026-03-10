@@ -11,6 +11,7 @@ function toAssignmentRecord(row) {
     id: row.public_id,
     db_id: Number(row.id),
     public_id: row.public_id,
+    assignment_group_public_id: row.assignment_group_public_id ?? null,
     teacher_id: Number(row.teacher_id),
     lesson_plan_public_id: row.lesson_plan_public_id,
     lesson_id: Number(row.lesson_id),
@@ -27,6 +28,7 @@ export function createAssignmentsRepository(dbClient = turso) {
   return {
     async create({
       teacherId,
+      assignmentGroupPublicId,
       lessonPlanPublicId,
       lessonId,
       name,
@@ -41,11 +43,16 @@ export function createAssignmentsRepository(dbClient = turso) {
       const insertResult = await dbClient.execute({
         sql: `
           INSERT INTO ${ASSIGNMENTS_TABLE}
-            (public_id, teacher_id, lesson_plan_public_id, lesson_id, name, description, type, content)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (public_id, assignment_group_id, teacher_id, lesson_plan_public_id, lesson_id, name, description, type, content)
+          VALUES (
+            ?,
+            (SELECT id FROM AssignmentGroups WHERE public_id = ? LIMIT 1),
+            ?, ?, ?, ?, ?, ?, ?
+          )
         `,
         args: [
           null,
+          assignmentGroupPublicId,
           teacherId,
           lessonPlanPublicId,
           lessonId,
@@ -69,7 +76,15 @@ export function createAssignmentsRepository(dbClient = turso) {
       });
 
       const saved = await dbClient.execute({
-        sql: `SELECT * FROM ${ASSIGNMENTS_TABLE} WHERE id = ?`,
+        sql: `
+          SELECT
+            a.*,
+            ag.public_id AS assignment_group_public_id
+          FROM ${ASSIGNMENTS_TABLE} a
+          LEFT JOIN AssignmentGroups ag ON ag.id = a.assignment_group_id
+          WHERE a.id = ?
+          LIMIT 1
+        `,
         args: [dbId],
       });
 
@@ -81,16 +96,24 @@ export function createAssignmentsRepository(dbClient = turso) {
         return null;
       }
 
-      const whereClauses = ["public_id = ?"];
+      const whereClauses = ["a.public_id = ?"];
       const args = [publicId];
 
       if (accessContext?.role !== "admin") {
-        whereClauses.push("teacher_id = ?");
+        whereClauses.push("a.teacher_id = ?");
         args.push(accessContext?.userId);
       }
 
       const result = await dbClient.execute({
-        sql: `SELECT * FROM ${ASSIGNMENTS_TABLE} WHERE ${whereClauses.join(" AND ")} LIMIT 1`,
+        sql: `
+          SELECT
+            a.*,
+            ag.public_id AS assignment_group_public_id
+          FROM ${ASSIGNMENTS_TABLE} a
+          LEFT JOIN AssignmentGroups ag ON ag.id = a.assignment_group_id
+          WHERE ${whereClauses.join(" AND ")}
+          LIMIT 1
+        `,
         args,
       });
 
@@ -102,15 +125,15 @@ export function createAssignmentsRepository(dbClient = turso) {
       const args = [];
 
       if (accessContext?.role !== "admin") {
-        whereClauses.push("teacher_id = ?");
+        whereClauses.push("a.teacher_id = ?");
         args.push(accessContext?.userId);
       }
       if (filters.lesson_plan_public_id) {
-        whereClauses.push("lesson_plan_public_id = ?");
+        whereClauses.push("a.lesson_plan_public_id = ?");
         args.push(filters.lesson_plan_public_id);
       }
       if (filters.lesson_id != null) {
-        whereClauses.push("lesson_id = ?");
+        whereClauses.push("a.lesson_id = ?");
         args.push(filters.lesson_id);
       }
 
@@ -118,9 +141,13 @@ export function createAssignmentsRepository(dbClient = turso) {
 
       const result = await dbClient.execute({
         sql: `
-          SELECT * FROM ${ASSIGNMENTS_TABLE}
+          SELECT
+            a.*,
+            ag.public_id AS assignment_group_public_id
+          FROM ${ASSIGNMENTS_TABLE} a
+          LEFT JOIN AssignmentGroups ag ON ag.id = a.assignment_group_id
           ${whereSql}
-          ORDER BY created_at DESC, id DESC
+          ORDER BY a.created_at DESC, a.id DESC
         `,
         args,
       });
@@ -176,6 +203,34 @@ export function createAssignmentsRepository(dbClient = turso) {
       });
 
       return this.getByPublicId(publicId, accessContext);
+    },
+
+    async listByGroupPublicId(groupPublicId, accessContext) {
+      if (!groupPublicId || typeof groupPublicId !== "string") {
+        return [];
+      }
+
+      const whereClauses = ["ag.public_id = ?"];
+      const args = [groupPublicId];
+      if (accessContext?.role !== "admin") {
+        whereClauses.push("a.teacher_id = ?");
+        args.push(accessContext?.userId);
+      }
+
+      const result = await dbClient.execute({
+        sql: `
+          SELECT
+            a.*,
+            ag.public_id AS assignment_group_public_id
+          FROM ${ASSIGNMENTS_TABLE} a
+          INNER JOIN AssignmentGroups ag ON ag.id = a.assignment_group_id
+          WHERE ${whereClauses.join(" AND ")}
+          ORDER BY a.created_at ASC, a.id ASC
+        `,
+        args,
+      });
+
+      return result.rows.map((row) => toAssignmentRecord(row));
     },
   };
 }

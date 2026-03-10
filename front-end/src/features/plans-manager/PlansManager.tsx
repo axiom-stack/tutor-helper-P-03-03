@@ -14,6 +14,8 @@ import {
   listPlans,
   type ListPlansFilters,
 } from './plans-manager.services';
+import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel';
+import { getRefinementTargetOptions } from '../refinements/refinementTargets';
 import './plans-manager.css';
 
 function formatDateAr(value: string): string {
@@ -142,6 +144,16 @@ export default function PlansManager() {
     exportPlan(selectedPlan.public_id, format)
       .catch(() => setError('فشل تصدير الخطة.'))
       .finally(() => setIsExporting(false));
+  };
+
+  const handleRefinementCommitted = async () => {
+    if (!selectedPlan?.public_id) {
+      return;
+    }
+
+    const response = await getPlanById(selectedPlan.public_id);
+    setSelectedPlan(response.plan);
+    await loadPlans();
   };
 
   return (
@@ -319,6 +331,23 @@ export default function PlansManager() {
               <pre className="pm__json">
                 {JSON.stringify(selectedPlan.plan_json ?? {}, null, 2)}
               </pre>
+
+              <SmartRefinementPanel
+                artifactType="lesson_plan"
+                artifactId={selectedPlan.public_id}
+                baseArtifact={{
+                  id: selectedPlan.public_id,
+                  plan_type: selectedPlan.plan_type,
+                  lesson_title: selectedPlan.lesson_title,
+                  subject: selectedPlan.subject,
+                  grade: selectedPlan.grade,
+                  unit: selectedPlan.unit,
+                  duration_minutes: selectedPlan.duration_minutes,
+                  plan_json: selectedPlan.plan_json ?? {},
+                }}
+                targetSelectors={getRefinementTargetOptions('lesson_plan')}
+                onCommitted={handleRefinementCommitted}
+              />
             </div>
           )}
         </article>

@@ -64,6 +64,7 @@ export const ASSIGNMENT_TYPE_LABELS: Record<AssignmentType, string> = {
 export interface Assignment {
   id: string;
   public_id: string;
+  assignment_group_public_id?: string | null;
   teacher_id: number;
   lesson_plan_public_id: string;
   lesson_id: number;
@@ -256,6 +257,62 @@ export interface GenerateAssignmentsRequest {
 export interface ModifyAssignmentRequest {
   assignment_id: string;
   modification_request: string;
+}
+
+export type RefinementArtifactType = 'lesson_plan' | 'assignment' | 'exam';
+export type RefinementTargetMode = 'single' | 'batch';
+export type RefinementStatus =
+  | 'processing'
+  | 'pending_approval'
+  | 'failed'
+  | 'blocked'
+  | 'rejected'
+  | 'approved'
+  | 'no_changes';
+
+export interface RefinementValidationResult {
+  is_valid: boolean;
+  errors: ApiErrorDetail[];
+}
+
+export interface RefinementRequestRecord {
+  id: string;
+  public_id: string;
+  artifact_type: RefinementArtifactType;
+  target_mode: RefinementTargetMode;
+  artifact_public_id: string | null;
+  assignment_group_public_id: string | null;
+  base_revision_ids: number[];
+  feedback_text: string;
+  target_selector: string | null;
+  include_alternatives: boolean;
+  status: RefinementStatus;
+  reason_summary: string | null;
+  warnings: ApiErrorDetail[];
+  decision: 'approve' | 'reject' | null;
+  decision_note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RefinementProposal {
+  attempt_id: number;
+  candidate_artifact: Record<string, unknown> | null;
+  changed_fields: string[];
+  reason_summary: string | null;
+  warnings: ApiErrorDetail[];
+  validation_result: RefinementValidationResult;
+  alternatives: unknown;
+}
+
+export interface CreateRefinementRequestPayload {
+  artifact_type: RefinementArtifactType;
+  target_mode: RefinementTargetMode;
+  artifact_id?: string;
+  assignment_group_id?: string;
+  feedback_text: string;
+  target_selector?: string;
+  include_alternatives?: boolean;
 }
 
 export interface ApiErrorDetail {

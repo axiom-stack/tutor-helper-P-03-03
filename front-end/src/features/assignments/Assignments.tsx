@@ -17,12 +17,12 @@ import {
   generateAssignments,
   getAssignmentById,
   listAssignments,
-  modifyAssignment,
 } from './assignments.services';
 import type { NormalizedApiError } from '../../utils/apiErrors';
 import { normalizeApiError } from '../../utils/apiErrors';
 import AssignmentCard from './components/AssignmentCard';
-import ModifyAssignmentModal from './components/ModifyAssignmentModal';
+import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel';
+import { getRefinementTargetOptions } from '../refinements/refinementTargets';
 import './assignments.css';
 
 interface AssignmentsLocationState {
@@ -188,18 +188,13 @@ export default function Assignments() {
   const [activeAssignmentId, setActiveAssignmentId] = useState<string | null>(
     null
   );
-  const [assignmentToModify, setAssignmentToModify] = useState<Assignment | null>(
-    null
-  );
 
   const [isListLoading, setIsListLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
-  const [isModifying, setIsModifying] = useState(false);
 
   const [error, setError] = useState<NormalizedApiError | null>(null);
-  const [modifyError, setModifyError] = useState<NormalizedApiError | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -315,62 +310,13 @@ export default function Assignments() {
     }
   };
 
-  const handleOpenModifyModal = (assignment: Assignment) => {
-    setAssignmentToModify(assignment);
-    setModifyError(null);
-  };
-
-  const handleCloseModifyModal = () => {
-    if (isModifying) {
-      return;
+  const handleRefinementCommitted = async () => {
+    await loadAssignments(true);
+    if (selectedAssignment?.public_id) {
+      const response = await getAssignmentById(selectedAssignment.public_id);
+      setSelectedAssignment(response.assignment);
     }
-    setAssignmentToModify(null);
-    setModifyError(null);
-  };
-
-  const handleSubmitModification = async (modificationRequest: string) => {
-    if (!assignmentToModify) {
-      return;
-    }
-
-    setIsModifying(true);
-    setModifyError(null);
-    setError(null);
-    setSuccessMessage(null);
-
-    try {
-      const response = await modifyAssignment(
-        assignmentToModify.public_id,
-        modificationRequest
-      );
-
-      const updatedAssignment = response.assignment;
-      setAssignments((current) =>
-        current.map((assignment) =>
-          assignment.public_id === updatedAssignment.public_id
-            ? updatedAssignment
-            : assignment
-        )
-      );
-      setSelectedAssignment((current) =>
-        current?.public_id === updatedAssignment.public_id
-          ? updatedAssignment
-          : current
-      );
-
-      setSuccessMessage('تم تعديل الواجب وحفظ التعديلات بنجاح.');
-      setAssignmentToModify(null);
-      await loadAssignments(true);
-    } catch (modificationError: unknown) {
-      const normalized = normalizeApiError(
-        modificationError,
-        'تعذر تعديل الواجب. حاول مرة أخرى.'
-      );
-      setModifyError(normalized);
-      setError(normalized);
-    } finally {
-      setIsModifying(false);
-    }
+    setSuccessMessage('تم حفظ التعديل المعتمد بنجاح.');
   };
 
   const handleExportPdf = () => {
@@ -407,7 +353,7 @@ export default function Assignments() {
           <h1>إدارة الواجبات المنزلية</h1>
           <p>
             توليد واجبات مرتبطة بخطة الدرس، مراجعتها، ثم تعديلها بالذكاء الاصطناعي
-            مع حفظ التعديلات مباشرة في قاعدة البيانات.
+            عبر مقترح يعتمد من المعلم قبل الحفظ النهائي.
           </p>
         </div>
 
@@ -523,7 +469,6 @@ export default function Assignments() {
                     isActive={activeAssignmentId === assignment.public_id}
                     isDetailLoading={isDetailLoading}
                     onView={handleViewAssignment}
-                    onModify={handleOpenModifyModal}
                   />
                 ))}
               </div>
@@ -535,14 +480,6 @@ export default function Assignments() {
               <h2>تفاصيل الواجب</h2>
               {selectedAssignment && (
                 <>
-                  <button
-                    type="button"
-                    className="asn-btn asn-btn--ghost"
-                    onClick={() => void handleOpenModifyModal(selectedAssignment)}
-                  >
-                    <MdAutoAwesome aria-hidden />
-                    تعديل
-                  </button>
                   <button
                     type="button"
                     className="asn-btn asn-btn--ghost"
@@ -612,21 +549,28 @@ export default function Assignments() {
                   <h4>المحتوى</h4>
                   <pre>{selectedAssignment.content}</pre>
                 </section>
+
+                <SmartRefinementPanel
+                  artifactType="assignment"
+                  artifactId={selectedAssignment.public_id}
+                  assignmentGroupId={selectedAssignment.assignment_group_public_id ?? undefined}
+                  baseArtifact={{
+                    assignment_id: selectedAssignment.public_id,
+                    name: selectedAssignment.name,
+                    description: selectedAssignment.description ?? '',
+                    type: selectedAssignment.type,
+                    content: selectedAssignment.content,
+                  }}
+                  targetSelectors={getRefinementTargetOptions('assignment')}
+                  enableBatchToggle
+                  defaultMode="single"
+                  onCommitted={handleRefinementCommitted}
+                />
               </article>
             )}
           </aside>
         </div>
       )}
-
-      <ModifyAssignmentModal
-        key={assignmentToModify?.public_id ?? 'closed'}
-        assignment={assignmentToModify}
-        isOpen={assignmentToModify !== null}
-        isSubmitting={isModifying}
-        error={modifyError}
-        onClose={handleCloseModifyModal}
-        onSubmit={handleSubmitModification}
-      />
     </div>
   );
 }

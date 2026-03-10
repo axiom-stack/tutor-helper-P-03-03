@@ -9,6 +9,7 @@ import plansRoutes from "./plans.routes.js";
 import assignmentsRoutes from "./assignments.routes.js";
 import examsRoutes from "./exams.routes.js";
 import usersRoutes from "./users.routes.js";
+import refinementsRoutes from "./refinements.routes.js";
 
 const router = express.Router();
 
@@ -22,5 +23,6 @@ router.use("/plans", plansRoutes);
 router.use("/assignments", assignmentsRoutes);
 router.use("/exams", examsRoutes);
 router.use("/users", usersRoutes);
+router.use("/refinements", refinementsRoutes);
 
 export default router;

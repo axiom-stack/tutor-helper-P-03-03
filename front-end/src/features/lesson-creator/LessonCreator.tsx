@@ -19,12 +19,15 @@ import {
   getLessonById,
   getLessonsByUnit,
   getMyClasses,
+  getPlanById,
   getMySubjects,
   getUnitsBySubject,
   type GeneratePlanErrorResponse,
   type GeneratedPlanResponse,
   type PlanType,
 } from './lesson-creator.services';
+import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel';
+import { getRefinementTargetOptions } from '../refinements/refinementTargets';
 import './lesson-creator.css';
 
 type SelectValue = number | '';
@@ -541,6 +544,24 @@ function LessonCreator() {
     });
   };
 
+  const handleRefinementCommitted = async () => {
+    if (!generatedPlan?.id) {
+      return;
+    }
+
+    const response = await getPlanById(generatedPlan.id);
+    const plan = response.plan;
+    setGeneratedPlan({
+      id: plan.public_id,
+      plan_type: plan.plan_type,
+      plan_json: plan.plan_json ?? {},
+      validation_status: plan.validation_status,
+      retry_occurred: plan.retry_occurred,
+      created_at: plan.created_at,
+      updated_at: plan.updated_at,
+    });
+  };
+
   const getStepState = (step: 1 | 2 | 3 | 4): StepState => {
     if (step === 1) {
       return selectedClassId !== '' ? 'done' : 'active';
@@ -1043,6 +1064,23 @@ function LessonCreator() {
                   </section>
                 </div>
               )}
+
+              <SmartRefinementPanel
+                artifactType="lesson_plan"
+                artifactId={generatedPlan.id}
+                baseArtifact={{
+                  id: generatedPlan.id,
+                  plan_type: generatedPlan.plan_type,
+                  lesson_title: selectedLesson?.name ?? '',
+                  subject: selectedSubject?.name ?? '',
+                  grade: selectedClass?.grade_label ?? '',
+                  unit: selectedUnit?.name ?? '',
+                  duration_minutes: durationMinutes,
+                  plan_json: generatedPlan.plan_json,
+                }}
+                targetSelectors={getRefinementTargetOptions('lesson_plan')}
+                onCommitted={handleRefinementCommitted}
+              />
             </article>
           )}
         </section>

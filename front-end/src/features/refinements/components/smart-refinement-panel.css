@@ -1,0 +1,277 @@
+.srp {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border: 1px solid #d7dfec;
+  border-radius: 14px;
+  background: #f7fafc;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.srp__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.srp__header h3 {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.srp__mode-toggle {
+  display: inline-flex;
+  gap: 0.4rem;
+}
+
+.srp__mode-toggle button {
+  border: 1px solid #c8d7f1;
+  background: #fff;
+  color: #1f335a;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+}
+
+.srp__mode-toggle button.is-active {
+  background: #d6e8ff;
+  border-color: #7ca5df;
+  font-weight: 700;
+}
+
+.srp__form {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.srp__form textarea,
+.srp__form select {
+  border: 1px solid #b9c8de;
+  border-radius: 10px;
+  padding: 0.6rem 0.7rem;
+  font-family: inherit;
+  background: #fff;
+}
+
+.srp__primary-btn {
+  margin-top: 0.35rem;
+  border: none;
+  border-radius: 10px;
+  background: #2f6eb4;
+  color: #fff;
+  padding: 0.6rem 0.95rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.srp__primary-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.srp__error,
+.srp__success {
+  border-radius: 10px;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.93rem;
+}
+
+.srp__error {
+  background: #ffe8ec;
+  color: #99243a;
+}
+
+.srp__success {
+  background: #e9f9ee;
+  color: #0f6a2f;
+}
+
+.srp__request-meta {
+  background: #fff;
+  border: 1px solid #dbe5f2;
+  border-radius: 10px;
+  padding: 0.7rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.srp__request-meta p {
+  margin: 0;
+}
+
+.srp__proposal {
+  border: 1px solid #d6e3f5;
+  background: #fff;
+  border-radius: 10px;
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.srp__proposal h4,
+.srp__proposal h5 {
+  margin: 0;
+}
+
+.srp__diff-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.srp__diff-grid article {
+  border: 1px solid #e1eaf6;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.srp__diff-grid article h5 {
+  background: #f0f6ff;
+  padding: 0.45rem 0.55rem;
+}
+
+.srp__diff-grid pre {
+  margin: 0;
+  max-height: 240px;
+  overflow: auto;
+  padding: 0.55rem;
+  font-size: 0.78rem;
+  background: #fcfeff;
+}
+
+.srp__changed-fields ul {
+  margin: 0.3rem 0 0;
+  padding-inline-start: 1rem;
+}
+
+.srp__changed-fields li {
+  color: #1f4a7a;
+  font-size: 0.85rem;
+}
+
+.srp__warnings,
+.srp__validation-errors {
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.srp__warnings {
+  background: #fff8e2;
+  color: #8a5b00;
+}
+
+.srp__validation-errors {
+  background: #ffecef;
+  color: #8e1d35;
+}
+
+.srp__warnings p,
+.srp__validation-errors p {
+  margin: 0;
+}
+
+.srp__proposal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.srp__proposal-actions button {
+  border: 1px solid #c5d5ef;
+  background: #fff;
+  color: #20375d;
+  border-radius: 8px;
+  padding: 0.45rem 0.65rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.srp__proposal-actions .srp__approve-btn {
+  border-color: #2f9e56;
+  color: #1f7b41;
+}
+
+.srp__proposal-actions .srp__reject-btn {
+  border-color: #cf445d;
+  color: #b2213c;
+}
+
+.srp__history,
+.srp__revisions {
+  background: #fff;
+  border: 1px solid #dbe6f4;
+  border-radius: 10px;
+  padding: 0.65rem 0.7rem;
+}
+
+.srp__history h4,
+.srp__revisions h4 {
+  margin: 0 0 0.45rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.srp__history ul,
+.srp__revisions ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.srp__history li,
+.srp__revisions li {
+  border: 1px solid #e5ecf8;
+  border-radius: 8px;
+  padding: 0.45rem 0.55rem;
+  display: grid;
+  gap: 0.22rem;
+}
+
+.srp__history li > div,
+.srp__revisions li > div {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.srp__history li p {
+  margin: 0;
+  font-size: 0.86rem;
+}
+
+.srp__revisions button {
+  width: fit-content;
+  border: 1px solid #c8d7f0;
+  border-radius: 8px;
+  background: #f2f8ff;
+  color: #214575;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+}
+
+.srp__current-tag {
+  background: #dff5e7;
+  color: #1b6e39;
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.76rem;
+}
+
+@media (max-width: 980px) {
+  .srp__diff-grid {
+    grid-template-columns: 1fr;
+  }
+}

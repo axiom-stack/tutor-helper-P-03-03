@@ -1,5 +1,5 @@
 import { authAxios } from '../auth/auth.services';
-import type { Class, Lesson, Subject, Unit } from '../../types';
+import type { Class, Lesson, LessonPlanRecord, Subject, Unit } from '../../types';
 
 const api = () => authAxios();
 
@@ -79,6 +79,13 @@ export async function generatePlan(
   payload: GeneratePlanRequest
 ): Promise<GeneratedPlanResponse> {
   const response = await api().post<GeneratedPlanResponse>('/api/generate-plan', payload);
+  return response.data;
+}
+
+export async function getPlanById(
+  planId: string
+): Promise<{ plan: LessonPlanRecord }> {
+  const response = await api().get<{ plan: LessonPlanRecord }>(`/api/plans/${planId}`);
   return response.data;
 }
 

@@ -1,4 +1,4 @@
-import { MdAutoAwesome, MdVisibility } from 'react-icons/md';
+import { MdVisibility } from 'react-icons/md';
 import type { Assignment } from '../../../types';
 import { ASSIGNMENT_TYPE_LABELS } from '../../../types';
 
@@ -7,7 +7,6 @@ interface AssignmentCardProps {
   isDetailLoading: boolean;
   isActive: boolean;
   onView: (assignment: Assignment) => void;
-  onModify: (assignment: Assignment) => void;
 }
 
 function toPreviewText(content: string): string {
@@ -23,7 +22,6 @@ export default function AssignmentCard({
   isDetailLoading,
   isActive,
   onView,
-  onModify,
 }: AssignmentCardProps) {
   return (
     <article className={`asn-card ${isActive ? 'asn-card--active' : ''}`}>
@@ -52,15 +50,6 @@ export default function AssignmentCard({
         >
           <MdVisibility aria-hidden />
           {isDetailLoading && isActive ? 'جارٍ تحميل التفاصيل...' : 'عرض الواجب'}
-        </button>
-
-        <button
-          type="button"
-          className="asn-btn asn-btn--ghost"
-          onClick={() => onModify(assignment)}
-        >
-          <MdAutoAwesome aria-hidden />
-          تعديل بالذكاء الاصطناعي
         </button>
       </div>
     </article>

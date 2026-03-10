@@ -28,6 +28,8 @@ import {
   getUnitsBySubject,
   listExams,
 } from './quizzes.services';
+import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel';
+import { getRefinementTargetOptions } from '../refinements/refinementTargets';
 import './quizzes.css';
 
 type SelectValue = number | '';
@@ -353,6 +355,15 @@ export default function Quizzes() {
     exportExam(selectedExam.public_id, 'docx')
       .catch(() => setExportError('فشل تصدير Word.'))
       .finally(() => setIsExporting(false));
+  };
+
+  const handleRefinementCommitted = async () => {
+    if (!selectedExam?.public_id) {
+      return;
+    }
+    const response = await getExamById(selectedExam.public_id);
+    setSelectedExam(response.exam);
+    await loadExams();
   };
 
   if (!user) {
@@ -753,6 +764,22 @@ export default function Quizzes() {
                       <p>لا توجد أسئلة لعرضها.</p>
                     )}
                   </section>
+
+                  <SmartRefinementPanel
+                    artifactType="exam"
+                    artifactId={selectedExam.public_id}
+                    baseArtifact={{
+                      id: selectedExam.public_id,
+                      title: selectedExam.title,
+                      total_questions: selectedExam.total_questions,
+                      total_marks: selectedExam.total_marks,
+                      lesson_ids: selectedExam.lesson_ids,
+                      blueprint: selectedExam.blueprint ?? {},
+                      questions: selectedExam.questions ?? [],
+                    }}
+                    targetSelectors={getRefinementTargetOptions('exam')}
+                    onCommitted={handleRefinementCommitted}
+                  />
                 </div>
               )}
             </div>
