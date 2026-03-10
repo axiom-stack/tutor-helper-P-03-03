@@ -357,3 +357,314 @@ export function buildExamHtml(enrichedExam) {
 </body>
 </html>`;
 }
+
+function formatNumberAr(value, options = {}) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return "0";
+  }
+
+  return number.toLocaleString("ar-SA", {
+    maximumFractionDigits: 1,
+    ...options,
+  });
+}
+
+function formatPercentAr(value) {
+  return `${formatNumberAr(value, { minimumFractionDigits: 1 })}%`;
+}
+
+function formatDateTimeAr(value) {
+  if (!value) {
+    return "—";
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return escapeHtml(String(value));
+  }
+
+  return escapeHtml(
+    parsed.toLocaleString("ar-SA", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+  );
+}
+
+function riskLabel(flag) {
+  if (flag === "low_quality") return "جودة خطط منخفضة";
+  if (flag === "high_retry") return "ارتفاع معدل إعادة التوليد";
+  if (flag === "high_assignment_churn") return "ارتفاع تعديلات الواجبات";
+  return flag;
+}
+
+/**
+ * Build full HTML document for a statistics report.
+ */
+export function buildStatsHtml(summary = {}) {
+  const kpis = summary.kpis || {};
+  const quality = summary.quality_rubric || {};
+  const trends = summary.trends?.monthly || [];
+  const breakdowns = summary.breakdowns || {};
+  const filters = summary.filters_applied || {};
+  const admin = summary.admin || null;
+
+  const scopeLabel =
+    filters.scope === "teacher"
+      ? "تقرير المعلم"
+      : filters.scope === "admin_teacher"
+        ? `تقرير إداري - معلم محدد (${filters.teacher_id ?? "—"})`
+        : "تقرير إداري - جميع المعلمين";
+
+  const periodLabelMap = {
+    all: "كل الفترات",
+    "30d": "آخر 30 يوماً",
+    "90d": "آخر 90 يوماً",
+    custom: "فترة مخصصة",
+  };
+
+  const periodLabel = periodLabelMap[filters.period] || filters.period || "—";
+  const generatedAt = formatDateTimeAr(filters.generated_at);
+  const dateRangeLabel =
+    filters.date_from && filters.date_to
+      ? `${escapeHtml(filters.date_from)} ← ${escapeHtml(filters.date_to)}`
+      : "غير محدد";
+
+  const kpiCards = [
+    ["عدد الخطط المولدة", formatNumberAr(kpis.plans_generated)],
+    ["متوسط جودة الخطط", formatNumberAr(kpis.avg_plan_quality)],
+    ["عدد الاختبارات المولدة", formatNumberAr(kpis.exams_generated)],
+    ["عدد الواجبات المولدة", formatNumberAr(kpis.assignments_generated)],
+    ["نسبة النجاح من أول محاولة", formatPercentAr(kpis.first_pass_rate)],
+    ["معدل إعادة التوليد", formatPercentAr(kpis.retry_rate)],
+    ["معدل تعديل الواجبات", formatPercentAr(kpis.assignment_edit_rate)],
+    ["متوسط أسئلة الاختبار", formatNumberAr(kpis.avg_exam_questions)],
+    ["الأيام النشطة", formatNumberAr(kpis.active_days)],
+    [
+      "المعلمون النشطون",
+      kpis.active_teachers != null ? formatNumberAr(kpis.active_teachers) : "—",
+    ],
+  ]
+    .map(
+      ([label, value]) => `
+        <article style="border:1px solid #e2e8f0;border-radius:10px;padding:12px;background:#fff;">
+          <div style="font-size:12px;color:#64748b;">${escapeHtml(label)}</div>
+          <strong style="font-size:20px;color:#0f172a;">${escapeHtml(String(value))}</strong>
+        </article>
+      `,
+    )
+    .join("");
+
+  const trendRows = trends
+    .map(
+      (row) => `
+        <tr>
+          <td>${escapeHtml(row.month_label ?? row.month ?? "—")}</td>
+          <td>${formatNumberAr(row.plans)}</td>
+          <td>${formatNumberAr(row.exams)}</td>
+          <td>${formatNumberAr(row.assignments)}</td>
+        </tr>
+      `,
+    )
+    .join("");
+
+  const planBreakdown = breakdowns.plan_types || {};
+  const assignmentBreakdown = breakdowns.assignment_types || {};
+
+  const teacherRows = Array.isArray(admin?.teacher_performance)
+    ? admin.teacher_performance
+        .map(
+          (row) => `
+      <tr>
+        <td>${escapeHtml(row.username ?? `#${row.teacher_id}`)}</td>
+        <td>${formatNumberAr(row.plans_generated)}</td>
+        <td>${formatNumberAr(row.avg_plan_quality)}</td>
+        <td>${formatPercentAr(row.first_pass_rate)}</td>
+        <td>${formatNumberAr(row.exams_generated)}</td>
+        <td>${formatNumberAr(row.assignments_generated)}</td>
+        <td>${formatNumberAr(row.edited_assignments)}</td>
+        <td>${formatDateTimeAr(row.last_activity_at)}</td>
+      </tr>
+    `,
+        )
+        .join("")
+    : "";
+
+  const atRiskRows = Array.isArray(admin?.at_risk_teachers)
+    ? admin.at_risk_teachers
+        .map(
+          (row) => `
+      <tr>
+        <td>${escapeHtml(row.username ?? `#${row.teacher_id}`)}</td>
+        <td>${escapeHtml((row.risk_flags || []).map(riskLabel).join("، ") || "—")}</td>
+      </tr>
+    `,
+        )
+        .join("")
+    : "";
+
+  return `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>تقرير الإحصائيات</title>
+  <style>
+    ${BASE_STYLES}
+    .kpi-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+    .split-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    @media print {
+      .kpi-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <h1>التقارير والإحصائيات</h1>
+
+  <section>
+    <div class="meta">
+      <div class="meta-item"><label>النطاق</label><p>${escapeHtml(scopeLabel)}</p></div>
+      <div class="meta-item"><label>الفترة</label><p>${escapeHtml(periodLabel)}</p></div>
+      <div class="meta-item"><label>المدى الزمني</label><p>${dateRangeLabel}</p></div>
+      <div class="meta-item"><label>تاريخ الإنشاء</label><p>${generatedAt}</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h3>ملخص المؤشرات الرئيسية</h3>
+    <div class="kpi-grid">
+      ${kpiCards}
+    </div>
+  </section>
+
+  <section>
+    <h3>ملخص جودة الخطط (Rubric)</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>المؤشر</th>
+          <th>القيمة</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>متوسط الجودة</td><td>${formatNumberAr(quality.average_score)}</td></tr>
+        <tr><td>التصنيف العام</td><td>${escapeHtml(quality.quality_band ?? "—")}</td></tr>
+        <tr><td>الاعتمادية من أول محاولة</td><td>${formatNumberAr(quality.criteria?.first_pass_reliability)}</td></tr>
+        <tr><td>الاكتمال البنيوي</td><td>${formatNumberAr(quality.criteria?.structural_completeness)}</td></tr>
+        <tr><td>عمق المحتوى</td><td>${formatNumberAr(quality.criteria?.content_depth)}</td></tr>
+      </tbody>
+    </table>
+    <table>
+      <thead>
+        <tr>
+          <th>توزيع التصنيفات</th>
+          <th>العدد</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>ممتاز</td><td>${formatNumberAr(quality.distribution?.excellent)}</td></tr>
+        <tr><td>جيد جداً</td><td>${formatNumberAr(quality.distribution?.very_good)}</td></tr>
+        <tr><td>مقبول</td><td>${formatNumberAr(quality.distribution?.acceptable)}</td></tr>
+        <tr><td>يحتاج تحسين</td><td>${formatNumberAr(quality.distribution?.needs_improvement)}</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h3>الاتجاهات الشهرية</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>الشهر</th>
+          <th>الخطط</th>
+          <th>الاختبارات</th>
+          <th>الواجبات</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${trendRows || "<tr><td colspan=\"4\">لا توجد بيانات.</td></tr>"}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="split-grid">
+    <div>
+      <h3>تفصيل أنواع الخطط</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>النوع</th>
+            <th>العدد</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>تقليدية</td><td>${formatNumberAr(planBreakdown.traditional)}</td></tr>
+          <tr><td>تعلم نشط</td><td>${formatNumberAr(planBreakdown.active_learning)}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h3>تفصيل أنواع الواجبات</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>النوع</th>
+            <th>العدد</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>تحريري</td><td>${formatNumberAr(assignmentBreakdown.written)}</td></tr>
+          <tr><td>متنوع</td><td>${formatNumberAr(assignmentBreakdown.varied)}</td></tr>
+          <tr><td>عملي</td><td>${formatNumberAr(assignmentBreakdown.practical)}</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  ${
+    admin
+      ? `
+      <section>
+        <h3>أداء المعلمين</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>المعلم</th>
+              <th>الخطط</th>
+              <th>متوسط الجودة</th>
+              <th>نجاح أول محاولة</th>
+              <th>الاختبارات</th>
+              <th>الواجبات</th>
+              <th>تعديلات الواجبات</th>
+              <th>آخر نشاط</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${teacherRows || "<tr><td colspan=\"8\">لا توجد بيانات معلمين.</td></tr>"}
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h3>المعلمون الأعلى مخاطرة</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>المعلم</th>
+              <th>مؤشرات المخاطرة</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${atRiskRows || "<tr><td colspan=\"2\">لا توجد مخاطر مرتفعة.</td></tr>"}
+          </tbody>
+        </table>
+      </section>
+    `
+      : ""
+  }
+</body>
+</html>`;
+}

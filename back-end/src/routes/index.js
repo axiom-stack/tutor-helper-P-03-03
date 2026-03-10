@@ -10,6 +10,7 @@ import assignmentsRoutes from "./assignments.routes.js";
 import examsRoutes from "./exams.routes.js";
 import usersRoutes from "./users.routes.js";
 import refinementsRoutes from "./refinements.routes.js";
+import statsRoutes from "./stats.routes.js";
 
 const router = express.Router();
 
@@ -24,5 +25,6 @@ router.use("/assignments", assignmentsRoutes);
 router.use("/exams", examsRoutes);
 router.use("/users", usersRoutes);
 router.use("/refinements", refinementsRoutes);
+router.use("/stats", statsRoutes);
 
 export default router;

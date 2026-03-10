@@ -247,6 +247,116 @@ export interface TeacherManagementRow {
   usage: TeacherUsageSummary;
 }
 
+export type StatsPeriod = 'all' | '30d' | '90d' | 'custom';
+
+export interface StatsSummaryFilters {
+  period?: StatsPeriod;
+  date_from?: string;
+  date_to?: string;
+  teacher_id?: number | null;
+}
+
+export interface StatsKpis {
+  plans_generated: number;
+  avg_plan_quality: number;
+  exams_generated: number;
+  assignments_generated: number;
+  first_pass_rate: number;
+  retry_rate: number;
+  assignment_edit_rate: number;
+  avg_exam_questions: number;
+  active_days: number;
+  active_teachers?: number;
+}
+
+export interface StatsQualityCriteria {
+  first_pass_reliability: number;
+  structural_completeness: number;
+  content_depth: number;
+}
+
+export interface StatsQualityDistribution {
+  excellent: number;
+  very_good: number;
+  acceptable: number;
+  needs_improvement: number;
+}
+
+export interface StatsQualityRubric {
+  average_score: number;
+  quality_band: string;
+  criteria: StatsQualityCriteria;
+  distribution: StatsQualityDistribution;
+}
+
+export interface StatsMonthlyTrendRow {
+  month: string;
+  month_label: string;
+  plans: number;
+  exams: number;
+  assignments: number;
+}
+
+export interface StatsBreakdowns {
+  plan_types: {
+    traditional: number;
+    active_learning: number;
+  };
+  assignment_types: {
+    written: number;
+    varied: number;
+    practical: number;
+  };
+}
+
+export type StatsTeacherRiskFlag =
+  | 'low_quality'
+  | 'high_retry'
+  | 'high_assignment_churn';
+
+export interface StatsTeacherPerformanceRow {
+  teacher_id: number;
+  username: string;
+  plans_generated: number;
+  avg_plan_quality: number;
+  quality_band: string;
+  first_pass_rate: number;
+  retry_rate: number;
+  exams_generated: number;
+  assignments_generated: number;
+  edited_assignments: number;
+  assignment_edit_rate: number;
+  last_activity_at: string | null;
+  rubric_criteria_average: StatsQualityCriteria;
+  risk_flags: StatsTeacherRiskFlag[];
+}
+
+export interface StatsSummaryResponse {
+  kpis: StatsKpis;
+  quality_rubric: StatsQualityRubric;
+  trends: {
+    monthly: StatsMonthlyTrendRow[];
+  };
+  breakdowns: StatsBreakdowns;
+  admin?: {
+    teacher_options: Array<{
+      id: number;
+      username: string;
+    }>;
+    teacher_performance: StatsTeacherPerformanceRow[];
+    top_teachers: StatsTeacherPerformanceRow[];
+    at_risk_teachers: StatsTeacherPerformanceRow[];
+  };
+  filters_applied: {
+    scope: 'teacher' | 'admin_all' | 'admin_teacher';
+    period: StatsPeriod;
+    date_from: string | null;
+    date_to: string | null;
+    teacher_id: number | null;
+    generated_at: string;
+  };
+}
+
 export interface GenerateExamRequest {
   subject_id: number;
   lesson_ids: number[];
