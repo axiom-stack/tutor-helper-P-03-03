@@ -124,7 +124,45 @@
 }
 
 .st__translate-widget {
-  min-height: 2rem;
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.st__lang-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--border-light);
+}
+
+.st__lang-toggle-option {
+  padding: 0.5rem var(--space-md);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.st__lang-toggle-option:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+.st__lang-toggle-option.is-active {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 500;
 }
 
 @media (max-width: 900px) {

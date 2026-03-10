@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import type { UserProfileUpdatePayload } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
 import { getMyProfile, updateMyProfile } from '../users/users.services';
+import { applyDisplayLanguageAndReload } from '../../utils/displayLanguage';
 import './settings.css';
 
 type LanguageValue = 'ar' | 'en';
@@ -98,6 +99,8 @@ export default function Settings() {
       const response = await updateMyProfile(payload);
       updateUserProfile(response.profile);
       setSuccess('تم حفظ الإعدادات بنجاح.');
+      applyDisplayLanguageAndReload(language);
+      return;
     } catch (saveError: unknown) {
       setError(normalizeApiError(saveError, 'فشل حفظ الإعدادات.').message);
     } finally {
@@ -126,7 +129,7 @@ export default function Settings() {
         {!loading ? (
           <div className="st__form-grid">
             <label className="st__field" htmlFor="settings-language">
-              <span>لغة النظام</span>
+              <span>لغة العرض</span>
               <select
                 id="settings-language"
                 value={language}
@@ -221,16 +224,7 @@ export default function Settings() {
             {saving ? 'جارٍ الحفظ...' : 'حفظ الإعدادات'}
           </button>
         </div>
-      </section>
-
-      <section className="st__panel" aria-labelledby="st-translate-heading">
-        <h2 id="st-translate-heading" className="st__subheading">
-          ترجمة الصفحة
-        </h2>
-        <p className="st__hint">
-          اختر اللغة لترجمة محتوى الصفحة تلقائياً (العربية / English).
-        </p>
-        <div id="google_translate_element" className="st__translate-widget" />
+        <div id="google_translate_element" className="st__translate-widget" aria-hidden="true" />
       </section>
     </div>
   );

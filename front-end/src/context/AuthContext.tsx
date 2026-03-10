@@ -7,6 +7,7 @@ import {
   getStoredUser,
 } from '../features/auth/auth.services';
 import { getMyProfile } from '../features/users/users.services';
+import { syncDisplayLanguageCookie } from '../utils/displayLanguage';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -54,9 +55,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               setUser((prev) =>
                 prev ? { ...prev, profile } : null
               );
+              const lang = profile?.language === 'en' ? 'en' : 'ar';
+              if (syncDisplayLanguageCookie(lang)) {
+                window.location.reload();
+                return;
+              }
             }
           } catch {
             // keep storedUser without profile
+          }
+        } else if (storedUser.profile?.language) {
+          const lang = storedUser.profile.language === 'en' ? 'en' : 'ar';
+          if (syncDisplayLanguageCookie(lang)) {
+            window.location.reload();
+            return;
           }
         }
       }
@@ -79,6 +91,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       setToken(newToken);
       setUser(newUser);
+
+      const lang = newUser?.profile?.language === 'en' ? 'en' : 'ar';
+      if (syncDisplayLanguageCookie(lang)) {
+        window.location.reload();
+        return response;
+      }
 
       return response;
     } catch (error) {
