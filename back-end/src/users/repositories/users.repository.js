@@ -256,6 +256,28 @@ export function createUsersRepository(dbClient = turso) {
       return this.getProfileByUserId(parsedUserId);
     },
 
+    async updateUsernameByUserId(userId, username) {
+      const parsedUserId = Number(userId);
+      if (!Number.isInteger(parsedUserId) || parsedUserId <= 0) {
+        return null;
+      }
+
+      if (typeof username !== "string" || username.trim().length === 0) {
+        return null;
+      }
+
+      await dbClient.execute({
+        sql: `
+          UPDATE Users
+          SET username = ?
+          WHERE id = ?
+        `,
+        args: [username.trim(), parsedUserId],
+      });
+
+      return this.getUserById(parsedUserId);
+    },
+
     async listTeachersWithUsage() {
       const result = await dbClient.execute({
         sql: `
@@ -332,6 +354,25 @@ export function createUsersRepository(dbClient = turso) {
       });
 
       return (result.rows || []).map((row) => toTeacherRecord(row));
+    },
+
+    async deleteTeacherById(userId) {
+      const parsedUserId = Number(userId);
+      if (!Number.isInteger(parsedUserId) || parsedUserId <= 0) {
+        return null;
+      }
+
+      const teacher = await this.getUserById(parsedUserId);
+      if (!teacher) {
+        return null;
+      }
+
+      await dbClient.execute({
+        sql: "DELETE FROM Users WHERE id = ?",
+        args: [parsedUserId],
+      });
+
+      return teacher;
     },
   };
 }

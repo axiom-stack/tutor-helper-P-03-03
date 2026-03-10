@@ -6,6 +6,7 @@ import {
   listTeachers,
   updateMyProfile,
   updateTeacherProfile,
+  deleteTeacher,
 } from "../controllers/users.controller.js";
 
 const router = express.Router();
@@ -17,5 +18,6 @@ router.put("/me/profile", updateMyProfile);
 router.post("/teachers", createTeacher);
 router.get("/teachers", listTeachers);
 router.put("/teachers/:teacherId/profile", updateTeacherProfile);
+router.delete("/teachers/:teacherId", deleteTeacher);
 
 export default router;

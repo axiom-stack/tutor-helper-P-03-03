@@ -1,18 +1,39 @@
 import { useEffect, useMemo, useState } from 'react';
-import { MdEdit, MdRefresh, MdSave, MdPersonAdd, MdClose } from 'react-icons/md';
+import {
+  MdClose,
+  MdDeleteOutline,
+  MdEdit,
+  MdPersonAdd,
+  MdRefresh,
+  MdSave,
+} from 'react-icons/md';
 import { normalizeApiError } from '../../utils/apiErrors';
-import type { TeacherManagementRow, UserProfileUpdatePayload } from '../../types';
-import { listTeachers, updateTeacherProfile, createTeacher } from '../users/users.services';
+import type {
+  AdminTeacherProfileUpdatePayload,
+  TeacherManagementRow,
+} from '../../types';
+import {
+  createTeacher,
+  deleteTeacher,
+  listTeachers,
+  updateTeacherProfile,
+} from '../users/users.services';
 import './teachers-management.css';
 
 interface EditDraft {
   teacherId: number;
+  username: string;
   language: 'ar' | 'en';
   educational_stage: string;
   subject: string;
   preparation_type: string;
   default_plan_type: 'traditional' | 'active_learning';
   default_lesson_duration_minutes: number;
+}
+
+interface DeleteDraft {
+  teacherId: number;
+  username: string;
 }
 
 function formatDateAr(value: string): string {
@@ -30,6 +51,7 @@ function formatDateAr(value: string): string {
 function toEditDraft(teacher: TeacherManagementRow): EditDraft {
   return {
     teacherId: teacher.id,
+    username: teacher.username,
     language: teacher.profile.language,
     educational_stage: teacher.profile.educational_stage ?? '',
     subject: teacher.profile.subject ?? '',
@@ -52,9 +74,11 @@ export default function TeachersManagement() {
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [newTeacherUsername, setNewTeacherUsername] = useState('');
   const [newTeacherPassword, setNewTeacherPassword] = useState('');
   const [createError, setCreateError] = useState<string | null>(null);
+  const [deleteDraft, setDeleteDraft] = useState<DeleteDraft | null>(null);
 
   const teacherById = useMemo(
     () => new Map(teachers.map((teacher) => [teacher.id, teacher])),
@@ -118,11 +142,23 @@ export default function TeachersManagement() {
       return;
     }
 
+    const username = editDraft.username.trim();
+    if (username.length < 4) {
+      setError('اسم المستخدم يجب أن يكون 4 أحرف على الأقل.');
+      return;
+    }
+
+    if (editDraft.default_lesson_duration_minutes < 1) {
+      setError('المدة الافتراضية يجب أن تكون دقيقة واحدة على الأقل.');
+      return;
+    }
+
     setSaving(true);
     setError(null);
     setSuccess(null);
 
-    const payload: UserProfileUpdatePayload = {
+    const payload: AdminTeacherProfileUpdatePayload = {
+      username,
       language: editDraft.language,
       educational_stage: editDraft.educational_stage.trim() || null,
       subject: editDraft.subject.trim() || null,
@@ -139,6 +175,7 @@ export default function TeachersManagement() {
           teacher.id === editDraft.teacherId
             ? {
                 ...teacher,
+                username: response.profile.username,
                 profile: {
                   language: response.profile.language,
                   educational_stage: response.profile.educational_stage,
@@ -158,6 +195,33 @@ export default function TeachersManagement() {
       setError(normalizeApiError(saveError, 'فشل حفظ ملف المعلم.').message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteTeacher = async () => {
+    if (!deleteDraft) {
+      return;
+    }
+
+    setDeleting(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await deleteTeacher(deleteDraft.teacherId);
+
+      setTeachers((current) =>
+        current.filter((teacher) => teacher.id !== deleteDraft.teacherId)
+      );
+      setEditDraft((current) =>
+        current && current.teacherId === deleteDraft.teacherId ? null : current
+      );
+      setDeleteDraft(null);
+      setSuccess('تم حذف المعلم بنجاح.');
+    } catch (deleteError: unknown) {
+      setError(normalizeApiError(deleteError, 'فشل حذف المعلم.').message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -188,7 +252,10 @@ export default function TeachersManagement() {
 
       <section className="tm__layout">
         <article className="tm__table-card">
-          <h2>المعلمون</h2>
+          <div className="tm__table-head">
+            <h2>المعلمون</h2>
+            <span className="tm__count-badge">{teachers.length}</span>
+          </div>
           {loading ? (
             <p className="tm__state">جاري التحميل...</p>
           ) : teachers.length === 0 ? (
@@ -205,12 +272,17 @@ export default function TeachersManagement() {
                     <th>الاختبارات</th>
                     <th>الواجبات</th>
                     <th>تعديلات الواجبات</th>
-                    <th>إجراء</th>
+                    <th>الإجراءات</th>
                   </tr>
                 </thead>
                 <tbody>
                   {teachers.map((teacher) => (
-                    <tr key={teacher.id}>
+                    <tr
+                      key={teacher.id}
+                      className={
+                        editDraft?.teacherId === teacher.id ? 'tm__row tm__row--selected' : 'tm__row'
+                      }
+                    >
                       <td>
                         <div className="tm__teacher-cell">
                           <strong>{teacher.username}</strong>
@@ -224,14 +296,29 @@ export default function TeachersManagement() {
                       <td>{teacher.usage.generated_assignments_count}</td>
                       <td>{teacher.usage.edited_assignments_count}</td>
                       <td>
-                        <button
-                          type="button"
-                          className="tm__edit-btn"
-                          onClick={() => setEditDraft(toEditDraft(teacher))}
-                        >
-                          <MdEdit aria-hidden />
-                          تعديل
-                        </button>
+                        <div className="tm__actions">
+                          <button
+                            type="button"
+                            className="tm__action-btn tm__action-btn--edit"
+                            onClick={() => setEditDraft(toEditDraft(teacher))}
+                          >
+                            <MdEdit aria-hidden />
+                            تعديل
+                          </button>
+                          <button
+                            type="button"
+                            className="tm__action-btn tm__action-btn--delete"
+                            onClick={() =>
+                              setDeleteDraft({
+                                teacherId: teacher.id,
+                                username: teacher.username,
+                              })
+                            }
+                          >
+                            <MdDeleteOutline aria-hidden />
+                            حذف
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -247,6 +334,24 @@ export default function TeachersManagement() {
             <p className="tm__state">اختر معلماً من الجدول لتعديل ملفه.</p>
           ) : (
             <div className="tm__editor-grid">
+              <div className="tm__editor-selected">
+                <strong>{selectedTeacher.username}</strong>
+                <small>المعرف #{selectedTeacher.id}</small>
+              </div>
+
+              <label className="tm__field" htmlFor="tm-username">
+                <span>اسم المعلم (اسم المستخدم)</span>
+                <input
+                  id="tm-username"
+                  value={editDraft.username}
+                  onChange={(event) =>
+                    setEditDraft((current) =>
+                      current ? { ...current, username: event.target.value } : current
+                    )
+                  }
+                />
+              </label>
+
               <label className="tm__field" htmlFor="tm-language">
                 <span>اللغة</span>
                 <select
@@ -442,6 +547,58 @@ export default function TeachersManagement() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {deleteDraft && (
+        <div className="tm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-teacher-title">
+          <div
+            className="tm-modal__backdrop"
+            onClick={() => {
+              if (!deleting) {
+                setDeleteDraft(null);
+              }
+            }}
+          />
+          <div className="tm-modal__panel tm-modal__panel--danger">
+            <header className="tm-modal__header">
+              <h3 id="delete-teacher-title">تأكيد حذف المعلم</h3>
+              <button
+                type="button"
+                className="tm-modal__close"
+                onClick={() => setDeleteDraft(null)}
+                disabled={deleting}
+                aria-label="إغلاق نافذة حذف المعلم"
+              >
+                <MdClose aria-hidden />
+              </button>
+            </header>
+            <div className="tm-modal__form">
+              <p className="tm-modal__delete-message">
+                سيتم حذف المعلم <strong>{deleteDraft.username}</strong> مع جميع البيانات المرتبطة
+                به. لا يمكن التراجع عن هذه العملية.
+              </p>
+
+              <div className="tm-modal__actions">
+                <button
+                  type="button"
+                  className="tm-modal__btn tm-modal__btn--secondary"
+                  onClick={() => setDeleteDraft(null)}
+                  disabled={deleting}
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  className="tm-modal__btn tm-modal__btn--danger"
+                  onClick={() => void handleDeleteTeacher()}
+                  disabled={deleting}
+                >
+                  {deleting ? 'جارٍ الحذف...' : 'تأكيد الحذف'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

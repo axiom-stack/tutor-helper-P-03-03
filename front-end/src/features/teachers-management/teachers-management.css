@@ -16,6 +16,12 @@
   color: var(--text-secondary);
 }
 
+.tm__top-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
 .tm__top-actions button {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -63,6 +69,28 @@
   font-size: var(--text-lg);
 }
 
+.tm__table-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.tm__count-badge {
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 var(--space-xs);
+  border-radius: 999px;
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  background: rgba(239, 246, 255, 0.8);
+  color: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
 .tm__table-wrap {
   overflow: auto;
   border: 1px solid var(--border-light);
@@ -83,6 +111,18 @@
   font-size: var(--text-sm);
 }
 
+.tm__row {
+  transition: background var(--transition-fast);
+}
+
+.tm__row:hover {
+  background: rgba(37, 99, 235, 0.04);
+}
+
+.tm__row--selected {
+  background: rgba(37, 99, 235, 0.08);
+}
+
 .tm__teacher-cell {
   display: grid;
   gap: 2px;
@@ -92,7 +132,13 @@
   color: var(--text-secondary);
 }
 
-.tm__edit-btn {
+.tm__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.tm__action-btn {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
@@ -103,11 +149,47 @@
   align-items: center;
   gap: var(--space-xs);
   cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.tm__action-btn--edit:hover {
+  border-color: rgba(37, 99, 235, 0.45);
+  color: var(--primary);
+}
+
+.tm__action-btn--delete {
+  color: var(--error);
+  border-color: rgba(220, 38, 38, 0.35);
+}
+
+.tm__action-btn--delete:hover {
+  background: rgba(254, 242, 242, 0.8);
+  border-color: rgba(220, 38, 38, 0.5);
 }
 
 .tm__editor-grid {
   display: grid;
   gap: var(--space-sm);
+}
+
+.tm__editor-selected {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: rgba(248, 250, 252, 0.9);
+  padding: var(--space-sm);
+  display: grid;
+  gap: 2px;
+}
+
+.tm__editor-selected strong {
+  font-size: var(--text-base);
+}
+
+.tm__editor-selected small {
+  color: var(--text-secondary);
 }
 
 .tm__field {
@@ -127,6 +209,13 @@
   border-radius: var(--radius-md);
   padding: 0 var(--space-sm);
   font-family: inherit;
+}
+
+.tm__field input:focus,
+.tm__field select:focus {
+  outline: none;
+  border-color: rgba(37, 99, 235, 0.6);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
 }
 
 .tm__editor-actions button {
@@ -207,6 +296,10 @@
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
+}
+
+.tm-modal__panel--danger {
+  border: 1px solid rgba(220, 38, 38, 0.25);
 }
 
 .tm-modal__header {
@@ -318,6 +411,21 @@
 
 .tm-modal__btn--primary:hover:not(:disabled) {
   background: var(--primary-hover);
+}
+
+.tm-modal__btn--danger {
+  background: #dc2626;
+  color: #fff;
+}
+
+.tm-modal__btn--danger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.tm-modal__delete-message {
+  margin: 0 0 var(--space-md);
+  color: var(--text-primary);
+  line-height: 1.6;
 }
 
 .tm-modal__btn:disabled {

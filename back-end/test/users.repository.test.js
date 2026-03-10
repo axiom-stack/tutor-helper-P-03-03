@@ -131,3 +131,65 @@ test("listTeachersWithUsage maps usage counters", async () => {
   assert.equal(teachers[0].usage.generated_plans_count, 12);
   assert.equal(teachers[0].usage.edited_assignments_count, 3);
 });
+
+test("updateUsernameByUserId updates username and returns user", async () => {
+  const calls = [];
+  const repository = createUsersRepository({
+    async execute({ sql, args }) {
+      calls.push({ sql, args });
+
+      if (sql.includes("FROM Users") && sql.includes("WHERE id = ?")) {
+        return {
+          rows: [
+            {
+              id: 11,
+              username: "teacher_new",
+              role: "teacher",
+              created_at: "2026-03-10T00:00:00.000Z",
+            },
+          ],
+        };
+      }
+
+      return { rows: [] };
+    },
+  });
+
+  const user = await repository.updateUsernameByUserId(11, "teacher_new");
+
+  assert.equal(user?.id, 11);
+  assert.equal(user?.username, "teacher_new");
+  assert.ok(calls.some((call) => call.sql.includes("UPDATE Users")));
+});
+
+test("deleteTeacherById deletes teacher by deleting from Users", async () => {
+  const calls = [];
+  const repository = createUsersRepository({
+    async execute({ sql, args }) {
+      calls.push({ sql, args });
+
+      if (sql.includes("SELECT id, username, role, created_at") && sql.includes("FROM Users")) {
+        return {
+          rows: [
+            {
+              id: 15,
+              username: "teacher_15",
+              role: "teacher",
+              created_at: "2026-03-10T00:00:00.000Z",
+            },
+          ],
+        };
+      }
+
+      return { rows: [] };
+    },
+  });
+
+  const deleted = await repository.deleteTeacherById(15);
+
+  assert.equal(deleted?.id, 15);
+  assert.ok(
+    calls.some((call) => call.sql.includes("SELECT id, username, role, created_at"))
+  );
+  assert.ok(calls.some((call) => call.sql.includes("DELETE FROM Users WHERE id = ?")));
+});
