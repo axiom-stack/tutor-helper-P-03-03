@@ -119,25 +119,17 @@
   gap: var(--space-sm);
 }
 
-.tcm2__top-actions {
-  display: flex;
-  justify-content: flex-start;
-}
-
-.tcm2__top-actions .tcm2__primary {
-  box-shadow: var(--shadow-sm);
-}
-
-@media (min-width: 720px) {
-  .tcm2__selectors {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
 .tcm2__field {
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
+}
+
+.tcm2__field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
 }
 
 .tcm2__field label {
@@ -214,7 +206,8 @@
 }
 
 .tcm2__meta-actions button,
-.tcm2__top-actions button,
+.tcm2__field-head button,
+.tcm2__quick-select-btn,
 .tcm2__helper-actions button,
 .tcm2__form-actions button,
 .tcm2__mode-toggle button,
@@ -233,7 +226,8 @@
 }
 
 .tcm2__meta-actions button:hover,
-.tcm2__top-actions button:hover,
+.tcm2__field-head button:hover,
+.tcm2__quick-select-btn:hover,
 .tcm2__helper-actions button:hover,
 .tcm2__form-actions button:hover,
 .tcm2__mode-toggle button:hover,
@@ -427,11 +421,16 @@
 
 .tcm2__form-actions button:disabled,
 .tcm2__meta-actions button:disabled,
-.tcm2__top-actions button:disabled,
+.tcm2__field-head button:disabled,
+.tcm2__quick-select-btn:disabled,
 .tcm2__helper-actions button:disabled,
 .tcm2__row-actions button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.tcm2__quick-select-btn {
+  width: fit-content;
 }
 
 .tcm2__modal-backdrop {

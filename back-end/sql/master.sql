@@ -32,7 +32,7 @@ CREATE TABLE Classes (
 
 Create Table Subjects (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  class_id INTEGER NOT NULL REFERENCES Classes(id),
+  class_id INTEGER NOT NULL REFERENCES Classes(id) ON DELETE CASCADE,
   teacher_id INTEGER NOT NULL REFERENCES users(id),
   name TEXT NOT NULL,
   description TEXT NOT NULL,
@@ -41,7 +41,7 @@ Create Table Subjects (
 
 Create Table Units (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  subject_id INTEGER NOT NULL REFERENCES Subjects(id),
+  subject_id INTEGER NOT NULL REFERENCES Subjects(id) ON DELETE CASCADE,
   teacher_id INTEGER NOT NULL REFERENCES users(id),
   name TEXT NOT NULL,
   description TEXT NOT NULL,
@@ -50,7 +50,7 @@ Create Table Units (
 
 Create Table Lessons (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  unit_id INTEGER NOT NULL REFERENCES Units(id),
+  unit_id INTEGER NOT NULL REFERENCES Units(id) ON DELETE CASCADE,
   teacher_id INTEGER NOT NULL REFERENCES users(id),
   name TEXT NOT NULL,
   description TEXT NOT NULL,
@@ -63,7 +63,7 @@ Create Table TraditionalLessonPlans (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   public_id TEXT UNIQUE,
   teacher_id INTEGER NOT NULL REFERENCES users(id),
-  lesson_id INTEGER REFERENCES Lessons(id),
+  lesson_id INTEGER REFERENCES Lessons(id) ON DELETE CASCADE,
   lesson_title TEXT NOT NULL,
   subject TEXT NOT NULL,
   grade TEXT NOT NULL,
@@ -80,7 +80,7 @@ Create Table ActiveLearningLessonPlans (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   public_id TEXT UNIQUE,
   teacher_id INTEGER NOT NULL REFERENCES users(id),
-  lesson_id INTEGER REFERENCES Lessons(id),
+  lesson_id INTEGER REFERENCES Lessons(id) ON DELETE CASCADE,
   lesson_title TEXT NOT NULL,
   subject TEXT NOT NULL,
   grade TEXT NOT NULL,
@@ -98,7 +98,7 @@ CREATE TABLE AssignmentGroups (
   public_id TEXT UNIQUE,
   teacher_id INTEGER NOT NULL REFERENCES Users(id),
   lesson_plan_public_id TEXT NOT NULL,
-  lesson_id INTEGER NOT NULL REFERENCES Lessons(id),
+  lesson_id INTEGER NOT NULL REFERENCES Lessons(id) ON DELETE CASCADE,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -106,10 +106,10 @@ CREATE TABLE AssignmentGroups (
 CREATE TABLE Assignments (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   public_id TEXT UNIQUE,
-  assignment_group_id INTEGER REFERENCES AssignmentGroups(id),
+  assignment_group_id INTEGER REFERENCES AssignmentGroups(id) ON DELETE CASCADE,
   teacher_id INTEGER NOT NULL REFERENCES Users(id),
   lesson_plan_public_id TEXT NOT NULL,
-  lesson_id INTEGER NOT NULL REFERENCES Lessons(id),
+  lesson_id INTEGER NOT NULL REFERENCES Lessons(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   description TEXT,
   type TEXT NOT NULL CHECK(type IN ('written', 'varied', 'practical')),
@@ -134,8 +134,8 @@ CREATE TABLE Exams (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   public_id TEXT UNIQUE,
   teacher_id INTEGER NOT NULL REFERENCES Users(id),
-  class_id INTEGER NOT NULL REFERENCES Classes(id),
-  subject_id INTEGER NOT NULL REFERENCES Subjects(id),
+  class_id INTEGER NOT NULL REFERENCES Classes(id) ON DELETE CASCADE,
+  subject_id INTEGER NOT NULL REFERENCES Subjects(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   total_questions INTEGER NOT NULL CHECK(total_questions > 0),
   total_marks REAL NOT NULL CHECK(total_marks > 0),
@@ -147,7 +147,7 @@ CREATE TABLE Exams (
 
 CREATE TABLE ExamLessons (
   exam_id INTEGER NOT NULL REFERENCES Exams(id) ON DELETE CASCADE,
-  lesson_id INTEGER NOT NULL REFERENCES Lessons(id),
+  lesson_id INTEGER NOT NULL REFERENCES Lessons(id) ON DELETE CASCADE,
   position INTEGER,
   PRIMARY KEY (exam_id, lesson_id)
 );

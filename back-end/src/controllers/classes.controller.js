@@ -267,18 +267,6 @@ export async function deleteClassByClassId(req, res) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
-    const linkedSubjects = await turso.execute({
-      sql: "SELECT COUNT(*) AS count FROM Subjects WHERE class_id = ?",
-      args: [classId],
-    });
-
-    if (Number(linkedSubjects.rows[0]?.count ?? 0) > 0) {
-      return res.status(409).json({
-        error:
-          "Cannot delete this class because it still contains subjects. Delete subjects first.",
-      });
-    }
-
     await turso.execute({
       sql: "DELETE FROM Classes WHERE id = ?",
       args: [classId],

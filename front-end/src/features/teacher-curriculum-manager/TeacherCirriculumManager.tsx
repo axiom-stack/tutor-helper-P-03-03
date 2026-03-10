@@ -12,6 +12,7 @@ import {
   MdViewModule,
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
+import ConfirmActionModal from '../../components/common/ConfirmActionModal';
 import type {
   Class,
   Lesson,
@@ -86,6 +87,14 @@ interface QuickAddDraft {
   content?: string;
   file?: File | null;
   numberOfPeriods?: number;
+}
+
+interface DeleteRequestDraft {
+  kind: EntityKind;
+  id: number;
+  label: string;
+  endpoint: string;
+  payload?: Record<string, unknown>;
 }
 
 const MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024;
@@ -181,6 +190,7 @@ function TeacherCirriculumManager() {
 
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
   const [quickAddDraft, setQuickAddDraft] = useState<QuickAddDraft | null>(null);
+  const [deleteRequest, setDeleteRequest] = useState<DeleteRequestDraft | null>(null);
   const [showCreatorFlow, setShowCreatorFlow] = useState(false);
 
   const [creatorClassMode, setCreatorClassMode] = useState<ClassMode>('existing');
@@ -911,12 +921,7 @@ function TeacherCirriculumManager() {
     }
   };
 
-  const deleteEntity = async (kind: EntityKind, id: number, label: string) => {
-    const accepted = window.confirm(`هل أنت متأكد من حذف ${label}؟`);
-    if (!accepted) {
-      return;
-    }
-
+  const deleteEntity = async (kind: EntityKind, id: number) => {
     setSaving(true);
     setError(null);
     setSuccess(null);
@@ -962,6 +967,23 @@ function TeacherCirriculumManager() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const requestDeleteEntity = (kind: EntityKind, id: number, label: string) => {
+    const endpointByKind: Record<EntityKind, string> = {
+      class: `/api/classes/${id}`,
+      subject: `/api/subjects/${id}`,
+      unit: `/api/units/${id}`,
+      lesson: `/api/lessons/${id}`,
+    };
+
+    setDeleteRequest({
+      kind,
+      id,
+      label,
+      endpoint: endpointByKind[kind],
+      payload: { id, kind },
+    });
   };
 
   const handleCreatorSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -1211,9 +1233,30 @@ function TeacherCirriculumManager() {
 
             <div className="tcm2__selectors">
               <div className="tcm2__field">
-                <label htmlFor="active-class">الصف</label>
+                <button
+                  type="button"
+                  className="tcm2__primary-soft tcm2__quick-select-btn"
+                  onClick={openQuickAddClass}
+                >
+                  <MdAdd aria-hidden />
+                  إضافة صف
+                </button>
+                <button
+                  type="button"
+                  className="tcm2__danger tcm2__quick-select-btn"
+                  onClick={() =>
+                    selectedClassId !== ''
+                      ? requestDeleteEntity('class', selectedClassId, 'هذا الصف')
+                      : undefined
+                  }
+                  disabled={selectedClassId === ''}
+                >
+                  <MdDelete aria-hidden />
+                  حذف الصف
+                </button>
                 <select
                   id="active-class"
+                  aria-label="اختيار الصف"
                   value={selectedClassId}
                   onChange={(event) =>
                     handleClassChange(
@@ -1231,9 +1274,22 @@ function TeacherCirriculumManager() {
               </div>
 
               <div className="tcm2__field">
-                <label htmlFor="active-subject">المادة</label>
+                <button
+                  type="button"
+                  className="tcm2__primary-soft tcm2__quick-select-btn"
+                  onClick={() =>
+                    selectedClassId !== ''
+                      ? openQuickAddSubject(selectedClassId)
+                      : undefined
+                  }
+                  disabled={selectedClassId === ''}
+                >
+                  <MdAdd aria-hidden />
+                  إضافة مادة
+                </button>
                 <select
                   id="active-subject"
+                  aria-label="اختيار المادة"
                   value={selectedSubjectId}
                   onChange={(event) =>
                     handleSubjectChange(
@@ -1250,13 +1306,6 @@ function TeacherCirriculumManager() {
                   ))}
                 </select>
               </div>
-            </div>
-
-            <div className="tcm2__top-actions">
-              <button type="button" className="tcm2__primary" onClick={openQuickAddClass}>
-                <MdAdd aria-hidden />
-                إضافة صف
-              </button>
             </div>
 
             {selectedClass && (
@@ -1277,14 +1326,6 @@ function TeacherCirriculumManager() {
                   </p>
                 </div>
                 <div className="tcm2__meta-actions">
-                  <button
-                    type="button"
-                    className="tcm2__primary-soft"
-                    onClick={() => openQuickAddSubject(selectedClass.id)}
-                  >
-                    <MdAdd aria-hidden />
-                    إضافة مادة
-                  </button>
                   <button type="button" onClick={openEditForSelectedClass}>
                     <MdEdit aria-hidden />
                     تعديل
@@ -1293,7 +1334,7 @@ function TeacherCirriculumManager() {
                     type="button"
                     className="tcm2__danger"
                     onClick={() =>
-                      void deleteEntity('class', selectedClass.id, 'هذا الصف')
+                      requestDeleteEntity('class', selectedClass.id, 'هذا الصف')
                     }
                     disabled={saving}
                   >
@@ -1330,7 +1371,7 @@ function TeacherCirriculumManager() {
                     type="button"
                     className="tcm2__danger"
                     onClick={() =>
-                      void deleteEntity('subject', selectedSubject.id, 'هذه المادة')
+                      requestDeleteEntity('subject', selectedSubject.id, 'هذه المادة')
                     }
                     disabled={saving}
                   >
@@ -1416,7 +1457,7 @@ function TeacherCirriculumManager() {
                             type="button"
                             className="tcm2__danger"
                             onClick={() =>
-                              void deleteEntity('unit', unitItem.id, 'هذه الوحدة')
+                              requestDeleteEntity('unit', unitItem.id, 'هذه الوحدة')
                             }
                             disabled={saving}
                           >
@@ -1458,17 +1499,13 @@ function TeacherCirriculumManager() {
                                       تعديل
                                     </button>
                                     <button
-                                      type="button"
-                                      className="tcm2__danger"
-                                      onClick={() =>
-                                        void deleteEntity(
-                                          'lesson',
-                                          lessonItem.id,
-                                          'هذا الدرس'
-                                        )
+                                    type="button"
+                                    className="tcm2__danger"
+                                    onClick={() =>
+                                        requestDeleteEntity('lesson', lessonItem.id, 'هذا الدرس')
                                       }
-                                      disabled={saving}
-                                    >
+                                    disabled={saving}
+                                  >
                                       <MdDelete aria-hidden />
                                       حذف
                                     </button>
@@ -1920,6 +1957,27 @@ function TeacherCirriculumManager() {
           </section>
         </div>
       )}
+
+      <ConfirmActionModal
+        isOpen={Boolean(deleteRequest)}
+        title="تأكيد الحذف"
+        message={
+          deleteRequest
+            ? `سيتم حذف ${deleteRequest.label} نهائيًا. لا يمكن التراجع بعد الحذف.`
+            : ''
+        }
+        endpoint={deleteRequest?.endpoint ?? '/api'}
+        payload={deleteRequest?.payload}
+        isLoading={saving}
+        onCancel={() => setDeleteRequest(null)}
+        onConfirm={async () => {
+          if (!deleteRequest) {
+            return;
+          }
+          await deleteEntity(deleteRequest.kind, deleteRequest.id);
+          setDeleteRequest(null);
+        }}
+      />
 
       {quickAddDraft && (
         <div
