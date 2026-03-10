@@ -18,6 +18,21 @@ export async function login(req, res) {
       return res.status(400).json({ error: "Username and password required" });
     }
 
+    // Validation - we ensure that the password and username are of proper length
+    if (typeof username !== "string" || username.length < 4) {
+      req.log.warn({ username }, "Username too short");
+      return res
+        .status(400)
+        .json({ error: "Username must be at least 4 characters long" });
+    }
+
+    if (typeof password !== "string" || password.length < 6) {
+      req.log.warn("Password too short");
+      return res
+        .status(400)
+        .json({ error: "Password must be at least 6 characters long" });
+    }
+
     req.log.info({ username }, "Attempting login");
 
     const result = await turso.execute({
