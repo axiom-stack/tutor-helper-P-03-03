@@ -1,11 +1,14 @@
 .pm {
   display: grid;
   gap: var(--space-md);
+  width: 100%;
+  min-width: 0;
 }
 
 .pm__header h1 {
   margin: 0;
   font-size: var(--text-xxl);
+  line-height: 1.25;
 }
 
 .pm__header p {
@@ -51,11 +54,21 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-xs);
+  transition:
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.pm__refresh:hover:not(:disabled) {
+  border-color: rgba(37, 99, 235, 0.45);
+  color: var(--primary);
+  box-shadow: var(--shadow-sm);
 }
 
 .pm__layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
   gap: var(--space-md);
 }
 
@@ -67,6 +80,8 @@
   padding: var(--space-md);
   display: grid;
   gap: var(--space-sm);
+  box-shadow: var(--shadow-sm);
+  min-width: 0;
 }
 
 .pm__list h2,
@@ -77,11 +92,13 @@
 
 .pm__table-wrap {
   overflow: auto;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
 }
 
 .pm__table-wrap table {
   width: 100%;
-  min-width: 720px;
+  min-width: 660px;
   border-collapse: collapse;
 }
 
@@ -106,6 +123,7 @@
   justify-content: space-between;
   align-items: center;
   gap: var(--space-sm);
+  flex-wrap: wrap;
 }
 
 .pm__export-actions {
@@ -147,6 +165,8 @@
   overflow: auto;
   direction: ltr;
   text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .pm__state {

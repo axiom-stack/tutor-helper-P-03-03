@@ -1,11 +1,14 @@
 .cc {
   display: grid;
   gap: var(--space-md);
+  width: 100%;
+  min-width: 0;
 }
 
 .cc__header h1 {
   margin: 0;
   font-size: var(--text-xxl);
+  line-height: 1.25;
 }
 
 .cc__header p {
@@ -50,6 +53,7 @@
   padding: var(--space-md);
   display: grid;
   gap: var(--space-xs);
+  box-shadow: var(--shadow-sm);
 }
 
 .cc__summary-grid span {
@@ -68,6 +72,7 @@
   padding: var(--space-md);
   display: grid;
   gap: var(--space-sm);
+  box-shadow: var(--shadow-sm);
 }
 
 .cc__table-card h2 {
@@ -76,11 +81,13 @@
 
 .cc__table-wrap {
   overflow: auto;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
 }
 
 .cc__table-wrap table {
   width: 100%;
-  min-width: 760px;
+  min-width: 680px;
   border-collapse: collapse;
 }
 

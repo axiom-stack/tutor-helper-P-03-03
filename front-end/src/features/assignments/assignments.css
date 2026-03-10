@@ -2,6 +2,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+  width: 100%;
+  min-width: 0;
 }
 
 .asn__header {
@@ -15,6 +17,7 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: var(--space-md);
+  box-shadow: var(--shadow-sm);
 }
 
 .asn__breadcrumb {
@@ -43,6 +46,7 @@
 .asn__header h1 {
   margin: 0;
   font-size: var(--text-xxl);
+  line-height: 1.25;
 }
 
 .asn__header p {
@@ -163,9 +167,10 @@
 
 .asn__layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
   gap: var(--space-md);
   align-items: start;
+  min-width: 0;
 }
 
 .asn__list,
@@ -175,6 +180,7 @@
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-sm);
   padding: var(--space-lg);
+  min-width: 0;
 }
 
 .asn__list {
@@ -392,6 +398,7 @@
   justify-content: space-between;
   align-items: center;
   gap: var(--space-sm);
+  flex-wrap: wrap;
 }
 
 .asn__details-head h2 {
@@ -451,6 +458,7 @@
   color: var(--text-primary);
   font-size: var(--text-sm);
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .asn__details-card section {
@@ -475,6 +483,7 @@
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
+  overflow-wrap: anywhere;
   font-family: var(--font-main);
   color: var(--text-primary);
   line-height: 1.8;

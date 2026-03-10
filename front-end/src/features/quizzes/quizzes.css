@@ -1,11 +1,23 @@
 .qz {
   display: grid;
   gap: 1rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.qz__header {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background:
+    radial-gradient(circle at 90% 10%, rgba(37, 99, 235, 0.08), transparent 40%),
+    linear-gradient(130deg, #ffffff 0%, #f7fbff 100%);
+  padding: var(--space-lg);
 }
 
 .qz__header h1 {
   margin: 0 0 0.4rem;
   font-size: 1.8rem;
+  line-height: 1.25;
 }
 
 .qz__header p {
@@ -54,9 +66,10 @@
 
 .qz__layout {
   display: grid;
-  grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1.7fr);
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.7fr);
   gap: 1rem;
   align-items: start;
+  min-width: 0;
 }
 
 .qz__layout--admin {
@@ -69,6 +82,8 @@
   border: 1px solid #dde5ee;
   border-radius: 1rem;
   padding: 1rem;
+  min-width: 0;
+  box-shadow: var(--shadow-sm);
 }
 
 .qz__panel h2,
@@ -89,6 +104,7 @@
 
 .qz__field input,
 .qz__field select {
+  width: 100%;
   height: 2.5rem;
   border: 1px solid #cdd8e5;
   border-radius: 0.65rem;
@@ -111,6 +127,7 @@
   max-height: 420px;
   overflow: auto;
   background: #fbfdff;
+  min-width: 0;
 }
 
 .qz__lesson-picker h3 {
@@ -161,6 +178,10 @@
   font-family: inherit;
   font-size: 0.95rem;
   cursor: pointer;
+  transition:
+    border-color var(--transition-fast),
+    background var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .qz__generate-btn {
@@ -173,6 +194,11 @@
 .qz__generate-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.qz__generate-btn:hover:not(:disabled) {
+  background: #1a426d;
+  box-shadow: var(--shadow-sm);
 }
 
 .qz__filters {
@@ -195,10 +221,16 @@
   padding: 0 0.9rem;
 }
 
+.qz__refresh-btn:hover:not(:disabled) {
+  border-color: #bcd2e8;
+  background: #e4eef8;
+}
+
 .qz__archive-and-details {
   display: grid;
-  grid-template-columns: minmax(240px, 0.95fr) minmax(0, 1.4fr);
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.4fr);
   gap: 0.8rem;
+  min-width: 0;
 }
 
 .qz__archive,
@@ -208,12 +240,18 @@
   padding: 0.8rem;
   background: #fff;
   min-height: 220px;
+  min-width: 0;
 }
 
 .qz__archive h3,
 .qz__details h3 {
   margin: 0 0 0.75rem;
   font-size: 1rem;
+}
+
+.qz__details-body {
+  display: grid;
+  gap: 0.75rem;
 }
 
 .qz__exam-card {
@@ -240,6 +278,11 @@
   grid-template-columns: auto 1fr;
   gap: 0.55rem;
   cursor: pointer;
+  min-width: 0;
+}
+
+.qz__exam-open > div {
+  min-width: 0;
 }
 
 .qz__exam-open h4 {
@@ -253,6 +296,7 @@
   margin: 0.08rem 0;
   color: #54657a;
   font-size: 0.82rem;
+  overflow-wrap: anywhere;
 }
 
 .qz__delete-btn {
@@ -278,6 +322,13 @@
   font-size: 0.9rem;
 }
 
+.qz__details-export-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .qz__blueprint,
 .qz__questions {
   margin-top: 1rem;
@@ -293,6 +344,7 @@
   overflow: auto;
   border: 1px solid #dfe7f1;
   border-radius: 0.7rem;
+  max-width: 100%;
 }
 
 .qz__table-wrap table {
@@ -345,6 +397,7 @@
 .qz__question-text {
   margin: 0 0 0.45rem;
   font-size: 0.95rem;
+  overflow-wrap: anywhere;
 }
 
 .qz__options,
@@ -370,6 +423,7 @@
 
 .qz__answer p {
   margin: 0.3rem 0 0;
+  overflow-wrap: anywhere;
 }
 
 .qz__subject-meta {
@@ -392,5 +446,16 @@
   .qz__filters-grid,
   .qz__inline-grid {
     grid-template-columns: 1fr;
+  }
+
+  .qz__header {
+    padding: var(--space-md);
+  }
+
+  .qz__panel,
+  .qz__content,
+  .qz__archive,
+  .qz__details {
+    padding: 0.75rem;
   }
 }

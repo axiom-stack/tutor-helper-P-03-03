@@ -650,7 +650,7 @@ export default function Quizzes() {
                       المعرف: {selectedExam.public_id} | {selectedExam.total_questions}{' '}
                       سؤال | {selectedExam.total_marks} درجة
                     </p>
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+                    <div className="qz__details-export-actions">
                       <button
                         type="button"
                         className="qz__refresh-btn"
