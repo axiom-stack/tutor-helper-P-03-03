@@ -4,9 +4,11 @@ import {
   extractTextFromPDF,
   extractTextFromWord,
 } from "../utils/textExtraction.js";
-
-const DOCX_MIME =
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+import {
+  isPdfUpload,
+  isDocxUpload,
+  isLegacyDocUpload,
+} from "../utils/validation.js";
 
 function buildExtractionFailureResponse(error) {
   return {
@@ -15,31 +17,6 @@ function buildExtractionFailureResponse(error) {
     extractionStatus: "failed",
     contentLength: 0,
   };
-}
-
-function getFileExtension(fileName = "") {
-  const lowerCaseName = fileName.toLowerCase();
-
-  if (lowerCaseName.endsWith(".pdf")) return ".pdf";
-  if (lowerCaseName.endsWith(".docx")) return ".docx";
-  if (lowerCaseName.endsWith(".doc")) return ".doc";
-
-  return "";
-}
-
-function isPdfUpload(file) {
-  const extension = getFileExtension(file?.originalname);
-  return file?.mimetype === "application/pdf" || extension === ".pdf";
-}
-
-function isDocxUpload(file) {
-  const extension = getFileExtension(file?.originalname);
-  return file?.mimetype === DOCX_MIME || extension === ".docx";
-}
-
-function isLegacyDocUpload(file) {
-  const extension = getFileExtension(file?.originalname);
-  return file?.mimetype === "application/msword" || extension === ".doc";
 }
 
 // POST

@@ -1,21 +1,6 @@
 import { turso } from "../lib/turso.js";
-
-function normalizeString(value) {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function parsePositiveInteger(value) {
-  if (value === undefined || value === null || value === "") {
-    return null;
-  }
-
-  const numberValue = Number(value);
-  if (!Number.isInteger(numberValue) || numberValue <= 0) {
-    return null;
-  }
-
-  return numberValue;
-}
+import { parsePositiveInteger } from "../utils/validation.js";
+import { normalizeString } from "../utils/normalization.js";
 
 function validateRequiredClassFields(payload) {
   const normalized = {

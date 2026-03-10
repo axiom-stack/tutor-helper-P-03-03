@@ -3,22 +3,17 @@ import { createAssignmentsRepository } from "../assignments/repositories/assignm
 import { createExamsRepository } from "../exams/repositories/exams.repository.js";
 import { enrichPlan, enrichAssignment, enrichExam } from "../export/enrichment.js";
 import { exportPlan, exportAssignment, exportExam } from "../export/exportService.js";
+import {
+  isValidPlanId,
+  isValidAssignmentId,
+  isValidExamId,
+} from "../utils/validation.js";
 
 const lessonPlansRepository = createLessonPlansRepository();
 const assignmentsRepository = createAssignmentsRepository();
 const examsRepository = createExamsRepository();
 
 const VALID_FORMATS = ["pdf", "docx"];
-
-function isValidPlanId(id) {
-  return typeof id === "string" && /^(trd|act)_\d+$/.test(id.trim());
-}
-function isValidAssignmentId(id) {
-  return typeof id === "string" && id.trim().startsWith("asn_") && /^asn_\d+$/.test(id.trim());
-}
-function isValidExamId(id) {
-  return typeof id === "string" && /^exm_\d+$/.test(id.trim());
-}
 
 /**
  * GET /api/plans/:id/export?format=pdf|docx

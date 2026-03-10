@@ -1,24 +1,9 @@
 import { createUsersRepository } from "../users/repositories/users.repository.js";
 import { hashPassword } from "../utils/utils.js";
+import { parsePositiveInteger } from "../utils/validation.js";
+import { normalizeOptionalText } from "../utils/normalization.js";
 
 const VALID_LANGUAGES = ["ar", "en"];
-
-function parsePositiveInteger(value) {
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    return null;
-  }
-  return parsed;
-}
-
-function normalizeOptionalText(value) {
-  if (value === null) return null;
-  if (value === undefined) return undefined;
-  if (typeof value !== "string") return NaN;
-
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
 
 function buildProfileUpdates(body = {}) {
   const updates = {};
