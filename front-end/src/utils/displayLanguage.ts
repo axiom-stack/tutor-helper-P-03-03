@@ -24,10 +24,10 @@ export function syncDisplayLanguageCookie(profileLanguage: DisplayLanguage): boo
 
   if (desiredEn) {
     document.cookie = `${GOOGTRANS_COOKIE}=${GOOGTRANS_EN}; path=/`;
-    return !current; // reload if we weren't in English (so page will translate)
+    return current !== 'en'; // reload only if page wasn't already in English
   } else {
     document.cookie = `${GOOGTRANS_COOKIE}=; path=/; max-age=0`;
-    return current; // reload if we were in English (so page shows Arabic again)
+    return current === 'en'; // reload only if page was in English (so it shows Arabic again)
   }
 }
 
