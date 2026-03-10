@@ -1233,27 +1233,32 @@ function TeacherCirriculumManager() {
 
             <div className="tcm2__selectors">
               <div className="tcm2__field">
-                <button
-                  type="button"
-                  className="tcm2__primary-soft tcm2__quick-select-btn"
-                  onClick={openQuickAddClass}
-                >
-                  <MdAdd aria-hidden />
-                  إضافة صف
-                </button>
-                <button
-                  type="button"
-                  className="tcm2__danger tcm2__quick-select-btn"
-                  onClick={() =>
-                    selectedClassId !== ''
-                      ? requestDeleteEntity('class', selectedClassId, 'هذا الصف')
-                      : undefined
-                  }
-                  disabled={selectedClassId === ''}
-                >
-                  <MdDelete aria-hidden />
-                  حذف الصف
-                </button>
+                <div className="tcm2__selector-row">
+                  <label htmlFor="active-class">الصف</label>
+                  <div className="tcm2__selector-actions">
+                    <button
+                      type="button"
+                      className="tcm2__primary-soft tcm2__quick-select-btn"
+                      onClick={openQuickAddClass}
+                    >
+                      <MdAdd aria-hidden />
+                      إضافة صف
+                    </button>
+                    <button
+                      type="button"
+                      className="tcm2__danger tcm2__quick-select-btn"
+                      onClick={() =>
+                        selectedClassId !== ''
+                          ? requestDeleteEntity('class', selectedClassId, 'هذا الصف')
+                          : undefined
+                      }
+                      disabled={selectedClassId === ''}
+                    >
+                      <MdDelete aria-hidden />
+                      حذف الصف
+                    </button>
+                  </div>
+                </div>
                 <select
                   id="active-class"
                   aria-label="اختيار الصف"
@@ -1274,19 +1279,24 @@ function TeacherCirriculumManager() {
               </div>
 
               <div className="tcm2__field">
-                <button
-                  type="button"
-                  className="tcm2__primary-soft tcm2__quick-select-btn"
-                  onClick={() =>
-                    selectedClassId !== ''
-                      ? openQuickAddSubject(selectedClassId)
-                      : undefined
-                  }
-                  disabled={selectedClassId === ''}
-                >
-                  <MdAdd aria-hidden />
-                  إضافة مادة
-                </button>
+                <div className="tcm2__selector-row">
+                  <label htmlFor="active-subject">المادة</label>
+                  <div className="tcm2__selector-actions">
+                    <button
+                      type="button"
+                      className="tcm2__primary-soft tcm2__quick-select-btn"
+                      onClick={() =>
+                        selectedClassId !== ''
+                          ? openQuickAddSubject(selectedClassId)
+                          : undefined
+                      }
+                      disabled={selectedClassId === ''}
+                    >
+                      <MdAdd aria-hidden />
+                      إضافة مادة
+                    </button>
+                  </div>
+                </div>
                 <select
                   id="active-subject"
                   aria-label="اختيار المادة"

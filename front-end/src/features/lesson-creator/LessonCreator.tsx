@@ -166,6 +166,13 @@ function toActivityTypeLabel(value: unknown): string {
   return toDisplayText(value);
 }
 
+function toValidationStatusLabel(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'passed') return 'ناجح';
+  if (normalized === 'failed') return 'فشل';
+  return value;
+}
+
 function LessonCreator() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -788,7 +795,8 @@ function LessonCreator() {
                   {generatedPlan.plan_type === 'traditional'
                     ? 'تقليدية'
                     : 'تعلم نشط'}{' '}
-                  | التحقق: {generatedPlan.validation_status} | إعادة التحسين:{' '}
+                  | التحقق: {toValidationStatusLabel(generatedPlan.validation_status)} |
+                  {' '}إعادة التحسين:{' '}
                   {generatedPlan.retry_occurred ? 'نعم' : 'لا'}
                 </span>
               </div>
@@ -1083,22 +1091,6 @@ function LessonCreator() {
                 </div>
               )}
 
-              <SmartRefinementPanel
-                artifactType="lesson_plan"
-                artifactId={generatedPlan.id}
-                baseArtifact={{
-                  id: generatedPlan.id,
-                  plan_type: generatedPlan.plan_type,
-                  lesson_title: selectedLesson?.name ?? '',
-                  subject: selectedSubject?.name ?? '',
-                  grade: selectedClass?.grade_label ?? '',
-                  unit: selectedUnit?.name ?? '',
-                  duration_minutes: durationMinutes,
-                  plan_json: generatedPlan.plan_json,
-                }}
-                targetSelectors={getRefinementTargetOptions('lesson_plan')}
-                onCommitted={handleRefinementCommitted}
-              />
             </article>
           )}
         </section>
@@ -1252,6 +1244,27 @@ function LessonCreator() {
             </button>
           </div>
         </aside>
+
+        {generatedPlan && (
+          <section className="lcp__refinement-row">
+            <SmartRefinementPanel
+              artifactType="lesson_plan"
+              artifactId={generatedPlan.id}
+              baseArtifact={{
+                id: generatedPlan.id,
+                plan_type: generatedPlan.plan_type,
+                lesson_title: selectedLesson?.name ?? '',
+                subject: selectedSubject?.name ?? '',
+                grade: selectedClass?.grade_label ?? '',
+                unit: selectedUnit?.name ?? '',
+                duration_minutes: durationMinutes,
+                plan_json: generatedPlan.plan_json,
+              }}
+              targetSelectors={getRefinementTargetOptions('lesson_plan')}
+              onCommitted={handleRefinementCommitted}
+            />
+          </section>
+        )}
       </div>
     </div>
   );

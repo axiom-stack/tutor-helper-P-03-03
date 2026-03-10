@@ -125,6 +125,20 @@
   gap: var(--space-xs);
 }
 
+.tcm2__selector-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding-inline: var(--space-xs);
+}
+
+.tcm2__selector-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
 .tcm2__field-head {
   display: flex;
   align-items: center;

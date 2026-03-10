@@ -90,6 +90,9 @@
   display: grid;
   gap: var(--space-md);
   grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.85fr);
+  grid-template-areas:
+    'preview controls'
+    'refinement refinement';
   align-items: start;
   min-width: 0;
 }
@@ -105,9 +108,19 @@
 }
 
 .lcp__preview {
+  grid-area: preview;
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+}
+
+.lcp__controls {
+  grid-area: controls;
+}
+
+.lcp__refinement-row {
+  grid-area: refinement;
+  min-width: 0;
 }
 
 .lcp__timeline-card {
@@ -749,10 +762,10 @@
 @media (max-width: 1200px) {
   .lcp__layout {
     grid-template-columns: 1fr;
-  }
-
-  .lcp__controls {
-    order: -1;
+    grid-template-areas:
+      'preview'
+      'controls'
+      'refinement';
   }
 }
 
