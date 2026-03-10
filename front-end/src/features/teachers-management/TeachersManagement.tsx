@@ -166,7 +166,7 @@ export default function TeachersManagement() {
     : null;
 
   return (
-    <div className="tm" dir="rtl">
+    <div className="tm">
       <header className="tm__header">
         <h1>إدارة المعلمين</h1>
         <p>عرض سياق المعلمين التعليمي وسجل الاستخدام مع إمكانية تحديث الملف.</p>
@@ -251,6 +251,7 @@ export default function TeachersManagement() {
                 <span>اللغة</span>
                 <select
                   id="tm-language"
+                  className="notranslate"
                   value={editDraft.language}
                   onChange={(event) =>
                     setEditDraft((current) =>

@@ -883,7 +883,7 @@ function TeacherCirriculumManager() {
   };
 
   return (
-    <div className="tcm2" dir="rtl">
+    <div className="tcm2">
       <nav aria-label="breadcrumb">
         <ol className="tcm2__breadcrumb">
           <li>

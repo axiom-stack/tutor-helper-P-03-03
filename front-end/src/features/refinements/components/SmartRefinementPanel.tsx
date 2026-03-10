@@ -286,7 +286,7 @@ export default function SmartRefinementPanel({
   const isPendingApproval = activeRequest?.status === 'pending_approval';
 
   return (
-    <section className="srp" dir="rtl">
+    <section className="srp">
       <header className="srp__header">
         <h3>
           <MdAutoAwesome aria-hidden />

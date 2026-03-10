@@ -143,7 +143,7 @@ export default function Stats() {
   }, [isAdmin, metrics]);
 
   return (
-    <div className="rp" dir="rtl">
+    <div className="rp">
       <header className="rp__header">
         <h1>التقارير والإحصائيات المبسطة</h1>
         <p>

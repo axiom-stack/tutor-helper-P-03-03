@@ -342,7 +342,7 @@ export default function Assignments() {
   }
 
   return (
-    <div className="asn" dir="rtl">
+    <div className="asn">
       <header className="asn__header">
         <div>
           <nav className="asn__breadcrumb" aria-label="breadcrumb">

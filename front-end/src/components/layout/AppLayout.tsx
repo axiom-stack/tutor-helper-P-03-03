@@ -9,7 +9,7 @@ import './app-layout.css';
  */
 export function AppLayout() {
   return (
-    <div className="app-layout" dir="rtl">
+    <div className="app-layout">
       <NavBar />
       <Sidebar />
       <main className="app-layout__main">

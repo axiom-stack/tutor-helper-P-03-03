@@ -113,7 +113,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="st" dir="rtl">
+    <div className="st">
       <header className="st__header">
         <h1>الإعدادات العامة</h1>
         <p>
@@ -132,6 +132,7 @@ export default function Settings() {
               <span>لغة العرض</span>
               <select
                 id="settings-language"
+                className="notranslate"
                 value={language}
                 onChange={(event) => setLanguage(event.target.value as LanguageValue)}
               >

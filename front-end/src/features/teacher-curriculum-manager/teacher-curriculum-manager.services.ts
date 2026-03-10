@@ -185,15 +185,49 @@ export async function createLesson(
 
 export async function updateLesson(
   lessonId: number,
-  data: {
-    name: string;
-    description: string;
-    content: string;
-    unit_id?: number;
-    number_of_periods?: number;
+  payload:
+    | {
+        name: string;
+        description: string;
+        content_type: 'text';
+        content: string;
+        unit_id?: number;
+        number_of_periods?: number;
+      }
+    | {
+        name: string;
+        description: string;
+        content_type: 'pdf' | 'word';
+        file: File;
+        unit_id?: number;
+        number_of_periods?: number;
+      }
+): Promise<CreateLessonResponse> {
+  if (payload.content_type === 'text') {
+    const response = await api().put<CreateLessonResponse>(
+      `/api/lessons/${lessonId}`,
+      payload
+    );
+    return response.data;
   }
-): Promise<{ lesson: Lesson }> {
-  const response = await api().put<{ lesson: Lesson }>(`/api/lessons/${lessonId}`, data);
+
+  const form = new FormData();
+  form.append('name', payload.name);
+  form.append('description', payload.description);
+  form.append('content_type', payload.content_type);
+  form.append('file', payload.file);
+
+  if (payload.unit_id !== undefined) {
+    form.append('unit_id', String(payload.unit_id));
+  }
+  if (payload.number_of_periods !== undefined) {
+    form.append('number_of_periods', String(payload.number_of_periods));
+  }
+
+  const response = await api().put<CreateLessonResponse>(
+    `/api/lessons/${lessonId}`,
+    form
+  );
   return response.data;
 }
 

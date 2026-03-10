@@ -157,7 +157,7 @@ export default function PlansManager() {
   };
 
   return (
-    <div className="pm" dir="rtl">
+    <div className="pm">
       <header className="pm__header">
         <h1>إدارة الخطط المولدة</h1>
         <p>قائمة موحدة للخطط مع الفلاتر وتفاصيل الجودة المتاحة.</p>

@@ -72,13 +72,18 @@
   --transition-slow: 350ms ease-in-out;
 }
 
-/* Layout */
+/* Layout – direction controlled by JS from display language (--app-dir: rtl | ltr) */
 :root {
+  --app-dir: rtl;
   --sidebar-width: 280px;
   --topbar-height: 64px;
   --container-max-width: 1200px;
   --content-max-width: 1500px;
   --main-inline-padding: clamp(12px, 2vw, 32px);
+}
+
+html {
+  direction: var(--app-dir, rtl);
 }
 
 /* Button Variants */

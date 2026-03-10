@@ -671,7 +671,7 @@ function LessonCreator() {
     : [];
 
   return (
-    <div className="lcp" dir="rtl">
+    <div className="lcp">
       <header className="lcp__header">
         <div>
           <nav className="lcp__breadcrumb" aria-label="breadcrumb">

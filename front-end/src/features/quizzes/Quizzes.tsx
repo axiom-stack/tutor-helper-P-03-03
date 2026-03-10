@@ -371,7 +371,7 @@ export default function Quizzes() {
   }
 
   return (
-    <div className="qz" dir="rtl">
+    <div className="qz">
       <header className="qz__header">
         <div>
           <nav className="qz__breadcrumb" aria-label="breadcrumb">

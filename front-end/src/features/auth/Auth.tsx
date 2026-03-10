@@ -56,7 +56,7 @@ function Auth() {
   }
 
   return (
-    <div className="auth" dir="rtl" lang="ar">
+    <div className="auth">
       <div className="auth__container">
         <section className="auth__brand" aria-hidden>
           <div className="auth__brand-inner">
