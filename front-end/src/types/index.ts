@@ -214,6 +214,11 @@ export interface UserProfileUpdatePayload {
   default_plan_type?: 'traditional' | 'active_learning';
 }
 
+export interface AdminTeacherProfileUpdatePayload
+  extends UserProfileUpdatePayload {
+  username?: string;
+}
+
 export interface TeacherUsageSummary {
   classes_count: number;
   subjects_count: number;
