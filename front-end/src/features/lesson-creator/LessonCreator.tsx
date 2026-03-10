@@ -157,6 +157,15 @@ function extractHeaderValue(header: Record<string, unknown>, key: string): strin
   return toDisplayText(header[key]);
 }
 
+function toActivityTypeLabel(value: unknown): string {
+  const normalized = toDisplayText(value).toLowerCase();
+  if (normalized === 'intro') return 'تمهيد';
+  if (normalized === 'presentation') return 'عرض';
+  if (normalized === 'activity') return 'نشاط';
+  if (normalized === 'assessment') return 'تقويم';
+  return toDisplayText(value);
+}
+
 function LessonCreator() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -795,63 +804,6 @@ function LessonCreator() {
                 </button>
               </div>
 
-              {generatedPlan.plan_type !== 'traditional' && (
-                <div className="lcp__meta-grid">
-                  <div>
-                    <label>التاريخ</label>
-                    <p>{extractHeaderValue(header, 'date')}</p>
-                  </div>
-                  <div>
-                    <label>اليوم</label>
-                    <p>{extractHeaderValue(header, 'day')}</p>
-                  </div>
-                  <div>
-                    <label>المادة</label>
-                    <p>
-                      {extractHeaderValue(header, 'subject') !== '—'
-                        ? extractHeaderValue(header, 'subject')
-                        : selectedSubject?.name ?? '—'}
-                    </p>
-                  </div>
-                  <div>
-                    <label>الصف</label>
-                    <p>
-                      {extractHeaderValue(header, 'grade') !== '—'
-                        ? extractHeaderValue(header, 'grade')
-                        : selectedClass?.grade_label ?? '—'}
-                    </p>
-                  </div>
-                  <div>
-                    <label>الدرس</label>
-                    <p>
-                      {extractHeaderValue(header, 'lesson_title') !== '—'
-                        ? extractHeaderValue(header, 'lesson_title')
-                        : selectedLesson?.name ?? '—'}
-                    </p>
-                  </div>
-                  <div>
-                    <label>الوحدة</label>
-                    <p>
-                      {extractHeaderValue(header, 'unit') !== '—'
-                        ? extractHeaderValue(header, 'unit')
-                        : selectedUnit?.name ?? '—'}
-                    </p>
-                  </div>
-                  <div>
-                    <label>المدة</label>
-                    <p>
-                      {extractHeaderValue(header, 'duration') !== '—'
-                        ? extractHeaderValue(header, 'duration')
-                        : `${durationMinutes} دقيقة`}
-                    </p>
-                  </div>
-                  <div>
-                    <label>الخطة</label>
-                    <p>تعلم نشط</p>
-                  </div>
-                </div>
-              )}
-
               {generatedPlan.plan_type === 'traditional' ? (
                 <div className="lcp__traditional-card">
                   <div className="lcp__traditional-shell">
@@ -1005,68 +957,129 @@ function LessonCreator() {
                   </div>
                 </div>
               ) : (
-                <div className="lcp__plan-sections">
-                  <section>
-                    <h3>الأهداف التعليمية</h3>
-                    <ul>
-                      {activeObjectives.length > 0 ? (
-                        activeObjectives.map((item, index) => (
-                          <li key={`${item}-${index}`}>{item}</li>
-                        ))
-                      ) : (
-                        <li>لا توجد بيانات.</li>
-                      )}
-                    </ul>
-                  </section>
-
-                  <section>
-                    <h3>تدفق الدرس</h3>
-                    <div className="lcp__table-wrap">
-                      <table className="lcp__flow-table">
-                        <thead>
-                          <tr>
-                            <th>الزمن</th>
-                            <th>المحتوى</th>
-                            <th>نوع النشاط</th>
-                            <th>دور المعلم</th>
-                            <th>دور الطالب</th>
-                            <th>الوسائل</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {lessonFlow.length > 0 ? (
-                            lessonFlow.map((row, index) => {
-                              const resources = Array.isArray(row.learning_resources)
-                                ? row.learning_resources
-                                    .map((item) => toDisplayText(item))
-                                    .join('، ')
-                                : '—';
-
-                              return (
-                                <tr key={`flow-${index}`}>
-                                  <td>{toDisplayText(row.time)}</td>
-                                  <td>{toDisplayText(row.content)}</td>
-                                  <td>{toDisplayText(row.activity_type)}</td>
-                                  <td>{toDisplayText(row.teacher_activity)}</td>
-                                  <td>{toDisplayText(row.student_activity)}</td>
-                                  <td>{resources || '—'}</td>
-                                </tr>
-                              );
-                            })
-                          ) : (
-                            <tr>
-                              <td colSpan={6}>لا توجد بيانات تدفق.</td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
+                <div className="lcp__active-card">
+                  <div className="lcp__active-shell">
+                    <div className="lcp__active-header-grid">
+                      <div>
+                        <label>التاريخ</label>
+                        <p>{extractHeaderValue(header, 'date')}</p>
+                      </div>
+                      <div>
+                        <label>اليوم</label>
+                        <p>{extractHeaderValue(header, 'day')}</p>
+                      </div>
+                      <div>
+                        <label>المادة</label>
+                        <p>
+                          {extractHeaderValue(header, 'subject') !== '—'
+                            ? extractHeaderValue(header, 'subject')
+                            : selectedSubject?.name ?? '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <label>الصف</label>
+                        <p>
+                          {extractHeaderValue(header, 'grade') !== '—'
+                            ? extractHeaderValue(header, 'grade')
+                            : selectedClass?.grade_label ?? '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <label>الشعبة</label>
+                        <p>
+                          {extractHeaderValue(header, 'section') !== '—'
+                            ? extractHeaderValue(header, 'section')
+                            : selectedClass?.section_label ?? '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <label>العنوان</label>
+                        <p>
+                          {extractHeaderValue(header, 'lesson_title') !== '—'
+                            ? extractHeaderValue(header, 'lesson_title')
+                            : selectedLesson?.name ?? '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <label>الوحدة</label>
+                        <p>
+                          {extractHeaderValue(header, 'unit') !== '—'
+                            ? extractHeaderValue(header, 'unit')
+                            : selectedUnit?.name ?? '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <label>المدة</label>
+                        <p>
+                          {extractHeaderValue(header, 'duration') !== '—'
+                            ? extractHeaderValue(header, 'duration')
+                            : `${durationMinutes} دقيقة`}
+                        </p>
+                      </div>
                     </div>
-                  </section>
 
-                  <section>
-                    <h3>الواجب</h3>
-                    <p>{toDisplayText(planObject.homework)}</p>
-                  </section>
+                    <div className="lcp__active-objectives">
+                      <h3>الأهداف التعليمية</h3>
+                      <ul>
+                        {activeObjectives.length > 0 ? (
+                          activeObjectives.map((item, index) => (
+                            <li key={`${item}-${index}`}>{item}</li>
+                          ))
+                        ) : (
+                          <li>لا توجد أهداف مدخلة.</li>
+                        )}
+                      </ul>
+                    </div>
+
+                    <div className="lcp__active-flow">
+                      <h3>تدفق الدرس</h3>
+                      <div className="lcp__table-wrap lcp__table-wrap--active">
+                        <table className="lcp__flow-table lcp__flow-table--active">
+                          <thead>
+                            <tr>
+                              <th>الزمن</th>
+                              <th>المحتوى</th>
+                              <th>نوع النشاط</th>
+                              <th>دور المعلم</th>
+                              <th>دور الطالب</th>
+                              <th>الوسائل</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {lessonFlow.length > 0 ? (
+                              lessonFlow.map((row, index) => {
+                                const resources = Array.isArray(row.learning_resources)
+                                  ? row.learning_resources
+                                      .map((item) => toDisplayText(item))
+                                      .join('، ')
+                                  : '—';
+
+                                return (
+                                  <tr key={`flow-${index}`}>
+                                    <td>{toDisplayText(row.time)}</td>
+                                    <td>{toDisplayText(row.content)}</td>
+                                    <td>{toActivityTypeLabel(row.activity_type)}</td>
+                                    <td>{toDisplayText(row.teacher_activity)}</td>
+                                    <td>{toDisplayText(row.student_activity)}</td>
+                                    <td>{resources || '—'}</td>
+                                  </tr>
+                                );
+                              })
+                            ) : (
+                              <tr>
+                                <td colSpan={6}>لا توجد بيانات تدفق.</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div className="lcp__active-footer">
+                      <h4>الواجب</h4>
+                      <p>{toDisplayText(planObject.homework)}</p>
+                    </div>
+                  </div>
                 </div>
               )}
 
