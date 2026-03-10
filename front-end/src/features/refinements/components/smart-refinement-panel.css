@@ -352,10 +352,59 @@
   font-size: 0.86rem;
 }
 
+.srp__change-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 0.24rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.srp__change-badge--updated {
+  background: #eef5ff;
+  color: #22528f;
+  border-color: #d4e2f6;
+}
+
+.srp__change-badge--added {
+  background: #ebf9ef;
+  color: #166539;
+  border-color: #cae9d4;
+}
+
+.srp__change-badge--removed {
+  background: #fff1f3;
+  color: #99253f;
+  border-color: #f1c8d1;
+}
+
 .srp__value-compare {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
+}
+
+.srp__value-single {
+  border: 1px solid #e5ecf6;
+  border-radius: 14px;
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.srp__value-single--added {
+  background: linear-gradient(180deg, #f4fbf6 0%, #fbfefc 100%);
+  border-color: #d9ebdf;
+}
+
+.srp__value-single--removed {
+  background: linear-gradient(180deg, #fff6f8 0%, #fffdfd 100%);
+  border-color: #efd6dc;
 }
 
 .srp__value-column {

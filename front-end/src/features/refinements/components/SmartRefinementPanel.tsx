@@ -26,6 +26,7 @@ import {
 } from '../refinements.services';
 import {
   buildProposalViewModel,
+  type DiffChangeType,
   buildRequestSummary,
   formatDateTimeAr,
   formatInlineValue,
@@ -110,6 +111,17 @@ function renderValueContent(path: string, value: unknown) {
   }
 
   return <p className="srp__value-text">{formatInlineValue(path, value)}</p>;
+}
+
+function getChangeTypeLabel(changeType: DiffChangeType): string {
+  switch (changeType) {
+    case 'added':
+      return 'إضافة جديدة';
+    case 'removed':
+      return 'تم الحذف';
+    default:
+      return 'تم التعديل';
+  }
 }
 
 export default function SmartRefinementPanel({
@@ -511,20 +523,39 @@ export default function SmartRefinementPanel({
                             <h6>{item.label}</h6>
                             {item.hint && <p>{item.hint}</p>}
                           </div>
+                          <span
+                            className={`srp__change-badge srp__change-badge--${item.changeType}`}
+                          >
+                            {getChangeTypeLabel(item.changeType)}
+                          </span>
                         </header>
 
-                        <div className="srp__value-compare">
-                          <section className="srp__value-column">
-                            <span className="srp__value-side-label">قبل</span>
-                            {renderValueContent(item.path, item.before)}
-                          </section>
-                          <section className="srp__value-column srp__value-column--after">
+                        {item.changeType === 'added' ? (
+                          <section className="srp__value-single srp__value-single--added">
                             <span className="srp__value-side-label srp__value-side-label--after">
-                              بعد
+                              المحتوى المضاف
                             </span>
                             {renderValueContent(item.path, item.after)}
                           </section>
-                        </div>
+                        ) : item.changeType === 'removed' ? (
+                          <section className="srp__value-single srp__value-single--removed">
+                            <span className="srp__value-side-label">المحتوى المحذوف</span>
+                            {renderValueContent(item.path, item.before)}
+                          </section>
+                        ) : (
+                          <div className="srp__value-compare">
+                            <section className="srp__value-column">
+                              <span className="srp__value-side-label">قبل</span>
+                              {renderValueContent(item.path, item.before)}
+                            </section>
+                            <section className="srp__value-column srp__value-column--after">
+                              <span className="srp__value-side-label srp__value-side-label--after">
+                                بعد
+                              </span>
+                              {renderValueContent(item.path, item.after)}
+                            </section>
+                          </div>
+                        )}
                       </article>
                     ))}
                   </div>

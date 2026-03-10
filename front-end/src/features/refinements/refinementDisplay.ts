@@ -12,6 +12,8 @@ export type SelectorOption = {
   label: string;
 };
 
+export type DiffChangeType = 'added' | 'removed' | 'updated';
+
 export interface DiffItem {
   key: string;
   path: string;
@@ -19,6 +21,7 @@ export interface DiffItem {
   hint: string | null;
   before: unknown;
   after: unknown;
+  changeType: DiffChangeType;
 }
 
 export interface DiffGroup {
@@ -224,6 +227,18 @@ function stableSerialize(value: unknown): string {
 
 function isMeaningfullyEqual(left: unknown, right: unknown): boolean {
   return stableSerialize(left) === stableSerialize(right);
+}
+
+function getDiffChangeType(before: unknown, after: unknown): DiffChangeType {
+  if (before === undefined && after !== undefined) {
+    return 'added';
+  }
+
+  if (before !== undefined && after === undefined) {
+    return 'removed';
+  }
+
+  return 'updated';
 }
 
 function getValueAtPath(source: unknown, path: string): unknown {
@@ -708,6 +723,7 @@ export function buildProposalViewModel(params: {
       hint: meta.hint,
       before,
       after,
+      changeType: getDiffChangeType(before, after),
     });
 
     groupMap.set(meta.key, currentGroup);
