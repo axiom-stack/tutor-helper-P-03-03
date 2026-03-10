@@ -47,8 +47,9 @@ function Auth() {
     try {
       await login(username, password);
       navigate('/');
-    } catch (error) {
-      setError('حدث خطأ أثناء تسجيل الدخول');
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || 'حدث خطأ أثناء تسجيل الدخول';
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
