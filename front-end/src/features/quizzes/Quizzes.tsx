@@ -381,7 +381,7 @@ export default function Quizzes() {
 
   return (
     <div className="qz">
-      <header className="qz__header">
+      <header className="qz__header page-header">
         <div>
           <nav className="qz__breadcrumb" aria-label="breadcrumb">
             <Link to="/">الرئيسية</Link>

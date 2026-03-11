@@ -33,13 +33,10 @@
 
 .tcm2__header h1 {
   margin: 0;
-  font-size: var(--text-xxl);
-  font-weight: 700;
 }
 
 .tcm2__header p {
   margin: var(--space-xs) 0 0;
-  color: var(--text-secondary);
 }
 
 .tcm2__alert {

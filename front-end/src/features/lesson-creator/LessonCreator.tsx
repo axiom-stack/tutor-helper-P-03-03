@@ -588,7 +588,7 @@ function LessonCreator() {
 
   return (
     <div className="lcp">
-      <header className="lcp__header">
+      <header className="lcp__header page-header">
         <div>
           <nav className="lcp__breadcrumb" aria-label="breadcrumb">
             <Link to="/teacher">الرئيسية</Link>

@@ -1199,7 +1199,7 @@ function TeacherCirriculumManager() {
         </ol>
       </nav>
 
-      <header className="tcm2__header">
+      <header className="tcm2__header page-header">
         <h1>إدارة المنهج الدراسي</h1>
         <p>إدارة الصفوف والمواد والوحدات والدروس من صفحة واحدة.</p>
       </header>

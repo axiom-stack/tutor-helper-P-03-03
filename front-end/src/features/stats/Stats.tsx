@@ -417,7 +417,7 @@ export default function Stats() {
 
   return (
     <div className="st">
-      <header className="st__header">
+      <header className="st__header page-header">
         <div className="st__title-wrap">
           <span className="st__eyebrow">
             <MdInsights aria-hidden />

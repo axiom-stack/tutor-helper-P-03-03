@@ -6,22 +6,15 @@
 }
 
 .pm__header {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  padding: var(--space-lg);
-  background: linear-gradient(120deg, #ffffff 0%, #f9fbff 100%);
-  box-shadow: var(--shadow-sm);
+  display: block;
 }
 
 .pm__header h1 {
   margin: 0;
-  font-size: var(--text-xxl);
-  line-height: 1.25;
 }
 
 .pm__header p {
   margin: var(--space-xs) 0 0;
-  color: var(--text-secondary);
 }
 
 .pm__alert {

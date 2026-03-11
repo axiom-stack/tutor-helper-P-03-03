@@ -114,7 +114,7 @@ export default function Settings() {
 
   return (
     <div className="st">
-      <header className="st__header">
+      <header className="st__header page-header">
         <h1>الإعدادات العامة</h1>
         <p>
           {user.userRole === 'admin'

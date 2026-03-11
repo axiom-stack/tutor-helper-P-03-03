@@ -7,17 +7,10 @@
 }
 
 .asn__header {
-  background:
-    radial-gradient(circle at 15% 10%, rgba(37, 99, 235, 0.12), transparent 40%),
-    linear-gradient(135deg, #ffffff 0%, #f7fbff 100%);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  padding: var(--space-lg);
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: var(--space-md);
-  box-shadow: var(--shadow-sm);
 }
 
 .asn__breadcrumb {
@@ -45,16 +38,11 @@
 
 .asn__header h1 {
   margin: 0;
-  font-size: var(--text-xxl);
-  line-height: 1.25;
 }
 
 .asn__header p {
   margin: var(--space-xs) 0 0;
   max-width: 70ch;
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-  line-height: 1.7;
 }
 
 .asn__context {

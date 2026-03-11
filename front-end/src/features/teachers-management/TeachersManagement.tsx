@@ -231,7 +231,7 @@ export default function TeachersManagement() {
 
   return (
     <div className="tm">
-      <header className="tm__header">
+      <header className="tm__header page-header">
         <h1>إدارة المعلمين</h1>
         <p>عرض سياق المعلمين التعليمي وسجل الاستخدام مع إمكانية تحديث الملف.</p>
       </header>

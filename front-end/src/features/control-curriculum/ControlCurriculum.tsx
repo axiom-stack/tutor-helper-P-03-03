@@ -138,7 +138,7 @@ function AdminCurriculumExplorer() {
 
   return (
     <div className="cc">
-      <header className="cc__header">
+      <header className="cc__header page-header">
         <h1>المنهج الدراسي (نطاق النظام)</h1>
         <p>استعراض هرم الصفوف والمواد والوحدات والدروس لجميع المعلمين.</p>
       </header>

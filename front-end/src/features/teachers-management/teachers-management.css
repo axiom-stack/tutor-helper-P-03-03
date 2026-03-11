@@ -7,13 +7,10 @@
 
 .tm__header h1 {
   margin: 0;
-  font-size: var(--text-xxl);
-  line-height: 1.25;
 }
 
 .tm__header p {
   margin: var(--space-xs) 0 0;
-  color: var(--text-secondary);
 }
 
 .tm__top-actions {

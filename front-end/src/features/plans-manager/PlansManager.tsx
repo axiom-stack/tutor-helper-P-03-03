@@ -218,7 +218,7 @@ export default function PlansManager() {
 
   return (
     <div className="pm">
-      <header className="pm__header">
+      <header className="pm__header page-header">
         <div>
           <h1>إدارة الخطط المولدة</h1>
           <p>

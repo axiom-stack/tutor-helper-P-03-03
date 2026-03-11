@@ -343,7 +343,7 @@ export default function Assignments() {
 
   return (
     <div className="asn">
-      <header className="asn__header">
+      <header className="asn__header page-header">
         <div>
           <nav className="asn__breadcrumb" aria-label="breadcrumb">
             <Link to="/teacher">الرئيسية</Link>
