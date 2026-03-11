@@ -177,8 +177,8 @@ export default function ControlDashboard() {
   }
 
   return (
-    <div className="cd" dir="rtl">
-      <header className="cd__header">
+    <div className="cd">
+      <header className="cd__header page-header">
         <h1>
           {isAdmin ? 'لوحة تحكم النظام' : `مرحباً، ${user.username}`} 
         </h1>

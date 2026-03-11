@@ -4,23 +4,41 @@ import { useAuth } from '../../context/AuthContext';
 import type { UserProfileUpdatePayload } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
 import { getMyProfile, updateMyProfile } from '../users/users.services';
+import { applyDisplayLanguageAndReload } from '../../utils/displayLanguage';
 import './settings.css';
 
 type LanguageValue = 'ar' | 'en';
+type DefaultPlanTypeValue = 'traditional' | 'active_learning';
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, updateUserProfile } = useAuth();
 
   const [language, setLanguage] = useState<LanguageValue>('ar');
   const [educationalStage, setEducationalStage] = useState('');
   const [subject, setSubject] = useState('');
   const [preparationType, setPreparationType] = useState('');
-  const [defaultLessonDuration, setDefaultLessonDuration] = useState<number>(45);
+  const [defaultPlanType, setDefaultPlanType] =
+    useState<DefaultPlanTypeValue>(
+      () =>
+        user?.profile?.default_plan_type === 'active_learning'
+          ? 'active_learning'
+          : 'traditional'
+    );
+  const [defaultLessonDuration, setDefaultLessonDuration] = useState<number>(
+    () => user?.profile?.default_lesson_duration_minutes ?? 45
+  );
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    const win = window as Window & { googleTranslateElementInit?: () => void };
+    if (typeof win.googleTranslateElementInit === 'function') {
+      win.googleTranslateElementInit();
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,6 +56,11 @@ export default function Settings() {
         setEducationalStage(profile.educational_stage ?? '');
         setSubject(profile.subject ?? '');
         setPreparationType(profile.preparation_type ?? '');
+        setDefaultPlanType(
+          profile.default_plan_type === 'active_learning'
+            ? 'active_learning'
+            : 'traditional'
+        );
         setDefaultLessonDuration(profile.default_lesson_duration_minutes ?? 45);
       })
       .catch((loadError: unknown) => {
@@ -68,12 +91,16 @@ export default function Settings() {
       educational_stage: educationalStage.trim() || null,
       subject: subject.trim() || null,
       preparation_type: preparationType.trim() || null,
+      default_plan_type: defaultPlanType,
       default_lesson_duration_minutes: defaultLessonDuration,
     };
 
     try {
-      await updateMyProfile(payload);
+      const response = await updateMyProfile(payload);
+      updateUserProfile(response.profile);
       setSuccess('تم حفظ الإعدادات بنجاح.');
+      applyDisplayLanguageAndReload(language);
+      return;
     } catch (saveError: unknown) {
       setError(normalizeApiError(saveError, 'فشل حفظ الإعدادات.').message);
     } finally {
@@ -86,8 +113,8 @@ export default function Settings() {
   }
 
   return (
-    <div className="st" dir="rtl">
-      <header className="st__header">
+    <div className="st">
+      <header className="st__header page-header">
         <h1>الإعدادات العامة</h1>
         <p>
           {user.userRole === 'admin'
@@ -102,9 +129,10 @@ export default function Settings() {
         {!loading ? (
           <div className="st__form-grid">
             <label className="st__field" htmlFor="settings-language">
-              <span>لغة النظام</span>
+              <span>لغة العرض</span>
               <select
                 id="settings-language"
+                className="notranslate"
                 value={language}
                 onChange={(event) => setLanguage(event.target.value as LanguageValue)}
               >
@@ -141,6 +169,20 @@ export default function Settings() {
                 onChange={(event) => setPreparationType(event.target.value)}
                 placeholder="مثال: تحضير يومي"
               />
+            </label>
+
+            <label className="st__field" htmlFor="settings-default-plan-type">
+              <span>نوع الخطة الافتراضي</span>
+              <select
+                id="settings-default-plan-type"
+                value={defaultPlanType}
+                onChange={(event) =>
+                  setDefaultPlanType(event.target.value as DefaultPlanTypeValue)
+                }
+              >
+                <option value="traditional">تقليدية</option>
+                <option value="active_learning">تعلم نشط</option>
+              </select>
             </label>
 
             <label className="st__field" htmlFor="settings-duration">
@@ -183,6 +225,7 @@ export default function Settings() {
             {saving ? 'جارٍ الحفظ...' : 'حفظ الإعدادات'}
           </button>
         </div>
+        <div id="google_translate_element" className="st__translate-widget" aria-hidden="true" />
       </section>
     </div>
   );

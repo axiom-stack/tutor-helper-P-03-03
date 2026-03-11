@@ -53,7 +53,7 @@ router.get("/mine", getLessonsByTeacherId);
 router.get("/unit/:unitId", getLessonsByUnitId);
 router.get("/:lessonId", getLessonByLessonId);
 router.get("/", getAllLessonsInTheSystem);
-router.put("/:lessonId", updateLessonByLessonId);
+router.put("/:lessonId", handleSingleFileUpload, updateLessonByLessonId);
 router.delete("/:lessonId", deleteLessonByLessonId);
 
 export default router;

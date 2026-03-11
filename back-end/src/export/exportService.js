@@ -1,4 +1,9 @@
-import { buildPlanHtml, buildAssignmentHtml, buildExamHtml } from "./htmlBuilders.js";
+import {
+  buildPlanHtml,
+  buildAssignmentHtml,
+  buildExamHtml,
+  buildStatsHtml,
+} from "./htmlBuilders.js";
 import { htmlToPdf } from "./pdfService.js";
 import {
   buildPlanDocx,
@@ -86,4 +91,38 @@ export async function exportExam(enrichedExam, format) {
     };
   }
   throw new Error(`Unsupported format: ${format}`);
+}
+
+function buildStatsFilename(summary) {
+  const nowDate = new Date().toISOString().slice(0, 10);
+  const scope = summary?.filters_applied?.scope;
+  const teacherId = summary?.filters_applied?.teacher_id;
+
+  if (scope === "teacher") {
+    return `stats_teacher_${nowDate}.pdf`;
+  }
+
+  if (scope === "admin_teacher" && Number.isInteger(Number(teacherId))) {
+    return `stats_admin_teacher_${teacherId}_${nowDate}.pdf`;
+  }
+
+  return `stats_admin_all_${nowDate}.pdf`;
+}
+
+/**
+ * Export stats summary as PDF.
+ */
+export async function exportStats(summary, format) {
+  if (format !== "pdf") {
+    throw new Error(`Unsupported format: ${format}`);
+  }
+
+  const html = buildStatsHtml(summary);
+  const buffer = await htmlToPdf(html);
+
+  return {
+    buffer,
+    mimeType: MIME_PDF,
+    suggestedFilename: buildStatsFilename(summary),
+  };
 }

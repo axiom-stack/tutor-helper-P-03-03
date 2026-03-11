@@ -262,19 +262,7 @@ export async function deleteSubjectBySubjectId(req, res) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
-    const linkedUnits = await turso.execute({
-      sql: "SELECT COUNT(*) AS count FROM Units WHERE subject_id = ?",
-      args: [subjectId],
-    });
-
-    if (Number(linkedUnits.rows[0]?.count ?? 0) > 0) {
-      return res.status(409).json({
-        error:
-          "Cannot delete this subject because it still contains units. Delete units first.",
-      });
-    }
-
-    const deletedSubject = await turso.execute({
+    await turso.execute({
       sql: "DELETE FROM Subjects WHERE id = ?",
       args: [subjectId],
     });

@@ -27,6 +27,9 @@ export function validateGeneratePlanRequest(payload) {
     unit: normalizeString(request.unit),
     duration_minutes: parsePositiveInteger(request.duration_minutes),
     plan_type: normalizeString(request.plan_type),
+    class_id: request.class_id != null ? parsePositiveInteger(request.class_id) : null,
+    class_name: normalizeString(request.class_name) || null,
+    section: normalizeString(request.section) || null,
   };
 
   if (!normalized.lesson_id) {

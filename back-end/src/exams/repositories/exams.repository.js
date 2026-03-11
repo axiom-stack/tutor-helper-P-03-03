@@ -233,5 +233,28 @@ export function createExamsRepository(dbClient = turso) {
 
       return existing;
     },
+
+    async updateQuestionsByPublicId(publicId, questions, accessContext) {
+      const existing = await this.getByPublicId(publicId, accessContext, {
+        includePayload: true,
+      });
+      if (!existing) {
+        return null;
+      }
+
+      const args = [JSON.stringify(questions), publicId];
+      const accessWhere = buildAccessWhere(accessContext, args);
+      await dbClient.execute({
+        sql: `
+          UPDATE ${EXAMS_TABLE}
+          SET questions_json = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE public_id = ?
+          ${accessWhere}
+        `,
+        args,
+      });
+
+      return this.getByPublicId(publicId, accessContext, { includePayload: true });
+    },
   };
 }

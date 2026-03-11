@@ -33,13 +33,10 @@
 
 .tcm2__header h1 {
   margin: 0;
-  font-size: var(--text-xxl);
-  font-weight: 700;
 }
 
 .tcm2__header p {
   margin: var(--space-xs) 0 0;
-  color: var(--text-secondary);
 }
 
 .tcm2__alert {
@@ -104,22 +101,46 @@
   font-size: var(--text-sm);
 }
 
+.tcm2__panel-head button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  padding: 0.4rem 0.75rem;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
 .tcm2__selectors {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--space-sm);
 }
 
-@media (min-width: 720px) {
-  .tcm2__selectors {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
 .tcm2__field {
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
+}
+
+.tcm2__selector-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding-inline: var(--space-xs);
+}
+
+.tcm2__selector-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.tcm2__field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
 }
 
 .tcm2__field label {
@@ -196,6 +217,8 @@
 }
 
 .tcm2__meta-actions button,
+.tcm2__field-head button,
+.tcm2__quick-select-btn,
 .tcm2__helper-actions button,
 .tcm2__form-actions button,
 .tcm2__mode-toggle button,
@@ -203,13 +226,19 @@
   border: 1px solid var(--border);
   background: var(--surface);
   border-radius: var(--radius-md);
-  padding: 0.45rem 0.75rem;
+  padding: 0.5rem 0.85rem;
   font-size: var(--text-xs);
   color: var(--text-primary);
   cursor: pointer;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
 .tcm2__meta-actions button:hover,
+.tcm2__field-head button:hover,
+.tcm2__quick-select-btn:hover,
 .tcm2__helper-actions button:hover,
 .tcm2__form-actions button:hover,
 .tcm2__mode-toggle button:hover,
@@ -221,6 +250,12 @@
   background: var(--primary) !important;
   border-color: var(--primary) !important;
   color: white !important;
+}
+
+.tcm2__primary-soft {
+  border-color: rgba(37, 99, 235, 0.35) !important;
+  background: rgba(37, 99, 235, 0.1) !important;
+  color: #1d4ed8 !important;
 }
 
 .tcm2__danger {
@@ -328,21 +363,27 @@
 .tcm2__row-actions {
   display: inline-flex;
   gap: var(--space-xs);
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .tcm2__row-actions button {
-  width: 2rem;
-  height: 2rem;
+  min-height: 2rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
 }
 
 .tcm2__form {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+}
+
+.tcm2__required-note {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
 }
 
 .tcm2__step {
@@ -391,10 +432,16 @@
 
 .tcm2__form-actions button:disabled,
 .tcm2__meta-actions button:disabled,
+.tcm2__field-head button:disabled,
+.tcm2__quick-select-btn:disabled,
 .tcm2__helper-actions button:disabled,
 .tcm2__row-actions button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.tcm2__quick-select-btn {
+  width: fit-content;
 }
 
 .tcm2__modal-backdrop {

@@ -15,6 +15,8 @@ function buildCommonPayload({ request, planType, targetSchema }) {
       grade: request.grade,
       unit: request.unit,
       duration_minutes: request.duration_minutes,
+      class_name: request.class_name || null,
+      section: request.section || null,
     },
     lesson_content: boundedLessonContent,
     lesson_content_truncated: lessonContent.length > maxLessonContentChars,
@@ -35,6 +37,8 @@ export function buildPrompt1TraditionalDraftGenerator({ request, targetSchema })
     "teaching_strategies must be selected from known classroom strategies.",
     "activities, learning_resources, and assessment must be concrete and practical.",
     "Respect the requested duration.",
+    "Fill header.grade with the provided grade/class metadata.",
+    "Fill header.section with the provided section (الشعبة) if available.",
   ].join(" ");
 
   const payload = {
@@ -75,6 +79,8 @@ export function buildPrompt1ActiveLearningDraftGenerator({ request, targetSchema
     "Each lesson_flow row must be realistic and classroom-executable.",
     "lesson_flow.activity_type must be one of intro, presentation, activity, assessment.",
     "Keep flow timing coherent and within requested duration.",
+    "Fill header.grade with the provided grade/class metadata.",
+    "Fill header.section with the provided section (الشعبة) if available.",
   ].join(" ");
 
   const payload = {

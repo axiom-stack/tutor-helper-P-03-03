@@ -11,12 +11,13 @@ test("create persists assignment with asn_ prefix", async () => {
       if (sql.includes("UPDATE Assignments") && sql.includes("SET public_id")) {
         return { rows: [] };
       }
-      if (sql.includes("SELECT * FROM Assignments WHERE id = ?")) {
+      if (sql.includes("FROM Assignments a") && sql.includes("WHERE a.id = ?")) {
         return {
           rows: [
             {
               id: 42,
               public_id: "asn_42",
+              assignment_group_public_id: "asg_11",
               teacher_id: 1,
               lesson_plan_public_id: "trd_5",
               lesson_id: 10,
@@ -111,12 +112,13 @@ test("update returns updated assignment", async () => {
   const dbClient = {
     async execute({ sql, args }) {
       if (sql.startsWith("UPDATE Assignments")) return { rows: [] };
-      if (sql.startsWith("SELECT * FROM Assignments")) {
+      if (sql.includes("FROM Assignments a")) {
         return {
           rows: [
             {
               id: 1,
               public_id: "asn_1",
+              assignment_group_public_id: "asg_1",
               teacher_id: 1,
               lesson_plan_public_id: "trd_1",
               lesson_id: 5,

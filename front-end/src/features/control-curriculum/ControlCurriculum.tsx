@@ -137,8 +137,8 @@ function AdminCurriculumExplorer() {
   }, [lessons, filteredUnits, teacherFilter]);
 
   return (
-    <div className="cc" dir="rtl">
-      <header className="cc__header">
+    <div className="cc">
+      <header className="cc__header page-header">
         <h1>المنهج الدراسي (نطاق النظام)</h1>
         <p>استعراض هرم الصفوف والمواد والوحدات والدروس لجميع المعلمين.</p>
       </header>

@@ -1,25 +1,15 @@
 import { createUsersRepository } from "../users/repositories/users.repository.js";
+import { hashPassword } from "../utils/utils.js";
+import {
+  parsePositiveInteger,
+  normalizeOptionalText,
+} from "../utils/normalization.js";
 
 const VALID_LANGUAGES = ["ar", "en"];
+const VALID_PLAN_TYPES = ["traditional", "active_learning"];
 
-function parsePositiveInteger(value) {
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    return null;
-  }
-  return parsed;
-}
-
-function normalizeOptionalText(value) {
-  if (value === null) return null;
-  if (value === undefined) return undefined;
-  if (typeof value !== "string") return NaN;
-
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function buildProfileUpdates(body = {}) {
+function buildProfileUpdates(body = {}, options = {}) {
+  const { requireAtLeastOne = true } = options;
   const updates = {};
   const errors = [];
 
@@ -64,7 +54,10 @@ function buildProfileUpdates(body = {}) {
   }
 
   if (
-    Object.prototype.hasOwnProperty.call(body, "default_lesson_duration_minutes")
+    Object.prototype.hasOwnProperty.call(
+      body,
+      "default_lesson_duration_minutes",
+    )
   ) {
     const parsedDuration = parsePositiveInteger(
       body.default_lesson_duration_minutes,
@@ -77,7 +70,22 @@ function buildProfileUpdates(body = {}) {
     }
   }
 
-  if (Object.keys(updates).length === 0) {
+  if (Object.prototype.hasOwnProperty.call(body, "default_plan_type")) {
+    if (typeof body.default_plan_type !== "string") {
+      errors.push("default_plan_type must be a string");
+    } else {
+      const normalized = body.default_plan_type.trim().toLowerCase();
+      if (!VALID_PLAN_TYPES.includes(normalized)) {
+        errors.push(
+          `default_plan_type must be one of: ${VALID_PLAN_TYPES.join(", ")}`,
+        );
+      } else {
+        updates.default_plan_type = normalized;
+      }
+    }
+  }
+
+  if (requireAtLeastOne && Object.keys(updates).length === 0) {
     errors.push("At least one valid profile field is required");
   }
 
@@ -88,8 +96,70 @@ function buildProfileUpdates(body = {}) {
   };
 }
 
-export function createUsersController(usersRepository = createUsersRepository()) {
+export function createUsersController(
+  usersRepository = createUsersRepository(),
+) {
   return {
+    // POST
+    // - createTeacher
+    async createTeacher(req, res) {
+      try {
+        if (req.user.role !== "admin") {
+          return res.status(403).json({ error: "Unauthorized" });
+        }
+
+        const { username, password } = req.body;
+
+        if (!username || !password) {
+          return res
+            .status(400)
+            .json({ error: "Username and password are required" });
+        }
+
+        if (typeof username !== "string" || username.length < 4) {
+          return res
+            .status(400)
+            .json({ error: "Username must be at least 4 characters long" });
+        }
+
+        if (typeof password !== "string" || password.length < 6) {
+          return res
+            .status(400)
+            .json({ error: "Password must be at least 6 characters long" });
+        }
+
+        // Check if username already exists
+        const existingUser = await usersRepository.getUserByUsername(username);
+        if (existingUser) {
+          return res.status(409).json({ error: "Username already exists" });
+        }
+
+        // Hash the password
+        const hashedPassword = await hashPassword(password);
+
+        // Create the teacher
+        const teacherId = await usersRepository.createUser({
+          username,
+          password: hashedPassword,
+          role: "teacher",
+        });
+
+        return res.status(201).json({
+          teacher: {
+            id: teacherId,
+            username,
+            role: "teacher",
+          },
+        });
+      } catch (error) {
+        req.log?.error?.({ error }, "Failed to create teacher");
+        return res.status(500).json({ error: "Internal server error" });
+      }
+    },
+
+    // GET
+    // - getMyProfile
+    // - listTeachers
     async getMyProfile(req, res) {
       try {
         const profile = await usersRepository.getProfileByUserId(req.user.id);
@@ -105,6 +175,23 @@ export function createUsersController(usersRepository = createUsersRepository())
       }
     },
 
+    async listTeachers(req, res) {
+      try {
+        if (req.user.role !== "admin") {
+          return res.status(403).json({ error: "Unauthorized" });
+        }
+
+        const teachers = await usersRepository.listTeachersWithUsage();
+        return res.status(200).json({ teachers });
+      } catch (error) {
+        req.log?.error?.({ error }, "Failed to list teachers");
+        return res.status(500).json({ error: "Internal server error" });
+      }
+    },
+
+    // PUT
+    // - updateMyProfile
+    // - updateTeacherProfile
     async updateMyProfile(req, res) {
       try {
         const validation = buildProfileUpdates(req.body);
@@ -128,20 +215,6 @@ export function createUsersController(usersRepository = createUsersRepository())
       }
     },
 
-    async listTeachers(req, res) {
-      try {
-        if (req.user.role !== "admin") {
-          return res.status(403).json({ error: "Unauthorized" });
-        }
-
-        const teachers = await usersRepository.listTeachersWithUsage();
-        return res.status(200).json({ teachers });
-      } catch (error) {
-        req.log?.error?.({ error }, "Failed to list teachers");
-        return res.status(500).json({ error: "Internal server error" });
-      }
-    },
-
     async updateTeacherProfile(req, res) {
       try {
         if (req.user.role !== "admin") {
@@ -150,7 +223,9 @@ export function createUsersController(usersRepository = createUsersRepository())
 
         const teacherId = parsePositiveInteger(req.params.teacherId);
         if (!teacherId) {
-          return res.status(400).json({ error: "teacherId must be a positive integer" });
+          return res
+            .status(400)
+            .json({ error: "teacherId must be a positive integer" });
         }
 
         const teacher = await usersRepository.getUserById(teacherId);
@@ -164,9 +239,51 @@ export function createUsersController(usersRepository = createUsersRepository())
             .json({ error: "Provided user is not a teacher" });
         }
 
-        const validation = buildProfileUpdates(req.body);
+        let normalizedUsername;
+        const hasUsernameField = Object.prototype.hasOwnProperty.call(
+          req.body || {},
+          "username",
+        );
+
+        if (hasUsernameField) {
+          if (typeof req.body.username !== "string") {
+            return res.status(400).json({ error: "username must be a string" });
+          }
+
+          normalizedUsername = req.body.username.trim();
+          if (normalizedUsername.length < 4) {
+            return res.status(400).json({
+              error: "username must be at least 4 characters long",
+            });
+          }
+        }
+
+        const validation = buildProfileUpdates(req.body, {
+          requireAtLeastOne: false,
+        });
         if (!validation.ok) {
           return res.status(400).json({ error: validation.errors.join(", ") });
+        }
+
+        if (!hasUsernameField && Object.keys(validation.updates).length === 0) {
+          return res.status(400).json({
+            error:
+              "At least one valid field is required (username or profile fields)",
+          });
+        }
+
+        if (hasUsernameField) {
+          const existingUser = await usersRepository.getUserByUsername(
+            normalizedUsername,
+          );
+          if (existingUser && Number(existingUser.id) !== teacherId) {
+            return res.status(409).json({ error: "Username already exists" });
+          }
+
+          await usersRepository.updateUsernameByUserId(
+            teacherId,
+            normalizedUsername,
+          );
         }
 
         const profile = await usersRepository.updateProfileByUserId(
@@ -180,6 +297,38 @@ export function createUsersController(usersRepository = createUsersRepository())
         return res.status(500).json({ error: "Internal server error" });
       }
     },
+
+    async deleteTeacher(req, res) {
+      try {
+        if (req.user.role !== "admin") {
+          return res.status(403).json({ error: "Unauthorized" });
+        }
+
+        const teacherId = parsePositiveInteger(req.params.teacherId);
+        if (!teacherId) {
+          return res
+            .status(400)
+            .json({ error: "teacherId must be a positive integer" });
+        }
+
+        const teacher = await usersRepository.getUserById(teacherId);
+        if (!teacher) {
+          return res.status(404).json({ error: "Teacher not found" });
+        }
+
+        if (teacher.role !== "teacher") {
+          return res
+            .status(400)
+            .json({ error: "Provided user is not a teacher" });
+        }
+
+        const deletedTeacher = await usersRepository.deleteTeacherById(teacherId);
+        return res.status(200).json({ teacher: deletedTeacher });
+      } catch (error) {
+        req.log?.error?.({ error }, "Failed to delete teacher");
+        return res.status(500).json({ error: "Internal server error" });
+      }
+    },
   };
 }
 
@@ -187,5 +336,7 @@ const usersController = createUsersController();
 
 export const getMyProfile = usersController.getMyProfile;
 export const updateMyProfile = usersController.updateMyProfile;
+export const createTeacher = usersController.createTeacher;
 export const listTeachers = usersController.listTeachers;
 export const updateTeacherProfile = usersController.updateTeacherProfile;
+export const deleteTeacher = usersController.deleteTeacher;

@@ -7,6 +7,7 @@ import {
   validateModifyAssignmentOutput,
 } from "../validators/assignmentValidator.js";
 import { createAssignmentsRepository } from "../repositories/assignments.repository.js";
+import { createAssignmentGroupsRepository } from "../repositories/assignmentGroups.repository.js";
 
 export class AssignmentPipelineError extends Error {
   constructor(status, code, message, details = []) {
@@ -69,6 +70,8 @@ function extractSingleAssignment(rawOutput) {
 export function createAssignmentGenerationService(dependencies = {}) {
   const lessonPlansRepository = dependencies.lessonPlansRepository || createLessonPlansRepository();
   const assignmentsRepository = dependencies.assignmentsRepository || createAssignmentsRepository();
+  const assignmentGroupsRepository =
+    dependencies.assignmentGroupsRepository || createAssignmentGroupsRepository();
   const llmClient = dependencies.llmClient || createGroqClient();
 
   return {
@@ -148,9 +151,16 @@ export function createAssignmentGenerationService(dependencies = {}) {
       }
 
       const created = [];
+      const group = await assignmentGroupsRepository.create({
+        teacherId,
+        lessonPlanPublicId: request.lesson_plan_public_id,
+        lessonId: request.lesson_id,
+      });
+
       for (const a of validation.assignments) {
         const saved = await assignmentsRepository.create({
           teacherId,
+          assignmentGroupPublicId: group.public_id,
           lessonPlanPublicId: request.lesson_plan_public_id,
           lessonId: request.lesson_id,
           name: a.name,
@@ -161,7 +171,7 @@ export function createAssignmentGenerationService(dependencies = {}) {
         created.push(saved);
       }
 
-      return { assignments: created };
+      return { assignments: created, assignment_group: group };
     },
 
     async modifyAndUpsert(request, context = {}) {

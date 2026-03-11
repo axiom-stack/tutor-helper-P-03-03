@@ -31,19 +31,32 @@ function Auth() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
+    // Client-side validation - we ensure that the password and username are of proper length
+    if (username.length < 4) {
+      setError('اسم المستخدم يجب أن يكون 4 أحرف على الأقل');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await login(username, password);
       navigate('/');
-    } catch (error) {
-      setError('حدث خطأ أثناء تسجيل الدخول');
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || 'حدث خطأ أثناء تسجيل الدخول';
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
-    <div className="auth" dir="rtl" lang="ar">
+    <div className="auth">
       <div className="auth__container">
         <section className="auth__brand" aria-hidden>
           <div className="auth__brand-inner">

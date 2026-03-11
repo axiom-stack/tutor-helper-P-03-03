@@ -19,12 +19,20 @@ import {
   getLessonById,
   getLessonsByUnit,
   getMyClasses,
+  getPlanById,
   getMySubjects,
   getUnitsBySubject,
   type GeneratePlanErrorResponse,
   type GeneratedPlanResponse,
   type PlanType,
 } from './lesson-creator.services';
+import LessonPlanDocumentView from '../lesson-plans/components/LessonPlanDocumentView';
+import {
+  toPlanTypeLabel,
+  toValidationStatusLabel,
+} from '../lesson-plans/planDisplay';
+import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel';
+import { getRefinementTargetOptions } from '../refinements/refinementTargets';
 import './lesson-creator.css';
 
 type SelectValue = number | '';
@@ -58,10 +66,6 @@ const TIMELINE_STEPS = [
   'التحقق من الخطة وحفظها',
 ] as const;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
 function getErrorMessage(
   error: unknown,
   fallback = 'حدث خطأ غير متوقع. حاول مرة أخرى.'
@@ -89,71 +93,6 @@ function getErrorMessage(
   return fallback;
 }
 
-function toDisplayText(value: unknown): string {
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : '—';
-  }
-
-  if (typeof value === 'number') {
-    return String(value);
-  }
-
-  if (isRecord(value)) {
-    const candidateKeys = [
-      'text',
-      'objective',
-      'description',
-      'name',
-      'question',
-      'content',
-      'title',
-      'value',
-    ];
-
-    for (const key of candidateKeys) {
-      const candidate = value[key];
-      if (typeof candidate === 'string' && candidate.trim().length > 0) {
-        return candidate;
-      }
-    }
-
-    const entries = Object.entries(value)
-      .map(([key, itemValue]) => {
-        if (typeof itemValue === 'string' || typeof itemValue === 'number') {
-          return `${key}: ${itemValue}`;
-        }
-
-        if (Array.isArray(itemValue)) {
-          return `${key}: ${itemValue.map((item) => toDisplayText(item)).join('، ')}`;
-        }
-
-        if (isRecord(itemValue)) {
-          return `${key}: ${JSON.stringify(itemValue)}`;
-        }
-
-        return null;
-      })
-      .filter((item): item is string => Boolean(item));
-
-    return entries.length > 0 ? entries.join(' | ') : '—';
-  }
-
-  return '—';
-}
-
-function toTextList(value: unknown): string[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.map((item) => toDisplayText(item)).filter((item) => item !== '—');
-}
-
-function extractHeaderValue(header: Record<string, unknown>, key: string): string {
-  return toDisplayText(header[key]);
-}
-
 function LessonCreator() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -172,8 +111,13 @@ function LessonCreator() {
   const [selectedUnitId, setSelectedUnitId] = useState<SelectValue>('');
   const [selectedLessonId, setSelectedLessonId] = useState<SelectValue>('');
 
-  const [planType, setPlanType] = useState<PlanType>('traditional');
-  const [durationMinutes, setDurationMinutes] = useState<number>(45);
+  const [planType, setPlanType] = useState<PlanType>(
+    () => user?.profile?.default_plan_type ?? 'traditional'
+  );
+  const [durationMinutes, setDurationMinutes] = useState<number>(() => {
+    const profileDuration = user?.profile?.default_lesson_duration_minutes ?? 45;
+    return DURATION_OPTIONS.includes(profileDuration) ? profileDuration : 45;
+  });
   const [isDurationManuallySelected, setIsDurationManuallySelected] =
     useState(false);
 
@@ -484,6 +428,9 @@ function LessonCreator() {
         unit: unitName,
         duration_minutes: safeDurationMinutes,
         plan_type: planType,
+        class_id: selectedClass.id,
+        class_name: selectedClass.name,
+        section: selectedClass.section,
       });
 
       clearTimelineTimers();
@@ -538,6 +485,24 @@ function LessonCreator() {
       setExportError(getErrorMessage(err, 'فشل تصدير Word.'));
     }).finally(() => {
       setIsExporting(false);
+    });
+  };
+
+  const handleRefinementCommitted = async () => {
+    if (!generatedPlan?.id) {
+      return;
+    }
+
+    const response = await getPlanById(generatedPlan.id);
+    const plan = response.plan;
+    setGeneratedPlan({
+      id: plan.public_id,
+      plan_type: plan.plan_type,
+      plan_json: plan.plan_json ?? {},
+      validation_status: plan.validation_status,
+      retry_occurred: plan.retry_occurred,
+      created_at: plan.created_at,
+      updated_at: plan.updated_at,
     });
   };
 
@@ -624,29 +589,9 @@ function LessonCreator() {
     return null;
   }
 
-  const planObject = isRecord(generatedPlan?.plan_json)
-    ? generatedPlan?.plan_json
-    : {};
-  const header = isRecord(planObject.header) ? planObject.header : {};
-
-  const traditionalConcepts = toTextList(planObject.concepts);
-  const traditionalLearningOutcomes = toTextList(planObject.learning_outcomes);
-  const traditionalTeachingStrategies = toTextList(planObject.teaching_strategies);
-  const traditionalActivities = toTextList(planObject.activities);
-  const traditionalResources = toTextList(planObject.learning_resources);
-  const traditionalAssessment = toTextList(planObject.assessment);
-  const traditionalIntro = toDisplayText(planObject.intro);
-  const traditionalHomework = toDisplayText(planObject.homework);
-  const traditionalSource = toDisplayText(planObject.source);
-
-  const activeObjectives = toTextList(planObject.objectives);
-  const lessonFlow = Array.isArray(planObject.lesson_flow)
-    ? planObject.lesson_flow.filter((item) => isRecord(item))
-    : [];
-
   return (
-    <div className="lcp" dir="rtl">
-      <header className="lcp__header">
+    <div className="lcp">
+      <header className="lcp__header page-header">
         <div>
           <nav className="lcp__breadcrumb" aria-label="breadcrumb">
             <Link to="/teacher">الرئيسية</Link>
@@ -750,10 +695,9 @@ function LessonCreator() {
                 <MdCheckCircle aria-hidden />
                 <span>
                   تم إنشاء الخطة بنجاح | رقم الخطة: #{generatedPlan.id} | النوع:{' '}
-                  {generatedPlan.plan_type === 'traditional'
-                    ? 'تقليدية'
-                    : 'تعلم نشط'}{' '}
-                  | التحقق: {generatedPlan.validation_status} | إعادة التحسين:{' '}
+                  {toPlanTypeLabel(generatedPlan.plan_type)}{' '}
+                  | التحقق: {toValidationStatusLabel(generatedPlan.validation_status)} |
+                  {' '}إعادة التحسين:{' '}
                   {generatedPlan.retry_occurred ? 'نعم' : 'لا'}
                 </span>
               </div>
@@ -768,281 +712,19 @@ function LessonCreator() {
                   الانتقال إلى صفحة الواجبات
                 </button>
               </div>
+              <LessonPlanDocumentView
+                planType={generatedPlan.plan_type}
+                planJson={generatedPlan.plan_json}
+                fallback={{
+                  lessonTitle: selectedLesson?.name,
+                  subject: selectedSubject?.name,
+                  grade: selectedClass?.grade_label,
+                  section: selectedClass?.section_label,
+                  unit: selectedUnit?.name,
+                  durationMinutes,
+                }}
+              />
 
-              {generatedPlan.plan_type !== 'traditional' && (
-                <div className="lcp__meta-grid">
-                  <div>
-                    <label>التاريخ</label>
-                    <p>{extractHeaderValue(header, 'date')}</p>
-                  </div>
-                  <div>
-                    <label>اليوم</label>
-                    <p>{extractHeaderValue(header, 'day')}</p>
-                  </div>
-                  <div>
-                    <label>المادة</label>
-                    <p>
-                      {extractHeaderValue(header, 'subject') !== '—'
-                        ? extractHeaderValue(header, 'subject')
-                        : selectedSubject?.name ?? '—'}
-                    </p>
-                  </div>
-                  <div>
-                    <label>الصف</label>
-                    <p>
-                      {extractHeaderValue(header, 'grade') !== '—'
-                        ? extractHeaderValue(header, 'grade')
-                        : selectedClass?.grade_label ?? '—'}
-                    </p>
-                  </div>
-                  <div>
-                    <label>الدرس</label>
-                    <p>
-                      {extractHeaderValue(header, 'lesson_title') !== '—'
-                        ? extractHeaderValue(header, 'lesson_title')
-                        : selectedLesson?.name ?? '—'}
-                    </p>
-                  </div>
-                  <div>
-                    <label>الوحدة</label>
-                    <p>
-                      {extractHeaderValue(header, 'unit') !== '—'
-                        ? extractHeaderValue(header, 'unit')
-                        : selectedUnit?.name ?? '—'}
-                    </p>
-                  </div>
-                  <div>
-                    <label>المدة</label>
-                    <p>
-                      {extractHeaderValue(header, 'duration') !== '—'
-                        ? extractHeaderValue(header, 'duration')
-                        : `${durationMinutes} دقيقة`}
-                    </p>
-                  </div>
-                  <div>
-                    <label>الخطة</label>
-                    <p>تعلم نشط</p>
-                  </div>
-                </div>
-              )}
-
-              {generatedPlan.plan_type === 'traditional' ? (
-                <div className="lcp__traditional-card">
-                  <div className="lcp__traditional-shell">
-                    <div className="lcp__traditional-header-grid">
-                      <div>
-                        <label>التاريخ</label>
-                        <p>{extractHeaderValue(header, 'date')}</p>
-                      </div>
-                      <div>
-                        <label>اليوم</label>
-                        <p>{extractHeaderValue(header, 'day')}</p>
-                      </div>
-                      <div>
-                        <label>الصف</label>
-                        <p>
-                          {extractHeaderValue(header, 'grade') !== '—'
-                            ? extractHeaderValue(header, 'grade')
-                            : selectedClass?.grade_label ?? '—'}
-                        </p>
-                      </div>
-                      <div>
-                        <label>الشعبة</label>
-                        <p>
-                          {extractHeaderValue(header, 'section') !== '—'
-                            ? extractHeaderValue(header, 'section')
-                            : selectedClass?.section_label ?? '—'}
-                        </p>
-                      </div>
-                      <div>
-                        <label>الحصة</label>
-                        <p>
-                          {extractHeaderValue(header, 'lesson_title') !== '—'
-                            ? extractHeaderValue(header, 'lesson_title')
-                            : selectedLesson?.name ?? '—'}
-                        </p>
-                      </div>
-                      <div>
-                        <label>العنوان</label>
-                        <p>
-                          {extractHeaderValue(header, 'lesson_title') !== '—'
-                            ? extractHeaderValue(header, 'lesson_title')
-                            : selectedLesson?.name ?? '—'}
-                        </p>
-                      </div>
-                      <div>
-                        <label>الوحدة</label>
-                        <p>
-                          {extractHeaderValue(header, 'unit') !== '—'
-                            ? extractHeaderValue(header, 'unit')
-                            : selectedUnit?.name ?? '—'}
-                        </p>
-                      </div>
-                      <div>
-                        <label>الوقت</label>
-                        <p>
-                          {extractHeaderValue(header, 'duration') !== '—'
-                            ? extractHeaderValue(header, 'duration')
-                            : `${durationMinutes} دقيقة`}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="lcp__traditional-intro">
-                      <h3>التمهيد</h3>
-                      <p>{traditionalIntro}</p>
-                      <h4>المفاهيم</h4>
-                      <ul>
-                        {traditionalConcepts.length > 0 ? (
-                          traditionalConcepts.map((item, index) => (
-                            <li key={`${item}-${index}`}>{item}</li>
-                          ))
-                        ) : (
-                          <li>لا توجد مفاهيم مدخلة.</li>
-                        )}
-                      </ul>
-                    </div>
-
-                    <div className="lcp__traditional-grid">
-                      <section>
-                        <h4>الأهداف / المخرجات التعليمية</h4>
-                        <ul>
-                          {traditionalLearningOutcomes.length > 0 ? (
-                            traditionalLearningOutcomes.map((item, index) => (
-                              <li key={`${item}-${index}`}>{item}</li>
-                            ))
-                          ) : (
-                            <li>لا توجد أهداف مدخلة.</li>
-                          )}
-                        </ul>
-                      </section>
-                      <section>
-                        <h4>الاستراتيجيات / طرق التدريس</h4>
-                        <ul>
-                          {traditionalTeachingStrategies.length > 0 ? (
-                            traditionalTeachingStrategies.map((item, index) => (
-                              <li key={`${item}-${index}`}>{item}</li>
-                            ))
-                          ) : (
-                            <li>لا توجد استراتيجيات مدخلة.</li>
-                          )}
-                        </ul>
-                      </section>
-                      <section>
-                        <h4>الأنشطة</h4>
-                        <ul>
-                          {traditionalActivities.length > 0 ? (
-                            traditionalActivities.map((item, index) => (
-                              <li key={`${item}-${index}`}>{item}</li>
-                            ))
-                          ) : (
-                            <li>لا توجد أنشطة مدخلة.</li>
-                          )}
-                        </ul>
-                      </section>
-                      <section>
-                        <h4>الوسائل / مصادر التعلم</h4>
-                        <ul>
-                          {traditionalResources.length > 0 ? (
-                            traditionalResources.map((item, index) => (
-                              <li key={`${item}-${index}`}>{item}</li>
-                            ))
-                          ) : (
-                            <li>لا توجد وسائل مدخلة.</li>
-                          )}
-                        </ul>
-                      </section>
-                      <section>
-                        <h4>التقويم</h4>
-                        <ul>
-                          {traditionalAssessment.length > 0 ? (
-                            traditionalAssessment.map((item, index) => (
-                              <li key={`${item}-${index}`}>{item}</li>
-                            ))
-                          ) : (
-                            <li>لا توجد أدوات تقويم مدخلة.</li>
-                          )}
-                        </ul>
-                      </section>
-                    </div>
-
-                    <div className="lcp__traditional-footer">
-                      <div>
-                        <h4>الواجب</h4>
-                        <p>{traditionalHomework}</p>
-                      </div>
-                      <div>
-                        <h4>المصدر</h4>
-                        <p>{traditionalSource}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="lcp__plan-sections">
-                  <section>
-                    <h3>الأهداف التعليمية</h3>
-                    <ul>
-                      {activeObjectives.length > 0 ? (
-                        activeObjectives.map((item, index) => (
-                          <li key={`${item}-${index}`}>{item}</li>
-                        ))
-                      ) : (
-                        <li>لا توجد بيانات.</li>
-                      )}
-                    </ul>
-                  </section>
-
-                  <section>
-                    <h3>تدفق الدرس</h3>
-                    <div className="lcp__table-wrap">
-                      <table className="lcp__flow-table">
-                        <thead>
-                          <tr>
-                            <th>الزمن</th>
-                            <th>المحتوى</th>
-                            <th>نوع النشاط</th>
-                            <th>دور المعلم</th>
-                            <th>دور الطالب</th>
-                            <th>الوسائل</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {lessonFlow.length > 0 ? (
-                            lessonFlow.map((row, index) => {
-                              const resources = Array.isArray(row.learning_resources)
-                                ? row.learning_resources
-                                    .map((item) => toDisplayText(item))
-                                    .join('، ')
-                                : '—';
-
-                              return (
-                                <tr key={`flow-${index}`}>
-                                  <td>{toDisplayText(row.time)}</td>
-                                  <td>{toDisplayText(row.content)}</td>
-                                  <td>{toDisplayText(row.activity_type)}</td>
-                                  <td>{toDisplayText(row.teacher_activity)}</td>
-                                  <td>{toDisplayText(row.student_activity)}</td>
-                                  <td>{resources || '—'}</td>
-                                </tr>
-                              );
-                            })
-                          ) : (
-                            <tr>
-                              <td colSpan={6}>لا توجد بيانات تدفق.</td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </section>
-
-                  <section>
-                    <h3>الواجب</h3>
-                    <p>{toDisplayText(planObject.homework)}</p>
-                  </section>
-                </div>
-              )}
             </article>
           )}
         </section>
@@ -1196,6 +878,27 @@ function LessonCreator() {
             </button>
           </div>
         </aside>
+
+        {generatedPlan && (
+          <section className="lcp__refinement-row">
+            <SmartRefinementPanel
+              artifactType="lesson_plan"
+              artifactId={generatedPlan.id}
+              baseArtifact={{
+                id: generatedPlan.id,
+                plan_type: generatedPlan.plan_type,
+                lesson_title: selectedLesson?.name ?? '',
+                subject: selectedSubject?.name ?? '',
+                grade: selectedClass?.grade_label ?? '',
+                unit: selectedUnit?.name ?? '',
+                duration_minutes: durationMinutes,
+                plan_json: generatedPlan.plan_json,
+              }}
+              targetSelectors={getRefinementTargetOptions('lesson_plan')}
+              onCommitted={handleRefinementCommitted}
+            />
+          </section>
+        )}
       </div>
     </div>
   );

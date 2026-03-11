@@ -1,21 +1,8 @@
 import { turso } from "../lib/turso.js";
-
-function normalizeString(value) {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function parsePositiveInteger(value) {
-  if (value === undefined || value === null || value === "") {
-    return null;
-  }
-
-  const numberValue = Number(value);
-  if (!Number.isInteger(numberValue) || numberValue <= 0) {
-    return null;
-  }
-
-  return numberValue;
-}
+import {
+  normalizeString,
+  parsePositiveInteger,
+} from "../utils/normalization.js";
 
 function validateRequiredClassFields(payload) {
   const normalized = {
@@ -23,6 +10,7 @@ function validateRequiredClassFields(payload) {
     description: normalizeString(payload?.description),
     grade_label: normalizeString(payload?.grade_label),
     section_label: normalizeString(payload?.section_label),
+    section: normalizeString(payload?.section) || "أ",
     academic_year: normalizeString(payload?.academic_year),
   };
 
@@ -48,6 +36,7 @@ function validateRequiredClassFields(payload) {
 }
 
 // POST
+// - createClass
 export async function createClass(req, res) {
   try {
     if (!req.body) {
@@ -88,14 +77,15 @@ export async function createClass(req, res) {
     const createdClass = await turso.execute({
       sql: `
         INSERT INTO Classes
-          (name, description, grade_label, section_label, academic_year, default_duration_minutes, teacher_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+          (name, description, grade_label, section_label, section, academic_year, default_duration_minutes, teacher_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
       args: [
         normalized.name,
         normalized.description,
         normalized.grade_label,
         normalized.section_label,
+        normalized.section,
         normalized.academic_year,
         defaultDurationMinutes,
         parsedTeacherId,
@@ -114,6 +104,9 @@ export async function createClass(req, res) {
 }
 
 // GET
+// - getClassesByTeacherId
+// - getClassByClassId
+// - getAllClassesInTheSystem
 export async function getClassesByTeacherId(req, res) {
   try {
     const { id: userId } = req.user;
@@ -143,7 +136,10 @@ export async function getClassByClassId(req, res) {
       return res.status(404).json({ error: "Class not found" });
     }
 
-    if (userRole !== "admin" && Number(returnedClass.rows[0].teacher_id) !== Number(userId)) {
+    if (
+      userRole !== "admin" &&
+      Number(returnedClass.rows[0].teacher_id) !== Number(userId)
+    ) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
@@ -171,6 +167,7 @@ export async function getAllClassesInTheSystem(req, res) {
 }
 
 // PUT
+// - updateClassByClassId
 export async function updateClassByClassId(req, res) {
   try {
     const { classId } = req.params;
@@ -209,7 +206,10 @@ export async function updateClassByClassId(req, res) {
       return res.status(404).json({ error: "Class not found" });
     }
 
-    if (userRole !== "admin" && Number(returnedClass.rows[0].teacher_id) !== Number(userId)) {
+    if (
+      userRole !== "admin" &&
+      Number(returnedClass.rows[0].teacher_id) !== Number(userId)
+    ) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
@@ -221,6 +221,7 @@ export async function updateClassByClassId(req, res) {
           description = ?,
           grade_label = ?,
           section_label = ?,
+          section = ?,
           academic_year = ?,
           default_duration_minutes = ?
         WHERE id = ?
@@ -230,6 +231,7 @@ export async function updateClassByClassId(req, res) {
         normalized.description,
         normalized.grade_label,
         normalized.section_label,
+        normalized.section,
         normalized.academic_year,
         defaultDurationMinutes,
         classId,
@@ -248,6 +250,7 @@ export async function updateClassByClassId(req, res) {
 }
 
 // DELETE
+// - deleteClassByClassId
 export async function deleteClassByClassId(req, res) {
   try {
     const { classId } = req.params;
@@ -261,20 +264,11 @@ export async function deleteClassByClassId(req, res) {
     if (classToDelete.rows.length === 0) {
       return res.status(404).json({ error: "Class not found" });
     }
-    if (userRole !== "admin" && Number(classToDelete.rows[0].teacher_id) !== Number(userId)) {
+    if (
+      userRole !== "admin" &&
+      Number(classToDelete.rows[0].teacher_id) !== Number(userId)
+    ) {
       return res.status(403).json({ error: "Unauthorized" });
-    }
-
-    const linkedSubjects = await turso.execute({
-      sql: "SELECT COUNT(*) AS count FROM Subjects WHERE class_id = ?",
-      args: [classId],
-    });
-
-    if (Number(linkedSubjects.rows[0]?.count ?? 0) > 0) {
-      return res.status(409).json({
-        error:
-          "Cannot delete this class because it still contains subjects. Delete subjects first.",
-      });
     }
 
     await turso.execute({

@@ -7,13 +7,10 @@
 
 .st__header h1 {
   margin: 0;
-  font-size: var(--text-xxl);
-  line-height: 1.25;
 }
 
 .st__header p {
   margin: var(--space-xs) 0 0;
-  color: var(--text-secondary);
   max-width: 75ch;
 }
 
@@ -109,6 +106,60 @@
   border-color: var(--primary-hover);
   background: var(--primary-hover);
   box-shadow: var(--shadow-sm);
+}
+
+.st__subheading {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.st__hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.st__translate-widget {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.st__lang-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--border-light);
+}
+
+.st__lang-toggle-option {
+  padding: 0.5rem var(--space-md);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.st__lang-toggle-option:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+.st__lang-toggle-option.is-active {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 500;
 }
 
 @media (max-width: 900px) {

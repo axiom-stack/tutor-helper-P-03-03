@@ -2,7 +2,6 @@ import { authAxios } from '../auth/auth.services';
 import type {
   Assignment,
   GenerateAssignmentsRequest,
-  ModifyAssignmentRequest,
 } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
 
@@ -10,10 +9,6 @@ const api = () => authAxios();
 
 interface GenerateAssignmentsResponse {
   assignments: Assignment[];
-}
-
-interface ModifyAssignmentResponse {
-  assignment: Assignment;
 }
 
 interface ListAssignmentsResponse {
@@ -48,26 +43,6 @@ export async function generateAssignments(
     return response.data;
   } catch (error: unknown) {
     throw normalizeApiError(error, 'فشل توليد الواجبات.');
-  }
-}
-
-export async function modifyAssignment(
-  assignmentId: string,
-  modificationRequest: string
-): Promise<ModifyAssignmentResponse> {
-  const payload: ModifyAssignmentRequest = {
-    assignment_id: assignmentId,
-    modification_request: modificationRequest,
-  };
-
-  try {
-    const response = await api().post<ModifyAssignmentResponse>(
-      '/api/assignments/modify',
-      payload
-    );
-    return response.data;
-  } catch (error: unknown) {
-    throw normalizeApiError(error, 'تعذر تعديل الواجب.');
   }
 }
 

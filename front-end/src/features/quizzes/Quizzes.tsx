@@ -28,6 +28,9 @@ import {
   getUnitsBySubject,
   listExams,
 } from './quizzes.services';
+import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel';
+import { getRefinementTargetOptions } from '../refinements/refinementTargets';
+import ConfirmActionModal from '../../components/common/ConfirmActionModal';
 import './quizzes.css';
 
 type SelectValue = number | '';
@@ -86,6 +89,11 @@ export default function Quizzes() {
   const [isListLoading, setIsListLoading] = useState(false);
   const [isExamLoading, setIsExamLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteExamRequest, setDeleteExamRequest] = useState<{
+    examId: string;
+    endpoint: string;
+    payload: Record<string, unknown>;
+  } | null>(null);
 
   const [error, setError] = useState<NormalizedApiError | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -310,13 +318,16 @@ export default function Quizzes() {
     }
   };
 
+  const requestDeleteExam = (examId: string) => {
+    setDeleteExamRequest({
+      examId,
+      endpoint: `/api/exams/${examId}`,
+      payload: { examId },
+    });
+  };
+
   const handleDeleteExam = async (examId: string) => {
     if (!isTeacher) {
-      return;
-    }
-
-    const accepted = window.confirm('هل تريد حذف هذا الاختبار نهائيًا؟');
-    if (!accepted) {
       return;
     }
 
@@ -355,13 +366,22 @@ export default function Quizzes() {
       .finally(() => setIsExporting(false));
   };
 
+  const handleRefinementCommitted = async () => {
+    if (!selectedExam?.public_id) {
+      return;
+    }
+    const response = await getExamById(selectedExam.public_id);
+    setSelectedExam(response.exam);
+    await loadExams();
+  };
+
   if (!user) {
     return null;
   }
 
   return (
-    <div className="qz" dir="rtl">
-      <header className="qz__header">
+    <div className="qz">
+      <header className="qz__header page-header">
         <div>
           <nav className="qz__breadcrumb" aria-label="breadcrumb">
             <Link to="/">الرئيسية</Link>
@@ -617,7 +637,7 @@ export default function Quizzes() {
                         <button
                           type="button"
                           className="qz__delete-btn"
-                          onClick={() => void handleDeleteExam(exam.public_id)}
+                          onClick={() => requestDeleteExam(exam.public_id)}
                           disabled={isDeleting}
                         >
                           <MdDelete aria-hidden />
@@ -753,12 +773,45 @@ export default function Quizzes() {
                       <p>لا توجد أسئلة لعرضها.</p>
                     )}
                   </section>
+
+                  <SmartRefinementPanel
+                    artifactType="exam"
+                    artifactId={selectedExam.public_id}
+                    baseArtifact={{
+                      id: selectedExam.public_id,
+                      title: selectedExam.title,
+                      total_questions: selectedExam.total_questions,
+                      total_marks: selectedExam.total_marks,
+                      lesson_ids: selectedExam.lesson_ids,
+                      blueprint: selectedExam.blueprint ?? {},
+                      questions: selectedExam.questions ?? [],
+                    }}
+                    targetSelectors={getRefinementTargetOptions('exam')}
+                    onCommitted={handleRefinementCommitted}
+                  />
                 </div>
               )}
             </div>
           </div>
         </section>
       </div>
+
+      <ConfirmActionModal
+        isOpen={Boolean(deleteExamRequest)}
+        title="تأكيد حذف الاختبار"
+        message="سيتم حذف الاختبار نهائيًا. لا يمكن التراجع بعد الحذف."
+        endpoint={deleteExamRequest?.endpoint ?? '/api/exams'}
+        payload={deleteExamRequest?.payload}
+        isLoading={isDeleting}
+        onCancel={() => setDeleteExamRequest(null)}
+        onConfirm={async () => {
+          if (!deleteExamRequest) {
+            return;
+          }
+          await handleDeleteExam(deleteExamRequest.examId);
+          setDeleteExamRequest(null);
+        }}
+      />
 
       {isTeacher && selectedSubject && (
         <footer className="qz__subject-meta">

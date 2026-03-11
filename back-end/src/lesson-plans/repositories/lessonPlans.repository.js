@@ -243,5 +243,32 @@ export function createLessonPlansRepository(dbClient = turso) {
         ? latestActive
         : latestTraditional;
     },
+
+    async updatePlanJsonByPublicId(planPublicId, planJson, accessContext) {
+      const planType = getPlanTypeByPublicId(planPublicId);
+      if (!planType) {
+        return null;
+      }
+
+      const tableName = PLAN_TABLES[planType];
+      const whereClauses = ["public_id = ?"];
+      const args = [JSON.stringify(planJson), planPublicId];
+
+      if (accessContext?.role !== "admin") {
+        whereClauses.push("teacher_id = ?");
+        args.push(accessContext?.userId);
+      }
+
+      await dbClient.execute({
+        sql: `
+          UPDATE ${tableName}
+          SET plan_json = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE ${whereClauses.join(" AND ")}
+        `,
+        args,
+      });
+
+      return this.getByPublicId(planPublicId, accessContext);
+    },
   };
 }

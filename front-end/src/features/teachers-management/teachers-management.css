@@ -7,13 +7,16 @@
 
 .tm__header h1 {
   margin: 0;
-  font-size: var(--text-xxl);
-  line-height: 1.25;
 }
 
 .tm__header p {
   margin: var(--space-xs) 0 0;
-  color: var(--text-secondary);
+}
+
+.tm__top-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
 }
 
 .tm__top-actions button {
@@ -63,6 +66,28 @@
   font-size: var(--text-lg);
 }
 
+.tm__table-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.tm__count-badge {
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 var(--space-xs);
+  border-radius: 999px;
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  background: rgba(239, 246, 255, 0.8);
+  color: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
 .tm__table-wrap {
   overflow: auto;
   border: 1px solid var(--border-light);
@@ -83,6 +108,18 @@
   font-size: var(--text-sm);
 }
 
+.tm__row {
+  transition: background var(--transition-fast);
+}
+
+.tm__row:hover {
+  background: rgba(37, 99, 235, 0.04);
+}
+
+.tm__row--selected {
+  background: rgba(37, 99, 235, 0.08);
+}
+
 .tm__teacher-cell {
   display: grid;
   gap: 2px;
@@ -92,7 +129,13 @@
   color: var(--text-secondary);
 }
 
-.tm__edit-btn {
+.tm__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.tm__action-btn {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
@@ -103,11 +146,47 @@
   align-items: center;
   gap: var(--space-xs);
   cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.tm__action-btn--edit:hover {
+  border-color: rgba(37, 99, 235, 0.45);
+  color: var(--primary);
+}
+
+.tm__action-btn--delete {
+  color: var(--error);
+  border-color: rgba(220, 38, 38, 0.35);
+}
+
+.tm__action-btn--delete:hover {
+  background: rgba(254, 242, 242, 0.8);
+  border-color: rgba(220, 38, 38, 0.5);
 }
 
 .tm__editor-grid {
   display: grid;
   gap: var(--space-sm);
+}
+
+.tm__editor-selected {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: rgba(248, 250, 252, 0.9);
+  padding: var(--space-sm);
+  display: grid;
+  gap: 2px;
+}
+
+.tm__editor-selected strong {
+  font-size: var(--text-base);
+}
+
+.tm__editor-selected small {
+  color: var(--text-secondary);
 }
 
 .tm__field {
@@ -127,6 +206,13 @@
   border-radius: var(--radius-md);
   padding: 0 var(--space-sm);
   font-family: inherit;
+}
+
+.tm__field input:focus,
+.tm__field select:focus {
+  outline: none;
+  border-color: rgba(37, 99, 235, 0.6);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
 }
 
 .tm__editor-actions button {
@@ -180,4 +266,166 @@
   .tm__layout {
     grid-template-columns: 1fr;
   }
+}
+
+/* Modal Styles */
+.tm-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tm-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.tm-modal__panel {
+  position: relative;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.tm-modal__panel--danger {
+  border: 1px solid rgba(220, 38, 38, 0.25);
+}
+
+.tm-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--border);
+}
+
+.tm-modal__header h3 {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tm-modal__close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-xs);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  transition: color var(--transition-fast);
+}
+
+.tm-modal__close:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+
+.tm-modal__form {
+  padding: var(--space-lg);
+}
+
+.tm-modal__field {
+  display: block;
+  margin-bottom: var(--space-md);
+}
+
+.tm-modal__field span {
+  display: block;
+  margin-bottom: var(--space-xs);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.tm-modal__field input {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
+  transition: border-color var(--transition-fast);
+}
+
+.tm-modal__field input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.tm-modal__field input:disabled {
+  background: var(--surface-disabled);
+  cursor: not-allowed;
+}
+
+.tm-modal__error {
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+  background: rgba(254, 242, 242, 0.95);
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  color: var(--error);
+  font-size: var(--text-sm);
+}
+
+.tm-modal__actions {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+}
+
+.tm-modal__btn {
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+}
+
+.tm-modal__btn--secondary {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.tm-modal__btn--secondary:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.tm-modal__btn--primary {
+  background: var(--primary);
+  color: white;
+}
+
+.tm-modal__btn--primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.tm-modal__btn--danger {
+  background: #dc2626;
+  color: #fff;
+}
+
+.tm-modal__btn--danger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.tm-modal__delete-message {
+  margin: 0 0 var(--space-md);
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.tm-modal__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
