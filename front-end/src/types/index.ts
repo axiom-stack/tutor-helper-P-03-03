@@ -16,6 +16,7 @@ export interface Class {
   description: string;
   grade_label: string;
   section_label: string;
+  section: string;
   academic_year: string;
   default_duration_minutes: number;
   teacher_id: number;
@@ -474,6 +475,7 @@ export interface CreateClassData {
   description: string;
   grade_label: string;
   section_label: string;
+  section?: string;
   academic_year: string;
   default_duration_minutes?: number;
   teacher_id: number;

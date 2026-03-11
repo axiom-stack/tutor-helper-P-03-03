@@ -439,6 +439,7 @@ const promptsHelper = {
         "day": "",
         "subject": "",
         "grade": "",
+        "section": "",
         "lesson_title": "",
         "unit": "",
         "duration": ""

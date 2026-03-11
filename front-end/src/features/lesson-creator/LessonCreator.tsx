@@ -428,6 +428,9 @@ function LessonCreator() {
         unit: unitName,
         duration_minutes: safeDurationMinutes,
         plan_type: planType,
+        class_id: selectedClass.id,
+        class_name: selectedClass.name,
+        section: selectedClass.section,
       });
 
       clearTimelineTimers();

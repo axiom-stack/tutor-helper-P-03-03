@@ -38,6 +38,8 @@ function buildCommonInput({
         grade: request.grade,
         unit: request.unit,
         duration_minutes: request.duration_minutes,
+        class_name: request.class_name || null,
+        section: request.section || null,
       },
       lesson_content: boundedLessonContent,
       lesson_content_truncated: lessonContent.length > maxLessonContentChars,
@@ -79,6 +81,7 @@ export function buildPrompt2TraditionalPedagogicalTuner(args) {
     "teaching_strategies must belong to the provided allowed strategy bank.",
     "Ensure matrix integrity: outcomes, strategies, activities, resources, and assessment are aligned and complete.",
     "Ensure timing coherence with requested duration.",
+    "Preserve header.grade and header.section from the draft or fill them with provided values.",
     "Do not include instruction, inputs, output_requirements, draft_plan_json, validation_errors, or metadata wrapper keys in output.",
     "Return JSON only with no markdown and no commentary.",
   ].join(" ");
@@ -124,6 +127,7 @@ export function buildPrompt2ActiveLearningPedagogicalTuner(args) {
     "Ensure lesson_flow rows are realistic and coherent.",
     "Ensure lesson_flow.activity_type is only one of intro, presentation, activity, assessment.",
     "Ensure time distribution and total duration fit requested duration.",
+    "Preserve header.grade and header.section from the draft or fill them with provided values.",
     "Do not include instruction, inputs, output_requirements, draft_plan_json, validation_errors, or metadata wrapper keys in output.",
     "Return JSON only with no markdown and no commentary.",
   ].join(" ");

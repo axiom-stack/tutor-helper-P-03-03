@@ -24,6 +24,7 @@ CREATE TABLE Classes (
   description TEXT NOT NULL,
   grade_label TEXT NOT NULL,
   section_label TEXT NOT NULL,
+  section TEXT NOT NULL DEFAULT 'أ',
   academic_year TEXT NOT NULL,
   default_duration_minutes INTEGER NOT NULL DEFAULT 45,
   teacher_id INTEGER NOT NULL REFERENCES users(id),

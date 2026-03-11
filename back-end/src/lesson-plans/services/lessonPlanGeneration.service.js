@@ -1,3 +1,4 @@
+import { turso } from "../../lib/turso.js";
 import { loadLessonPlanKnowledge } from "../knowledgeLoader.js";
 import { selectPlanRuntimeResources } from "../selectors.js";
 import { buildPrompt1DraftGenerator } from "../prompts/prompt1Builder.js";
@@ -167,6 +168,30 @@ function ensureLlmSuccess(result, stageName) {
   ]);
 }
 
+async function resolveClassInfo(request, teacherId) {
+  let className = request.class_name || null;
+  let section = request.section || null;
+
+  if (request.class_id) {
+    try {
+      const result = await turso.execute({
+        sql: "SELECT name, section FROM Classes WHERE id = ? AND teacher_id = ?",
+        args: [Number(request.class_id), Number(teacherId)],
+      });
+
+      if (result.rows.length > 0) {
+        const classRow = result.rows[0];
+        className = classRow.name;
+        section = classRow.section || null;
+      }
+    } catch {
+      return { className, section };
+    }
+  }
+
+  return { className, section };
+}
+
 export function createLessonPlanGenerationService(dependencies = {}) {
   const knowledgeLoader = dependencies.knowledgeLoader || loadLessonPlanKnowledge;
   const resourceSelector = dependencies.resourceSelector || selectPlanRuntimeResources;
@@ -201,6 +226,14 @@ export function createLessonPlanGenerationService(dependencies = {}) {
       const knowledge = knowledgeLoader();
       const { targetSchema, strategyBank } = resourceSelector(request.plan_type, knowledge);
 
+      const { className, section } = await resolveClassInfo(request, teacherId);
+
+      const enrichedRequest = {
+        ...request,
+        class_name: className,
+        section,
+      };
+
       logger.info(
         {
           lesson_id: request.lesson_id,
@@ -210,12 +243,14 @@ export function createLessonPlanGenerationService(dependencies = {}) {
           unit: request.unit,
           duration_minutes: request.duration_minutes,
           plan_type: request.plan_type,
+          class_name: className,
+          section,
         },
         "lesson plan generation request received",
       );
 
       const prompt1 = prompt1Builder({
-        request,
+        request: enrichedRequest,
         planType: request.plan_type,
         targetSchema,
       });
@@ -231,7 +266,7 @@ export function createLessonPlanGenerationService(dependencies = {}) {
       );
 
       const prompt2Initial = prompt2Builder({
-        request,
+        request: enrichedRequest,
         planType: request.plan_type,
         draftPlanJson: normalizedDraftPlan,
         pedagogicalRules: knowledge.pedagogical_rules,
@@ -269,7 +304,7 @@ export function createLessonPlanGenerationService(dependencies = {}) {
         );
 
         const prompt2Retry = prompt2Builder({
-          request,
+          request: enrichedRequest,
           planType: request.plan_type,
           draftPlanJson: candidatePlan,
           pedagogicalRules: knowledge.pedagogical_rules,

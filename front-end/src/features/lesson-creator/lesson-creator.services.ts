@@ -14,6 +14,9 @@ export interface GeneratePlanRequest {
   unit: string;
   duration_minutes: number;
   plan_type: PlanType;
+  class_id?: number;
+  class_name?: string;
+  section?: string;
 }
 
 export interface ValidationErrorItem {

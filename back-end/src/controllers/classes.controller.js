@@ -10,6 +10,7 @@ function validateRequiredClassFields(payload) {
     description: normalizeString(payload?.description),
     grade_label: normalizeString(payload?.grade_label),
     section_label: normalizeString(payload?.section_label),
+    section: normalizeString(payload?.section) || "أ",
     academic_year: normalizeString(payload?.academic_year),
   };
 
@@ -76,14 +77,15 @@ export async function createClass(req, res) {
     const createdClass = await turso.execute({
       sql: `
         INSERT INTO Classes
-          (name, description, grade_label, section_label, academic_year, default_duration_minutes, teacher_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+          (name, description, grade_label, section_label, section, academic_year, default_duration_minutes, teacher_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
       args: [
         normalized.name,
         normalized.description,
         normalized.grade_label,
         normalized.section_label,
+        normalized.section,
         normalized.academic_year,
         defaultDurationMinutes,
         parsedTeacherId,
@@ -219,6 +221,7 @@ export async function updateClassByClassId(req, res) {
           description = ?,
           grade_label = ?,
           section_label = ?,
+          section = ?,
           academic_year = ?,
           default_duration_minutes = ?
         WHERE id = ?
@@ -228,6 +231,7 @@ export async function updateClassByClassId(req, res) {
         normalized.description,
         normalized.grade_label,
         normalized.section_label,
+        normalized.section,
         normalized.academic_year,
         defaultDurationMinutes,
         classId,
