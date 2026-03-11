@@ -33,6 +33,7 @@ import {
 } from '../lesson-plans/planDisplay';
 import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel';
 import { getRefinementTargetOptions } from '../refinements/refinementTargets';
+import { getLocalizedAiLimitMessage } from '../../utils/apiErrors';
 import './lesson-creator.css';
 
 type SelectValue = number | '';
@@ -70,6 +71,30 @@ function getErrorMessage(
   error: unknown,
   fallback = 'حدث خطأ غير متوقع. حاول مرة أخرى.'
 ): string {
+  const localizedAiLimitMessage = getLocalizedAiLimitMessage(error);
+  if (localizedAiLimitMessage) {
+    return localizedAiLimitMessage;
+  }
+
+  const extractDetailMessages = (details: unknown): string[] => {
+    if (!Array.isArray(details)) {
+      return [];
+    }
+
+    return details
+      .map((item) => {
+        if (!item || typeof item !== 'object') {
+          return null;
+        }
+
+        const maybeMessage = (item as { message?: unknown }).message;
+        return typeof maybeMessage === 'string' && maybeMessage.trim().length > 0
+          ? maybeMessage.trim()
+          : null;
+      })
+      .filter((item): item is string => Boolean(item));
+  };
+
   if (error && typeof error === 'object') {
     const parsed = error as ApiErrorShape;
 
@@ -81,7 +106,15 @@ function getErrorMessage(
     if (nested && typeof nested === 'object' && 'message' in nested) {
       const maybeMessage = nested.message;
       if (typeof maybeMessage === 'string' && maybeMessage.trim().length > 0) {
-        return maybeMessage;
+        const detailMessages = extractDetailMessages(
+          (nested as { details?: unknown }).details
+        );
+
+        if (detailMessages.length > 0) {
+          return `${maybeMessage.trim()}: ${detailMessages.slice(0, 2).join(' | ')}`;
+        }
+
+        return maybeMessage.trim();
       }
     }
 

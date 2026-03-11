@@ -41,6 +41,12 @@ interface AssignmentContextResolution {
   rawLessonId: string | null;
 }
 
+interface SummaryCard {
+  label: string;
+  value: string;
+  hint: string;
+}
+
 const LESSON_PLAN_ID_PATTERN = /^(trd|act)_\d+$/;
 
 function pickByPriority(values: Array<string | undefined | null>): string | null {
@@ -97,6 +103,15 @@ function formatRefreshTime(value: Date | null): string {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function countUniqueLessons(assignments: Assignment[]): number {
+  return new Set(assignments.map((assignment) => assignment.lesson_id)).size;
+}
+
+function formatCountByType(assignments: Assignment[], type: Assignment['type']): string {
+  const count = assignments.filter((assignment) => assignment.type === type).length;
+  return `${count}`;
 }
 
 function resolveContext(
@@ -159,7 +174,7 @@ export default function Assignments() {
   const lessonIdState = locationState?.lesson_id;
   const lessonPlanIdState = locationState?.lesson_plan_public_id;
 
-  const { context, rawLessonPlanPublicId, rawLessonId } = useMemo(
+  const { context } = useMemo(
     () =>
       resolveContext(
         {
@@ -180,6 +195,7 @@ export default function Assignments() {
       location.search,
     ]
   );
+  const isScopedView = context !== null;
 
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(
@@ -200,6 +216,64 @@ export default function Assignments() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
+  const summaryCards = useMemo<SummaryCard[]>(() => {
+    if (isScopedView && context) {
+      return [
+        {
+          label: 'معرّف الخطة',
+          value: context.lessonPlanPublicId,
+          hint: 'يتم عرض واجبات هذه الخطة فقط.',
+        },
+        {
+          label: 'معرّف الدرس',
+          value: String(context.lessonId),
+          hint: 'الفلترة الحالية مرتبطة بهذا الدرس.',
+        },
+        {
+          label: 'عدد الواجبات',
+          value: String(assignments.length),
+          hint: 'عدد الواجبات المعروضة في هذه الصفحة الآن.',
+        },
+        {
+          label: 'آخر تحديث',
+          value: formatRefreshTime(lastRefreshedAt),
+          hint: 'وقت آخر مزامنة ناجحة مع الخادم.',
+        },
+      ];
+    }
+
+    const latestUpdatedAt = assignments[0]?.updated_at
+      ? formatDateTimeAr(assignments[0].updated_at)
+      : 'لا توجد بيانات بعد';
+
+    return [
+      {
+        label: 'كل الواجبات',
+        value: String(assignments.length),
+        hint: 'كل الواجبات المحفوظة لحسابك.',
+      },
+      {
+        label: 'عدد الدروس',
+        value: String(countUniqueLessons(assignments)),
+        hint: 'عدد الدروس المختلفة التي تحتوي على واجبات.',
+      },
+      {
+        label: 'آخر تعديل',
+        value: latestUpdatedAt,
+        hint: 'أحدث واجب تم تعديله ضمن القائمة الحالية.',
+      },
+      {
+        label: 'توزيع الأنواع',
+        value: [
+          `كتابي ${formatCountByType(assignments, 'written')}`,
+          `متنوع ${formatCountByType(assignments, 'varied')}`,
+          `تطبيقي ${formatCountByType(assignments, 'practical')}`,
+        ].join(' • '),
+        hint: 'ملخص سريع لأنواع الواجبات الظاهرة.',
+      },
+    ];
+  }, [assignments, context, isScopedView, lastRefreshedAt]);
+
   useEffect(() => {
     if (!user) {
       navigate('/authentication');
@@ -213,10 +287,6 @@ export default function Assignments() {
 
   const loadAssignments = useCallback(
     async (silent = false) => {
-      if (!context) {
-        return;
-      }
-
       if (silent) {
         setIsRefreshing(true);
       } else {
@@ -224,39 +294,51 @@ export default function Assignments() {
       }
 
       try {
-        const response = await listAssignments(
-          context.lessonPlanPublicId,
-          context.lessonId
-        );
+        const response = context
+          ? await listAssignments(context.lessonPlanPublicId, context.lessonId)
+          : await listAssignments();
         const nextAssignments = response.assignments ?? [];
         setAssignments(nextAssignments);
         setLastRefreshedAt(new Date());
         setError(null);
+        setExportError(null);
+        setSuccessMessage(null);
+        setActiveAssignmentId((current) =>
+          current && nextAssignments.some((assignment) => assignment.public_id === current)
+            ? current
+            : nextAssignments[0]?.public_id ?? null
+        );
 
         setSelectedAssignment((current) => {
-          if (!current) {
-            return null;
+          if (current) {
+            return (
+              nextAssignments.find(
+                (assignment) => assignment.public_id === current.public_id
+              ) ?? nextAssignments[0] ?? null
+            );
           }
-          return (
-            nextAssignments.find(
-              (assignment) => assignment.public_id === current.public_id
-            ) ?? null
-          );
+
+          return nextAssignments[0] ?? null;
         });
       } catch (listError: unknown) {
         setError(
-          normalizeApiError(listError, 'تعذر تحميل قائمة الواجبات لهذا الدرس.')
+          normalizeApiError(
+            listError,
+            isScopedView
+              ? 'تعذر تحميل قائمة الواجبات لهذا الدرس.'
+              : 'تعذر تحميل الواجبات المحفوظة لحسابك.'
+          )
         );
       } finally {
         setIsListLoading(false);
         setIsRefreshing(false);
       }
     },
-    [context]
+    [context, isScopedView]
   );
 
   useEffect(() => {
-    if (!context || user?.userRole !== 'teacher') {
+    if (user?.userRole !== 'teacher') {
       setAssignments([]);
       setSelectedAssignment(null);
       return;
@@ -280,8 +362,12 @@ export default function Assignments() {
         context.lessonId
       );
       await loadAssignments(true);
+      const generatedAssignments = response.assignments ?? [];
+      if (generatedAssignments.length > 0) {
+        setActiveAssignmentId(generatedAssignments[0].public_id);
+      }
 
-      const generatedCount = response.assignments?.length ?? 0;
+      const generatedCount = generatedAssignments.length;
       setSuccessMessage(
         generatedCount > 0
           ? `تم توليد ${generatedCount} واجب/واجبات وحفظها في قاعدة البيانات.`
@@ -315,6 +401,7 @@ export default function Assignments() {
     if (selectedAssignment?.public_id) {
       const response = await getAssignmentById(selectedAssignment.public_id);
       setSelectedAssignment(response.assignment);
+      setActiveAssignmentId(response.assignment.public_id);
     }
     setSuccessMessage('تم حفظ التعديل المعتمد بنجاح.');
   };
@@ -352,8 +439,9 @@ export default function Assignments() {
           </nav>
           <h1>إدارة الواجبات المنزلية</h1>
           <p>
-            توليد واجبات مرتبطة بخطة الدرس، مراجعتها، ثم تعديلها بالذكاء الاصطناعي
-            عبر مقترح يعتمد من المعلم قبل الحفظ النهائي.
+            {isScopedView
+              ? 'توليد واجبات مرتبطة بخطة الدرس الحالية، مراجعتها، ثم تعديلها بالذكاء الاصطناعي قبل الحفظ النهائي.'
+              : 'استعراض جميع الواجبات المحفوظة لحسابك، فتح التفاصيل الكاملة، ثم تعديل أي واجب أو تصديره عند الحاجة.'}
           </p>
         </div>
 
@@ -369,18 +457,13 @@ export default function Assignments() {
       </header>
 
       <section className="asn__context">
-        <article>
-          <span>معرّف الخطة</span>
-          <code>{context?.lessonPlanPublicId ?? rawLessonPlanPublicId ?? '—'}</code>
-        </article>
-        <article>
-          <span>معرّف الدرس</span>
-          <p>{context?.lessonId ?? rawLessonId ?? '—'}</p>
-        </article>
-        <article>
-          <span>آخر تحديث</span>
-          <p>{formatRefreshTime(lastRefreshedAt)}</p>
-        </article>
+        {summaryCards.map((card) => (
+          <article key={card.label}>
+            <span>{card.label}</span>
+            {card.label.includes('الخطة') ? <code>{card.value}</code> : <p>{card.value}</p>}
+            <small>{card.hint}</small>
+          </article>
+        ))}
       </section>
 
       {error && (
@@ -400,30 +483,36 @@ export default function Assignments() {
         </div>
       )}
 
-      {!context ? (
-        <section className="asn-empty-context">
-          <MdAssignment aria-hidden className="asn-empty-context__icon" />
-          <h2>تعذر تحديد سياق الدرس والخطة</h2>
-          <p>
-            هذه الصفحة تحتاج قيمتين صالحـتين: <code>lesson_plan_public_id</code>{' '}
-            بشكل <code>trd_1</code> أو <code>act_1</code> و
-            <code>lesson_id</code> كرقم صحيح موجب.
-          </p>
-          <p>
-            الأفضل فتحها من صفحة "خطط الدروس" بعد إنشاء خطة، أو عبر رابط يحتوي
-            القيم المطلوبة.
-          </p>
-          <Link to="/lessons" className="asn-empty-context__link">
-            العودة إلى صفحة خطط الدروس
+      {!context && (
+        <section className="asn-mode-banner">
+          <MdAssignment aria-hidden className="asn-mode-banner__icon" />
+          <div>
+            <h2>وضع مكتبة الواجبات</h2>
+            <p>
+              لا يوجد سياق درس محدد في الرابط الحالي، لذلك تعرض الصفحة جميع
+              الواجبات المحفوظة لحسابك وتسمح بفتحها ومراجعتها من مكان واحد.
+            </p>
+          </div>
+          <Link to="/lessons" className="asn-mode-banner__link">
+            فتح خطط الدروس لتوليد واجبات جديدة
           </Link>
         </section>
-      ) : (
-        <div className="asn__layout">
+      )}
+
+      <div className="asn__layout">
           <section className="asn__list" aria-live="polite">
             <div className="asn__list-head">
               <div>
-                <h2>الواجبات المقترحة ({assignments.length})</h2>
-                <p>يمكنك عرض التفاصيل أو تعديل أي واجب ثم حفظه مباشرة.</p>
+                <h2>
+                  {context
+                    ? `الواجبات المقترحة (${assignments.length})`
+                    : `كل الواجبات المحفوظة (${assignments.length})`}
+                </h2>
+                <p>
+                  {context
+                    ? 'يمكنك عرض التفاصيل أو تعديل أي واجب ثم حفظه مباشرة.'
+                    : 'يمكنك استعراض كل الواجبات المحفوظة لحسابك، ثم فتح أي واجب لتفاصيله الكاملة.'}
+                </p>
               </div>
               <button
                 type="button"
@@ -440,25 +529,34 @@ export default function Assignments() {
               <div className="asn-loading">
                 <div className="asn-spinner" aria-hidden />
                 <h3>جارٍ تحميل الواجبات...</h3>
-                <p>يتم الآن قراءة الواجبات المحفوظة لهذا الدرس.</p>
+                <p>
+                  {isScopedView
+                    ? 'يتم الآن قراءة الواجبات المحفوظة لهذا الدرس.'
+                    : 'يتم الآن قراءة جميع الواجبات المحفوظة لحسابك.'}
+                </p>
               </div>
             ) : assignments.length === 0 ? (
               <div className="asn-empty">
                 <MdAssignment aria-hidden className="asn-empty__icon" />
-                <h3>لا توجد واجبات مقترحة بعد</h3>
+                <h3>
+                  {context ? 'لا توجد واجبات مقترحة بعد' : 'لا توجد واجبات محفوظة بعد'}
+                </h3>
                 <p>
-                  اضغط على "اقتراح واجبات جديدة" لتوليد واجبات مرتبطة بالخطة
-                  الحالية.
+                  {context
+                    ? 'اضغط على "اقتراح واجبات جديدة" لتوليد واجبات مرتبطة بالخطة الحالية.'
+                    : 'لا توجد واجبات محفوظة لهذا الحساب حتى الآن. افتح درساً محدداً لتوليد واجبات جديدة.'}
                 </p>
-                <button
-                  type="button"
-                  className="asn-btn asn-btn--primary"
-                  onClick={() => void handleGenerateAssignments()}
-                  disabled={isGenerating}
-                >
-                  <MdAutoAwesome aria-hidden />
-                  {isGenerating ? 'جارٍ التوليد...' : 'توليد الواجبات الآن'}
-                </button>
+                {context && (
+                  <button
+                    type="button"
+                    className="asn-btn asn-btn--primary"
+                    onClick={() => void handleGenerateAssignments()}
+                    disabled={isGenerating}
+                  >
+                    <MdAutoAwesome aria-hidden />
+                    {isGenerating ? 'جارٍ التوليد...' : 'توليد الواجبات الآن'}
+                  </button>
+                )}
               </div>
             ) : (
               <div className="asn__cards">
@@ -513,7 +611,11 @@ export default function Assignments() {
 
             {!selectedAssignment ? (
               <div className="asn__details-empty">
-                <p>اختر واجباً من القائمة لعرض تفاصيله كاملة هنا.</p>
+                <p>
+                  {isListLoading
+                    ? 'يتم تجهيز أول واجب لعرض تفاصيله.'
+                    : 'لا يوجد واجب محدد حالياً. اختر واجباً من القائمة أو حدّث الصفحة.'}
+                </p>
               </div>
             ) : (
               <article className="asn__details-card">
@@ -534,6 +636,14 @@ export default function Assignments() {
                   <div>
                     <dt>آخر تعديل</dt>
                     <dd>{formatDateTimeAr(selectedAssignment.updated_at)}</dd>
+                  </div>
+                  <div>
+                    <dt>معرّف الخطة</dt>
+                    <dd>{selectedAssignment.lesson_plan_public_id}</dd>
+                  </div>
+                  <div>
+                    <dt>معرّف الدرس</dt>
+                    <dd>{selectedAssignment.lesson_id}</dd>
                   </div>
                 </dl>
 
@@ -570,7 +680,6 @@ export default function Assignments() {
             )}
           </aside>
         </div>
-      )}
     </div>
   );
 }

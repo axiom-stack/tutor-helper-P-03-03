@@ -5,7 +5,10 @@ import type {
   RefinementRequestRecord,
   RefinementStatus,
 } from '../../types';
-import type { NormalizedApiError } from '../../utils/apiErrors';
+import {
+  getLocalizedAiLimitMessage,
+  type NormalizedApiError,
+} from '../../utils/apiErrors';
 
 export type SelectorOption = {
   value: string;
@@ -771,6 +774,11 @@ export function localizeApiError(
 ): string[] {
   if (!error) {
     return [];
+  }
+
+  const localizedAiLimitMessage = getLocalizedAiLimitMessage(error);
+  if (localizedAiLimitMessage) {
+    return [localizedAiLimitMessage];
   }
 
   const detailMessages = Array.isArray(error.details)

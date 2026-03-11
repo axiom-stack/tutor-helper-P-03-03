@@ -41,6 +41,24 @@ export async function generatePlan(req, res) {
     return res.status(201).json(result);
   } catch (error) {
     if (error instanceof LessonPlanPipelineError) {
+      const logPayload = {
+        status: error.status,
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        request_shape: {
+          lesson_id: req.body?.lesson_id,
+          plan_type: req.body?.plan_type,
+          duration_minutes: req.body?.duration_minutes,
+        },
+      };
+
+      if (error.status >= 500) {
+        req.log?.error?.(logPayload, "generate-plan pipeline failed");
+      } else {
+        req.log?.warn?.(logPayload, "generate-plan pipeline rejected candidate");
+      }
+
       return res.status(error.status).json({
         error: {
           code: error.code,

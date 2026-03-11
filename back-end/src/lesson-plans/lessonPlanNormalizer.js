@@ -9,8 +9,8 @@ const DEFAULT_TIME_DISTRIBUTION = Object.freeze({
 
 const OBJECTIVE_CANDIDATE_KEYS = ["text", "objective", "description", "value"];
 
-const TIME_HINT_AT_END_PATTERN =
-  /\s*(?:[-:،])?\s*\(\s*\d+(?:\.\d+)?\s*د(?:قيقة|قائق)\s*\)\s*[.!؟]?\s*$/u;
+const TIME_HINT_PATTERN =
+  /\(\s*\d+(?:\.\d+)?\s*د(?:قيقة|قائق)\s*\)/gu;
 
 const DUPLICATE_FIELDS_BY_PLAN_TYPE = Object.freeze({
   [PLAN_TYPES.TRADITIONAL]: [
@@ -41,7 +41,10 @@ function normalizeWhitespace(value) {
     return value;
   }
 
-  return value.replace(/\s+/g, " ").trim();
+  return value
+    .replace(/\s+/g, " ")
+    .replace(/\s+([:،؛.!؟])/gu, "$1")
+    .trim();
 }
 
 function normalizeRecursively(value) {
@@ -82,11 +85,17 @@ function normalizeDurationWeight(value, fallbackValue) {
 
 function normalizeDistribution(timeDistribution = {}) {
   const rawDistribution = ACTIVE_FLOW_ACTIVITY_TYPES.reduce((acc, phase) => {
-    acc[phase] = normalizeDurationWeight(timeDistribution?.[phase], DEFAULT_TIME_DISTRIBUTION[phase]);
+    acc[phase] = normalizeDurationWeight(
+      timeDistribution?.[phase],
+      DEFAULT_TIME_DISTRIBUTION[phase],
+    );
     return acc;
   }, {});
 
-  const sum = Object.values(rawDistribution).reduce((acc, value) => acc + value, 0);
+  const sum = Object.values(rawDistribution).reduce(
+    (acc, value) => acc + value,
+    0,
+  );
   if (!Number.isFinite(sum) || sum <= 0) {
     return { ...DEFAULT_TIME_DISTRIBUTION };
   }
@@ -98,7 +107,9 @@ function normalizeDistribution(timeDistribution = {}) {
 }
 
 function distributeMinutes(totalMinutes, count) {
-  const sanitizedTotal = Number.isFinite(totalMinutes) ? Math.max(0, Math.round(totalMinutes)) : 0;
+  const sanitizedTotal = Number.isFinite(totalMinutes)
+    ? Math.max(0, Math.round(totalMinutes))
+    : 0;
   const sanitizedCount = Number.isInteger(count) ? count : 0;
 
   if (sanitizedCount <= 0) {
@@ -108,7 +119,10 @@ function distributeMinutes(totalMinutes, count) {
   const base = Math.floor(sanitizedTotal / sanitizedCount);
   const remainder = sanitizedTotal - base * sanitizedCount;
 
-  return Array.from({ length: sanitizedCount }, (_, index) => base + (index < remainder ? 1 : 0));
+  return Array.from(
+    { length: sanitizedCount },
+    (_, index) => base + (index < remainder ? 1 : 0),
+  );
 }
 
 export function buildPhaseBudgets(durationMinutes, timeDistribution = {}) {
@@ -173,12 +187,14 @@ export function formatMinutesArabic(minutes) {
   return `${sanitizedMinutes} ${sanitizedMinutes === 1 ? "دقيقة" : "دقائق"}`;
 }
 
-function stripTrailingTimeHint(text) {
-  return normalizeWhitespace(String(text || "").replace(TIME_HINT_AT_END_PATTERN, ""));
+function stripTimeHints(text) {
+  return normalizeWhitespace(
+    String(text || "").replace(TIME_HINT_PATTERN, " "),
+  );
 }
 
 function upsertTrailingTimeHint(text, minutes) {
-  const stripped = stripTrailingTimeHint(text);
+  const stripped = stripTimeHints(text);
   if (!stripped) {
     return stripped;
   }
@@ -259,7 +275,7 @@ function normalizeHeaderDuration(plan, durationMinutes, repairSummary) {
     return;
   }
 
-  const targetDuration = `${Math.max(0, Math.round(Number(durationMinutes) || 0))} دقيقة`;
+  const targetDuration = formatMinutesArabic(durationMinutes);
   if (plan.header.duration !== targetDuration) {
     plan.header.duration = targetDuration;
     addRepair(
@@ -273,7 +289,10 @@ function normalizeHeaderDuration(plan, durationMinutes, repairSummary) {
 
 function normalizeTraditionalTimings(plan, phaseBudgets, repairSummary) {
   if (typeof plan?.intro === "string" && plan.intro) {
-    const normalizedIntro = upsertTrailingTimeHint(plan.intro, phaseBudgets.intro);
+    const normalizedIntro = upsertTrailingTimeHint(
+      plan.intro,
+      phaseBudgets.intro,
+    );
     if (normalizedIntro !== plan.intro) {
       plan.intro = normalizedIntro;
       addRepair(
@@ -293,7 +312,10 @@ function normalizeTraditionalTimings(plan, phaseBudgets, repairSummary) {
       perActivityMinutes = [phaseBudgets.presentation + phaseBudgets.activity];
     } else {
       const rawPresentationCount = Math.max(1, Math.round(activityCount * 0.6));
-      const presentationCount = Math.min(rawPresentationCount, activityCount - 1);
+      const presentationCount = Math.min(
+        rawPresentationCount,
+        activityCount - 1,
+      );
       const activityPhaseCount = Math.max(1, activityCount - presentationCount);
       perActivityMinutes = [
         ...distributeMinutes(phaseBudgets.presentation, presentationCount),
@@ -306,7 +328,10 @@ function normalizeTraditionalTimings(plan, phaseBudgets, repairSummary) {
         return activity;
       }
 
-      const normalizedActivity = upsertTrailingTimeHint(activity, perActivityMinutes[index] || 0);
+      const normalizedActivity = upsertTrailingTimeHint(
+        activity,
+        perActivityMinutes[index] || 0,
+      );
       if (normalizedActivity !== activity) {
         addRepair(
           repairSummary,
@@ -328,7 +353,7 @@ function normalizeTraditionalTimings(plan, phaseBudgets, repairSummary) {
       const nextValue =
         index === 0
           ? upsertTrailingTimeHint(item, phaseBudgets.assessment)
-          : stripTrailingTimeHint(item);
+          : stripTimeHints(item);
 
       if (nextValue !== item) {
         addRepair(
@@ -348,7 +373,12 @@ function normalizeTraditionalTimings(plan, phaseBudgets, repairSummary) {
   }
 }
 
-function normalizeActiveLearningTimings(plan, phaseBudgets, repairSummary, issues) {
+function normalizeActiveLearningTimings(
+  plan,
+  phaseBudgets,
+  repairSummary,
+  issues,
+) {
   if (!Array.isArray(plan?.lesson_flow)) {
     return;
   }
@@ -374,12 +404,17 @@ function normalizeActiveLearningTimings(plan, phaseBudgets, repairSummary, issue
       }
     }
 
-    if (typeof row.activity_type === "string" && ACTIVE_FLOW_ACTIVITY_TYPES.includes(row.activity_type)) {
+    if (
+      typeof row.activity_type === "string" &&
+      ACTIVE_FLOW_ACTIVITY_TYPES.includes(row.activity_type)
+    ) {
       phaseToIndices[row.activity_type].push(index);
     }
   });
 
-  const missingPhases = ACTIVE_FLOW_ACTIVITY_TYPES.filter((phase) => phaseToIndices[phase].length === 0);
+  const missingPhases = ACTIVE_FLOW_ACTIVITY_TYPES.filter(
+    (phase) => phaseToIndices[phase].length === 0,
+  );
   if (missingPhases.length > 0) {
     addIssue(
       issues,
@@ -421,7 +456,10 @@ export function objectiveToText(objective) {
 
   if (isPlainObject(objective)) {
     for (const key of OBJECTIVE_CANDIDATE_KEYS) {
-      if (typeof objective[key] === "string" && objective[key].trim().length > 0) {
+      if (
+        typeof objective[key] === "string" &&
+        objective[key].trim().length > 0
+      ) {
         return normalizeWhitespace(objective[key]);
       }
     }
@@ -510,7 +548,9 @@ const ARABIC_STOPWORDS = new Set([
 ]);
 
 export function extractKeywords(value, options = {}) {
-  const normalized = normalizeArabicForMatching(typeof value === "string" ? value : "");
+  const normalized = normalizeArabicForMatching(
+    typeof value === "string" ? value : "",
+  );
   if (!normalized) {
     return [];
   }
@@ -537,7 +577,10 @@ export function normalizeLessonPlan({
   durationMinutes,
   pedagogicalRules = {},
 }) {
-  const phaseBudgets = buildPhaseBudgets(durationMinutes, pedagogicalRules?.time_distribution);
+  const phaseBudgets = buildPhaseBudgets(
+    durationMinutes,
+    pedagogicalRules?.time_distribution,
+  );
   const repairSummary = [];
   const issues = [];
 
@@ -568,7 +611,12 @@ export function normalizeLessonPlan({
   }
 
   if (planType === PLAN_TYPES.ACTIVE_LEARNING) {
-    normalizeActiveLearningTimings(normalizedPlan, phaseBudgets, repairSummary, issues);
+    normalizeActiveLearningTimings(
+      normalizedPlan,
+      phaseBudgets,
+      repairSummary,
+      issues,
+    );
   }
 
   return {

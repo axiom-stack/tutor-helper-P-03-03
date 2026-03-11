@@ -93,6 +93,10 @@ const traditionalStrategyBank = [
     name: "التعلم التعاوني",
     phases: ["activity"],
   },
+  {
+    name: "طريقة العرض العملي (البيان العملي)",
+    phases: ["presentation", "activity"],
+  },
 ];
 
 const requestPayload = {
@@ -115,7 +119,7 @@ function createTraditionalPlan() {
       section: "أ",
       lesson_title: "دورة الماء",
       unit: "الماء في الطبيعة",
-      duration: "45 دقيقة",
+      duration: "45 دقائق",
     },
     intro:
       "يمهد المعلم للدرس بسؤال عن المطر ثم يربط الإجابات بمراحل دورة الماء في الطبيعة (5 دقائق)",
@@ -125,15 +129,19 @@ function createTraditionalPlan() {
       "أن يرتب الطالب مراحل التبخر والتكاثف والهطول باستخدام بطاقات التسلسل بشكل صحيح.",
       "أن يفسر الطالب أثر حرارة الشمس في دورة الماء شفهيا مع مثال صحيح.",
     ],
-    teaching_strategies: ["طريقة المناقشة والحوار", "التعلم التعاوني"],
+    teaching_strategies: [
+      "طريقة المناقشة والحوار",
+      "التعلم التعاوني",
+      "طريقة العرض العملي (البيان العملي)",
+    ],
     activities: [
-      "يناقش الطلاب مع المعلم فكرة دورة الماء ويراجعون صور المراحل على السبورة (14 دقائق)",
-      "يرتب الطلاب بطاقات التبخر والتكاثف والهطول في مجموعات صغيرة باستخدام لوحة التسلسل (13 دقائق)",
-      "ينفذ الطلاب نشاطا عمليا يوضح أثر حرارة الشمس في التبخر داخل كأس ماء (9 دقائق)",
+      "يناقش الطلاب مع المعلم فكرة دورة الماء ويراجعون صور المراحل على السبورة وفق طريقة المناقشة والحوار (14 دقائق)",
+      "يرتب الطلاب بطاقات التبخر والتكاثف والهطول في مجموعات صغيرة باستخدام لوحة التسلسل وفق استراتيجية التعلم التعاوني (13 دقائق)",
+      "ينفذ الطلاب نشاطا عمليا يوضح أثر حرارة الشمس في التبخر داخل كأس ماء وفق طريقة العرض العملي (البيان العملي) (9 دقائق)",
     ],
     learning_resources: ["السبورة", "بطاقات التسلسل", "كأس ماء"],
     assessment: [
-      "اختيار متعدد (4 دقائق): ما الترتيب الصحيح لمراحل دورة الماء؟",
+      "اختيار متعدد: ما الترتيب الصحيح لمراحل دورة الماء؟ (4 دقائق)",
       "سؤال مفتوح: فسر أثر حرارة الشمس في التبخر.",
       "إملاء الفراغ: يحدث ____ عندما يبرد بخار الماء.",
     ],
@@ -153,7 +161,7 @@ function createActivePlan() {
       section: "أ",
       lesson_title: "حالات الماء",
       unit: "الماء في الطبيعة",
-      duration: "45 دقيقة",
+      duration: "45 دقائق",
     },
     objectives: [
       "أن يميز الطالب حالات الماء الثلاث باستخدام بطاقات مصورة بدقة.",
@@ -301,11 +309,12 @@ test("persists safe timing repair without retry", async () => {
   prompt2Candidate.intro =
     "يمهد المعلم للدرس بسؤال عن المطر ثم يربط الإجابات بمراحل دورة الماء في الطبيعة (1 دقيقة)";
   prompt2Candidate.activities = [
-    "يناقش الطلاب مع المعلم فكرة دورة الماء ويراجعون صور المراحل على السبورة (2 دقائق)",
-    "يرتب الطلاب بطاقات التبخر والتكاثف والهطول في مجموعات صغيرة باستخدام لوحة التسلسل (2 دقائق)",
-    "ينفذ الطلاب نشاطا عمليا يوضح أثر حرارة الشمس في التبخر داخل كأس ماء (2 دقائق)",
+    "يناقش الطلاب مع المعلم فكرة دورة الماء ويراجعون صور المراحل على السبورة وفق طريقة المناقشة والحوار (2 دقائق) (6 دقائق)",
+    "يرتب الطلاب بطاقات التبخر والتكاثف والهطول في مجموعات صغيرة باستخدام لوحة التسلسل وفق استراتيجية التعلم التعاوني (2 دقائق)",
+    "ينفذ الطلاب نشاطا عمليا يوضح أثر حرارة الشمس في التبخر داخل كأس ماء وفق طريقة العرض العملي (البيان العملي) (2 دقائق)",
   ];
-  prompt2Candidate.assessment[0] = "اختيار متعدد (1 دقيقة): ما الترتيب الصحيح لمراحل دورة الماء؟";
+  prompt2Candidate.assessment[0] =
+    "اختيار متعدد (1 دقيقة): ما الترتيب الصحيح لمراحل دورة الماء؟ (2 دقائق)";
   const llmResponses = [createTraditionalPlan(), prompt2Candidate].map((plan) => ({
     ok: true,
     data: plan,
@@ -342,7 +351,7 @@ test("persists safe timing repair without retry", async () => {
 
   assert.equal(result.retry_occurred, false);
   assert.equal(savedPayloads.length, 1);
-  assert.equal(savedPayloads[0].planJson.header.duration, "45 دقيقة");
+  assert.equal(savedPayloads[0].planJson.header.duration, "45 دقائق");
   assert.match(savedPayloads[0].planJson.intro, /\(5 دقائق\)$/u);
   assert.match(savedPayloads[0].planJson.activities[0], /\(14 دقائق\)$/u);
   assert.match(savedPayloads[0].planJson.activities[1], /\(13 دقائق\)$/u);
@@ -350,8 +359,97 @@ test("persists safe timing repair without retry", async () => {
   assert.match(savedPayloads[0].planJson.assessment[0], /\(4 دقائق\)/u);
 });
 
+test("retries Prompt 1 once with the configured fallback model on malformed JSON", async () => {
+  const llmCalls = [];
+  const llmResponses = [
+    {
+      ok: false,
+      errorType: "malformed_json",
+      message: "Model output was not valid JSON.",
+      provider: "groq",
+      model: "primary-prompt1-model",
+    },
+    { ok: true, data: createTraditionalPlan(), rawText: JSON.stringify(createTraditionalPlan()) },
+    { ok: true, data: createTraditionalPlan(), rawText: JSON.stringify(createTraditionalPlan()) },
+  ];
+
+  const service = createLessonPlanGenerationService(
+    createBaseDependencies({
+      stageModels: {
+        prompt1: "primary-prompt1-model",
+        prompt1Retry: "retry-prompt1-model",
+        prompt2: "primary-prompt2-model",
+        prompt2Retry: "retry-prompt2-model",
+      },
+      llmClient: {
+        generateJson: async (payload) => {
+          llmCalls.push(payload);
+          return llmResponses.shift();
+        },
+      },
+    }),
+  );
+
+  const result = await service.generate(requestPayload, {
+    teacherId: 2,
+    logger: { info() {}, warn() {}, error() {} },
+  });
+
+  assert.equal(result.retry_occurred, true);
+  assert.equal(llmCalls.length, 3);
+  assert.equal(llmCalls[0].model, "primary-prompt1-model");
+  assert.equal(llmCalls[1].model, "retry-prompt1-model");
+  assert.equal(llmCalls[2].model, "primary-prompt2-model");
+  assert.match(llmCalls[1].systemPrompt, /CRITICAL OUTPUT CONTRACT:/u);
+});
+
+test("retries Prompt 2 once with the configured fallback model on malformed JSON", async () => {
+  const llmCalls = [];
+  const llmResponses = [
+    { ok: true, data: createTraditionalPlan(), rawText: JSON.stringify(createTraditionalPlan()) },
+    {
+      ok: false,
+      errorType: "malformed_json",
+      message: "Model output was not valid JSON.",
+      provider: "groq",
+      model: "primary-prompt2-model",
+    },
+    { ok: true, data: createTraditionalPlan(), rawText: JSON.stringify(createTraditionalPlan()) },
+  ];
+
+  const service = createLessonPlanGenerationService(
+    createBaseDependencies({
+      stageModels: {
+        prompt1: "primary-prompt1-model",
+        prompt1Retry: "retry-prompt1-model",
+        prompt2: "primary-prompt2-model",
+        prompt2Retry: "retry-prompt2-model",
+      },
+      llmClient: {
+        generateJson: async (payload) => {
+          llmCalls.push(payload);
+          return llmResponses.shift();
+        },
+      },
+    }),
+  );
+
+  const result = await service.generate(requestPayload, {
+    teacherId: 2,
+    logger: { info() {}, warn() {}, error() {} },
+  });
+
+  assert.equal(result.retry_occurred, true);
+  assert.equal(llmCalls.length, 3);
+  assert.equal(llmCalls[0].model, "primary-prompt1-model");
+  assert.equal(llmCalls[1].model, "primary-prompt2-model");
+  assert.equal(llmCalls[2].model, "retry-prompt2-model");
+  assert.match(llmCalls[2].systemPrompt, /CRITICAL OUTPUT CONTRACT:/u);
+});
+
 test("retries once when initial candidate is not safely repairable", async () => {
   const prompt2Calls = [];
+  const llmCalls = [];
   const invalidActive = createActivePlan();
   invalidActive.lesson_flow = invalidActive.lesson_flow.filter(
     (row) => row.activity_type !== "assessment",
@@ -365,12 +463,21 @@ test("retries once when initial candidate is not safely repairable", async () =>
 
   const service = createLessonPlanGenerationService(
     createBaseDependencies({
+      stageModels: {
+        prompt1: "primary-prompt1-model",
+        prompt1Retry: "retry-prompt1-model",
+        prompt2: "primary-prompt2-model",
+        prompt2Retry: "retry-prompt2-model",
+      },
       prompt2Builder: (args) => {
         prompt2Calls.push(args);
         return { systemPrompt: "prompt2-system", userPrompt: "prompt2-user" };
       },
       llmClient: {
-        generateJson: async () => llmResponses.shift(),
+        generateJson: async (payload) => {
+          llmCalls.push(payload);
+          return llmResponses.shift();
+        },
       },
       repository: {
         create: async (payload) => ({
@@ -403,6 +510,10 @@ test("retries once when initial candidate is not safely repairable", async () =>
   assert.equal(result.id, "act_3");
   assert.equal(result.retry_occurred, true);
   assert.equal(prompt2Calls.length, 2);
+  assert.equal(llmCalls.length, 3);
+  assert.equal(llmCalls[0].model, "primary-prompt1-model");
+  assert.equal(llmCalls[1].model, "primary-prompt2-model");
+  assert.equal(llmCalls[2].model, "retry-prompt2-model");
   assert.ok(
     prompt2Calls[1].validationErrors.some(
       (error) =>
@@ -455,4 +566,92 @@ test("throws 422 when retry also fails validation", async () => {
       return true;
     },
   );
+});
+
+test("logs upstream diagnostics when retry LLM call fails", async () => {
+  const invalidActive = createActivePlan();
+  invalidActive.lesson_flow = invalidActive.lesson_flow.filter(
+    (row) => row.activity_type !== "assessment",
+  );
+
+  const llmResponses = [
+    { ok: true, data: createActivePlan(), rawText: JSON.stringify(createActivePlan()) },
+    { ok: true, data: invalidActive, rawText: JSON.stringify(invalidActive) },
+    {
+      ok: false,
+      errorType: "api_error",
+      message: "Rate limit reached",
+      status: 429,
+      provider: "groq",
+      model: "llama-3.3-70b-versatile",
+      timeoutMs: 30000,
+      requestId: "req_123",
+      retryAfter: "2",
+      upstreamError: {
+        type: "rate_limit_error",
+        code: "rate_limit_exceeded",
+        param: null,
+      },
+      raw: "{\"error\":{\"message\":\"Rate limit reached\"}}",
+    },
+  ];
+
+  const errorLogs = [];
+  const service = createLessonPlanGenerationService(
+    createBaseDependencies({
+      llmClient: {
+        generateJson: async () => llmResponses.shift(),
+      },
+    }),
+  );
+
+  await assert.rejects(
+    () =>
+      service.generate(
+        {
+          ...requestPayload,
+          lesson_title: "حالات الماء",
+          lesson_content: "يتناول الدرس حالات الماء الثلاث وتحولاتها وأثر الحرارة في التبخر.",
+          plan_type: "active_learning",
+        },
+        {
+          teacherId: 2,
+          logger: {
+            info() {},
+            warn() {},
+            error(payload, message) {
+              errorLogs.push({ payload, message });
+            },
+          },
+        },
+      ),
+    (error) => {
+      assert.ok(error instanceof LessonPlanPipelineError);
+      assert.equal(error.status, 502);
+      assert.equal(error.code, "llm_generation_failed");
+      assert.ok(
+        error.details.some(
+          (detail) =>
+            detail.code === "llm_http_status" &&
+            detail.message === "Groq API status: 429",
+        ),
+      );
+      assert.ok(
+        error.details.some(
+          (detail) =>
+            detail.code === "llm_request_id" &&
+            detail.message === "Request id: req_123",
+        ),
+      );
+      return true;
+    },
+  );
+
+  assert.equal(errorLogs.length, 1);
+  assert.equal(errorLogs[0].message, "Lesson-plan LLM stage failed");
+  assert.equal(errorLogs[0].payload.stage, "Prompt 2 retry with validation errors");
+  assert.equal(errorLogs[0].payload.llm_failure.status, 429);
+  assert.equal(errorLogs[0].payload.llm_failure.request_id, "req_123");
+  assert.equal(errorLogs[0].payload.llm_failure.upstream_error.code, "rate_limit_exceeded");
+  assert.ok(errorLogs[0].payload.validation_error_count > 0);
 });

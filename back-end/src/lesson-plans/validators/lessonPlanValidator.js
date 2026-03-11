@@ -33,6 +33,15 @@ const OBJECTIVE_CONTEXT_MARKERS = [
   "في ورقه",
   "في ورقة",
   "في نشاط",
+  "في مواقف",
+  "في اسئله",
+  "في أسئلة",
+  "في جدول",
+  "في تجربه",
+  "في تجربة",
+  "في مجموعات",
+  "على نموذج",
+  "على مخطط",
 ];
 
 const OBJECTIVE_CRITERION_MARKERS = [
@@ -50,6 +59,15 @@ const OBJECTIVE_CRITERION_MARKERS = [
   "معيار",
   "معيارا",
   "معيارًا",
+  "بنسبه",
+  "بنسبة",
+  "بنسبة صحه",
+  "بنسبة صحة",
+  "لا تقل عن",
+  "لا يزيد عن",
+  "لا تقل",
+  "لا يزيد",
+  "مع توضيح",
 ];
 
 const GENERIC_HOMEWORK_PATTERNS = [
@@ -81,6 +99,9 @@ const OBJECTIVE_EXTRA_STOPWORDS = [
   "عمليا",
   "عمليًا",
 ];
+
+const TRADITIONAL_TIME_HINT_PATTERN =
+  /\(\s*\d+(?:\.\d+)?\s*د(?:قيقة|قائق)\s*\)/gu;
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -192,23 +213,42 @@ function extractTrailingTimeHintMinutes(value) {
   return Math.round(numericValue);
 }
 
-function buildNormalizedVerbBank(bloomVerbsGeneration = {}) {
-  const uniqueVerbs = new Set();
+function countTimeHints(value) {
+  if (typeof value !== "string") {
+    return 0;
+  }
 
-  Object.values(bloomVerbsGeneration).forEach((verbs) => {
+  return [...value.matchAll(TRADITIONAL_TIME_HINT_PATTERN)].length;
+}
+
+function buildBloomVerbLevelIndex(bloomVerbsGeneration = {}) {
+  const verbLevelIndex = new Map();
+
+  Object.entries(bloomVerbsGeneration).forEach(([level, verbs]) => {
     if (!Array.isArray(verbs)) {
       return;
     }
 
     verbs.forEach((verb) => {
       const normalizedVerb = normalizeArabicForMatching(verb);
-      if (normalizedVerb) {
-        uniqueVerbs.add(normalizedVerb);
+      if (normalizedVerb && !verbLevelIndex.has(normalizedVerb)) {
+        verbLevelIndex.set(normalizedVerb, level);
       }
     });
   });
 
-  return [...uniqueVerbs];
+  return verbLevelIndex;
+}
+
+function buildNormalizedVerbBank(bloomVerbsGeneration = {}) {
+  return [...buildBloomVerbLevelIndex(bloomVerbsGeneration).keys()].sort((left, right) => {
+    const wordCountDiff = right.split(" ").length - left.split(" ").length;
+    if (wordCountDiff !== 0) {
+      return wordCountDiff;
+    }
+
+    return right.length - left.length;
+  });
 }
 
 function detectMatchedVerbs(text, normalizedVerbBank) {
@@ -226,11 +266,31 @@ function detectMatchedVerbs(text, normalizedVerbBank) {
     }
 
     if (verb.includes(" ")) {
-      return paddedText.includes(` ${verb} `);
+      return paddedText.includes(` ${verb} `) || paddedText.includes(` و${verb} `);
     }
 
-    return tokens.has(verb);
+    return tokens.has(verb) || tokens.has(`و${verb}`);
   });
+}
+
+function detectLeadingBehavioralVerb(text, normalizedVerbBank) {
+  const normalizedText = normalizeArabicForMatching(text);
+  if (!normalizedText) {
+    return null;
+  }
+
+  const strippedObjectivePrefix = normalizedText.replace(/^ان\s+/u, "").trim();
+  if (!strippedObjectivePrefix) {
+    return null;
+  }
+
+  return (
+    normalizedVerbBank.find(
+      (verb) =>
+        strippedObjectivePrefix === verb ||
+        strippedObjectivePrefix.startsWith(`${verb} `),
+    ) || null
+  );
 }
 
 function containsMarker(text, markers) {
@@ -261,8 +321,9 @@ function containsForbiddenVerb(text, forbiddenVerbs = []) {
     }
 
     const matched = normalizedVerb.includes(" ")
-      ? paddedText.includes(` ${normalizedVerb} `)
-      : tokens.has(normalizedVerb);
+      ? paddedText.includes(` ${normalizedVerb} `) ||
+        paddedText.includes(` و${normalizedVerb} `)
+      : tokens.has(normalizedVerb) || tokens.has(`و${normalizedVerb}`);
 
     if (matched) {
       return forbiddenVerb;
@@ -493,6 +554,7 @@ function validateObjectives({
   errors,
 }) {
   const objectives = buildObjectiveDiagnostics(plan, planType);
+  const verbLevelIndex = buildBloomVerbLevelIndex(bloomVerbsGeneration);
   const normalizedVerbBank = buildNormalizedVerbBank(bloomVerbsGeneration);
 
   if (objectives.length < 1) {
@@ -551,6 +613,17 @@ function validateObjectives({
       );
     }
 
+    const leadingVerb = detectLeadingBehavioralVerb(text, normalizedVerbBank);
+    objective.leadingVerb = leadingVerb;
+    if (!leadingVerb) {
+      addError(
+        errors,
+        "business.objectives.leading_behavioral_verb_missing",
+        path,
+        "objective must begin after أن with a measurable behavioral verb from the Bloom bank",
+      );
+    }
+
     const matchedVerbs = detectMatchedVerbs(text, normalizedVerbBank);
     objective.matchedVerbs = matchedVerbs;
     if (matchedVerbs.length === 0) {
@@ -559,6 +632,21 @@ function validateObjectives({
         "business.objectives.measurable_verb_missing",
         path,
         "objective must include a measurable behavioral verb from the Bloom bank",
+      );
+    }
+
+    const matchedLevels = new Set(
+      matchedVerbs
+        .map((verb) => verbLevelIndex.get(verb))
+        .filter((level) => typeof level === "string" && level.length > 0),
+    );
+    objective.matchedLevels = [...matchedLevels];
+    if (matchedLevels.size > 1) {
+      addError(
+        errors,
+        "business.objectives.multiple_bloom_levels",
+        path,
+        "objective should map clearly to one Bloom level only",
       );
     }
 
@@ -596,6 +684,56 @@ function validateObjectives({
   });
 
   return objectives;
+}
+
+function normalizeStrategyCore(strategy) {
+  if (typeof strategy !== "string") {
+    return "";
+  }
+
+  return strategy
+    .trim()
+    .replace(/^الطريقة\s+/u, "")
+    .replace(/^(طريقة|استراتيجية)\s+/u, "")
+    .trim();
+}
+
+function buildStrategyReferenceVariants(strategy) {
+  const variants = new Set();
+  const addVariant = (value) => {
+    const normalized = normalizeArabicForMatching(value);
+    if (normalized) {
+      variants.add(normalized);
+    }
+  };
+
+  if (typeof strategy !== "string" || !strategy.trim()) {
+    return [];
+  }
+
+  addVariant(strategy);
+
+  const core = normalizeStrategyCore(strategy);
+  if (core) {
+    addVariant(`طريقة ${core}`);
+    addVariant(`استراتيجية ${core}`);
+    addVariant(`الطريقة ${core}`);
+  }
+
+  return [...variants];
+}
+
+function activityReferencesListedStrategy(activityText, strategies = []) {
+  const normalizedActivity = normalizeArabicForMatching(activityText);
+  if (!normalizedActivity) {
+    return false;
+  }
+
+  return strategies.some((strategy) =>
+    buildStrategyReferenceVariants(strategy).some(
+      (variant) => variant && normalizedActivity.includes(variant),
+    ),
+  );
 }
 
 function validateTraditionalStrategies(plan, allowedStrategies = [], durationMinutes, errors) {
@@ -661,6 +799,33 @@ function validateTraditionalStrategies(plan, allowedStrategies = [], durationMin
   }
 }
 
+function validateTraditionalActivityStrategyLinkage(plan, errors) {
+  const strategies = Array.isArray(plan?.teaching_strategies)
+    ? plan.teaching_strategies.filter((strategy) => typeof strategy === "string" && strategy.trim())
+    : [];
+
+  if (strategies.length === 0) {
+    return;
+  }
+
+  const activities = Array.isArray(plan?.activities) ? plan.activities : [];
+  activities.forEach((activity, index) => {
+    const text = toDisplayText(activity);
+    if (!text) {
+      return;
+    }
+
+    if (!activityReferencesListedStrategy(text, strategies)) {
+      addError(
+        errors,
+        "business.traditional.activities.strategy_linkage",
+        `activities.${index}`,
+        "each activity must explicitly reference one listed teaching strategy by name",
+      );
+    }
+  });
+}
+
 function validateTraditionalLessonTime(plan, durationMinutes, phaseBudgets, errors) {
   const headerDurationMinutes = extractMinutes(plan?.header?.duration);
 
@@ -684,6 +849,16 @@ function validateTraditionalLessonTime(plan, durationMinutes, phaseBudgets, erro
   }
 
   const introMinutes = extractTrailingTimeHintMinutes(plan?.intro);
+  const introTimeHintCount = countTimeHints(plan?.intro);
+  if (typeof plan?.intro === "string" && plan.intro && introTimeHintCount !== 1) {
+    addError(
+      errors,
+      "business.duration.intro_hint_count",
+      "intro",
+      "traditional intro must contain exactly one time hint",
+    );
+  }
+
   if (introMinutes == null) {
     addError(
       errors,
@@ -696,7 +871,17 @@ function validateTraditionalLessonTime(plan, durationMinutes, phaseBudgets, erro
   const activityItems = Array.isArray(plan?.activities) ? plan.activities : [];
   let activityMinutes = 0;
   activityItems.forEach((activity, index) => {
-    const minutes = extractTrailingTimeHintMinutes(toDisplayText(activity));
+    const text = toDisplayText(activity);
+    const minutes = extractTrailingTimeHintMinutes(text);
+    if (countTimeHints(text) !== 1) {
+      addError(
+        errors,
+        "business.duration.activity_hint_count",
+        `activities.${index}`,
+        "each traditional activity must contain exactly one time hint",
+      );
+    }
+
     if (minutes == null) {
       addError(
         errors,
@@ -713,8 +898,28 @@ function validateTraditionalLessonTime(plan, durationMinutes, phaseBudgets, erro
   const assessmentItems = Array.isArray(plan?.assessment) ? plan.assessment : [];
   let assessmentMinutes = 0;
   let hasAssessmentTimeHint = false;
-  assessmentItems.forEach((item) => {
-    const minutes = extractTrailingTimeHintMinutes(toDisplayText(item));
+  assessmentItems.forEach((item, index) => {
+    const text = toDisplayText(item);
+    const hintCount = countTimeHints(text);
+    const minutes = extractTrailingTimeHintMinutes(text);
+    if (index === 0 && hintCount !== 1) {
+      addError(
+        errors,
+        "business.duration.assessment_hint_count",
+        `assessment.${index}`,
+        "the first traditional assessment item must contain exactly one time hint",
+      );
+    }
+
+    if (index > 0 && hintCount !== 0) {
+      addError(
+        errors,
+        "business.duration.assessment_hint_extra",
+        `assessment.${index}`,
+        "traditional assessment items after the first must not contain time hints",
+      );
+    }
+
     if (minutes == null) {
       return;
     }
@@ -1273,6 +1478,7 @@ export function validateLessonPlan({
 
   if (planType === PLAN_TYPES.TRADITIONAL) {
     validateTraditionalStrategies(normalizedPlan, allowedStrategies, durationMinutes, errors);
+    validateTraditionalActivityStrategyLinkage(normalizedPlan, errors);
     validateTraditionalLessonTime(normalizedPlan, durationMinutes, phaseBudgets, errors);
     validateTraditionalRichness(normalizedPlan, errors);
   }

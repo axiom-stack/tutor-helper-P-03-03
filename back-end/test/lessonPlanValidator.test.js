@@ -73,6 +73,8 @@ const allowedStrategies = [
   { name: "طريقة العرض العملي (البيان العملي)" },
 ];
 
+const timeHintPattern = /\(\s*\d+(?:\.\d+)?\s*د(?:قيقة|قائق)\s*\)/gu;
+
 function createTraditionalPlan() {
   return {
     header: {
@@ -82,7 +84,7 @@ function createTraditionalPlan() {
       section: "أ",
       lesson_title: "دورة الماء",
       unit: "الماء في الطبيعة",
-      duration: "45 دقيقة",
+      duration: "45 دقائق",
     },
     intro:
       "يمهد المعلم للدرس بسؤال عن المطر ثم يربط الإجابات بمراحل دورة الماء في الطبيعة (5 دقائق)",
@@ -92,15 +94,19 @@ function createTraditionalPlan() {
       "أن يرتب الطالب مراحل التبخر والتكاثف والهطول باستخدام بطاقات التسلسل بشكل صحيح.",
       "أن يفسر الطالب أثر حرارة الشمس في دورة الماء شفهيا مع مثال صحيح.",
     ],
-    teaching_strategies: ["طريقة المناقشة والحوار", "التعلم التعاوني"],
+    teaching_strategies: [
+      "طريقة المناقشة والحوار",
+      "التعلم التعاوني",
+      "طريقة العرض العملي (البيان العملي)",
+    ],
     activities: [
-      "يناقش الطلاب مع المعلم فكرة دورة الماء ويراجعون صور المراحل على السبورة (14 دقائق)",
-      "يرتب الطلاب بطاقات التبخر والتكاثف والهطول في مجموعات صغيرة باستخدام لوحة التسلسل (13 دقائق)",
-      "ينفذ الطلاب نشاطا عمليا يوضح أثر حرارة الشمس في التبخر داخل كأس ماء (9 دقائق)",
+      "يناقش الطلاب مع المعلم فكرة دورة الماء ويراجعون صور المراحل على السبورة وفق طريقة المناقشة والحوار (14 دقائق)",
+      "يرتب الطلاب بطاقات التبخر والتكاثف والهطول في مجموعات صغيرة باستخدام لوحة التسلسل وفق استراتيجية التعلم التعاوني (13 دقائق)",
+      "ينفذ الطلاب نشاطا عمليا يوضح أثر حرارة الشمس في التبخر داخل كأس ماء وفق طريقة العرض العملي (البيان العملي) (9 دقائق)",
     ],
     learning_resources: ["السبورة", "بطاقات التسلسل", "كأس ماء"],
     assessment: [
-      "اختيار متعدد (4 دقائق): ما الترتيب الصحيح لمراحل دورة الماء؟",
+      "اختيار متعدد: ما الترتيب الصحيح لمراحل دورة الماء؟ (4 دقائق)",
       "سؤال مفتوح: فسر أثر حرارة الشمس في التبخر.",
       "إملاء الفراغ: يحدث ____ عندما يبرد بخار الماء.",
     ],
@@ -119,7 +125,7 @@ function createActivePlan() {
       grade: "خامس",
       lesson_title: "حالات الماء",
       unit: "الماء في الطبيعة",
-      duration: "45 دقيقة",
+      duration: "45 دقائق",
     },
     objectives: [
       "أن يميز الطالب حالات الماء الثلاث باستخدام بطاقات مصورة بدقة.",
@@ -211,21 +217,25 @@ test("repairs traditional timing to exact duration without changing schema", () 
   plan.intro =
     "يمهد المعلم للدرس بسؤال عن المطر ثم يربط الإجابات بمراحل دورة الماء في الطبيعة (1 دقيقة)";
   plan.activities = [
-    "يناقش الطلاب مع المعلم فكرة دورة الماء ويراجعون صور المراحل على السبورة (2 دقائق)",
-    "يرتب الطلاب بطاقات التبخر والتكاثف والهطول في مجموعات صغيرة باستخدام لوحة التسلسل (3 دقائق)",
-    "ينفذ الطلاب نشاطا عمليا يوضح أثر حرارة الشمس في التبخر داخل كأس ماء (4 دقائق)",
+    "يناقش الطلاب مع المعلم فكرة دورة الماء ويراجعون صور المراحل على السبورة وفق طريقة المناقشة والحوار (2 دقائق) (7 دقائق)",
+    "يرتب الطلاب بطاقات التبخر والتكاثف والهطول في مجموعات صغيرة باستخدام لوحة التسلسل وفق استراتيجية التعلم التعاوني (3 دقائق)",
+    "ينفذ الطلاب نشاطا عمليا يوضح أثر حرارة الشمس في التبخر داخل كأس ماء وفق طريقة العرض العملي (البيان العملي) (4 دقائق)",
   ];
-  plan.assessment[0] = "اختيار متعدد (1 دقيقة): ما الترتيب الصحيح لمراحل دورة الماء؟";
+  plan.assessment[0] =
+    "اختيار متعدد (1 دقيقة): ما الترتيب الصحيح لمراحل دورة الماء؟ (3 دقائق)";
 
   const result = validateTraditional(plan);
 
   assert.equal(result.isValid, true);
-  assert.equal(result.normalizedPlan.header.duration, "45 دقيقة");
+  assert.equal(result.normalizedPlan.header.duration, "45 دقائق");
   assert.equal(result.normalizedPlan.intro.endsWith("(5 دقائق)"), true);
   assert.equal(result.normalizedPlan.activities[0].endsWith("(14 دقائق)"), true);
   assert.equal(result.normalizedPlan.activities[1].endsWith("(13 دقائق)"), true);
   assert.equal(result.normalizedPlan.activities[2].endsWith("(9 دقائق)"), true);
   assert.match(result.normalizedPlan.assessment[0], /\(4 دقائق\)/u);
+  assert.equal(result.normalizedPlan.activities[0].match(timeHintPattern)?.length ?? 0, 1);
+  assert.equal(result.normalizedPlan.assessment[0].match(timeHintPattern)?.length ?? 0, 1);
+  assert.equal(result.normalizedPlan.assessment[1].match(timeHintPattern)?.length ?? 0, 0);
 });
 
 test("repairs active-learning timing to exact duration and keeps row flow intact", () => {
@@ -239,7 +249,7 @@ test("repairs active-learning timing to exact duration and keeps row flow intact
   const result = validateActive(plan);
 
   assert.equal(result.isValid, true);
-  assert.equal(result.normalizedPlan.header.duration, "45 دقيقة");
+  assert.equal(result.normalizedPlan.header.duration, "45 دقائق");
   assert.equal(result.normalizedPlan.lesson_flow[0].time, "5 دقائق");
   assert.equal(result.normalizedPlan.lesson_flow[1].time, "27 دقائق");
   assert.equal(result.normalizedPlan.lesson_flow[2].time, "9 دقائق");
@@ -263,15 +273,69 @@ test("rejects weak measurable objectives", () => {
   );
 });
 
+test("rejects objectives whose leading verb is not measurable", () => {
+  const plan = createTraditionalPlan();
+  plan.learning_outcomes[0] =
+    "أن يكون الطالب قادرا على شرح مراحل دورة الماء من خلال مخطط مبسط بدقة.";
+
+  const result = validateTraditional(plan);
+
+  assert.equal(result.isValid, false);
+  assert.ok(
+    result.errors.some(
+      (error) => error.code === "business.objectives.leading_behavioral_verb_missing",
+    ),
+  );
+});
+
+test("rejects objectives that mix multiple Bloom levels", () => {
+  const plan = createTraditionalPlan();
+  plan.learning_outcomes[0] =
+    "أن يشرح الطالب مراحل دورة الماء ويستخدم بطاقات التسلسل في النشاط بدقة.";
+
+  const result = validateTraditional(plan);
+
+  assert.equal(result.isValid, false);
+  assert.ok(
+    result.errors.some((error) => error.code === "business.objectives.multiple_bloom_levels"),
+  );
+});
+
+test("accepts percentage-based and contextual objective criteria", () => {
+  const plan = createActivePlan();
+  plan.objectives[2] =
+    "أن يستنتج الطالب أثر الحرارة في تبخر الماء في أسئلة التقويم بنسبة صحة لا تقل عن 80٪.";
+
+  const result = validateActive(plan);
+
+  assert.equal(result.isValid, true);
+});
+
 test("rejects objective-to-activity misalignment", () => {
   const plan = createTraditionalPlan();
-  plan.activities[2] = "يرسم الطلاب أشكال الكواكب في المجموعة (9 دقائق).";
+  plan.activities[2] =
+    "يرسم الطلاب أشكال الكواكب في المجموعة وفق استراتيجية التعلم التعاوني (9 دقائق).";
 
   const result = validateTraditional(plan);
 
   assert.equal(result.isValid, false);
   assert.ok(
     result.errors.some((error) => error.code === "business.alignment.activity_without_objective"),
+  );
+});
+
+test("rejects activities missing explicit strategy linkage", () => {
+  const plan = createTraditionalPlan();
+  plan.activities[0] =
+    "يناقش الطلاب مع المعلم فكرة دورة الماء ويراجعون صور المراحل على السبورة (14 دقائق)";
+
+  const result = validateTraditional(plan);
+
+  assert.equal(result.isValid, false);
+  assert.ok(
+    result.errors.some(
+      (error) => error.code === "business.traditional.activities.strategy_linkage",
+    ),
   );
 });
 
