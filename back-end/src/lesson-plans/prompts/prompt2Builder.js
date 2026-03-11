@@ -1,3 +1,4 @@
+import { buildPhaseBudgets } from "../lessonPlanNormalizer.js";
 import { PLAN_TYPES } from "../types.js";
 
 function buildCommonInput({
@@ -44,6 +45,10 @@ function buildCommonInput({
       lesson_content: boundedLessonContent,
       lesson_content_truncated: lessonContent.length > maxLessonContentChars,
       draft_plan_json: draftPlanJson,
+      phase_time_targets: buildPhaseBudgets(
+        request.duration_minutes,
+        pedagogicalRules?.time_distribution,
+      ),
       pedagogical_rules: {
         objective_format: pedagogicalRules?.objective_format || {},
         forbidden_verbs: pedagogicalRules?.forbidden_verbs || [],
@@ -68,6 +73,7 @@ function buildCommonInput({
 }
 
 export function buildPrompt2TraditionalPedagogicalTuner(args) {
+  const minimumTraditionalStrategies = args.request.duration_minutes >= 40 ? 2 : 1;
   const systemPrompt = [
     "You are a pedagogical tuner for a traditional lesson plan.",
     "Repair and improve the given draft JSON only.",
@@ -77,10 +83,13 @@ export function buildPrompt2TraditionalPedagogicalTuner(args) {
     "Do not add or remove top-level keys.",
     "All natural-language values must be Arabic.",
     "Repair weak or invalid values only.",
-    "learning_outcomes must be measurable and avoid forbidden verbs.",
-    "teaching_strategies must belong to the provided allowed strategy bank.",
-    "Ensure matrix integrity: outcomes, strategies, activities, resources, and assessment are aligned and complete.",
-    "Ensure timing coherence with requested duration.",
+    "Every learning_outcome must start with أن and use a measurable behavioral verb from the provided Bloom bank.",
+    "Every learning_outcome must include الطالب, lesson-specific content, and a condition or criterion when natural.",
+    "Never use forbidden verbs.",
+    "teaching_strategies must belong to the provided allowed strategy bank and should not repeat exactly.",
+    "Ensure each objective is covered by activities and assessment, and no activity or assessment sits outside the objectives.",
+    "Keep the traditional format distinct and do not convert it into lesson_flow rows.",
+    "Encode time only through the existing traditional text fields, and make the exact total equal the requested duration.",
     "Preserve header.grade and header.section from the draft or fill them with provided values.",
     "Do not include instruction, inputs, output_requirements, draft_plan_json, validation_errors, or metadata wrapper keys in output.",
     "Return JSON only with no markdown and no commentary.",
@@ -97,13 +106,20 @@ export function buildPrompt2TraditionalPedagogicalTuner(args) {
       minimum_items_per_array_field: {
         concepts: 3,
         learning_outcomes: 3,
-        teaching_strategies: 1,
+        teaching_strategies: minimumTraditionalStrategies,
         activities: 3,
         learning_resources: 3,
         assessment: 3,
       },
       learning_outcomes_behavioral_prefix: "أن",
-      include_time_hints_in_activities: true,
+      require_student_reference_in_objective: true,
+      require_condition_or_criterion_in_objective: true,
+      require_time_hint_in_intro: true,
+      require_time_hints_in_activities: true,
+      require_time_hint_in_assessment: true,
+      require_strategy_diversity: true,
+      require_assessment_variety: true,
+      require_objective_activity_assessment_alignment: true,
     },
   };
 
@@ -123,10 +139,13 @@ export function buildPrompt2ActiveLearningPedagogicalTuner(args) {
     "Do not add or remove top-level keys.",
     "All natural-language values must be Arabic.",
     "Repair weak or invalid values only.",
-    "Ensure objectives are measurable and avoid forbidden verbs.",
-    "Ensure lesson_flow rows are realistic and coherent.",
+    "Ensure objectives are measurable, lesson-specific, and avoid forbidden verbs.",
+    "Ensure lesson_flow rows stay in a row-based active-learning format and do not collapse into generic prose.",
     "Ensure lesson_flow.activity_type is only one of intro, presentation, activity, assessment.",
-    "Ensure time distribution and total duration fit requested duration.",
+    "Preserve intro -> presentation -> activity -> assessment order.",
+    "Ensure the exact total row time equals the requested duration and the phase budgets are respected.",
+    "Ensure teacher and student actions are not copied as repetitive generic text across phases.",
+    "Ensure every objective is supported by activities and assessment rows.",
     "Preserve header.grade and header.section from the draft or fill them with provided values.",
     "Do not include instruction, inputs, output_requirements, draft_plan_json, validation_errors, or metadata wrapper keys in output.",
     "Return JSON only with no markdown and no commentary.",
@@ -143,6 +162,9 @@ export function buildPrompt2ActiveLearningPedagogicalTuner(args) {
       minimum_lesson_flow_rows: 4,
       must_include_assessment_row: true,
       allowed_activity_types: ["intro", "presentation", "activity", "assessment"],
+      preserve_row_based_flow: true,
+      require_objective_activity_assessment_alignment: true,
+      require_distinct_phase_behaviors: true,
     },
   };
 

@@ -5,6 +5,7 @@ import {
 import { loadLessonPlanKnowledge } from "../../lesson-plans/knowledgeLoader.js";
 import { selectPlanRuntimeResources } from "../../lesson-plans/selectors.js";
 import { buildPrompt2PedagogicalTuner } from "../../lesson-plans/prompts/prompt2Builder.js";
+import { normalizeLessonPlan } from "../../lesson-plans/lessonPlanNormalizer.js";
 import { validateLessonPlan } from "../../lesson-plans/validators/lessonPlanValidator.js";
 import { createGroqClient } from "../../lesson-plans/llm/groqClient.js";
 import { createAssignmentsRepository } from "../../assignments/repositories/assignments.repository.js";
@@ -183,6 +184,16 @@ function buildLessonPlanPayload(plan) {
     retry_occurred: plan.retry_occurred,
     created_at: plan.created_at,
     updated_at: plan.updated_at,
+  };
+}
+
+function buildLessonValidationContext(planRecord, lessonContent) {
+  return {
+    lessonTitle: planRecord.lesson_title,
+    lessonContent,
+    subject: planRecord.subject,
+    grade: planRecord.grade,
+    unit: planRecord.unit,
   };
 }
 
@@ -660,6 +671,12 @@ export function createRefinementService(dependencies = {}) {
       knowledge,
     );
     const lessonContent = await loadLessonContent(planRecord.lesson_id, accessContext);
+    const normalizedDraftPlan = normalizeLessonPlan({
+      plan: planRecord.plan_json,
+      planType: planRecord.plan_type,
+      durationMinutes: planRecord.duration_minutes,
+      pedagogicalRules: knowledge.pedagogical_rules,
+    }).normalizedPlan;
 
     const basePrompt = buildPrompt2PedagogicalTuner({
       request: {
@@ -671,7 +688,7 @@ export function createRefinementService(dependencies = {}) {
         duration_minutes: planRecord.duration_minutes,
       },
       planType: planRecord.plan_type,
-      draftPlanJson: planRecord.plan_json,
+      draftPlanJson: normalizedDraftPlan,
       pedagogicalRules: knowledge.pedagogical_rules,
       bloomVerbsGeneration: knowledge.bloom_verbs_generation,
       strategyBank,
@@ -699,6 +716,7 @@ export function createRefinementService(dependencies = {}) {
       targetSchema,
       strategyBank,
       knowledge,
+      lessonContent,
     };
   }
 
@@ -726,14 +744,24 @@ export function createRefinementService(dependencies = {}) {
     const expectedKeys = Object.keys(runtime.targetSchema || {});
     const extractedPlan =
       extractLessonPlanObject(result.data, expectedKeys) || result.data;
+    const normalizationResult = normalizeLessonPlan({
+      plan: extractedPlan,
+      planType: planRecord.plan_type,
+      durationMinutes: planRecord.duration_minutes,
+      pedagogicalRules: runtime.knowledge?.pedagogical_rules,
+    });
 
     const validation = validateLessonPlan({
-      plan: extractedPlan,
+      plan: normalizationResult.normalizedPlan,
       planType: planRecord.plan_type,
       targetSchema: runtime.targetSchema,
       allowedStrategies: runtime.strategyBank,
       forbiddenVerbs: runtime.knowledge?.pedagogical_rules?.forbidden_verbs || [],
       durationMinutes: planRecord.duration_minutes,
+      pedagogicalRules: runtime.knowledge?.pedagogical_rules || {},
+      bloomVerbsGeneration: runtime.knowledge?.bloom_verbs_generation || {},
+      lessonContext: buildLessonValidationContext(planRecord, runtime.lessonContent),
+      normalizationResult,
     });
 
     return {
@@ -742,7 +770,7 @@ export function createRefinementService(dependencies = {}) {
       rawOutput: result.rawText || JSON.stringify(result.data),
       candidatePayload: {
         ...buildLessonPlanPayload(planRecord),
-        plan_json: extractedPlan,
+        plan_json: validation.normalizedPlan || normalizationResult.normalizedPlan,
       },
       validation: validation,
     };
@@ -1036,7 +1064,17 @@ export function createRefinementService(dependencies = {}) {
         allowedStrategies: strategyBank,
         forbiddenVerbs: knowledge?.pedagogical_rules?.forbidden_verbs || [],
         durationMinutes: planRecord.duration_minutes,
+        pedagogicalRules: knowledge?.pedagogical_rules || {},
+        bloomVerbsGeneration: knowledge?.bloom_verbs_generation || {},
+        lessonContext: buildLessonValidationContext(
+          planRecord,
+          await loadLessonContent(planRecord.lesson_id, {
+            userId: accessContext.userId,
+            role: accessContext.role,
+          }),
+        ),
       });
+      candidatePayload.plan_json = validation.normalizedPlan || candidatePayload.plan_json;
 
       return {
         isValid: validation.isValid && immutableErrors.length === 0,

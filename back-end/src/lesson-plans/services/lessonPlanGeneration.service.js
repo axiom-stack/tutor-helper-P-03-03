@@ -4,6 +4,7 @@ import { selectPlanRuntimeResources } from "../selectors.js";
 import { buildPrompt1DraftGenerator } from "../prompts/prompt1Builder.js";
 import { buildPrompt2PedagogicalTuner } from "../prompts/prompt2Builder.js";
 import { createGroqClient } from "../llm/groqClient.js";
+import { normalizeLessonPlan } from "../lessonPlanNormalizer.js";
 import { validateLessonPlan } from "../validators/lessonPlanValidator.js";
 import { createLessonPlansRepository } from "../repositories/lessonPlans.repository.js";
 
@@ -198,6 +199,7 @@ export function createLessonPlanGenerationService(dependencies = {}) {
   const prompt1Builder = dependencies.prompt1Builder || buildPrompt1DraftGenerator;
   const prompt2Builder = dependencies.prompt2Builder || buildPrompt2PedagogicalTuner;
   const llmClient = dependencies.llmClient || createGroqClient();
+  const normalizer = dependencies.normalizer || normalizeLessonPlan;
   const validator = dependencies.validator || validateLessonPlan;
   const repository = dependencies.repository || createLessonPlansRepository();
 
@@ -253,6 +255,9 @@ export function createLessonPlanGenerationService(dependencies = {}) {
         request: enrichedRequest,
         planType: request.plan_type,
         targetSchema,
+        pedagogicalRules: knowledge.pedagogical_rules,
+        bloomVerbsGeneration: knowledge.bloom_verbs_generation,
+        strategyBank,
       });
 
       const draftResult = await llmClient.generateJson(prompt1);
@@ -287,14 +292,53 @@ export function createLessonPlanGenerationService(dependencies = {}) {
         "prompt_2_initial",
       );
 
-      let validationResult = validator({
-        plan: candidatePlan,
-        planType: request.plan_type,
-        targetSchema,
-        allowedStrategies: strategyBank,
-        forbiddenVerbs: knowledge?.pedagogical_rules?.forbidden_verbs || [],
-        durationMinutes: request.duration_minutes,
-      });
+      const lessonValidationContext = {
+        lessonTitle: enrichedRequest.lesson_title,
+        lessonContent: enrichedRequest.lesson_content,
+        subject: enrichedRequest.subject,
+        unit: enrichedRequest.unit,
+        grade: enrichedRequest.grade,
+      };
+
+      function validateCandidatePlan(planCandidate) {
+        const normalizationResult = normalizer({
+          plan: planCandidate,
+          planType: request.plan_type,
+          durationMinutes: request.duration_minutes,
+          pedagogicalRules: knowledge.pedagogical_rules,
+        });
+
+        const result = validator({
+          plan: normalizationResult.normalizedPlan,
+          planType: request.plan_type,
+          targetSchema,
+          allowedStrategies: strategyBank,
+          forbiddenVerbs: knowledge?.pedagogical_rules?.forbidden_verbs || [],
+          durationMinutes: request.duration_minutes,
+          pedagogicalRules: knowledge.pedagogical_rules,
+          bloomVerbsGeneration: knowledge.bloom_verbs_generation,
+          lessonContext: lessonValidationContext,
+          normalizationResult,
+        });
+
+        if (Array.isArray(result?.repairSummary) && result.repairSummary.length > 0) {
+          logger.info(
+            {
+              repair_summary: result.repairSummary,
+              stage: result?.isValid ? "validation_passed_after_safe_repairs" : "validation_failed_after_safe_repairs",
+            },
+            "lesson plan safe repairs applied before validation",
+          );
+        }
+
+        return {
+          ...result,
+          normalizedPlan: result?.normalizedPlan || normalizationResult.normalizedPlan,
+        };
+      }
+
+      let validationResult = validateCandidatePlan(candidatePlan);
+      candidatePlan = validationResult.normalizedPlan || candidatePlan;
 
       if (!validationResult.isValid) {
         retryOccurred = true;
@@ -325,14 +369,8 @@ export function createLessonPlanGenerationService(dependencies = {}) {
           "prompt_2_retry",
         );
 
-        validationResult = validator({
-          plan: candidatePlan,
-          planType: request.plan_type,
-          targetSchema,
-          allowedStrategies: strategyBank,
-          forbiddenVerbs: knowledge?.pedagogical_rules?.forbidden_verbs || [],
-          durationMinutes: request.duration_minutes,
-        });
+        validationResult = validateCandidatePlan(candidatePlan);
+        candidatePlan = validationResult.normalizedPlan || candidatePlan;
       }
 
       if (!validationResult.isValid) {
