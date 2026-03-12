@@ -1,9 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Noto+Sans+Arabic:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Noto+Sans+Arabic:wght@300;400;500;600;700&family=Cairo:wght@200;300;400;500;600;700&display=swap');
 
 :root {
   --font-main:
     'IBM Plex Sans Arabic', 'Noto Sans Arabic', system-ui, sans-serif;
   --font-document: 'Amiri', 'Noto Naskh Arabic', serif;
+  --font-display: 'Cairo', 'IBM Plex Sans Arabic', sans-serif;
 }
 
 /* Typography Scale */
@@ -159,7 +160,6 @@ button:not(:disabled):active {
 
 .ui-loaded {
   animation: ui-content-in 300ms ease both;
-  transform-origin: center top;
 }
 
 .ui-loading-screen {
@@ -317,12 +317,10 @@ pre {
 @keyframes ui-content-in {
   from {
     opacity: 0;
-    transform: scale(0.95);
   }
 
   to {
     opacity: 1;
-    transform: scale(1);
   }
 }
 
