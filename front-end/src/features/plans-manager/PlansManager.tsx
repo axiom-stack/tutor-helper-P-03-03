@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import toast from 'react-hot-toast';
 import {
   MdClose,
@@ -59,6 +60,10 @@ function formatDateAr(value: string): string {
 
 function cloneValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
+}
+
+function isCardSelectKey(event: KeyboardEvent<HTMLElement>): boolean {
+  return event.key === 'Enter' || event.key === ' ';
 }
 
 export default function PlansManager() {
@@ -573,51 +578,62 @@ export default function PlansManager() {
                 const isActive = plan.public_id === selectedPlan?.public_id;
                 const isLoadingThisPlan = plan.public_id === loadingPlanId;
                 return (
-                  <button
+                  <article
                     key={plan.local_id}
-                    type="button"
                     className={
                       isActive
                         ? 'pm__card pm__card--active animate-fadeIn'
                         : 'pm__card animate-fadeIn'
                     }
+                    role="button"
+                    tabIndex={0}
                     onClick={() => void handleSelectPlan(plan)}
+                    onKeyDown={(event) => {
+                      if (!isCardSelectKey(event)) {
+                        return;
+                      }
+                      event.preventDefault();
+                      void handleSelectPlan(plan);
+                    }}
                     aria-pressed={isActive}
                     aria-current={isActive ? 'true' : undefined}
                   >
                     <div className="pm__card-inner">
-                      <div className="pm__card-head">
+                      <div className="pm__card-topline">
+                        <span className="pm__card-type">
+                          {toPlanTypeLabel(plan.plan_type)}
+                        </span>
                         {isActive ? (
                           <span className="pm__card-selected-badge" aria-hidden>
                             الخطة المحددة
                           </span>
                         ) : null}
-                        <span className="pm__card-date">
+                      </div>
+                      <h3 className="pm__card-title">
+                        {plan.lesson_title || 'خطة بدون عنوان'}
+                      </h3>
+                      <div className="pm__card-meta">
+                        {plan.subject ? (
+                          <span className="pm__card-meta-item">{plan.subject}</span>
+                        ) : null}
+                        {plan.grade ? (
+                          <span className="pm__card-meta-item">{plan.grade}</span>
+                        ) : null}
+                        <span className="pm__card-meta-item pm__card-meta-item--date">
                           {formatDateAr(plan.created_at)}
                         </span>
                       </div>
-                      <h3 className="pm__card-title">{plan.lesson_title}</h3>
-                      <div className="pm__card-chips">
-                        <span className="pm__card-chip">
-                          {toPlanTypeLabel(plan.plan_type)}
-                        </span>
-                        {plan.subject ? (
-                          <span className="pm__card-chip">{plan.subject}</span>
-                        ) : null}
-                        {plan.grade ? (
-                          <span className="pm__card-chip">{plan.grade}</span>
-                        ) : null}
+                      <div className="pm__card-foot">
                         <SyncStatusBadge status={plan.sync_status} />
+                        <span className="pm__card-id">{plan.public_id}</span>
                       </div>
-                      <div className="pm__card-id">{plan.public_id}</div>
                       {plan.last_sync_error ? (
                         <p className="pm__card-error">{plan.last_sync_error}</p>
                       ) : null}
                       {isAdmin ? (
-                        <div className="pm__card-teacher">
-                          {teacherNameMap.get(plan.teacher_id) ||
-                            `#${plan.teacher_id}`}
-                        </div>
+                        <p className="pm__card-teacher">
+                          المعلم: {teacherNameMap.get(plan.teacher_id) || `#${plan.teacher_id}`}
+                        </p>
                       ) : null}
                       {isLoadingThisPlan ? (
                         <div className="pm__card-loading">
@@ -626,7 +642,7 @@ export default function PlansManager() {
                         </div>
                       ) : null}
                     </div>
-                  </button>
+                  </article>
                 );
               })}
             </div>
