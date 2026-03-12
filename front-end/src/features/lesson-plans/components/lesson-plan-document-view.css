@@ -285,6 +285,18 @@
   color: #f8fbff;
 }
 
+/* Prevent ultra-compact columns: الزمن (time) and نوع النشاط (activity type) */
+.lpdv__flow-table th:nth-child(1),
+.lpdv__flow-table td:nth-child(1) {
+  min-width: 5.5em;
+  white-space: nowrap;
+}
+
+.lpdv__flow-table th:nth-child(3),
+.lpdv__flow-table td:nth-child(3) {
+  min-width: 5em;
+}
+
 .lpdv__active-footer {
   padding: 0.65rem 0.75rem;
 }

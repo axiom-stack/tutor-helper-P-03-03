@@ -67,7 +67,8 @@ export default function PlansManager() {
   const isAdmin = user?.userRole === 'admin';
 
   const [allPlans, setAllPlans] = useState<OfflineLessonPlanRecord[]>([]);
-  const [selectedPlan, setSelectedPlan] = useState<OfflineLessonPlanRecord | null>(null);
+  const [selectedPlan, setSelectedPlan] =
+    useState<OfflineLessonPlanRecord | null>(null);
   const [teachers, setTeachers] = useState<TeacherManagementRow[]>([]);
 
   const [planType, setPlanType] = useState<PlanTypeFilter>('');
@@ -83,7 +84,9 @@ export default function PlansManager() {
   const [isEditingPlan, setIsEditingPlan] = useState(false);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
   const [planDraft, setPlanDraft] = useState<PlanDraft | null>(null);
-  const [draftRecoveredNotice, setDraftRecoveredNotice] = useState<string | null>(null);
+  const [draftRecoveredNotice, setDraftRecoveredNotice] = useState<
+    string | null
+  >(null);
 
   const plansRequestIdRef = useRef(0);
   const detailRequestIdRef = useRef(0);
@@ -217,7 +220,9 @@ export default function PlansManager() {
         if (draft.updated_at > selectedPlan.updated_at) {
           setPlanDraft(draft.payload);
           setIsEditingPlan(true);
-          setDraftRecoveredNotice('تمت استعادة مسودة الخطة المحلية بعد إعادة فتح الصفحة.');
+          setDraftRecoveredNotice(
+            'تمت استعادة مسودة الخطة المحلية بعد إعادة فتح الصفحة.'
+          );
         }
       })
       .catch(() => {
@@ -296,7 +301,10 @@ export default function PlansManager() {
       if (requestId !== detailRequestIdRef.current) {
         return;
       }
-      const message = normalizeApiError(detailError, 'فشل تحميل تفاصيل الخطة.').message;
+      const message = normalizeApiError(
+        detailError,
+        'فشل تحميل تفاصيل الخطة.'
+      ).message;
       setError(message);
       toast.error(message);
     } finally {
@@ -329,7 +337,11 @@ export default function PlansManager() {
     }
     setIsExporting(true);
     setError(null);
-    sharePlan(selectedPlan.server_id, format, selectedPlan.lesson_title ?? undefined)
+    sharePlan(
+      selectedPlan.server_id,
+      format,
+      selectedPlan.lesson_title ?? undefined
+    )
       .catch(() => {
         setError('فشل مشاركة الخطة.');
         toast.error('فشل مشاركة الخطة.');
@@ -367,7 +379,9 @@ export default function PlansManager() {
 
     const nextPlanJson = cloneValue(planDraft.planJson);
     const currentHeader =
-      nextPlanJson.header && typeof nextPlanJson.header === 'object' && !Array.isArray(nextPlanJson.header)
+      nextPlanJson.header &&
+      typeof nextPlanJson.header === 'object' &&
+      !Array.isArray(nextPlanJson.header)
         ? (nextPlanJson.header as Record<string, unknown>)
         : {};
 
@@ -396,7 +410,10 @@ export default function PlansManager() {
           : 'تم حفظ تعديلات الخطة محليًا وستتم مزامنتها عند عودة الاتصال.'
       );
     } catch (saveError: unknown) {
-      const message = normalizeApiError(saveError, 'فشل حفظ تعديلات الخطة.').message;
+      const message = normalizeApiError(
+        saveError,
+        'فشل حفظ تعديلات الخطة.'
+      ).message;
       setError(message);
       toast.error(message);
     } finally {
@@ -424,11 +441,16 @@ export default function PlansManager() {
     try {
       const response = await duplicatePlan(selectedPlan.public_id);
       const duplicatedPlan = response.plan as OfflineLessonPlanRecord;
-      setAllPlans((current: OfflineLessonPlanRecord[]) => [duplicatedPlan, ...current]);
+      setAllPlans((current: OfflineLessonPlanRecord[]) => [
+        duplicatedPlan,
+        ...current,
+      ]);
       setSelectedPlan(duplicatedPlan);
       toast.success('تم إنشاء نسخة محلية من الخطة.');
     } catch (error: unknown) {
-      toast.error(normalizeApiError(error, 'تعذر إنشاء نسخة محلية للخطة.').message);
+      toast.error(
+        normalizeApiError(error, 'تعذر إنشاء نسخة محلية للخطة.').message
+      );
     }
   };
 
@@ -455,7 +477,9 @@ export default function PlansManager() {
       </header>
 
       {draftRecoveredNotice ? (
-        <p className="ui-inline-notice ui-inline-notice--info">{draftRecoveredNotice}</p>
+        <p className="ui-inline-notice ui-inline-notice--info">
+          {draftRecoveredNotice}
+        </p>
       ) : null}
 
       <section className="pm__filters" aria-label="مرشحات الخطط">
@@ -464,7 +488,9 @@ export default function PlansManager() {
           <select
             id="pm-plan-type"
             value={planType}
-            onChange={(event) => setPlanType(event.target.value as PlanTypeFilter)}
+            onChange={(event) =>
+              setPlanType(event.target.value as PlanTypeFilter)
+            }
             disabled={isEditingPlan}
           >
             <option value="">الكل</option>
@@ -483,7 +509,9 @@ export default function PlansManager() {
           >
             <option value="">الكل</option>
             {subjectOptions.map((s) => (
-              <option key={s} value={s}>{s}</option>
+              <option key={s} value={s}>
+                {s}
+              </option>
             ))}
           </select>
         </div>
@@ -498,7 +526,9 @@ export default function PlansManager() {
           >
             <option value="">الكل</option>
             {gradeOptions.map((g) => (
-              <option key={g} value={g}>{g}</option>
+              <option key={g} value={g}>
+                {g}
+              </option>
             ))}
           </select>
         </div>
@@ -547,47 +577,55 @@ export default function PlansManager() {
                     key={plan.local_id}
                     type="button"
                     className={
-                      isActive ? 'pm__card pm__card--active animate-fadeIn' : 'pm__card animate-fadeIn'
+                      isActive
+                        ? 'pm__card pm__card--active animate-fadeIn'
+                        : 'pm__card animate-fadeIn'
                     }
                     onClick={() => void handleSelectPlan(plan)}
                     aria-pressed={isActive}
                     aria-current={isActive ? 'true' : undefined}
                   >
-                    {isActive ? (
-                      <span className="pm__card-selected-badge" aria-hidden>
-                        الخطة المحددة
-                      </span>
-                    ) : null}
-                    <div className="pm__card-top">
-                      <strong>{plan.lesson_title}</strong>
-                      <span>{formatDateAr(plan.created_at)}</span>
-                    </div>
-                    <div className="pm__card-meta">
-                      <span>{plan.public_id}</span>
-                      <span>{toPlanTypeLabel(plan.plan_type)}</span>
-                    </div>
-                    <div className="pm__card-meta">
-                      <span>{plan.subject}</span>
-                      <SyncStatusBadge status={plan.sync_status} />
-                    </div>
-                    <div className="pm__card-meta">
-                      <span>{plan.grade}</span>
-                      {plan.last_sync_error ? <span>{plan.last_sync_error}</span> : <span />}
-                    </div>
-                    {isAdmin ? (
-                      <div className="pm__card-meta">
-                        <span>المعلم</span>
-                        <span>
-                          {teacherNameMap.get(plan.teacher_id) || `#${plan.teacher_id}`}
+                    <div className="pm__card-inner">
+                      <div className="pm__card-head">
+                        {isActive ? (
+                          <span className="pm__card-selected-badge" aria-hidden>
+                            الخطة المحددة
+                          </span>
+                        ) : null}
+                        <span className="pm__card-date">
+                          {formatDateAr(plan.created_at)}
                         </span>
                       </div>
-                    ) : null}
-                    {isLoadingThisPlan ? (
-                      <span className="pm__card-meta">
-                        <span className="ui-button-spinner" aria-hidden />
-                        جارٍ تحميل التفاصيل...
-                      </span>
-                    ) : null}
+                      <h3 className="pm__card-title">{plan.lesson_title}</h3>
+                      <div className="pm__card-chips">
+                        <span className="pm__card-chip">
+                          {toPlanTypeLabel(plan.plan_type)}
+                        </span>
+                        {plan.subject ? (
+                          <span className="pm__card-chip">{plan.subject}</span>
+                        ) : null}
+                        {plan.grade ? (
+                          <span className="pm__card-chip">{plan.grade}</span>
+                        ) : null}
+                        <SyncStatusBadge status={plan.sync_status} />
+                      </div>
+                      <div className="pm__card-id">{plan.public_id}</div>
+                      {plan.last_sync_error ? (
+                        <p className="pm__card-error">{plan.last_sync_error}</p>
+                      ) : null}
+                      {isAdmin ? (
+                        <div className="pm__card-teacher">
+                          {teacherNameMap.get(plan.teacher_id) ||
+                            `#${plan.teacher_id}`}
+                        </div>
+                      ) : null}
+                      {isLoadingThisPlan ? (
+                        <div className="pm__card-loading">
+                          <span className="ui-button-spinner" aria-hidden />
+                          <span>جارٍ تحميل التفاصيل...</span>
+                        </div>
+                      ) : null}
+                    </div>
                   </button>
                 );
               })}
@@ -621,7 +659,9 @@ export default function PlansManager() {
                       disabled={!selectedPlan || !planDraft || isSavingPlan}
                       aria-busy={isSavingPlan}
                     >
-                      {isSavingPlan && <span className="ui-button-spinner" aria-hidden />}
+                      {isSavingPlan && (
+                        <span className="ui-button-spinner" aria-hidden />
+                      )}
                       {!isSavingPlan && <MdSave aria-hidden />}
                       {isSavingPlan ? 'جارٍ الحفظ...' : 'حفظ'}
                     </button>
@@ -635,7 +675,9 @@ export default function PlansManager() {
                       onClick={() => handleExport('pdf')}
                       aria-busy={isExporting}
                     >
-                      {isExporting && <span className="ui-button-spinner" aria-hidden />}
+                      {isExporting && (
+                        <span className="ui-button-spinner" aria-hidden />
+                      )}
                       {!isExporting && <MdOutlinePictureAsPdf aria-hidden />}
                       PDF
                     </button>
@@ -646,7 +688,9 @@ export default function PlansManager() {
                       onClick={() => handleExport('docx')}
                       aria-busy={isExporting}
                     >
-                      {isExporting && <span className="ui-button-spinner" aria-hidden />}
+                      {isExporting && (
+                        <span className="ui-button-spinner" aria-hidden />
+                      )}
                       {!isExporting && <MdOutlineTextSnippet aria-hidden />}
                       Word
                     </button>
@@ -658,7 +702,9 @@ export default function PlansManager() {
                       aria-busy={isExporting}
                       title="مشاركة PDF عبر الجهاز"
                     >
-                      {isExporting && <span className="ui-button-spinner" aria-hidden />}
+                      {isExporting && (
+                        <span className="ui-button-spinner" aria-hidden />
+                      )}
                       {!isExporting && 'مشاركة PDF'}
                     </button>
                     <button
@@ -668,7 +714,11 @@ export default function PlansManager() {
                       onClick={() => {
                         if (!selectedPlan) return;
                         const text = `خطة درس: ${selectedPlan.lesson_title ?? selectedPlan.public_id}\nالمعرف: ${selectedPlan.public_id}`;
-                        window.open(buildWhatsAppLink(text), '_blank', 'noopener,noreferrer');
+                        window.open(
+                          buildWhatsAppLink(text),
+                          '_blank',
+                          'noopener,noreferrer'
+                        );
                       }}
                       title="مشاركة عبر واتساب"
                     >
@@ -703,7 +753,9 @@ export default function PlansManager() {
             ) : (
               <div className="pm__detail-content">
                 <div className="pm__chips">
-                  <span className="pm__chip">المعرف: {selectedPlan.public_id}</span>
+                  <span className="pm__chip">
+                    المعرف: {selectedPlan.public_id}
+                  </span>
                   <span className="pm__chip">
                     <SyncStatusBadge status={selectedPlan.sync_status} />
                   </span>
@@ -711,19 +763,26 @@ export default function PlansManager() {
                     النوع: {toPlanTypeLabel(selectedPlan.plan_type)}
                   </span>
                   <span className="pm__chip">
-                    الحالة: {toValidationStatusLabel(selectedPlan.validation_status)}
+                    الحالة:{' '}
+                    {toValidationStatusLabel(selectedPlan.validation_status)}
                   </span>
                   <span className="pm__chip">
                     إعادة التحسين: {selectedPlan.retry_occurred ? 'نعم' : 'لا'}
                   </span>
-                  <span className="pm__chip">المادة: {selectedPlan.subject}</span>
-                  <span className="pm__chip">المرحلة: {selectedPlan.grade}</span>
+                  <span className="pm__chip">
+                    المادة: {selectedPlan.subject}
+                  </span>
+                  <span className="pm__chip">
+                    المرحلة: {selectedPlan.grade}
+                  </span>
                   <span className="pm__chip">
                     مدة الحصة: {selectedPlan.duration_minutes} دقيقة
                   </span>
                   {isAdmin ? (
                     <span className="pm__chip">
-                      المعلم: {teacherNameMap.get(selectedPlan.teacher_id) || `#${selectedPlan.teacher_id}`}
+                      المعلم:{' '}
+                      {teacherNameMap.get(selectedPlan.teacher_id) ||
+                        `#${selectedPlan.teacher_id}`}
                     </span>
                   ) : null}
                 </div>
@@ -735,13 +794,17 @@ export default function PlansManager() {
                 ) : null}
 
                 {detailLoading ? (
-                  <p className="pm__state pm__state--inline">جاري تحديث تفاصيل الخطة...</p>
+                  <p className="pm__state pm__state--inline">
+                    جاري تحديث تفاصيل الخطة...
+                  </p>
                 ) : null}
 
                 <LessonPlanDocumentView
                   planType={selectedPlan.plan_type}
                   mode={isEditingPlan ? 'edit' : 'view'}
-                  lessonTitle={planDraft?.lessonTitle ?? selectedPlan.lesson_title}
+                  lessonTitle={
+                    planDraft?.lessonTitle ?? selectedPlan.lesson_title
+                  }
                   planJson={planDraft?.planJson ?? selectedPlan.plan_json}
                   onLessonTitleChange={(value) =>
                     setPlanDraft((current) =>
