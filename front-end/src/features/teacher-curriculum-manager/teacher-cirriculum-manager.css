@@ -69,6 +69,23 @@
   }
 }
 
+@media (max-width: 640px) {
+  .tcm2__form-actions {
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .tcm2__form-actions button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .tcm2__panel-head button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
 .tcm2__panel {
   background: var(--surface);
   border: 1px solid var(--border);

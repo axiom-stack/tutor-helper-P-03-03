@@ -340,3 +340,15 @@
     align-items: flex-start;
   }
 }
+
+@media (max-width: 640px) {
+  .pm__filter-actions,
+  .pm__export-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .pm__btn {
+    width: 100%;
+    min-height: 44px;
+  }
+}

@@ -415,3 +415,79 @@ iframe.skiptranslate,
 .goog-te-banner-frame {
   display: none !important;
 }
+
+/* Mobile touch targets – ensure 44px minimum for usability */
+@media (max-width: 640px) {
+  /* All buttons get minimum height */
+  button,
+  .nav-bar__logout,
+  .nav-bar__avatar,
+  .sidebar__link,
+  .cam__actions button,
+  .asn-btn,
+  .tm__action-btn,
+  .tm-modal__btn,
+  .qz__details-action-btn,
+  .qz__delete-btn,
+  .qz__generate-btn,
+  .qz__refresh-btn,
+  .st__chip,
+  .st__action-btn,
+  .pm__btn,
+  .pm__btn--subtle,
+  .pm__btn--ghost,
+  .pm__btn--primary,
+  .pm__btn--secondary,
+  .tcm2__panel-head button,
+  .auth__submit,
+  .auth__link {
+    min-height: 44px;
+  }
+
+  /* Icon-only / compact buttons get minimum width for touch */
+  .nav-bar__logout,
+  .nav-bar__avatar,
+  .sidebar__link,
+  .cam__actions button,
+  .asn-btn,
+  .tm__action-btn,
+  .tm-modal__btn,
+  .qz__details-action-btn,
+  .qz__delete-btn,
+  .qz__generate-btn,
+  .qz__refresh-btn,
+  .st__chip,
+  .st__action-btn,
+  .pm__btn,
+  .pm__btn--subtle,
+  .pm__btn--ghost,
+  .pm__btn--primary,
+  .pm__btn--secondary,
+  .tcm2__panel-head button {
+    min-width: 44px;
+  }
+
+  /* Prevent long strings from breaking layout */
+  .asn-card__title,
+  .cd__table-card header h2,
+  .qz__exam-open h4,
+  .tm__teacher-cell strong,
+  .pm__card-top,
+  .st__panel-head h2,
+  .st__panel-head h3 {
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+
+  /* Table wrappers get touch-friendly scrolling */
+  .cd__table-wrap,
+  .qz__table-wrap,
+  .tm__table-wrap,
+  .st__table-wrap,
+  .cc__table-wrap,
+  .lpdv__table-wrap,
+  .lcp__table-wrap {
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+}

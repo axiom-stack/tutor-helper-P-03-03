@@ -141,3 +141,15 @@
     display: none;
   }
 }
+
+@media (max-width: 640px) {
+  .sidebar__link {
+    min-height: 44px;
+    padding: 0.75rem 0.85rem;
+  }
+
+  .sidebar__list {
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+}

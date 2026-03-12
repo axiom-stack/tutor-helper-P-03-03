@@ -665,3 +665,17 @@
     justify-content: center;
   }
 }
+
+@media (max-width: 640px) {
+  .srp__mode-toggle button,
+  .srp__proposal-actions button,
+  .srp__revisions button,
+  .srp__form button {
+    min-height: 44px;
+  }
+
+  .srp__form textarea,
+  .srp__form select {
+    min-height: 2.75rem;
+  }
+}

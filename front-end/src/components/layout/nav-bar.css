@@ -196,3 +196,15 @@
     text-overflow: ellipsis;
   }
 }
+
+@media (max-width: 640px) {
+  .nav-bar {
+    padding-inline: var(--space-sm);
+  }
+
+  .nav-bar__logout,
+  .nav-bar__avatar {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

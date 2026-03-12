@@ -97,6 +97,16 @@
   }
 }
 
+@media (max-width: 640px) {
+  .cd__hero {
+    padding: var(--space-md) var(--space-lg);
+  }
+
+  .cd__stat-card {
+    padding: var(--space-md);
+  }
+}
+
 .cd__stat-card {
   border: 1px solid var(--border);
   border-radius: var(--cd-radius);

@@ -721,3 +721,17 @@
     flex-direction: column;
   }
 }
+
+@media (max-width: 640px) {
+  .asn-modal__panel {
+    padding: var(--space-md);
+  }
+
+  .asn-modal__actions {
+    gap: var(--space-xs);
+  }
+
+  .asn-modal__actions button {
+    width: 100%;
+  }
+}

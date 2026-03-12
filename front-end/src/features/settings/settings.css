@@ -167,3 +167,9 @@
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 640px) {
+  .st__actions button {
+    min-height: 44px;
+  }
+}

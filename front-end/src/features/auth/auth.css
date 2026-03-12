@@ -197,6 +197,12 @@
   padding: var(--space-lg);
 }
 
+@media (max-width: 480px) {
+  .auth__form-wrap {
+    padding: var(--space-md);
+  }
+}
+
 @media (min-width: 768px) {
   .auth__form-wrap {
     padding: var(--space-xl);

@@ -53,6 +53,18 @@
   cursor: pointer;
 }
 
+@media (max-width: 640px) {
+  .cam__actions {
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .cam__actions button {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
 .cam__actions button:disabled {
   opacity: 0.6;
   cursor: not-allowed;

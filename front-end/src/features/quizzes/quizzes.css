@@ -601,4 +601,11 @@
   .qz__details {
     padding: 0.75rem;
   }
+
+  .qz__details-action-btn,
+  .qz__delete-btn,
+  .qz__generate-btn,
+  .qz__refresh-btn {
+    min-height: 44px;
+  }
 }

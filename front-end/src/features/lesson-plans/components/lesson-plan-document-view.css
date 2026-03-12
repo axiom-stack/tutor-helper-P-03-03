@@ -343,3 +343,10 @@
     border-bottom: none;
   }
 }
+
+@media (max-width: 640px) {
+  .lpdv__traditional-card,
+  .lpdv__traditional-shell {
+    padding: var(--space-sm);
+  }
+}

@@ -651,3 +651,14 @@
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   }
 }
+
+@media (max-width: 640px) {
+  .st__header {
+    padding: var(--space-sm);
+  }
+
+  .st__chip,
+  .st__action-btn {
+    min-height: 44px;
+  }
+}

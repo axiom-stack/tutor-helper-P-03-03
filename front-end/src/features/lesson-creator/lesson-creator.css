@@ -823,3 +823,11 @@
     border-bottom: none;
   }
 }
+
+@media (max-width: 640px) {
+  .lcp__preview,
+  .lcp__controls,
+  .lcp__header {
+    padding: var(--space-sm);
+  }
+}
