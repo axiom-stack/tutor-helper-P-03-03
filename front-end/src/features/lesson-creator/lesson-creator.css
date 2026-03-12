@@ -762,6 +762,23 @@
 }
 
 @media (max-width: 760px) {
+  .lcp__layout {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .lcp__preview {
+    order: 1;
+  }
+
+  .lcp__refinement-row {
+    order: 2;
+  }
+
+  .lcp__controls {
+    order: 3;
+  }
+
   .lcp__header {
     flex-direction: column;
   }

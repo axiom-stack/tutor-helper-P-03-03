@@ -33,7 +33,6 @@ import {
   duplicatePlan,
   updatePlan,
   sharePlan,
-  type ListPlansFilters,
 } from './plans-manager.services';
 import './plans-manager.css';
 
@@ -67,7 +66,7 @@ export default function PlansManager() {
   const { lastSyncAt } = useOffline();
   const isAdmin = user?.userRole === 'admin';
 
-  const [plans, setPlans] = useState<OfflineLessonPlanRecord[]>([]);
+  const [allPlans, setAllPlans] = useState<OfflineLessonPlanRecord[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<OfflineLessonPlanRecord | null>(null);
   const [teachers, setTeachers] = useState<TeacherManagementRow[]>([]);
 
@@ -86,25 +85,35 @@ export default function PlansManager() {
 
   const plansRequestIdRef = useRef(0);
   const detailRequestIdRef = useRef(0);
-  const isFirstTextFilterEffectRef = useRef(true);
 
   const teacherNameMap = useMemo(() => {
     return new Map(teachers.map((teacher) => [teacher.id, teacher.username]));
   }, [teachers]);
 
-  const buildFilters = (): ListPlansFilters => {
-    const filters: ListPlansFilters = {};
-    if (planType) {
-      filters.plan_type = planType;
-    }
-    if (subject.trim()) {
-      filters.subject = subject.trim();
-    }
-    if (grade.trim()) {
-      filters.grade = grade.trim();
-    }
-    return filters;
-  };
+  const subjectOptions = useMemo(() => {
+    const set = new Set<string>();
+    allPlans.forEach((p) => {
+      if (p.subject?.trim()) set.add(p.subject.trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ar'));
+  }, [allPlans]);
+
+  const gradeOptions = useMemo(() => {
+    const set = new Set<string>();
+    allPlans.forEach((p) => {
+      if (p.grade?.trim()) set.add(p.grade.trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ar'));
+  }, [allPlans]);
+
+  const plans = useMemo(() => {
+    return allPlans.filter((plan) => {
+      if (planType && plan.plan_type !== planType) return false;
+      if (subject && plan.subject !== subject) return false;
+      if (grade && plan.grade !== grade) return false;
+      return true;
+    });
+  }, [allPlans, planType, subject, grade]);
 
   const loadPlans = async () => {
     const requestId = ++plansRequestIdRef.current;
@@ -112,14 +121,14 @@ export default function PlansManager() {
     setError(null);
 
     try {
-      const response = await listPlans(buildFilters());
+      const response = await listPlans({});
 
       if (requestId !== plansRequestIdRef.current) {
         return;
       }
 
       const nextPlans = (response.plans ?? []) as OfflineLessonPlanRecord[];
-      setPlans(nextPlans);
+      setAllPlans(nextPlans);
 
       setSelectedPlan((current) => {
         if (!current) {
@@ -149,23 +158,7 @@ export default function PlansManager() {
   useEffect(() => {
     void loadPlans();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planType]);
-
-  useEffect(() => {
-    if (isFirstTextFilterEffectRef.current) {
-      isFirstTextFilterEffectRef.current = false;
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      void loadPlans();
-    }, 300);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subject, grade]);
+  }, []);
 
   useEffect(() => {
     if (!lastSyncAt || isEditingPlan) {
@@ -478,24 +471,32 @@ export default function PlansManager() {
 
         <div className="pm__field">
           <label htmlFor="pm-subject">المادة</label>
-          <input
+          <select
             id="pm-subject"
             value={subject}
             onChange={(event) => setSubject(event.target.value)}
-            placeholder="مثال: الرياضيات"
             disabled={isEditingPlan}
-          />
+          >
+            <option value="">الكل</option>
+            {subjectOptions.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
         </div>
 
         <div className="pm__field">
           <label htmlFor="pm-grade">المرحلة/الصف</label>
-          <input
+          <select
             id="pm-grade"
             value={grade}
             onChange={(event) => setGrade(event.target.value)}
-            placeholder="مثال: الصف الثامن"
             disabled={isEditingPlan}
-          />
+          >
+            <option value="">الكل</option>
+            {gradeOptions.map((g) => (
+              <option key={g} value={g}>{g}</option>
+            ))}
+          </select>
         </div>
 
         <div className="pm__filter-actions">

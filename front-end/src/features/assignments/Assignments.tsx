@@ -15,7 +15,7 @@ import {
 } from 'react-icons/md';
 import { SyncStatusBadge } from '../../components/common/SyncStatusBadge';
 import { useAuth } from '../../context/AuthContext';
-import type { Assignment, Class } from '../../types';
+import type { Assignment, Class, LessonPlanRecord } from '../../types';
 import { ASSIGNMENT_TYPE_LABELS } from '../../types';
 import { clearDraft, getDraft, saveDraft } from '../../offline/drafts';
 import { useOffline } from '../../offline/useOffline';
@@ -30,6 +30,7 @@ import {
   listAssignments,
   updateAssignment,
 } from './assignments.services';
+import { listPlans } from '../plans-manager/plans-manager.services';
 import type { NormalizedApiError } from '../../utils/apiErrors';
 import { normalizeApiError } from '../../utils/apiErrors';
 import { buildWhatsAppLink, buildHomeworkMessage } from '../../utils/whatsapp';
@@ -235,8 +236,12 @@ export default function Assignments() {
   const [isListLoading, setIsListLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingFromPlan, setIsGeneratingFromPlan] = useState(false);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isClassesLoading, setIsClassesLoading] = useState(false);
+  const [plansForGenerate, setPlansForGenerate] = useState<LessonPlanRecord[]>([]);
+  const [selectedPlanIdForGenerate, setSelectedPlanIdForGenerate] = useState('');
+  const [isPlansLoading, setIsPlansLoading] = useState(false);
   const [isEditingAssignment, setIsEditingAssignment] = useState(false);
   const [isSavingAssignment, setIsSavingAssignment] = useState(false);
 
@@ -412,6 +417,36 @@ export default function Assignments() {
   }, [context, selectedClassId, user?.userRole, loadAssignments]);
 
   useEffect(() => {
+    if (user?.userRole !== 'teacher') {
+      setPlansForGenerate([]);
+      return;
+    }
+
+    let cancelled = false;
+    setIsPlansLoading(true);
+    listPlans({})
+      .then((response) => {
+        if (!cancelled) {
+          setPlansForGenerate(response.plans ?? []);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPlansForGenerate([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsPlansLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.userRole]);
+
+  useEffect(() => {
     if (user?.userRole !== 'teacher' || isScopedView) {
       setClasses([]);
       return;
@@ -582,6 +617,41 @@ export default function Assignments() {
       setError(normalizeApiError(generateError, 'فشل توليد الواجبات.'));
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleGenerateFromPlan = async () => {
+    if (!selectedPlanIdForGenerate) return;
+    const plan = plansForGenerate.find((p) => p.public_id === selectedPlanIdForGenerate);
+    if (!plan || plan.lesson_id == null) return;
+
+    setIsGeneratingFromPlan(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const response = await generateAssignments(plan.public_id, plan.lesson_id);
+      if ('queued' in response && response.queued) {
+        setSuccessMessage(response.message);
+        setSelectedPlanIdForGenerate('');
+        return;
+      }
+      await loadAssignments(true);
+      const generatedAssignments = (response as { assignments: Assignment[] }).assignments ?? [];
+      if (generatedAssignments.length > 0) {
+        setActiveAssignmentId(generatedAssignments[0].public_id);
+      }
+      const generatedCount = generatedAssignments.length;
+      setSuccessMessage(
+        generatedCount > 0
+          ? `تم توليد ${generatedCount} واجب/واجبات وحفظها في قاعدة البيانات.`
+          : 'تم توليد الواجبات وحفظها بنجاح.'
+      );
+      setSelectedPlanIdForGenerate('');
+    } catch (generateError: unknown) {
+      setError(normalizeApiError(generateError, 'فشل توليد الواجبات.'));
+    } finally {
+      setIsGeneratingFromPlan(false);
     }
   };
 
@@ -769,34 +839,75 @@ export default function Assignments() {
       </section>
 
       {!context && (
-        <section className="asn__filters" aria-label="فلترة الواجبات">
-          <label className="asn__field" htmlFor="asn-class-filter">
-            <span>اختر الصف</span>
-            <select
-              id="asn-class-filter"
-              value={selectedClassId}
-              onChange={(event) =>
-                setSelectedClassId(event.target.value ? Number(event.target.value) : '')
-              }
-              disabled={
-                isClassesLoading || isListLoading || isRefreshing || isEditingAssignment
-              }
-            >
-              <option value="">كل الصفوف</option>
-              {classes.map((classItem) => (
-                <option key={classItem.id} value={classItem.id}>
-                  {classItem.name}
-                </option>
-              ))}
-            </select>
-          </label>
+        <>
+          <section className="asn__filters" aria-label="فلترة الواجبات">
+            <label className="asn__field" htmlFor="asn-class-filter">
+              <span>اختر الصف</span>
+              <select
+                id="asn-class-filter"
+                value={selectedClassId}
+                onChange={(event) =>
+                  setSelectedClassId(event.target.value ? Number(event.target.value) : '')
+                }
+                disabled={
+                  isClassesLoading || isListLoading || isRefreshing || isEditingAssignment
+                }
+              >
+                <option value="">كل الصفوف</option>
+                {classes.map((classItem) => (
+                  <option key={classItem.id} value={classItem.id}>
+                    {classItem.name}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <p className="asn__filters-note">
-            {isClassesLoading
-              ? 'جارٍ تحميل الصفوف...'
-              : 'يمكنك حصر الواجبات المحفوظة ضمن صف محدد أو عرض كل الصفوف.'}
-          </p>
-        </section>
+            <p className="asn__filters-note">
+              {isClassesLoading
+                ? 'جارٍ تحميل الصفوف...'
+                : 'يمكنك حصر الواجبات المحفوظة ضمن صف محدد أو عرض كل الصفوف.'}
+            </p>
+          </section>
+
+          <section className="asn__generate-from-plan" aria-label="توليد واجب من خطة">
+            <h3>توليد واجب من خطة</h3>
+            <div className="asn__generate-from-plan-row">
+              <label className="asn__field" htmlFor="asn-plan-select">
+                <span>اختر خطة</span>
+                <select
+                  id="asn-plan-select"
+                  value={selectedPlanIdForGenerate}
+                  onChange={(event) => setSelectedPlanIdForGenerate(event.target.value)}
+                  disabled={isPlansLoading || isGeneratingFromPlan || isEditingAssignment}
+                >
+                  <option value="">اختر خطة...</option>
+                  {plansForGenerate
+                    .filter((p) => p.lesson_id != null)
+                    .map((plan) => (
+                      <option key={plan.public_id} value={plan.public_id}>
+                        {plan.lesson_title} — {plan.subject} / {plan.grade}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                className="asn-btn asn-btn--primary"
+                onClick={() => void handleGenerateFromPlan()}
+                disabled={
+                  !selectedPlanIdForGenerate ||
+                  isGeneratingFromPlan ||
+                  isPlansLoading ||
+                  isEditingAssignment
+                }
+              >
+                {isGeneratingFromPlan && <span className="ui-button-spinner" aria-hidden />}
+                {!isGeneratingFromPlan && <MdAutoAwesome aria-hidden />}
+                {isGeneratingFromPlan ? 'جارٍ التوليد...' : 'توليد واجب من هذه الخطة'}
+              </button>
+            </div>
+          </section>
+        </>
       )}
 
       <div className="asn__layout">

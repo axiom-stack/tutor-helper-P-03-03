@@ -751,6 +751,18 @@ export default function Quizzes() {
           <aside className="qz__panel">
           <h2>إعداد الاختبار</h2>
           <>
+              {error ? (
+                <div className="qz__error-block ui-inline-notice ui-inline-notice--error" role="alert">
+                  <p>{error.message}</p>
+                  {Array.isArray(error.details) && error.details.length > 0 ? (
+                    <ul className="qz__error-details">
+                      {error.details.map((d: { message?: string }, i: number) => (
+                        <li key={i}>{typeof d?.message === 'string' ? d.message : String(d)}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              ) : null}
               <div className="qz__field">
                 <label htmlFor="qz-subject">المادة</label>
                 <select
@@ -853,6 +865,10 @@ export default function Quizzes() {
                   ))
                 )}
               </section>
+
+              <p className="qz__form-hint">
+                تأكد أن الدروس المختارة تحتوي على خطط مولدة وأهداف.
+              </p>
 
               <button
                 type="button"

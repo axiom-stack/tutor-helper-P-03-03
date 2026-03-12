@@ -4,10 +4,13 @@ import { Link, useNavigate } from 'react-router';
 import {
   MdAssignment,
   MdCheckCircle,
+  MdClose,
+  MdEdit,
   MdHourglassTop,
   MdMenuBook,
   MdOutlinePictureAsPdf,
   MdOutlineTextSnippet,
+  MdSave,
   MdViewTimeline,
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
@@ -30,12 +33,18 @@ import {
   toPlanTypeLabel,
   toValidationStatusLabel,
 } from '../lesson-plans/planDisplay';
+import { updatePlan } from '../plans-manager/plans-manager.services';
 import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel';
 import { getRefinementTargetOptions } from '../refinements/refinementTargets';
 import { getLocalizedAiLimitMessage } from '../../utils/apiErrors';
 import './lesson-creator.css';
 
 type SelectValue = number | '';
+
+interface PlanDraft {
+  lessonTitle: string;
+  planJson: Record<string, unknown>;
+}
 
 type GenerationState =
   | 'idle'
@@ -132,6 +141,7 @@ function LessonCreator() {
   const unitsRequestIdRef = useRef(0);
   const lessonsRequestIdRef = useRef(0);
   const timelineTimersRef = useRef<number[]>([]);
+  const timelineCardRef = useRef<HTMLDivElement>(null);
 
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -170,6 +180,9 @@ function LessonCreator() {
   const [queuedPlanNotice, setQueuedPlanNotice] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [isEditingPlan, setIsEditingPlan] = useState(false);
+  const [planDraft, setPlanDraft] = useState<PlanDraft | null>(null);
+  const [isSavingPlan, setIsSavingPlan] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -441,6 +454,15 @@ function LessonCreator() {
     setGenerationState('fetching_content');
     setActiveTimelineIndex(0);
 
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches) {
+      const el = timelineCardRef.current;
+      if (el) {
+        requestAnimationFrame(() => {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      }
+    }
+
     try {
       const lessonResponse = await getLessonById(Number(selectedLessonId));
       const lesson = lessonResponse.lesson;
@@ -528,6 +550,64 @@ function LessonCreator() {
         lesson_id: lessonId,
       },
     });
+  };
+
+  const buildPlanDraftFromGenerated = (plan: GeneratedPlanResponse): PlanDraft => {
+    const header = plan.plan_json?.header && typeof plan.plan_json.header === 'object' && !Array.isArray(plan.plan_json.header)
+      ? (plan.plan_json.header as Record<string, unknown>)
+      : {};
+    const lessonTitle = typeof header.lesson_title === 'string'
+      ? header.lesson_title
+      : (selectedLesson?.name ?? '');
+    return {
+      lessonTitle,
+      planJson: JSON.parse(JSON.stringify(plan.plan_json ?? {})),
+    };
+  };
+
+  const handleStartEditingPlan = () => {
+    if (!generatedPlan) return;
+    setPlanDraft(buildPlanDraftFromGenerated(generatedPlan));
+    setIsEditingPlan(true);
+  };
+
+  const handleCancelEditingPlan = () => {
+    setIsEditingPlan(false);
+    setPlanDraft(null);
+  };
+
+  const handleSavePlan = async () => {
+    if (!generatedPlan?.id || !planDraft || isSavingPlan) return;
+    setIsSavingPlan(true);
+    setExportError(null);
+    try {
+      const nextPlanJson = JSON.parse(JSON.stringify(planDraft.planJson));
+      const header = nextPlanJson.header && typeof nextPlanJson.header === 'object' && !Array.isArray(nextPlanJson.header)
+        ? (nextPlanJson.header as Record<string, unknown>)
+        : {};
+      nextPlanJson.header = { ...header, lesson_title: planDraft.lessonTitle };
+
+      const response = await updatePlan(generatedPlan.id, {
+        lesson_title: planDraft.lessonTitle,
+        plan_json: nextPlanJson,
+      });
+      const updated = response.plan;
+      setGeneratedPlan((prev) =>
+        prev
+          ? {
+              ...prev,
+              plan_json: updated.plan_json ?? prev.plan_json,
+            }
+          : null
+      );
+      setIsEditingPlan(false);
+      setPlanDraft(null);
+      toast.success('تم حفظ تعديلات الخطة.');
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'فشل حفظ الخطة.'));
+    } finally {
+      setIsSavingPlan(false);
+    }
   };
 
   const handleExportPdf = () => {
@@ -705,7 +785,7 @@ function LessonCreator() {
 
       <div className="lcp__layout">
         <section className="lcp__preview" aria-live="polite">
-          <div className="lcp__timeline-card">
+          <div ref={timelineCardRef} className="lcp__timeline-card">
             <div className="lcp__timeline-head">
               <h2>
                 <MdViewTimeline aria-hidden />
@@ -765,18 +845,62 @@ function LessonCreator() {
               </div>
 
               <div className="lcp__plan-actions">
+                {!isEditingPlan && generatedPlan?.id ? (
+                  <button
+                    type="button"
+                    className="lcp__btn-edit"
+                    onClick={handleStartEditingPlan}
+                  >
+                    <MdEdit aria-hidden />
+                    تعديل
+                  </button>
+                ) : null}
+                {isEditingPlan && planDraft ? (
+                  <>
+                    <button
+                      type="button"
+                      className="lcp__btn-save"
+                      onClick={() => void handleSavePlan()}
+                      disabled={isSavingPlan}
+                    >
+                      {isSavingPlan && <span className="ui-button-spinner" aria-hidden />}
+                      <MdSave aria-hidden />
+                      حفظ
+                    </button>
+                    <button
+                      type="button"
+                      className="lcp__btn-cancel"
+                      onClick={handleCancelEditingPlan}
+                      disabled={isSavingPlan}
+                    >
+                      <MdClose aria-hidden />
+                      إلغاء
+                    </button>
+                  </>
+                ) : null}
                 <button
                   type="button"
                   onClick={handleOpenAssignments}
                   disabled={selectedLessonId === ''}
                 >
                   <MdAssignment aria-hidden />
-                  الانتقال إلى صفحة الواجبات
+                  الانتقال لصفحة الواجبات
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/plans')}
+                >
+                  <MdMenuBook aria-hidden />
+                  الانتقال لصفحة الخطط
                 </button>
               </div>
               <LessonPlanDocumentView
                 planType={generatedPlan.plan_type}
-                planJson={generatedPlan.plan_json}
+                planJson={planDraft?.planJson ?? generatedPlan.plan_json}
+                mode={isEditingPlan ? 'edit' : 'view'}
+                lessonTitle={planDraft?.lessonTitle ?? (generatedPlan.plan_json?.header && typeof generatedPlan.plan_json.header === 'object' && !Array.isArray(generatedPlan.plan_json.header) ? String((generatedPlan.plan_json.header as Record<string, unknown>).lesson_title ?? '') : '') || selectedLesson?.name}
+                onLessonTitleChange={planDraft ? (value) => setPlanDraft((d) => (d ? { ...d, lessonTitle: value } : null)) : undefined}
+                onPlanJsonChange={planDraft ? (value) => setPlanDraft((d) => (d ? { ...d, planJson: value } : null)) : undefined}
                 fallback={{
                   lessonTitle: selectedLesson?.name,
                   subject: selectedSubject?.name,

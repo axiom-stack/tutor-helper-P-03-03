@@ -121,6 +121,31 @@
   line-height: 1.7;
 }
 
+.asn__generate-from-plan {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.asn__generate-from-plan h3 {
+  margin: 0 0 var(--space-sm);
+  font-size: 1rem;
+}
+
+.asn__generate-from-plan-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  align-items: flex-end;
+}
+
+.asn__generate-from-plan-row .asn__field {
+  min-width: 200px;
+  flex: 1;
+}
+
 .asn-alert {
   border-radius: var(--radius-lg);
   border: 1px solid transparent;
