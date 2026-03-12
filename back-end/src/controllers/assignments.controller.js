@@ -112,6 +112,10 @@ export async function listAssignments(req, res) {
       const n = Number(req.query.lesson_id);
       if (Number.isInteger(n) && n > 0) filters.lesson_id = n;
     }
+    if (req.query.class_id != null) {
+      const n = Number(req.query.class_id);
+      if (Number.isInteger(n) && n > 0) filters.class_id = n;
+    }
 
     const assignments = await assignmentsRepository.list(filters, {
       userId: req.user.id,

@@ -1,14 +1,17 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../../context/AuthContext';
 
-type Props = {};
-
-function AdminDashboard({}: Props) {
+function AdminDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  if (user?.userRole !== 'admin') {
-    navigate('/authentication');
-  }
+
+  useEffect(() => {
+    if (user?.userRole !== 'admin') {
+      navigate('/authentication');
+    }
+  }, [navigate, user?.userRole]);
+
   return <div>AdminDashboard</div>;
 }
 

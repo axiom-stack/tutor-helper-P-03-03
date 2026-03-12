@@ -10,11 +10,12 @@ import {
   MdRefresh,
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
-import type { Assignment } from '../../types';
+import type { Assignment, Class } from '../../types';
 import { ASSIGNMENT_TYPE_LABELS } from '../../types';
 import {
   exportAssignment,
   generateAssignments,
+  getMyClasses,
   getAssignmentById,
   listAssignments,
 } from './assignments.services';
@@ -46,6 +47,8 @@ interface SummaryCard {
   value: string;
   hint: string;
 }
+
+type SelectValue = number | '';
 
 const LESSON_PLAN_ID_PATTERN = /^(trd|act)_\d+$/;
 
@@ -197,6 +200,8 @@ export default function Assignments() {
   );
   const isScopedView = context !== null;
 
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState<SelectValue>('');
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(
     null
@@ -209,12 +214,22 @@ export default function Assignments() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [isClassesLoading, setIsClassesLoading] = useState(false);
 
   const [error, setError] = useState<NormalizedApiError | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+
+  const selectedClassName = useMemo(() => {
+    if (selectedClassId === '') {
+      return 'كل الصفوف';
+    }
+
+    const classItem = classes.find((item) => item.id === selectedClassId);
+    return classItem?.name ?? `صف #${selectedClassId}`;
+  }, [classes, selectedClassId]);
 
   const summaryCards = useMemo<SummaryCard[]>(() => {
     if (isScopedView && context) {
@@ -253,6 +268,11 @@ export default function Assignments() {
         hint: 'كل الواجبات المحفوظة لحسابك.',
       },
       {
+        label: 'الصف الحالي',
+        value: selectedClassName,
+        hint: 'يمكنك التبديل بين الصفوف أو عرض كل الصفوف من فلتر الصفحة.',
+      },
+      {
         label: 'عدد الدروس',
         value: String(countUniqueLessons(assignments)),
         hint: 'عدد الدروس المختلفة التي تحتوي على واجبات.',
@@ -272,7 +292,7 @@ export default function Assignments() {
         hint: 'ملخص سريع لأنواع الواجبات الظاهرة.',
       },
     ];
-  }, [assignments, context, isScopedView, lastRefreshedAt]);
+  }, [assignments, context, isScopedView, lastRefreshedAt, selectedClassName]);
 
   useEffect(() => {
     if (!user) {
@@ -295,8 +315,13 @@ export default function Assignments() {
 
       try {
         const response = context
-          ? await listAssignments(context.lessonPlanPublicId, context.lessonId)
-          : await listAssignments();
+          ? await listAssignments({
+              lessonPlanPublicId: context.lessonPlanPublicId,
+              lessonId: context.lessonId,
+            })
+          : await listAssignments({
+              classId: selectedClassId === '' ? undefined : selectedClassId,
+            });
         const nextAssignments = response.assignments ?? [];
         setAssignments(nextAssignments);
         setLastRefreshedAt(new Date());
@@ -334,18 +359,53 @@ export default function Assignments() {
         setIsRefreshing(false);
       }
     },
-    [context, isScopedView]
+    [context, isScopedView, selectedClassId]
   );
 
   useEffect(() => {
     if (user?.userRole !== 'teacher') {
+      setClasses([]);
       setAssignments([]);
       setSelectedAssignment(null);
       return;
     }
 
     void loadAssignments();
-  }, [context, user?.userRole, loadAssignments]);
+  }, [context, selectedClassId, user?.userRole, loadAssignments]);
+
+  useEffect(() => {
+    if (user?.userRole !== 'teacher' || isScopedView) {
+      setClasses([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadClasses = async () => {
+      setIsClassesLoading(true);
+      try {
+        const response = await getMyClasses();
+        if (cancelled) {
+          return;
+        }
+        setClasses(response.classes ?? []);
+      } catch (classesError: unknown) {
+        if (!cancelled) {
+          setError(normalizeApiError(classesError, 'تعذر تحميل قائمة الصفوف.'));
+        }
+      } finally {
+        if (!cancelled) {
+          setIsClassesLoading(false);
+        }
+      }
+    };
+
+    void loadClasses();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isScopedView, user?.userRole]);
 
   const handleGenerateAssignments = async () => {
     if (!context) {
@@ -441,7 +501,7 @@ export default function Assignments() {
           <p>
             {isScopedView
               ? 'توليد واجبات مرتبطة بخطة الدرس الحالية، مراجعتها، ثم تعديلها بالذكاء الاصطناعي قبل الحفظ النهائي.'
-              : 'استعراض جميع الواجبات المحفوظة لحسابك، فتح التفاصيل الكاملة، ثم تعديل أي واجب أو تصديره عند الحاجة.'}
+              : 'استعراض الواجبات المحفوظة لحسابك مع فلترة حسب الصف، ثم فتح التفاصيل الكاملة وتعديل أي واجب أو تصديره عند الحاجة.'}
           </p>
         </div>
 
@@ -484,18 +544,31 @@ export default function Assignments() {
       )}
 
       {!context && (
-        <section className="asn-mode-banner">
-          <MdAssignment aria-hidden className="asn-mode-banner__icon" />
-          <div>
-            <h2>وضع مكتبة الواجبات</h2>
-            <p>
-              لا يوجد سياق درس محدد في الرابط الحالي، لذلك تعرض الصفحة جميع
-              الواجبات المحفوظة لحسابك وتسمح بفتحها ومراجعتها من مكان واحد.
-            </p>
-          </div>
-          <Link to="/lessons" className="asn-mode-banner__link">
-            فتح خطط الدروس لتوليد واجبات جديدة
-          </Link>
+        <section className="asn__filters" aria-label="فلترة الواجبات">
+          <label className="asn__field" htmlFor="asn-class-filter">
+            <span>اختر الصف</span>
+            <select
+              id="asn-class-filter"
+              value={selectedClassId}
+              onChange={(event) =>
+                setSelectedClassId(event.target.value ? Number(event.target.value) : '')
+              }
+              disabled={isClassesLoading || isListLoading || isRefreshing}
+            >
+              <option value="">كل الصفوف</option>
+              {classes.map((classItem) => (
+                <option key={classItem.id} value={classItem.id}>
+                  {classItem.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <p className="asn__filters-note">
+            {isClassesLoading
+              ? 'جارٍ تحميل الصفوف...'
+              : 'يمكنك حصر الواجبات المحفوظة ضمن صف محدد أو عرض كل الصفوف.'}
+          </p>
         </section>
       )}
 
@@ -532,7 +605,9 @@ export default function Assignments() {
                 <p>
                   {isScopedView
                     ? 'يتم الآن قراءة الواجبات المحفوظة لهذا الدرس.'
-                    : 'يتم الآن قراءة جميع الواجبات المحفوظة لحسابك.'}
+                    : selectedClassId === ''
+                      ? 'يتم الآن قراءة جميع الواجبات المحفوظة لحسابك.'
+                      : `يتم الآن قراءة واجبات ${selectedClassName}.`}
                 </p>
               </div>
             ) : assignments.length === 0 ? (
@@ -544,7 +619,9 @@ export default function Assignments() {
                 <p>
                   {context
                     ? 'اضغط على "اقتراح واجبات جديدة" لتوليد واجبات مرتبطة بالخطة الحالية.'
-                    : 'لا توجد واجبات محفوظة لهذا الحساب حتى الآن. افتح درساً محدداً لتوليد واجبات جديدة.'}
+                    : selectedClassId === ''
+                      ? 'لا توجد واجبات محفوظة لهذا الحساب حتى الآن. افتح درساً محدداً لتوليد واجبات جديدة.'
+                      : `لا توجد واجبات محفوظة ضمن ${selectedClassName} حالياً.`}
                 </p>
                 {context && (
                   <button
@@ -644,6 +721,15 @@ export default function Assignments() {
                   <div>
                     <dt>معرّف الدرس</dt>
                     <dd>{selectedAssignment.lesson_id}</dd>
+                  </div>
+                  <div>
+                    <dt>الصف</dt>
+                    <dd>
+                      {selectedAssignment.class_name ??
+                        (selectedAssignment.class_id != null
+                          ? `صف #${selectedAssignment.class_id}`
+                          : 'غير مرتبط بصف')}
+                    </dd>
                   </div>
                 </dl>
 

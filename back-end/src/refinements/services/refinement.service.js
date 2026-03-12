@@ -442,33 +442,6 @@ function validateBatchAssignmentOutput(rawOutput, expectedAssignments) {
   };
 }
 
-async function withBestEffortTransaction(callback) {
-  let transactionStarted = false;
-  try {
-    await turso.execute({ sql: "BEGIN IMMEDIATE" });
-    transactionStarted = true;
-  } catch {
-    transactionStarted = false;
-  }
-
-  try {
-    const result = await callback();
-    if (transactionStarted) {
-      await turso.execute({ sql: "COMMIT" });
-    }
-    return result;
-  } catch (error) {
-    if (transactionStarted) {
-      try {
-        await turso.execute({ sql: "ROLLBACK" });
-      } catch {
-        // no-op
-      }
-    }
-    throw error;
-  }
-}
-
 export function createRefinementService(dependencies = {}) {
   const llmClient = dependencies.llmClient || createGroqClient();
   const lessonPlansRepository =
@@ -1270,28 +1243,55 @@ export function createRefinementService(dependencies = {}) {
   }) {
     const updatedRecords = [];
 
-    await withBestEffortTransaction(async () => {
-      if (targetContext.artifact_type === ARTIFACT_TYPES.LESSON_PLAN) {
-        const updated = await lessonPlansRepository.updatePlanJsonByPublicId(
-          targetContext.artifacts[0].artifact_id,
-          candidatePayload.plan_json,
-          accessContext,
-        );
-        if (!updated) {
-          throw new RefinementPipelineError(404, "artifact_not_found", "Lesson plan not found");
+    if (targetContext.artifact_type === ARTIFACT_TYPES.LESSON_PLAN) {
+      const updated = await lessonPlansRepository.updatePlanJsonByPublicId(
+        targetContext.artifacts[0].artifact_id,
+        candidatePayload.plan_json,
+        accessContext,
+      );
+      if (!updated) {
+        throw new RefinementPipelineError(404, "artifact_not_found", "Lesson plan not found");
+      }
+      updatedRecords.push(updated);
+    } else if (
+      targetContext.artifact_type === ARTIFACT_TYPES.ASSIGNMENT &&
+      targetContext.target_mode === "single"
+    ) {
+      const updated = await assignmentsRepository.update(
+        targetContext.artifacts[0].artifact_id,
+        {
+          name: candidatePayload.name,
+          description: candidatePayload.description,
+          type: candidatePayload.type,
+          content: candidatePayload.content,
+        },
+        accessContext,
+      );
+      if (!updated) {
+        throw new RefinementPipelineError(404, "artifact_not_found", "Assignment not found");
+      }
+      updatedRecords.push(updated);
+    } else if (
+      targetContext.artifact_type === ARTIFACT_TYPES.ASSIGNMENT &&
+      targetContext.target_mode === "batch"
+    ) {
+      const byId = new Map(candidatePayload.assignments.map((item) => [item.assignment_id, item]));
+      for (const artifact of targetContext.artifacts) {
+        const candidate = byId.get(artifact.artifact_id);
+        if (!candidate) {
+          throw new RefinementPipelineError(
+            422,
+            "batch_candidate_missing_item",
+            `Candidate missing assignment ${artifact.artifact_id}`,
+          );
         }
-        updatedRecords.push(updated);
-      } else if (
-        targetContext.artifact_type === ARTIFACT_TYPES.ASSIGNMENT &&
-        targetContext.target_mode === "single"
-      ) {
         const updated = await assignmentsRepository.update(
-          targetContext.artifacts[0].artifact_id,
+          artifact.artifact_id,
           {
-            name: candidatePayload.name,
-            description: candidatePayload.description,
-            type: candidatePayload.type,
-            content: candidatePayload.content,
+            name: candidate.name,
+            description: candidate.description,
+            type: candidate.type,
+            content: candidate.content,
           },
           accessContext,
         );
@@ -1299,73 +1299,44 @@ export function createRefinementService(dependencies = {}) {
           throw new RefinementPipelineError(404, "artifact_not_found", "Assignment not found");
         }
         updatedRecords.push(updated);
-      } else if (
-        targetContext.artifact_type === ARTIFACT_TYPES.ASSIGNMENT &&
-        targetContext.target_mode === "batch"
-      ) {
-        const byId = new Map(candidatePayload.assignments.map((item) => [item.assignment_id, item]));
-        for (const artifact of targetContext.artifacts) {
-          const candidate = byId.get(artifact.artifact_id);
-          if (!candidate) {
-            throw new RefinementPipelineError(
-              422,
-              "batch_candidate_missing_item",
-              `Candidate missing assignment ${artifact.artifact_id}`,
-            );
-          }
-          const updated = await assignmentsRepository.update(
-            artifact.artifact_id,
-            {
-              name: candidate.name,
-              description: candidate.description,
-              type: candidate.type,
-              content: candidate.content,
-            },
-            accessContext,
-          );
-          if (!updated) {
-            throw new RefinementPipelineError(404, "artifact_not_found", "Assignment not found");
-          }
-          updatedRecords.push(updated);
-        }
-      } else {
-        const updated = await examsRepository.updateQuestionsByPublicId(
-          targetContext.artifacts[0].artifact_id,
-          candidatePayload.questions,
-          accessContext,
-        );
-        if (!updated) {
-          throw new RefinementPipelineError(404, "artifact_not_found", "Exam not found");
-        }
-        updatedRecords.push(updated);
       }
-
-      for (const updatedRecord of updatedRecords) {
-        const artifactType =
-          targetContext.artifact_type === ARTIFACT_TYPES.EXAM
-            ? ARTIFACT_TYPES.EXAM
-            : targetContext.artifact_type === ARTIFACT_TYPES.LESSON_PLAN
-              ? ARTIFACT_TYPES.LESSON_PLAN
-              : ARTIFACT_TYPES.ASSIGNMENT;
-
-        const payload =
-          artifactType === ARTIFACT_TYPES.LESSON_PLAN
-            ? buildLessonPlanPayload(updatedRecord)
-            : artifactType === ARTIFACT_TYPES.ASSIGNMENT
-              ? buildAssignmentPayload(updatedRecord)
-              : buildExamPayload(updatedRecord);
-
-        await revisionsRepository.appendRevision({
-          artifactType,
-          artifactPublicId: updatedRecord.public_id,
-          payload,
-          source: REVISION_SOURCES.REFINEMENT_APPROVAL,
-          refinementRequestId: requestRecord.db_id,
-          createdByUserId: actor.userId,
-          createdByRole: actor.role,
-        });
+    } else {
+      const updated = await examsRepository.updateQuestionsByPublicId(
+        targetContext.artifacts[0].artifact_id,
+        candidatePayload.questions,
+        accessContext,
+      );
+      if (!updated) {
+        throw new RefinementPipelineError(404, "artifact_not_found", "Exam not found");
       }
-    });
+      updatedRecords.push(updated);
+    }
+
+    for (const updatedRecord of updatedRecords) {
+      const artifactType =
+        targetContext.artifact_type === ARTIFACT_TYPES.EXAM
+          ? ARTIFACT_TYPES.EXAM
+          : targetContext.artifact_type === ARTIFACT_TYPES.LESSON_PLAN
+            ? ARTIFACT_TYPES.LESSON_PLAN
+            : ARTIFACT_TYPES.ASSIGNMENT;
+
+      const payload =
+        artifactType === ARTIFACT_TYPES.LESSON_PLAN
+          ? buildLessonPlanPayload(updatedRecord)
+          : artifactType === ARTIFACT_TYPES.ASSIGNMENT
+            ? buildAssignmentPayload(updatedRecord)
+            : buildExamPayload(updatedRecord);
+
+      await revisionsRepository.appendRevision({
+        artifactType,
+        artifactPublicId: updatedRecord.public_id,
+        payload,
+        source: REVISION_SOURCES.REFINEMENT_APPROVAL,
+        refinementRequestId: requestRecord.db_id,
+        createdByUserId: actor.userId,
+        createdByRole: actor.role,
+      });
+    }
 
     return updatedRecords;
   }

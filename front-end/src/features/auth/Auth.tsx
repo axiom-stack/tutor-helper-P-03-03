@@ -4,6 +4,7 @@ import { FiEye, FiEyeOff } from 'react-icons/fi';
 import './auth.css';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router';
+import { normalizeApiError } from '../../utils/apiErrors';
 
 export type LoginCredentials = {
   username: string;
@@ -23,9 +24,13 @@ function Auth() {
   // Redirect if already authenticated
   React.useEffect(() => {
     if (isAuthenticated) {
-      user?.userRole === 'admin' ? navigate('/admin') : navigate('/teacher');
+      if (user?.userRole === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/teacher');
+      }
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, user?.userRole]);
 
   const clearError = () => setError(null);
 
@@ -47,9 +52,8 @@ function Auth() {
     try {
       await login(username, password);
       navigate('/');
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.error || 'حدث خطأ أثناء تسجيل الدخول';
-      setError(errorMessage);
+    } catch (error: unknown) {
+      setError(normalizeApiError(error, 'حدث خطأ أثناء تسجيل الدخول').message);
     } finally {
       setIsSubmitting(false);
     }

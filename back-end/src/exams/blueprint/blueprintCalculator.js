@@ -4,8 +4,6 @@ import {
   QUESTION_TYPE_CYCLE,
 } from "../types.js";
 
-const MARKS_PRECISION_FACTOR = 100;
-
 function toFixedNumber(value, precision = 6) {
   return Number(Number(value).toFixed(precision));
 }
@@ -125,6 +123,11 @@ function splitIntegerUnits(totalUnits, count) {
   return Array.from({ length: count }, (_, index) => base + (index < remainder ? 1 : 0));
 }
 
+function isQuarterStep(value) {
+  const scaled = Number(value) * 4;
+  return Math.abs(scaled - Math.round(scaled)) < 1e-9;
+}
+
 function buildObjectivesCountByLevel(classifiedObjectives) {
   const counts = Object.fromEntries(BLOOM_LEVELS.map((level) => [level, 0]));
   for (const objective of classifiedObjectives) {
@@ -150,6 +153,9 @@ export function buildExamBlueprint({
   }
   if (!Number.isFinite(parsedTotalMarks) || parsedTotalMarks <= 0) {
     throw new Error("totalMarks must be a positive number");
+  }
+  if (!isQuarterStep(parsedTotalMarks)) {
+    throw new Error("totalMarks must be in increments of 0.25");
   }
   if (!Array.isArray(lessons) || lessons.length < 1) {
     throw new Error("lessons must contain at least one lesson");
@@ -241,15 +247,21 @@ export function buildExamBlueprint({
     0,
   );
 
-  const markAllocationsUnits = allocateByLargestRemainder(
+  const totalMarkUnits = Math.round(parsedTotalMarks * 4);
+  if (totalMarkUnits < parsedTotalQuestions) {
+    throw new Error("totalMarks must allocate at least 0.25 marks per question");
+  }
+
+  const extraMarkAllocationsUnits = allocateByLargestRemainder(
     cells,
-    Math.round(parsedTotalMarks * MARKS_PRECISION_FACTOR),
+    totalMarkUnits - parsedTotalQuestions,
     (cell, index) => {
       if (questionAllocations[index] <= 0 || cellsWithQuestionsWeightSum <= 0) {
         return 0;
       }
       const normalizedWeight = cell.cell_weight / cellsWithQuestionsWeightSum;
-      return normalizedWeight * parsedTotalMarks * MARKS_PRECISION_FACTOR;
+      const desiredCellUnits = normalizedWeight * totalMarkUnits;
+      return Math.max(0, desiredCellUnits - questionAllocations[index]);
     },
     (cell, index) => ({
       weight: cell.cell_weight,
@@ -261,15 +273,16 @@ export function buildExamBlueprint({
 
   const finalizedCells = cells.map((cell, index) => {
     const questionCount = questionAllocations[index] || 0;
-    const cellMarkUnits = markAllocationsUnits[index] || 0;
+    const cellMarkUnits =
+      questionCount > 0 ? questionCount + (extraMarkAllocationsUnits[index] || 0) : 0;
     const perQuestionUnits = splitIntegerUnits(cellMarkUnits, questionCount);
 
     return {
       ...cell,
       question_count: questionCount,
-      cell_marks: toFixedNumber(cellMarkUnits / MARKS_PRECISION_FACTOR, 2),
+      cell_marks: toFixedNumber(cellMarkUnits / 4, 2),
       per_question_marks: perQuestionUnits.map((units) =>
-        toFixedNumber(units / MARKS_PRECISION_FACTOR, 2),
+        toFixedNumber(units / 4, 2),
       ),
     };
   });

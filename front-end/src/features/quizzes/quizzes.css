@@ -94,6 +94,11 @@
   color: #465465;
 }
 
+.qz__field small {
+  color: #607085;
+  font-size: 0.78rem;
+}
+
 .qz__field input,
 .qz__field select {
   width: 100%;
@@ -233,6 +238,7 @@
   background: #fff;
   min-height: 220px;
   min-width: 0;
+  overflow: hidden;
 }
 
 .qz__archive h3,
@@ -244,6 +250,7 @@
 .qz__details-body {
   display: grid;
   gap: 0.75rem;
+  min-width: 0;
 }
 
 .qz__exam-card {
@@ -306,12 +313,14 @@
 
 .qz__details-head h4 {
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .qz__details-head p {
   margin: 0.35rem 0 0;
   color: #5d6d80;
   font-size: 0.9rem;
+  overflow-wrap: anywhere;
 }
 
 .qz__details-export-actions {
@@ -324,6 +333,7 @@
 .qz__blueprint,
 .qz__questions {
   margin-top: 1rem;
+  min-width: 0;
 }
 
 .qz__blueprint h5,
@@ -364,6 +374,7 @@
   border-radius: 0.75rem;
   padding: 0.75rem;
   background: #fafcff;
+  min-width: 0;
 }
 
 .qz__question-card + .qz__question-card {
@@ -405,6 +416,7 @@
   border: 1px solid #d6e5f7;
   border-radius: 0.6rem;
   padding: 0.55rem 0.65rem;
+  min-width: 0;
 }
 
 .qz__answer label {

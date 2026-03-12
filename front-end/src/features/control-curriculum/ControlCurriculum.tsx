@@ -39,8 +39,6 @@ function AdminCurriculumExplorer() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
 
     Promise.all([
       listTeacherScopes(),

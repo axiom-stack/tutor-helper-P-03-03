@@ -359,12 +359,28 @@ export function createExamGenerationService(dependencies = {}) {
         );
       }
 
-      const blueprint = buildExamBlueprint({
-        lessons: orderedLessons,
-        classifiedObjectivesByLesson,
-        totalQuestions: request.total_questions,
-        totalMarks: request.total_marks,
-      });
+      let blueprint;
+      try {
+        blueprint = buildExamBlueprint({
+          lessons: orderedLessons,
+          classifiedObjectivesByLesson,
+          totalQuestions: request.total_questions,
+          totalMarks: request.total_marks,
+        });
+      } catch (error) {
+        throw new ExamPipelineError(
+          422,
+          "invalid_exam_blueprint",
+          error?.message || "Failed to build exam blueprint",
+          [
+            {
+              code: "invalid_exam_blueprint",
+              path: "total_marks",
+              message: error?.message || "Failed to build exam blueprint",
+            },
+          ],
+        );
+      }
 
       const slots = buildQuestionSlotsFromBlueprint(blueprint);
       if (slots.length !== request.total_questions) {

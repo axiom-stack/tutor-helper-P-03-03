@@ -89,8 +89,6 @@ export default function ControlDashboard() {
     }
 
     let cancelled = false;
-    setLoading(true);
-    setError(null);
 
     Promise.all([
       getScopedClasses(user.userRole),

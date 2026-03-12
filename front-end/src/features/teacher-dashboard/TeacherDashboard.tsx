@@ -41,18 +41,22 @@ function TeacherDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  function redirectIfNotTeacher() {
-    if (!user) navigate('/authentication');
-    else if (user.userRole === 'admin') navigate('/admin');
-    else if (user.userRole === 'teacher') return;
-    else navigate('/error');
-  }
-
   useEffect(() => {
-    redirectIfNotTeacher();
+    if (!user) {
+      navigate('/authentication');
+      return;
+    }
+    if (user.userRole === 'admin') {
+      navigate('/admin');
+      return;
+    }
+    if (user.userRole !== 'teacher') {
+      navigate('/error');
+      return;
+    }
+
     let cancelled = false;
-    setLoading(true);
-    setError(null);
+
     Promise.all([getMyLessons(), getMyUnits(), getMySubjects(), getMyClasses()])
       .then(([lessonsRes, unitsRes, subjectsRes, classesRes]) => {
         if (cancelled) return;
@@ -71,7 +75,7 @@ function TeacherDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [user?.userRole, navigate]);
+  }, [navigate, user]);
 
   const enrichedLessons = useMemo((): EnrichedLesson[] => {
     const unitsById = new Map(units.map((u) => [u.id, u]));
@@ -93,7 +97,7 @@ function TeacherDashboard() {
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       )
       .slice(0, RECENT_LESSONS_LIMIT);
-  }, [user, lessons, units, subjects, classes]);
+  }, [lessons, units, subjects, classes]);
 
   if (user?.userRole !== 'teacher') {
     return null;

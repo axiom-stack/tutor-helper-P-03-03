@@ -58,6 +58,11 @@ function autoTitle(subjectName: string): string {
   return `اختبار ${subjectName} - ${date}`;
 }
 
+function isQuarterStepMark(value: number): boolean {
+  const scaled = value * 4;
+  return Math.abs(scaled - Math.round(scaled)) < 1e-9;
+}
+
 export default function Quizzes() {
   const { user } = useAuth();
   const isAdmin = user?.userRole === 'admin';
@@ -281,6 +286,14 @@ export default function Quizzes() {
       setError({ message: 'الدرجة الكلية يجب أن تكون رقمًا موجبًا.' });
       return;
     }
+    if (!isQuarterStepMark(totalMarks)) {
+      setError({ message: 'الدرجة الكلية يجب أن تكون بمضاعفات 0.25 مثل 1 أو 1.25 أو 1.5.' });
+      return;
+    }
+    if (totalMarks * 4 < totalQuestions) {
+      setError({ message: 'يجب توفير 0.25 درجة على الأقل لكل سؤال.' });
+      return;
+    }
 
     setIsGenerating(true);
     setError(null);
@@ -472,12 +485,13 @@ export default function Quizzes() {
                   <input
                     id="qz-total-marks"
                     type="number"
-                    min={0.1}
-                    step={0.5}
+                    min={0.25}
+                    step={0.25}
                     value={totalMarks}
                     onChange={(event) => setTotalMarks(Number(event.target.value))}
                     disabled={isGenerating}
                   />
+                  <small>تُوزَّع الدرجات على الأسئلة بمضاعفات 0.25.</small>
                 </div>
               </div>
 

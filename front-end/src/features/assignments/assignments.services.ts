@@ -1,6 +1,7 @@
 import { authAxios } from '../auth/auth.services';
 import type {
   Assignment,
+  Class,
   GenerateAssignmentsRequest,
 } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
@@ -17,6 +18,12 @@ interface ListAssignmentsResponse {
 
 interface GetAssignmentResponse {
   assignment: Assignment;
+}
+
+export interface ListAssignmentsFilters {
+  lessonPlanPublicId?: string;
+  lessonId?: number;
+  classId?: number;
 }
 
 type GenerateAssignmentsExtras = Pick<
@@ -47,16 +54,18 @@ export async function generateAssignments(
 }
 
 export async function listAssignments(
-  lessonPlanPublicId?: string,
-  lessonId?: number
+  filters: ListAssignmentsFilters = {}
 ): Promise<ListAssignmentsResponse> {
   const params: Record<string, string | number> = {};
 
-  if (lessonPlanPublicId) {
-    params.lesson_plan_public_id = lessonPlanPublicId;
+  if (filters.lessonPlanPublicId) {
+    params.lesson_plan_public_id = filters.lessonPlanPublicId;
   }
-  if (lessonId != null) {
-    params.lesson_id = lessonId;
+  if (filters.lessonId != null) {
+    params.lesson_id = filters.lessonId;
+  }
+  if (filters.classId != null) {
+    params.class_id = filters.classId;
   }
 
   try {
@@ -69,6 +78,15 @@ export async function listAssignments(
     return response.data;
   } catch (error: unknown) {
     throw normalizeApiError(error, 'فشل تحميل الواجبات.');
+  }
+}
+
+export async function getMyClasses(): Promise<{ classes: Class[] }> {
+  try {
+    const response = await api().get<{ classes: Class[] }>('/api/classes/mine');
+    return response.data;
+  } catch (error: unknown) {
+    throw normalizeApiError(error, 'فشل تحميل الصفوف.');
   }
 }
 

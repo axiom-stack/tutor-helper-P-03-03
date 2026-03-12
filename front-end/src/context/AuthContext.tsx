@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { AuthUser } from '../types';
 import {
@@ -9,12 +10,14 @@ import {
 import { getMyProfile } from '../features/users/users.services';
 import { syncDisplayLanguageCookie } from '../utils/displayLanguage';
 
+type LoginResult = Awaited<ReturnType<typeof authLogin>>;
+
 interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<any>;
+  login: (username: string, password: string) => Promise<LoginResult>;
   logout: () => Promise<void>;
   updateUserProfile: (profile: NonNullable<AuthUser['profile']>) => void;
 }
@@ -85,23 +88,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   const login = async (username: string, password: string) => {
-    try {
-      const response = await authLogin(username, password);
-      const { token: newToken, user: newUser } = response;
+    const response = await authLogin(username, password);
+    const { token: newToken, user: newUser } = response;
 
-      setToken(newToken);
-      setUser(newUser);
+    setToken(newToken);
+    setUser(newUser);
 
-      const lang = newUser?.profile?.language === 'en' ? 'en' : 'ar';
-      if (syncDisplayLanguageCookie(lang)) {
-        window.location.reload();
-        return response;
-      }
-
+    const lang = newUser?.profile?.language === 'en' ? 'en' : 'ar';
+    if (syncDisplayLanguageCookie(lang)) {
+      window.location.reload();
       return response;
-    } catch (error) {
-      throw error;
     }
+
+    return response;
   };
 
   const logout = async () => {
