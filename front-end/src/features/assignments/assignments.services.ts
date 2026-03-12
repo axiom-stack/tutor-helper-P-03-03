@@ -20,6 +20,10 @@ interface GetAssignmentResponse {
   assignment: Assignment;
 }
 
+interface UpdateAssignmentResponse {
+  assignment: Assignment;
+}
+
 export interface ListAssignmentsFilters {
   lessonPlanPublicId?: string;
   lessonId?: number;
@@ -98,6 +102,21 @@ export async function getAssignmentById(id: string): Promise<GetAssignmentRespon
     return response.data;
   } catch (error: unknown) {
     throw normalizeApiError(error, 'فشل تحميل تفاصيل الواجب.');
+  }
+}
+
+export async function updateAssignment(
+  id: string,
+  payload: Pick<Assignment, 'name' | 'description' | 'type' | 'content'>
+): Promise<UpdateAssignmentResponse> {
+  try {
+    const response = await api().put<UpdateAssignmentResponse>(
+      `/api/assignments/${id}`,
+      payload,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw normalizeApiError(error, 'فشل حفظ تعديلات الواجب.');
   }
 }
 

@@ -191,6 +191,39 @@ export function validateListExamsQuery(query) {
   return { ok: true, value };
 }
 
+export function validateUpdateExamRequest(payload) {
+  const request = payload ?? {};
+  const errors = [];
+
+  const title = normalizeString(request.title);
+
+  if (!title) {
+    errors.push({
+      field: "title",
+      message: "title is required",
+    });
+  }
+
+  if (!Array.isArray(request.questions)) {
+    errors.push({
+      field: "questions",
+      message: "questions must be an array",
+    });
+  }
+
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  return {
+    ok: true,
+    value: {
+      title,
+      questions: request.questions,
+    },
+  };
+}
+
 export function isValidExamPublicId(value) {
   const trimmed = normalizeString(value);
   if (!trimmed || !trimmed.startsWith(EXAM_PUBLIC_ID_PREFIX)) {

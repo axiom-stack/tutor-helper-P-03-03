@@ -37,6 +37,20 @@ export async function getPlanById(
   return response.data;
 }
 
+export async function updatePlan(
+  planId: string,
+  payload: {
+    lesson_title: string;
+    plan_json: Record<string, unknown>;
+  }
+): Promise<{ plan: LessonPlanRecord }> {
+  const response = await api().put<{ plan: LessonPlanRecord }>(
+    `/api/plans/${planId}`,
+    payload,
+  );
+  return response.data;
+}
+
 export async function exportPlan(planId: string, format: 'pdf' | 'docx'): Promise<void> {
   const response = await api().get(`/api/plans/${planId}/export`, {
     params: { format },

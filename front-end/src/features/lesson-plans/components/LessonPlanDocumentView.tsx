@@ -1,3 +1,4 @@
+import type { ChangeEvent } from 'react';
 import type { PlanType } from '../../../types';
 import {
   asRecord,
@@ -16,11 +17,46 @@ interface PlanDocumentFallbackContext {
   durationMinutes?: number | null;
 }
 
+type LessonPlanViewMode = 'view' | 'edit';
+
 interface LessonPlanDocumentViewProps {
   planType: PlanType;
   planJson: Record<string, unknown> | null | undefined;
   fallback?: PlanDocumentFallbackContext;
   className?: string;
+  mode?: LessonPlanViewMode;
+  lessonTitle?: string;
+  onLessonTitleChange?: (value: string) => void;
+  onPlanJsonChange?: (planJson: Record<string, unknown>) => void;
+}
+
+function clonePlanJson(value: Record<string, unknown>): Record<string, unknown> {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function toEditableText(value: unknown): string {
+  const displayValue = toDisplayText(value);
+  return displayValue === '—' ? '' : displayValue;
+}
+
+function toEditableList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return toTextList(value);
+  }
+
+  const displayValue = toDisplayText(value);
+  return displayValue === '—' ? [] : [displayValue];
+}
+
+function toEditableListText(value: unknown): string {
+  return toEditableList(value).join('\n');
+}
+
+function toLines(value: string): string[] {
+  return value
+    .split(/\r?\n/u)
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
 }
 
 function resolveHeaderValue(
@@ -53,14 +89,123 @@ function resolveDurationValue(
   return '—';
 }
 
+function renderStaticList(items: string[], emptyText: string) {
+  return (
+    <ul>
+      {items.length > 0 ? (
+        items.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)
+      ) : (
+        <li>{emptyText}</li>
+      )}
+    </ul>
+  );
+}
+
+function FieldInput({
+  value,
+  onChange,
+  multiline = false,
+  rows = 3,
+}: {
+  value: string;
+  onChange?: (value: string) => void;
+  multiline?: boolean;
+  rows?: number;
+}) {
+  if (multiline) {
+    return (
+      <textarea
+        className="lpdv__field-textarea"
+        value={value}
+        rows={rows}
+        onChange={(event) => onChange?.(event.target.value)}
+      />
+    );
+  }
+
+  return (
+    <input
+      className="lpdv__field-input"
+      value={value}
+      onChange={(event) => onChange?.(event.target.value)}
+    />
+  );
+}
+
 export default function LessonPlanDocumentView({
   planType,
   planJson,
   fallback,
   className,
+  mode = 'view',
+  lessonTitle,
+  onLessonTitleChange,
+  onPlanJsonChange,
 }: LessonPlanDocumentViewProps) {
   const planObject = asRecord(planJson) ?? {};
   const header = asRecord(planObject.header) ?? {};
+  const resolvedLessonTitle =
+    lessonTitle ??
+    resolveHeaderValue(header, 'lesson_title', fallback?.lessonTitle ?? undefined);
+  const isEditMode = mode === 'edit';
+
+  const updatePlanJson = (updater: (draft: Record<string, unknown>) => void) => {
+    if (!onPlanJsonChange) {
+      return;
+    }
+
+    const nextPlanJson = clonePlanJson(planObject);
+    updater(nextPlanJson);
+    onPlanJsonChange(nextPlanJson);
+  };
+
+  const updateTopLevelText = (key: string, value: string) => {
+    updatePlanJson((draft) => {
+      draft[key] = value;
+    });
+  };
+
+  const updateTopLevelList = (key: string, value: string) => {
+    updatePlanJson((draft) => {
+      draft[key] = toLines(value);
+    });
+  };
+
+  const updateHeaderText = (key: string, value: string) => {
+    updatePlanJson((draft) => {
+      const nextHeader = asRecord(draft.header) ?? {};
+      draft.header = {
+        ...nextHeader,
+        [key]: value,
+      };
+    });
+  };
+
+  const updateLessonFlowValue = (
+    index: number,
+    key: string,
+    value: string | string[]
+  ) => {
+    updatePlanJson((draft) => {
+      const nextFlow = Array.isArray(draft.lesson_flow)
+        ? draft.lesson_flow.map((item) => {
+            const row = asRecord(item);
+            return row ? { ...row } : {};
+          })
+        : [];
+      const currentRow = asRecord(nextFlow[index]) ?? {};
+      nextFlow[index] = {
+        ...currentRow,
+        [key]: value,
+      };
+      draft.lesson_flow = nextFlow;
+    });
+  };
+
+  const handleLessonTitleChange = (value: string) => {
+    onLessonTitleChange?.(value);
+    updateHeaderText('lesson_title', value);
+  };
 
   const traditionalConcepts = toTextList(planObject.concepts);
   const traditionalLearningOutcomes = toTextList(planObject.learning_outcomes);
@@ -105,23 +250,25 @@ export default function LessonPlanDocumentView({
               </div>
               <div>
                 <label>الحصة</label>
-                <p>
-                  {resolveHeaderValue(
-                    header,
-                    'lesson_title',
-                    fallback?.lessonTitle ?? undefined
-                  )}
-                </p>
+                {isEditMode ? (
+                  <FieldInput
+                    value={resolvedLessonTitle === '—' ? '' : resolvedLessonTitle}
+                    onChange={handleLessonTitleChange}
+                  />
+                ) : (
+                  <p>{resolvedLessonTitle}</p>
+                )}
               </div>
               <div>
                 <label>العنوان</label>
-                <p>
-                  {resolveHeaderValue(
-                    header,
-                    'lesson_title',
-                    fallback?.lessonTitle ?? undefined
-                  )}
-                </p>
+                {isEditMode ? (
+                  <FieldInput
+                    value={resolvedLessonTitle === '—' ? '' : resolvedLessonTitle}
+                    onChange={handleLessonTitleChange}
+                  />
+                ) : (
+                  <p>{resolvedLessonTitle}</p>
+                )}
               </div>
               <div>
                 <label>الوحدة</label>
@@ -135,86 +282,110 @@ export default function LessonPlanDocumentView({
 
             <div className="lpdv__traditional-intro">
               <h3>التمهيد</h3>
-              <p>{traditionalIntro}</p>
+              {isEditMode ? (
+                <FieldInput
+                  multiline
+                  rows={4}
+                  value={toEditableText(planObject.intro)}
+                  onChange={(value) => updateTopLevelText('intro', value)}
+                />
+              ) : (
+                <p>{traditionalIntro}</p>
+              )}
               <h4>المفاهيم</h4>
-              <ul>
-                {traditionalConcepts.length > 0 ? (
-                  traditionalConcepts.map((item, index) => (
-                    <li key={`${item}-${index}`}>{item}</li>
-                  ))
-                ) : (
-                  <li>لا توجد مفاهيم مدخلة.</li>
-                )}
-              </ul>
+              {isEditMode ? (
+                <FieldInput
+                  multiline
+                  rows={4}
+                  value={toEditableListText(planObject.concepts)}
+                  onChange={(value) => updateTopLevelList('concepts', value)}
+                />
+              ) : (
+                renderStaticList(traditionalConcepts, 'لا توجد مفاهيم مدخلة.')
+              )}
             </div>
 
             <div className="lpdv__traditional-grid">
               <section>
                 <h4>الأهداف / المخرجات التعليمية</h4>
-                <ul>
-                  {traditionalLearningOutcomes.length > 0 ? (
-                    traditionalLearningOutcomes.map((item, index) => (
-                      <li key={`${item}-${index}`}>{item}</li>
-                    ))
-                  ) : (
-                    <li>لا توجد أهداف مدخلة.</li>
-                  )}
-                </ul>
+                {isEditMode ? (
+                  <FieldInput
+                    multiline
+                    rows={7}
+                    value={toEditableListText(planObject.learning_outcomes)}
+                    onChange={(value) => updateTopLevelList('learning_outcomes', value)}
+                  />
+                ) : (
+                  renderStaticList(traditionalLearningOutcomes, 'لا توجد أهداف مدخلة.')
+                )}
               </section>
               <section>
                 <h4>الاستراتيجيات / طرق التدريس</h4>
-                <ul>
-                  {traditionalTeachingStrategies.length > 0 ? (
-                    traditionalTeachingStrategies.map((item, index) => (
-                      <li key={`${item}-${index}`}>{item}</li>
-                    ))
-                  ) : (
-                    <li>لا توجد استراتيجيات مدخلة.</li>
-                  )}
-                </ul>
+                {isEditMode ? (
+                  <FieldInput
+                    multiline
+                    rows={7}
+                    value={toEditableListText(planObject.teaching_strategies)}
+                    onChange={(value) => updateTopLevelList('teaching_strategies', value)}
+                  />
+                ) : (
+                  renderStaticList(traditionalTeachingStrategies, 'لا توجد استراتيجيات مدخلة.')
+                )}
               </section>
               <section>
                 <h4>الأنشطة</h4>
-                <ul>
-                  {traditionalActivities.length > 0 ? (
-                    traditionalActivities.map((item, index) => (
-                      <li key={`${item}-${index}`}>{item}</li>
-                    ))
-                  ) : (
-                    <li>لا توجد أنشطة مدخلة.</li>
-                  )}
-                </ul>
+                {isEditMode ? (
+                  <FieldInput
+                    multiline
+                    rows={7}
+                    value={toEditableListText(planObject.activities)}
+                    onChange={(value) => updateTopLevelList('activities', value)}
+                  />
+                ) : (
+                  renderStaticList(traditionalActivities, 'لا توجد أنشطة مدخلة.')
+                )}
               </section>
               <section>
                 <h4>الوسائل / مصادر التعلم</h4>
-                <ul>
-                  {traditionalResources.length > 0 ? (
-                    traditionalResources.map((item, index) => (
-                      <li key={`${item}-${index}`}>{item}</li>
-                    ))
-                  ) : (
-                    <li>لا توجد وسائل مدخلة.</li>
-                  )}
-                </ul>
+                {isEditMode ? (
+                  <FieldInput
+                    multiline
+                    rows={7}
+                    value={toEditableListText(planObject.learning_resources)}
+                    onChange={(value) => updateTopLevelList('learning_resources', value)}
+                  />
+                ) : (
+                  renderStaticList(traditionalResources, 'لا توجد وسائل مدخلة.')
+                )}
               </section>
               <section>
                 <h4>التقويم</h4>
-                <ul>
-                  {traditionalAssessment.length > 0 ? (
-                    traditionalAssessment.map((item, index) => (
-                      <li key={`${item}-${index}`}>{item}</li>
-                    ))
-                  ) : (
-                    <li>لا توجد أدوات تقويم مدخلة.</li>
-                  )}
-                </ul>
+                {isEditMode ? (
+                  <FieldInput
+                    multiline
+                    rows={7}
+                    value={toEditableListText(planObject.assessment)}
+                    onChange={(value) => updateTopLevelList('assessment', value)}
+                  />
+                ) : (
+                  renderStaticList(traditionalAssessment, 'لا توجد أدوات تقويم مدخلة.')
+                )}
               </section>
             </div>
 
             <div className="lpdv__traditional-footer">
               <div>
                 <h4>الواجب</h4>
-                <p>{traditionalHomework}</p>
+                {isEditMode ? (
+                  <FieldInput
+                    multiline
+                    rows={4}
+                    value={toEditableText(planObject.homework)}
+                    onChange={(value) => updateTopLevelText('homework', value)}
+                  />
+                ) : (
+                  <p>{traditionalHomework}</p>
+                )}
               </div>
               <div>
                 <h4>المصدر</h4>
@@ -249,13 +420,14 @@ export default function LessonPlanDocumentView({
               </div>
               <div>
                 <label>العنوان</label>
-                <p>
-                  {resolveHeaderValue(
-                    header,
-                    'lesson_title',
-                    fallback?.lessonTitle ?? undefined
-                  )}
-                </p>
+                {isEditMode ? (
+                  <FieldInput
+                    value={resolvedLessonTitle === '—' ? '' : resolvedLessonTitle}
+                    onChange={handleLessonTitleChange}
+                  />
+                ) : (
+                  <p>{resolvedLessonTitle}</p>
+                )}
               </div>
               <div>
                 <label>الوحدة</label>
@@ -269,15 +441,16 @@ export default function LessonPlanDocumentView({
 
             <div className="lpdv__active-objectives">
               <h3>الأهداف التعليمية</h3>
-              <ul>
-                {activeObjectives.length > 0 ? (
-                  activeObjectives.map((item, index) => (
-                    <li key={`${item}-${index}`}>{item}</li>
-                  ))
-                ) : (
-                  <li>لا توجد أهداف مدخلة.</li>
-                )}
-              </ul>
+              {isEditMode ? (
+                <FieldInput
+                  multiline
+                  rows={6}
+                  value={toEditableListText(planObject.objectives)}
+                  onChange={(value) => updateTopLevelList('objectives', value)}
+                />
+              ) : (
+                renderStaticList(activeObjectives, 'لا توجد أهداف مدخلة.')
+              )}
             </div>
 
             <div className="lpdv__active-flow">
@@ -297,20 +470,113 @@ export default function LessonPlanDocumentView({
                   <tbody>
                     {lessonFlow.length > 0 ? (
                       lessonFlow.map((row, index) => {
-                        const resources = Array.isArray(row.learning_resources)
-                          ? row.learning_resources
-                              .map((item) => toDisplayText(item))
-                              .join('، ')
-                          : '—';
+                        const resources = toEditableList(row.learning_resources);
+                        const activityType = toEditableText(row.activity_type) || 'activity';
 
                         return (
                           <tr key={`flow-${index}`}>
-                            <td>{toDisplayText(row.time)}</td>
-                            <td>{toDisplayText(row.content)}</td>
-                            <td>{toActivityTypeLabel(row.activity_type)}</td>
-                            <td>{toDisplayText(row.teacher_activity)}</td>
-                            <td>{toDisplayText(row.student_activity)}</td>
-                            <td>{resources || '—'}</td>
+                            <td>
+                              {isEditMode ? (
+                                <FieldInput
+                                  value={toEditableText(row.time)}
+                                  onChange={(value) =>
+                                    updateLessonFlowValue(index, 'time', value)
+                                  }
+                                />
+                              ) : (
+                                toDisplayText(row.time)
+                              )}
+                            </td>
+                            <td>
+                              {isEditMode ? (
+                                <FieldInput
+                                  multiline
+                                  rows={3}
+                                  value={toEditableText(row.content)}
+                                  onChange={(value) =>
+                                    updateLessonFlowValue(index, 'content', value)
+                                  }
+                                />
+                              ) : (
+                                toDisplayText(row.content)
+                              )}
+                            </td>
+                            <td>
+                              {isEditMode ? (
+                                <select
+                                  className="lpdv__field-select"
+                                  value={activityType}
+                                  onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+                                    updateLessonFlowValue(
+                                      index,
+                                      'activity_type',
+                                      event.target.value
+                                    )
+                                  }
+                                >
+                                  <option value="intro">تمهيد</option>
+                                  <option value="presentation">عرض</option>
+                                  <option value="activity">نشاط</option>
+                                  <option value="assessment">تقويم</option>
+                                </select>
+                              ) : (
+                                toActivityTypeLabel(row.activity_type)
+                              )}
+                            </td>
+                            <td>
+                              {isEditMode ? (
+                                <FieldInput
+                                  multiline
+                                  rows={3}
+                                  value={toEditableText(row.teacher_activity)}
+                                  onChange={(value) =>
+                                    updateLessonFlowValue(
+                                      index,
+                                      'teacher_activity',
+                                      value
+                                    )
+                                  }
+                                />
+                              ) : (
+                                toDisplayText(row.teacher_activity)
+                              )}
+                            </td>
+                            <td>
+                              {isEditMode ? (
+                                <FieldInput
+                                  multiline
+                                  rows={3}
+                                  value={toEditableText(row.student_activity)}
+                                  onChange={(value) =>
+                                    updateLessonFlowValue(
+                                      index,
+                                      'student_activity',
+                                      value
+                                    )
+                                  }
+                                />
+                              ) : (
+                                toDisplayText(row.student_activity)
+                              )}
+                            </td>
+                            <td>
+                              {isEditMode ? (
+                                <FieldInput
+                                  multiline
+                                  rows={3}
+                                  value={resources.join('\n')}
+                                  onChange={(value) =>
+                                    updateLessonFlowValue(
+                                      index,
+                                      'learning_resources',
+                                      toLines(value)
+                                    )
+                                  }
+                                />
+                              ) : (
+                                resources.join('، ') || '—'
+                              )}
+                            </td>
                           </tr>
                         );
                       })
@@ -326,7 +592,16 @@ export default function LessonPlanDocumentView({
 
             <div className="lpdv__active-footer">
               <h4>الواجب</h4>
-              <p>{toDisplayText(planObject.homework)}</p>
+              {isEditMode ? (
+                <FieldInput
+                  multiline
+                  rows={4}
+                  value={toEditableText(planObject.homework)}
+                  onChange={(value) => updateTopLevelText('homework', value)}
+                />
+              ) : (
+                <p>{toDisplayText(planObject.homework)}</p>
+              )}
             </div>
           </div>
         </div>

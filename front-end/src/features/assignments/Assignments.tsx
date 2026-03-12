@@ -4,9 +4,12 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import {
   MdAssignment,
   MdAutoAwesome,
+  MdClose,
+  MdEdit,
   MdOutlinePictureAsPdf,
   MdOutlineTextSnippet,
   MdRefresh,
+  MdSave,
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
 import type { Assignment, Class } from '../../types';
@@ -17,6 +20,7 @@ import {
   getMyClasses,
   getAssignmentById,
   listAssignments,
+  updateAssignment,
 } from './assignments.services';
 import type { NormalizedApiError } from '../../utils/apiErrors';
 import { normalizeApiError } from '../../utils/apiErrors';
@@ -45,6 +49,13 @@ interface SummaryCard {
   label: string;
   value: string;
   hint: string;
+}
+
+interface AssignmentDraft {
+  name: string;
+  description: string;
+  type: Assignment['type'];
+  content: string;
 }
 
 type SelectValue = number | '';
@@ -214,12 +225,17 @@ export default function Assignments() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isClassesLoading, setIsClassesLoading] = useState(false);
+  const [isEditingAssignment, setIsEditingAssignment] = useState(false);
+  const [isSavingAssignment, setIsSavingAssignment] = useState(false);
 
   const [error, setError] = useState<NormalizedApiError | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [assignmentDraft, setAssignmentDraft] = useState<AssignmentDraft | null>(
+    null
+  );
 
   const selectedClassName = useMemo(() => {
     if (selectedClassId === '') {
@@ -424,6 +440,29 @@ export default function Assignments() {
     }
   }, [exportError]);
 
+  useEffect(() => {
+    setIsEditingAssignment(false);
+    setIsSavingAssignment(false);
+    setAssignmentDraft(null);
+  }, [selectedAssignment?.public_id]);
+
+  const buildAssignmentDraft = (assignment: Assignment): AssignmentDraft => ({
+    name: assignment.name,
+    description: assignment.description ?? '',
+    type: assignment.type,
+    content: assignment.content,
+  });
+
+  const syncAssignmentInList = (updatedAssignment: Assignment) => {
+    setAssignments((current) =>
+      current.map((assignment) =>
+        assignment.public_id === updatedAssignment.public_id
+          ? updatedAssignment
+          : assignment
+      )
+    );
+  };
+
   const handleGenerateAssignments = async () => {
     if (!context) {
       return;
@@ -458,6 +497,11 @@ export default function Assignments() {
   };
 
   const handleViewAssignment = async (assignment: Assignment) => {
+    if (isEditingAssignment) {
+      toast.error('احفظ تعديلات الواجب الحالية أو ألغها قبل فتح واجب آخر.');
+      return;
+    }
+
     setActiveAssignmentId(assignment.public_id);
     setSelectedAssignment(assignment);
     setIsDetailLoading(true);
@@ -501,6 +545,44 @@ export default function Assignments() {
       .finally(() => setIsExporting(false));
   };
 
+  const handleStartEditing = () => {
+    if (!selectedAssignment || isDetailLoading) {
+      return;
+    }
+
+    setAssignmentDraft(buildAssignmentDraft(selectedAssignment));
+    setIsEditingAssignment(true);
+  };
+
+  const handleCancelEditing = () => {
+    setIsEditingAssignment(false);
+    setAssignmentDraft(null);
+  };
+
+  const handleSaveAssignment = async () => {
+    if (!selectedAssignment?.public_id || !assignmentDraft || isSavingAssignment) {
+      return;
+    }
+
+    setIsSavingAssignment(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const response = await updateAssignment(selectedAssignment.public_id, assignmentDraft);
+      setSelectedAssignment(response.assignment);
+      setActiveAssignmentId(response.assignment.public_id);
+      syncAssignmentInList(response.assignment);
+      setIsEditingAssignment(false);
+      setAssignmentDraft(null);
+      setSuccessMessage('تم حفظ تعديلات الواجب بنجاح.');
+    } catch (saveError: unknown) {
+      setError(normalizeApiError(saveError, 'فشل حفظ تعديلات الواجب.'));
+    } finally {
+      setIsSavingAssignment(false);
+    }
+  };
+
   if (user?.userRole !== 'teacher') {
     return null;
   }
@@ -536,7 +618,7 @@ export default function Assignments() {
           type="button"
           className="asn-btn asn-btn--primary"
           onClick={() => void handleGenerateAssignments()}
-          disabled={!context || isGenerating || isListLoading}
+          disabled={!context || isGenerating || isListLoading || isEditingAssignment}
         >
           {isGenerating && <span className="ui-button-spinner" aria-hidden />}
           {!isGenerating && <MdAutoAwesome aria-hidden />}
@@ -564,7 +646,9 @@ export default function Assignments() {
               onChange={(event) =>
                 setSelectedClassId(event.target.value ? Number(event.target.value) : '')
               }
-              disabled={isClassesLoading || isListLoading || isRefreshing}
+              disabled={
+                isClassesLoading || isListLoading || isRefreshing || isEditingAssignment
+              }
             >
               <option value="">كل الصفوف</option>
               {classes.map((classItem) => (
@@ -584,90 +668,113 @@ export default function Assignments() {
       )}
 
       <div className="asn__layout">
-          <section className="asn__list" aria-live="polite">
-            <div className="asn__list-head">
-              <div>
-                <h2>
-                  {context
-                    ? `الواجبات المقترحة (${assignments.length})`
-                    : `كل الواجبات المحفوظة (${assignments.length})`}
-                </h2>
-                <p>
-                  {context
-                    ? 'يمكنك عرض التفاصيل أو تعديل أي واجب ثم حفظه مباشرة.'
-                    : 'يمكنك استعراض كل الواجبات المحفوظة لحسابك، ثم فتح أي واجب لتفاصيله الكاملة.'}
-                </p>
-              </div>
-              <button
-                type="button"
-                className="asn-btn asn-btn--secondary"
-                onClick={() => void loadAssignments(true)}
-                disabled={isListLoading || isRefreshing}
-              >
-                {isRefreshing && <span className="ui-button-spinner" aria-hidden />}
-                {!isRefreshing && <MdRefresh aria-hidden />}
-                {isRefreshing ? 'جارٍ التحديث...' : 'تحديث القائمة'}
-              </button>
+        <section className="asn__list" aria-live="polite">
+          <div className="asn__list-head">
+            <div>
+              <h2>
+                {context
+                  ? `الواجبات المقترحة (${assignments.length})`
+                  : `كل الواجبات المحفوظة (${assignments.length})`}
+              </h2>
+              <p>
+                {context
+                  ? 'يمكنك عرض التفاصيل أو تعديل أي واجب ثم حفظه مباشرة.'
+                  : 'يمكنك استعراض كل الواجبات المحفوظة لحسابك، ثم فتح أي واجب لتفاصيله الكاملة.'}
+              </p>
             </div>
+            <button
+              type="button"
+              className="asn-btn asn-btn--secondary"
+              onClick={() => void loadAssignments(true)}
+              disabled={isListLoading || isRefreshing || isEditingAssignment}
+            >
+              {isRefreshing && <span className="ui-button-spinner" aria-hidden />}
+              {!isRefreshing && <MdRefresh aria-hidden />}
+              {isRefreshing ? 'جارٍ التحديث...' : 'تحديث القائمة'}
+            </button>
+          </div>
 
-            {isListLoading ? (
-              <div className="asn-loading">
-                <div className="asn-spinner" aria-hidden />
-                <h3>جارٍ تحميل الواجبات...</h3>
-                <p>
-                  {isScopedView
-                    ? 'يتم الآن قراءة الواجبات المحفوظة لهذا الدرس.'
-                    : selectedClassId === ''
-                      ? 'يتم الآن قراءة جميع الواجبات المحفوظة لحسابك.'
-                      : `يتم الآن قراءة واجبات ${selectedClassName}.`}
-                </p>
-              </div>
-            ) : assignments.length === 0 ? (
-              <div className="asn-empty">
-                <MdAssignment aria-hidden className="asn-empty__icon" />
-                <h3>
-                  {context ? 'لا توجد واجبات مقترحة بعد' : 'لا توجد واجبات محفوظة بعد'}
-                </h3>
-                <p>
-                  {context
-                    ? 'اضغط على "اقتراح واجبات جديدة" لتوليد واجبات مرتبطة بالخطة الحالية.'
-                    : selectedClassId === ''
-                      ? 'لا توجد واجبات محفوظة لهذا الحساب حتى الآن. افتح درساً محدداً لتوليد واجبات جديدة.'
-                      : `لا توجد واجبات محفوظة ضمن ${selectedClassName} حالياً.`}
-                </p>
-                {context && (
+          {isListLoading ? (
+            <div className="asn-loading">
+              <div className="asn-spinner" aria-hidden />
+              <h3>جارٍ تحميل الواجبات...</h3>
+              <p>
+                {isScopedView
+                  ? 'يتم الآن قراءة الواجبات المحفوظة لهذا الدرس.'
+                  : selectedClassId === ''
+                    ? 'يتم الآن قراءة جميع الواجبات المحفوظة لحسابك.'
+                    : `يتم الآن قراءة واجبات ${selectedClassName}.`}
+              </p>
+            </div>
+          ) : assignments.length === 0 ? (
+            <div className="asn-empty">
+              <MdAssignment aria-hidden className="asn-empty__icon" />
+              <h3>{context ? 'لا توجد واجبات مقترحة بعد' : 'لا توجد واجبات محفوظة بعد'}</h3>
+              <p>
+                {context
+                  ? 'اضغط على "اقتراح واجبات جديدة" لتوليد واجبات مرتبطة بالخطة الحالية.'
+                  : selectedClassId === ''
+                    ? 'لا توجد واجبات محفوظة لهذا الحساب حتى الآن. افتح درساً محدداً لتوليد واجبات جديدة.'
+                    : `لا توجد واجبات محفوظة ضمن ${selectedClassName} حالياً.`}
+              </p>
+              {context && (
+                <button
+                  type="button"
+                  className="asn-btn asn-btn--primary"
+                  onClick={() => void handleGenerateAssignments()}
+                  disabled={isGenerating || isEditingAssignment}
+                >
+                  {isGenerating && <span className="ui-button-spinner" aria-hidden />}
+                  {!isGenerating && <MdAutoAwesome aria-hidden />}
+                  {isGenerating ? 'جارٍ التوليد...' : 'توليد الواجبات الآن'}
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="asn__cards">
+              {assignments.map((assignment) => (
+                <AssignmentCard
+                  key={assignment.public_id}
+                  assignment={assignment}
+                  isActive={activeAssignmentId === assignment.public_id}
+                  isDetailLoading={isDetailLoading}
+                  onView={handleViewAssignment}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
+        <aside className="asn__details">
+          <div className="asn__details-head">
+            <h2>تفاصيل الواجب</h2>
+            {selectedAssignment ? (
+              isEditingAssignment ? (
+                <div className="asn__details-actions">
+                  <button
+                    type="button"
+                    className="asn-btn asn-btn--secondary"
+                    onClick={handleCancelEditing}
+                    disabled={isSavingAssignment}
+                  >
+                    <MdClose aria-hidden />
+                    إلغاء
+                  </button>
                   <button
                     type="button"
                     className="asn-btn asn-btn--primary"
-                    onClick={() => void handleGenerateAssignments()}
-                    disabled={isGenerating}
+                    onClick={() => void handleSaveAssignment()}
+                    disabled={isSavingAssignment || !assignmentDraft}
                   >
-                    {isGenerating && <span className="ui-button-spinner" aria-hidden />}
-                    {!isGenerating && <MdAutoAwesome aria-hidden />}
-                    {isGenerating ? 'جارٍ التوليد...' : 'توليد الواجبات الآن'}
+                    {isSavingAssignment && (
+                      <span className="ui-button-spinner" aria-hidden />
+                    )}
+                    {!isSavingAssignment && <MdSave aria-hidden />}
+                    {isSavingAssignment ? 'جارٍ الحفظ...' : 'حفظ'}
                   </button>
-                )}
-              </div>
-            ) : (
-              <div className="asn__cards">
-                {assignments.map((assignment) => (
-                  <AssignmentCard
-                    key={assignment.public_id}
-                    assignment={assignment}
-                    isActive={activeAssignmentId === assignment.public_id}
-                    isDetailLoading={isDetailLoading}
-                    onView={handleViewAssignment}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
-
-          <aside className="asn__details">
-            <div className="asn__details-head">
-              <h2>تفاصيل الواجب</h2>
-              {selectedAssignment && (
-                <>
+                </div>
+              ) : (
+                <div className="asn__details-actions">
                   <button
                     type="button"
                     className="asn-btn asn-btn--ghost"
@@ -690,70 +797,158 @@ export default function Assignments() {
                     {!isExporting && <MdOutlineTextSnippet aria-hidden />}
                     تصدير Word
                   </button>
-                </>
-              )}
-            </div>
-
-            {!selectedAssignment ? (
-              <div className="asn__details-empty">
-                <p>
-                  {isListLoading
-                    ? 'يتم تجهيز أول واجب لعرض تفاصيله.'
-                    : 'لا يوجد واجب محدد حالياً. اختر واجباً من القائمة أو حدّث الصفحة.'}
-                </p>
-              </div>
-            ) : (
-              <article className="asn__details-card">
-                <div className="asn__details-title-row">
-                  <h3>{selectedAssignment.name}</h3>
-                  <span
-                    className={`asn-card__type asn-card__type--${selectedAssignment.type}`}
+                  <button
+                    type="button"
+                    className="asn-btn asn-btn--ghost"
+                    onClick={handleStartEditing}
+                    disabled={isDetailLoading}
                   >
-                    {ASSIGNMENT_TYPE_LABELS[selectedAssignment.type]}
-                  </span>
+                    <MdEdit aria-hidden />
+                    تعديل
+                  </button>
                 </div>
+              )
+            ) : null}
+          </div>
 
-                <dl className="asn__meta-list">
-                  <div>
-                    <dt>معرّف الواجب</dt>
-                    <dd>{selectedAssignment.public_id}</dd>
-                  </div>
-                  <div>
-                    <dt>آخر تعديل</dt>
-                    <dd>{formatDateTimeAr(selectedAssignment.updated_at)}</dd>
-                  </div>
-                  <div>
-                    <dt>معرّف الخطة</dt>
-                    <dd>{selectedAssignment.lesson_plan_public_id}</dd>
-                  </div>
-                  <div>
-                    <dt>معرّف الدرس</dt>
-                    <dd>{selectedAssignment.lesson_id}</dd>
-                  </div>
-                  <div>
-                    <dt>الصف</dt>
-                    <dd>
-                      {selectedAssignment.class_name ??
-                        (selectedAssignment.class_id != null
-                          ? `صف #${selectedAssignment.class_id}`
-                          : 'غير مرتبط بصف')}
-                    </dd>
-                  </div>
-                </dl>
+          {!selectedAssignment ? (
+            <div className="asn__details-empty">
+              <p>
+                {isListLoading
+                  ? 'يتم تجهيز أول واجب لعرض تفاصيله.'
+                  : 'لا يوجد واجب محدد حالياً. اختر واجباً من القائمة أو حدّث الصفحة.'}
+              </p>
+            </div>
+          ) : (
+            <article className="asn__details-card">
+              <div className="asn__details-title-row">
+                {isEditingAssignment && assignmentDraft ? (
+                  <>
+                    <input
+                      className="asn__edit-input"
+                      value={assignmentDraft.name}
+                      onChange={(event) =>
+                        setAssignmentDraft((current) =>
+                          current
+                            ? {
+                                ...current,
+                                name: event.target.value,
+                              }
+                            : current
+                        )
+                      }
+                    />
+                    <select
+                      className="asn__edit-select"
+                      value={assignmentDraft.type}
+                      onChange={(event) =>
+                        setAssignmentDraft((current) =>
+                          current
+                            ? {
+                                ...current,
+                                type: event.target.value as Assignment['type'],
+                              }
+                            : current
+                        )
+                      }
+                    >
+                      {Object.entries(ASSIGNMENT_TYPE_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                ) : (
+                  <>
+                    <h3>{selectedAssignment.name}</h3>
+                    <span
+                      className={`asn-card__type asn-card__type--${selectedAssignment.type}`}
+                    >
+                      {ASSIGNMENT_TYPE_LABELS[selectedAssignment.type]}
+                    </span>
+                  </>
+                )}
+              </div>
 
-                <section>
-                  <h4>الوصف</h4>
+              <dl className="asn__meta-list">
+                <div>
+                  <dt>معرّف الواجب</dt>
+                  <dd>{selectedAssignment.public_id}</dd>
+                </div>
+                <div>
+                  <dt>آخر تعديل</dt>
+                  <dd>{formatDateTimeAr(selectedAssignment.updated_at)}</dd>
+                </div>
+                <div>
+                  <dt>معرّف الخطة</dt>
+                  <dd>{selectedAssignment.lesson_plan_public_id}</dd>
+                </div>
+                <div>
+                  <dt>معرّف الدرس</dt>
+                  <dd>{selectedAssignment.lesson_id}</dd>
+                </div>
+                <div>
+                  <dt>الصف</dt>
+                  <dd>
+                    {selectedAssignment.class_name ??
+                      (selectedAssignment.class_id != null
+                        ? `صف #${selectedAssignment.class_id}`
+                        : 'غير مرتبط بصف')}
+                  </dd>
+                </div>
+              </dl>
+
+              <section>
+                <h4>الوصف</h4>
+                {isEditingAssignment && assignmentDraft ? (
+                  <textarea
+                    className="asn__edit-textarea"
+                    rows={4}
+                    value={assignmentDraft.description}
+                    onChange={(event) =>
+                      setAssignmentDraft((current) =>
+                        current
+                          ? {
+                              ...current,
+                              description: event.target.value,
+                            }
+                          : current
+                      )
+                    }
+                  />
+                ) : (
                   <p>
                     {selectedAssignment.description?.trim() ||
                       'لا يوجد وصف إضافي لهذا الواجب.'}
                   </p>
-                </section>
+                )}
+              </section>
 
-                <section>
-                  <h4>المحتوى</h4>
+              <section>
+                <h4>المحتوى</h4>
+                {isEditingAssignment && assignmentDraft ? (
+                  <textarea
+                    className="asn__edit-textarea asn__edit-textarea--content"
+                    rows={12}
+                    value={assignmentDraft.content}
+                    onChange={(event) =>
+                      setAssignmentDraft((current) =>
+                        current
+                          ? {
+                              ...current,
+                              content: event.target.value,
+                            }
+                          : current
+                      )
+                    }
+                  />
+                ) : (
                   <pre>{selectedAssignment.content}</pre>
-                </section>
+                )}
+              </section>
 
+              {!isEditingAssignment ? (
                 <SmartRefinementPanel
                   artifactType="assignment"
                   artifactId={selectedAssignment.public_id}
@@ -770,10 +965,11 @@ export default function Assignments() {
                   defaultMode="single"
                   onCommitted={handleRefinementCommitted}
                 />
-              </article>
-            )}
-          </aside>
-        </div>
+              ) : null}
+            </article>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }

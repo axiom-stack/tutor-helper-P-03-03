@@ -25,7 +25,7 @@ export interface ArtifactRevisionRecord {
   parent_revision_id: number | null;
   payload: Record<string, unknown>;
   is_current: boolean;
-  source: 'seed' | 'refinement_approval' | 'revert';
+  source: 'seed' | 'refinement_approval' | 'manual_edit' | 'revert';
   refinement_request_id: number | null;
   created_by_user_id: number;
   created_by_role: 'teacher' | 'admin';

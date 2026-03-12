@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
+  MdClose,
+  MdEdit,
   MdOutlinePictureAsPdf,
   MdOutlineTextSnippet,
   MdRefresh,
+  MdSave,
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
 import type { LessonPlanRecord, TeacherManagementRow } from '../../types';
@@ -20,11 +23,17 @@ import {
   exportPlan,
   getPlanById,
   listPlans,
+  updatePlan,
   type ListPlansFilters,
 } from './plans-manager.services';
 import './plans-manager.css';
 
 type PlanTypeFilter = '' | 'traditional' | 'active_learning';
+
+interface PlanDraft {
+  lessonTitle: string;
+  planJson: Record<string, unknown>;
+}
 
 function formatDateAr(value: string): string {
   try {
@@ -38,6 +47,10 @@ function formatDateAr(value: string): string {
   } catch {
     return value;
   }
+}
+
+function cloneValue<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value));
 }
 
 export default function PlansManager() {
@@ -56,6 +69,9 @@ export default function PlansManager() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [isEditingPlan, setIsEditingPlan] = useState(false);
+  const [isSavingPlan, setIsSavingPlan] = useState(false);
+  const [planDraft, setPlanDraft] = useState<PlanDraft | null>(null);
 
   const plansRequestIdRef = useRef(0);
   const detailRequestIdRef = useRef(0);
@@ -163,7 +179,31 @@ export default function PlansManager() {
     };
   }, [isAdmin]);
 
+  useEffect(() => {
+    setIsEditingPlan(false);
+    setIsSavingPlan(false);
+    setPlanDraft(null);
+  }, [selectedPlan?.public_id]);
+
+  const buildPlanDraft = (plan: LessonPlanRecord): PlanDraft => ({
+    lessonTitle: plan.lesson_title,
+    planJson: cloneValue(plan.plan_json ?? {}),
+  });
+
+  const syncPlanInList = (updatedPlan: LessonPlanRecord) => {
+    setPlans((current) =>
+      current.map((plan) =>
+        plan.public_id === updatedPlan.public_id ? updatedPlan : plan
+      )
+    );
+  };
+
   const handleSelectPlan = async (plan: LessonPlanRecord) => {
+    if (isEditingPlan) {
+      toast.error('احفظ تعديلات الخطة الحالية أو ألغها قبل فتح خطة أخرى.');
+      return;
+    }
+
     setSelectedPlan(plan);
     setDetailLoading(true);
     setError(null);
@@ -212,6 +252,58 @@ export default function PlansManager() {
     setGrade('');
   };
 
+  const handleStartEditing = () => {
+    if (!selectedPlan || detailLoading) {
+      return;
+    }
+
+    setPlanDraft(buildPlanDraft(selectedPlan));
+    setIsEditingPlan(true);
+  };
+
+  const handleCancelEditing = () => {
+    setIsEditingPlan(false);
+    setPlanDraft(null);
+  };
+
+  const handleSavePlan = async () => {
+    if (!selectedPlan || !planDraft || isSavingPlan) {
+      return;
+    }
+
+    const nextPlanJson = cloneValue(planDraft.planJson);
+    const currentHeader =
+      nextPlanJson.header && typeof nextPlanJson.header === 'object' && !Array.isArray(nextPlanJson.header)
+        ? (nextPlanJson.header as Record<string, unknown>)
+        : {};
+
+    nextPlanJson.header = {
+      ...currentHeader,
+      lesson_title: planDraft.lessonTitle,
+    };
+
+    setIsSavingPlan(true);
+    setError(null);
+
+    try {
+      const response = await updatePlan(selectedPlan.public_id, {
+        lesson_title: planDraft.lessonTitle,
+        plan_json: nextPlanJson,
+      });
+      setSelectedPlan(response.plan);
+      syncPlanInList(response.plan);
+      setIsEditingPlan(false);
+      setPlanDraft(null);
+      toast.success('تم حفظ تعديلات الخطة.');
+    } catch (saveError: unknown) {
+      const message = normalizeApiError(saveError, 'فشل حفظ تعديلات الخطة.').message;
+      setError(message);
+      toast.error(message);
+    } finally {
+      setIsSavingPlan(false);
+    }
+  };
+
   const handleRefinementCommitted = async () => {
     if (!selectedPlan?.public_id) {
       return;
@@ -253,6 +345,7 @@ export default function PlansManager() {
             id="pm-plan-type"
             value={planType}
             onChange={(event) => setPlanType(event.target.value as PlanTypeFilter)}
+            disabled={isEditingPlan}
           >
             <option value="">الكل</option>
             <option value="traditional">تقليدية</option>
@@ -267,6 +360,7 @@ export default function PlansManager() {
             value={subject}
             onChange={(event) => setSubject(event.target.value)}
             placeholder="مثال: الرياضيات"
+            disabled={isEditingPlan}
           />
         </div>
 
@@ -277,6 +371,7 @@ export default function PlansManager() {
             value={grade}
             onChange={(event) => setGrade(event.target.value)}
             placeholder="مثال: الصف الثامن"
+            disabled={isEditingPlan}
           />
         </div>
 
@@ -285,7 +380,7 @@ export default function PlansManager() {
             type="button"
             className="pm__btn pm__btn--ghost"
             onClick={clearFilters}
-            disabled={!planType && !subject && !grade}
+            disabled={isEditingPlan || (!planType && !subject && !grade)}
           >
             مسح الكل
           </button>
@@ -293,7 +388,7 @@ export default function PlansManager() {
             type="button"
             className="pm__btn pm__btn--subtle"
             onClick={() => void loadPlans()}
-            disabled={loading}
+            disabled={loading || isEditingPlan}
             aria-busy={loading}
           >
             {loading && <span className="ui-button-spinner" aria-hidden />}
@@ -369,28 +464,64 @@ export default function PlansManager() {
                 <p>عرض مفصل بنفس تنسيق صفحة إنشاء الخطط.</p>
               </div>
               <div className="pm__export-actions">
-                <button
-                  type="button"
-                  className="pm__btn pm__btn--subtle"
-                  disabled={!selectedPlan || isExporting}
-                  onClick={() => handleExport('pdf')}
-                  aria-busy={isExporting}
-                >
-                  {isExporting && <span className="ui-button-spinner" aria-hidden />}
-                  {!isExporting && <MdOutlinePictureAsPdf aria-hidden />}
-                  PDF
-                </button>
-                <button
-                  type="button"
-                  className="pm__btn pm__btn--subtle"
-                  disabled={!selectedPlan || isExporting}
-                  onClick={() => handleExport('docx')}
-                  aria-busy={isExporting}
-                >
-                  {isExporting && <span className="ui-button-spinner" aria-hidden />}
-                  {!isExporting && <MdOutlineTextSnippet aria-hidden />}
-                  Word
-                </button>
+                {isEditingPlan ? (
+                  <>
+                    <button
+                      type="button"
+                      className="pm__btn pm__btn--ghost"
+                      onClick={handleCancelEditing}
+                      disabled={isSavingPlan}
+                    >
+                      <MdClose aria-hidden />
+                      إلغاء
+                    </button>
+                    <button
+                      type="button"
+                      className="pm__btn pm__btn--subtle"
+                      onClick={() => void handleSavePlan()}
+                      disabled={!selectedPlan || !planDraft || isSavingPlan}
+                      aria-busy={isSavingPlan}
+                    >
+                      {isSavingPlan && <span className="ui-button-spinner" aria-hidden />}
+                      {!isSavingPlan && <MdSave aria-hidden />}
+                      {isSavingPlan ? 'جارٍ الحفظ...' : 'حفظ'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="pm__btn pm__btn--subtle"
+                      disabled={!selectedPlan || isExporting}
+                      onClick={() => handleExport('pdf')}
+                      aria-busy={isExporting}
+                    >
+                      {isExporting && <span className="ui-button-spinner" aria-hidden />}
+                      {!isExporting && <MdOutlinePictureAsPdf aria-hidden />}
+                      PDF
+                    </button>
+                    <button
+                      type="button"
+                      className="pm__btn pm__btn--subtle"
+                      disabled={!selectedPlan || isExporting}
+                      onClick={() => handleExport('docx')}
+                      aria-busy={isExporting}
+                    >
+                      {isExporting && <span className="ui-button-spinner" aria-hidden />}
+                      {!isExporting && <MdOutlineTextSnippet aria-hidden />}
+                      Word
+                    </button>
+                    <button
+                      type="button"
+                      className="pm__btn pm__btn--subtle"
+                      disabled={!selectedPlan || detailLoading}
+                      onClick={handleStartEditing}
+                    >
+                      <MdEdit aria-hidden />
+                      تعديل
+                    </button>
+                  </>
+                )}
               </div>
             </header>
 
@@ -427,7 +558,29 @@ export default function PlansManager() {
 
                 <LessonPlanDocumentView
                   planType={selectedPlan.plan_type}
-                  planJson={selectedPlan.plan_json}
+                  mode={isEditingPlan ? 'edit' : 'view'}
+                  lessonTitle={planDraft?.lessonTitle ?? selectedPlan.lesson_title}
+                  planJson={planDraft?.planJson ?? selectedPlan.plan_json}
+                  onLessonTitleChange={(value) =>
+                    setPlanDraft((current) =>
+                      current
+                        ? {
+                            ...current,
+                            lessonTitle: value,
+                          }
+                        : current
+                    )
+                  }
+                  onPlanJsonChange={(nextPlanJson) =>
+                    setPlanDraft((current) =>
+                      current
+                        ? {
+                            ...current,
+                            planJson: nextPlanJson,
+                          }
+                        : current
+                    )
+                  }
                   fallback={{
                     lessonTitle: selectedPlan.lesson_title,
                     subject: selectedPlan.subject,
@@ -437,22 +590,24 @@ export default function PlansManager() {
                   }}
                 />
 
-                <SmartRefinementPanel
-                  artifactType="lesson_plan"
-                  artifactId={selectedPlan.public_id}
-                  baseArtifact={{
-                    id: selectedPlan.public_id,
-                    plan_type: selectedPlan.plan_type,
-                    lesson_title: selectedPlan.lesson_title,
-                    subject: selectedPlan.subject,
-                    grade: selectedPlan.grade,
-                    unit: selectedPlan.unit,
-                    duration_minutes: selectedPlan.duration_minutes,
-                    plan_json: selectedPlan.plan_json ?? {},
-                  }}
-                  targetSelectors={getRefinementTargetOptions('lesson_plan')}
-                  onCommitted={handleRefinementCommitted}
-                />
+                {!isEditingPlan ? (
+                  <SmartRefinementPanel
+                    artifactType="lesson_plan"
+                    artifactId={selectedPlan.public_id}
+                    baseArtifact={{
+                      id: selectedPlan.public_id,
+                      plan_type: selectedPlan.plan_type,
+                      lesson_title: selectedPlan.lesson_title,
+                      subject: selectedPlan.subject,
+                      grade: selectedPlan.grade,
+                      unit: selectedPlan.unit,
+                      duration_minutes: selectedPlan.duration_minutes,
+                      plan_json: selectedPlan.plan_json ?? {},
+                    }}
+                    targetSelectors={getRefinementTargetOptions('lesson_plan')}
+                    onCommitted={handleRefinementCommitted}
+                  />
+                ) : null}
               </div>
             )}
           </div>

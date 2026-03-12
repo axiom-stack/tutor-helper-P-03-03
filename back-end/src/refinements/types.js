@@ -33,6 +33,7 @@ export const ATTEMPT_STATUSES = Object.freeze({
 export const REVISION_SOURCES = Object.freeze({
   SEED: "seed",
   REFINEMENT_APPROVAL: "refinement_approval",
+  MANUAL_EDIT: "manual_edit",
   REVERT: "revert",
 });
 

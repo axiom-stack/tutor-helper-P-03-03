@@ -5,6 +5,7 @@ import {
   isValidExamPublicId,
   validateGenerateExamRequest,
   validateListExamsQuery,
+  validateUpdateExamRequest,
 } from "../src/exams/requestModel.js";
 
 test("validateGenerateExamRequest accepts valid payload", () => {
@@ -81,4 +82,24 @@ test("isValidExamPublicId validates exm_ pattern", () => {
   assert.equal(isValidExamPublicId("exm_12"), true);
   assert.equal(isValidExamPublicId("asn_12"), false);
   assert.equal(isValidExamPublicId("exm_x"), false);
+});
+
+test("validateUpdateExamRequest accepts title and questions", () => {
+  const result = validateUpdateExamRequest({
+    title: "اختبار معدل",
+    questions: [],
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.value.title, "اختبار معدل");
+  assert.deepEqual(result.value.questions, []);
+});
+
+test("validateUpdateExamRequest rejects missing questions array", () => {
+  const result = validateUpdateExamRequest({
+    title: "اختبار",
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.field === "questions"));
 });

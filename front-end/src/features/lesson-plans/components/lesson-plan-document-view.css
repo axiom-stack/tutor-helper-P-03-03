@@ -2,6 +2,39 @@
   min-width: 0;
 }
 
+.lpdv__field-input,
+.lpdv__field-textarea,
+.lpdv__field-select {
+  width: 100%;
+  border: 1px solid rgba(191, 219, 254, 0.55);
+  border-radius: 0.7rem;
+  background: rgba(255, 255, 255, 0.96);
+  color: #0f172a;
+  font-family: inherit;
+  font-size: var(--text-sm);
+}
+
+.lpdv__field-input,
+.lpdv__field-select {
+  min-height: 2.55rem;
+  padding: 0 0.75rem;
+}
+
+.lpdv__field-textarea {
+  min-height: 5.5rem;
+  padding: 0.7rem 0.75rem;
+  line-height: 1.65;
+  resize: vertical;
+}
+
+.lpdv__field-input:focus,
+.lpdv__field-textarea:focus,
+.lpdv__field-select:focus {
+  outline: none;
+  border-color: rgba(147, 197, 253, 0.95);
+  box-shadow: 0 0 0 1px rgba(147, 197, 253, 0.55);
+}
+
 .lpdv__traditional-card {
   border-radius: calc(var(--radius-xl) + 10px);
   background: radial-gradient(circle at 15% 12%, #2e4f83 0%, #1f3f75 55%, #173868 100%);

@@ -144,6 +144,7 @@ const TARGET_SELECTOR_LABELS: Record<RefinementArtifactType, Record<string, stri
 const REVISION_SOURCE_LABELS: Record<string, string> = {
   seed: 'نسخة أولية',
   refinement_approval: 'اعتماد تحسين',
+  manual_edit: 'تعديل يدوي',
   revert: 'استرجاع',
 };
 

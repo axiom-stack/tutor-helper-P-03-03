@@ -270,5 +270,45 @@ export function createLessonPlansRepository(dbClient = turso) {
 
       return this.getByPublicId(planPublicId, accessContext);
     },
+
+    async updateByPublicId(planPublicId, { lessonTitle, planJson }, accessContext) {
+      const planType = getPlanTypeByPublicId(planPublicId);
+      if (!planType) {
+        return null;
+      }
+
+      const tableName = PLAN_TABLES[planType];
+      const updates = ["updated_at = CURRENT_TIMESTAMP"];
+      const args = [];
+
+      if (lessonTitle !== undefined) {
+        updates.push("lesson_title = ?");
+        args.push(lessonTitle);
+      }
+
+      if (planJson !== undefined) {
+        updates.push("plan_json = ?");
+        args.push(JSON.stringify(planJson));
+      }
+
+      const whereClauses = ["public_id = ?"];
+      args.push(planPublicId);
+
+      if (accessContext?.role !== "admin") {
+        whereClauses.push("teacher_id = ?");
+        args.push(accessContext?.userId);
+      }
+
+      await dbClient.execute({
+        sql: `
+          UPDATE ${tableName}
+          SET ${updates.join(", ")}
+          WHERE ${whereClauses.join(" AND ")}
+        `,
+        args,
+      });
+
+      return this.getByPublicId(planPublicId, accessContext);
+    },
   };
 }

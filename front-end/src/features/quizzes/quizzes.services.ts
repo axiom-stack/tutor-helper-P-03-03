@@ -23,6 +23,10 @@ interface GetExamResponse {
   exam: Exam;
 }
 
+interface UpdateExamResponse {
+  exam: Exam;
+}
+
 interface DeleteExamResponse {
   deleted: boolean;
   exam: Exam;
@@ -119,6 +123,18 @@ export async function getExamById(id: string): Promise<GetExamResponse> {
     return response.data;
   } catch (error: unknown) {
     throw normalizeApiError(error, 'فشل تحميل تفاصيل الاختبار.');
+  }
+}
+
+export async function updateExam(
+  id: string,
+  payload: Pick<Exam, 'title'> & { questions: Exam['questions'] }
+): Promise<UpdateExamResponse> {
+  try {
+    const response = await api().put<UpdateExamResponse>(`/api/exams/${id}`, payload);
+    return response.data;
+  } catch (error: unknown) {
+    throw normalizeApiError(error, 'فشل حفظ تعديلات الاختبار.');
   }
 }
 
