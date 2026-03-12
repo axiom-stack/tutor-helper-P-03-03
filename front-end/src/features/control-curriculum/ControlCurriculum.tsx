@@ -14,17 +14,66 @@ import './control-curriculum.css';
 
 type SelectValue = number | '';
 
+export interface AdminCurriculumScope {
+  role: 'admin';
+  selectedTeacherId: number;
+}
+
 export default function ControlCurriculum() {
   const { user } = useAuth();
+  const [manageTeacherId, setManageTeacherId] = useState<SelectValue>('');
 
   if (user?.userRole === 'teacher') {
     return <TeacherCirriculumManager />;
   }
 
-  return <AdminCurriculumExplorer />;
+  if (user?.userRole === 'admin' && manageTeacherId !== '') {
+    return (
+      <AdminCurriculumManagerView
+        selectedTeacherId={manageTeacherId}
+        onBack={() => setManageTeacherId('')}
+      />
+    );
+  }
+
+  return (
+    <AdminCurriculumExplorer
+      onSelectTeacherToManage={setManageTeacherId}
+    />
+  );
 }
 
-function AdminCurriculumExplorer() {
+function AdminCurriculumManagerView({
+  selectedTeacherId,
+  onBack,
+}: {
+  selectedTeacherId: number;
+  onBack: () => void;
+}) {
+  return (
+    <div className="cc cc--admin-manage">
+      <header className="cc__admin-manage-header">
+        <button
+          type="button"
+          className="cc__back-link"
+          onClick={onBack}
+          aria-label="العودة إلى استعراض المنهج"
+        >
+          ← العودة إلى الاستعراض
+        </button>
+      </header>
+      <TeacherCirriculumManager
+        scope={{ role: 'admin', selectedTeacherId }}
+      />
+    </div>
+  );
+}
+
+function AdminCurriculumExplorer({
+  onSelectTeacherToManage,
+}: {
+  onSelectTeacherToManage: (teacherId: number | '') => void;
+}) {
   const [teachers, setTeachers] = useState<TeacherManagementRow[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -40,6 +89,16 @@ function AdminCurriculumExplorer() {
 
   useEffect(() => {
     let cancelled = false;
+
+    const timeoutId = window.setTimeout(() => {
+      if (!cancelled) {
+        setLoading(false);
+        setError((prev) =>
+          prev ?? 'تعذر تحميل بيانات المنهج. تحقق من الاتصال بالخادم.'
+        );
+        toast.error('تعذر تحميل بيانات المنهج. تحقق من الاتصال بالخادم.');
+      }
+    }, 15_000);
 
     Promise.all([
       listTeacherScopes(),
@@ -67,12 +126,14 @@ function AdminCurriculumExplorer() {
       })
       .finally(() => {
         if (!cancelled) {
+          window.clearTimeout(timeoutId);
           setLoading(false);
         }
       });
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timeoutId);
     };
   }, []);
 
@@ -152,6 +213,29 @@ function AdminCurriculumExplorer() {
         <h1>المنهج الدراسي (نطاق النظام)</h1>
         <p>استعراض هرم الصفوف والمواد والوحدات والدروس لجميع المعلمين.</p>
       </header>
+
+      <section className="cc__manage-section">
+        <h2 className="cc__manage-title">إدارة منهج معلم</h2>
+        <p className="cc__manage-desc">اختر معلمًا من القائمة لإضافة أو تعديل منهجه (صفوف، مواد، وحدات، دروس).</p>
+        <label className="cc__field" htmlFor="cc-manage-teacher">
+          <span>المعلم</span>
+          <select
+            id="cc-manage-teacher"
+            value=""
+            onChange={(event) => {
+              const value = event.target.value;
+              onSelectTeacherToManage(value ? Number(value) : '');
+            }}
+          >
+            <option value="">— اختر معلمًا لإدارة منهجه —</option>
+            {teachers.map((teacher) => (
+              <option key={teacher.id} value={teacher.id}>
+                {teacher.username}
+              </option>
+            ))}
+          </select>
+        </label>
+      </section>
 
       <section className="cc__filters">
         <label className="cc__field" htmlFor="cc-teacher-filter">

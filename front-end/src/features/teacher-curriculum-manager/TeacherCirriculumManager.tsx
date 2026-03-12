@@ -13,6 +13,7 @@ import {
   MdViewModule,
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
+import { getStoredToken } from '../../features/auth/auth.services';
 import ConfirmActionModal from '../../components/common/ConfirmActionModal';
 import type {
   Class,
@@ -21,6 +22,10 @@ import type {
   Subject,
   Unit,
 } from '../../types';
+import {
+  getScopedClasses,
+  getScopedSubjects,
+} from '../control-dashboard/control-dashboard.services';
 import {
   createClass,
   createLesson,
@@ -41,6 +46,11 @@ import {
   type CreateLessonResponse,
 } from './teacher-curriculum-manager.services';
 import './teacher-cirriculum-manager.css';
+
+export interface TeacherCirriculumManagerScope {
+  role: 'admin';
+  selectedTeacherId: number;
+}
 
 type SelectValue = number | '';
 type ClassMode = 'existing' | 'new';
@@ -164,13 +174,17 @@ function getLessonCreationMessage(result: CreateLessonResponse): string {
   return 'تم إنشاء الدرس بنجاح.';
 }
 
-function TeacherCirriculumManager() {
+function TeacherCirriculumManager(props: {
+  scope?: TeacherCirriculumManagerScope;
+}) {
+  const { scope } = props;
   const { user } = useAuth();
   const navigate = useNavigate();
   const hierarchyRequestIdRef = useRef(0);
   const creatorUnitsRequestIdRef = useRef(0);
 
-  const teacherId = user?.id ?? 0;
+  const teacherId =
+    scope?.role === 'admin' ? scope.selectedTeacherId : (user?.id ?? 0);
 
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -183,7 +197,7 @@ function TeacherCirriculumManager() {
   const [selectedClassId, setSelectedClassId] = useState<SelectValue>('');
   const [selectedSubjectId, setSelectedSubjectId] = useState<SelectValue>('');
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [hierarchyLoading, setHierarchyLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -415,13 +429,23 @@ function TeacherCirriculumManager() {
   }, []);
 
   const refreshBaseData = useCallback(async () => {
-    const [classesResponse, subjectsResponse] = await Promise.all([
-      getMyClasses(),
-      getMySubjects(),
-    ]);
-    setClasses(classesResponse.classes ?? []);
-    setSubjects(subjectsResponse.subjects ?? []);
-  }, []);
+    if (scope?.role === 'admin' && scope?.selectedTeacherId) {
+      const [classesResponse, subjectsResponse] = await Promise.all([
+        getScopedClasses('admin'),
+        getScopedSubjects('admin'),
+      ]);
+      const tid = scope.selectedTeacherId;
+      setClasses((classesResponse.classes ?? []).filter((c) => c.teacher_id === tid));
+      setSubjects((subjectsResponse.subjects ?? []).filter((s) => s.teacher_id === tid));
+    } else {
+      const [classesResponse, subjectsResponse] = await Promise.all([
+        getMyClasses(),
+        getMySubjects(),
+      ]);
+      setClasses(classesResponse.classes ?? []);
+      setSubjects(subjectsResponse.subjects ?? []);
+    }
+  }, [scope?.role, scope?.selectedTeacherId]);
 
   const loadHierarchyForSubject = useCallback(async (subjectId: number) => {
     const requestId = ++hierarchyRequestIdRef.current;
@@ -502,40 +526,62 @@ function TeacherCirriculumManager() {
       navigate('/authentication');
       return;
     }
-    if (user.userRole === 'admin') {
+    if (!scope && user.userRole === 'admin') {
       navigate('/admin');
     }
-  }, [user, navigate]);
+  }, [user, scope, navigate]);
 
+  // Load classes and subjects on mount (or when admin scope teacher changes).
   useEffect(() => {
-    if (user?.userRole !== 'teacher') {
+    const isAdminScoped = scope?.role === 'admin' && scope?.selectedTeacherId;
+    const isTeacher = user?.userRole === 'teacher';
+    if (!isTeacher && !isAdminScoped) {
+      setLoading(false);
       return;
     }
 
     let cancelled = false;
+
+    const timeoutId = window.setTimeout(() => {
+      if (!cancelled) {
+        setLoading(false);
+        setError((prev) =>
+          prev ?? 'تعذر تحميل بيانات المنهج. تحقق من الاتصال بالخادم.'
+        );
+        toast.error('تعذر تحميل بيانات المنهج. تحقق من الاتصال بالخادم.');
+      }
+    }, 15_000);
 
     const loadInitialData = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        const [classesResponse, subjectsResponse] = await Promise.all([
-          getMyClasses(),
-          getMySubjects(),
-        ]);
-
-        if (cancelled) {
-          return;
+        if (scope?.role === 'admin' && scope?.selectedTeacherId) {
+          const [classesResponse, subjectsResponse] = await Promise.all([
+            getScopedClasses('admin'),
+            getScopedSubjects('admin'),
+          ]);
+          if (cancelled) return;
+          const tid = scope.selectedTeacherId;
+          setClasses((classesResponse.classes ?? []).filter((c) => c.teacher_id === tid));
+          setSubjects((subjectsResponse.subjects ?? []).filter((s) => s.teacher_id === tid));
+        } else {
+          const [classesResponse, subjectsResponse] = await Promise.all([
+            getMyClasses(),
+            getMySubjects(),
+          ]);
+          if (cancelled) return;
+          setClasses(classesResponse.classes ?? []);
+          setSubjects(subjectsResponse.subjects ?? []);
         }
-
-        setClasses(classesResponse.classes ?? []);
-        setSubjects(subjectsResponse.subjects ?? []);
       } catch (loadError: unknown) {
         if (!cancelled) {
           setError(getErrorMessage(loadError, 'فشل تحميل بيانات المنهج.'));
         }
       } finally {
         if (!cancelled) {
+          window.clearTimeout(timeoutId);
           setLoading(false);
         }
       }
@@ -545,8 +591,9 @@ function TeacherCirriculumManager() {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timeoutId);
     };
-  }, [user?.id, user?.userRole]);
+  }, [scope?.role, scope?.selectedTeacherId, user?.userRole]);
 
   useEffect(() => {
     if (selectedSubjectId === '') {
@@ -585,7 +632,7 @@ function TeacherCirriculumManager() {
       });
   }, [creatorSubjectMode, creatorExistingSubjectId]);
 
-  if (user?.userRole !== 'teacher') {
+  if (!scope && user?.userRole !== 'teacher') {
     return null;
   }
 

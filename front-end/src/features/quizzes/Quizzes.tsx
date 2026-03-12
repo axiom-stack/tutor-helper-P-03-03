@@ -23,6 +23,7 @@ import { normalizeApiError } from '../../utils/apiErrors';
 import { buildWhatsAppLink } from '../../utils/whatsapp';
 import { clearDraft, getDraft, saveDraft } from '../../offline/drafts';
 import { useOffline } from '../../offline/useOffline';
+import { isLocalOnlyId } from '../../offline/utils';
 import type { OfflineExamRecord } from '../../offline/types';
 import {
   deleteExamById,
@@ -546,29 +547,32 @@ export default function Quizzes() {
     }
   };
 
+  const canExportExam =
+    selectedExam?.public_id && !isLocalOnlyId(selectedExam.public_id);
+
   const handleExportPdf = () => {
-    if (!selectedExam?.public_id || isExporting) return;
+    if (!canExportExam || isExporting) return;
     setExportError(null);
     setIsExporting(true);
-    exportExam(selectedExam.public_id, 'pdf')
+    exportExam(selectedExam!.public_id, 'pdf')
       .catch(() => setExportError('فشل تصدير PDF.'))
       .finally(() => setIsExporting(false));
   };
 
   const handleExportWord = () => {
-    if (!selectedExam?.public_id || isExporting) return;
+    if (!canExportExam || isExporting) return;
     setExportError(null);
     setIsExporting(true);
-    exportExam(selectedExam.public_id, 'docx')
+    exportExam(selectedExam!.public_id, 'docx')
       .catch(() => setExportError('فشل تصدير Word.'))
       .finally(() => setIsExporting(false));
   };
 
   const handleSharePdf = () => {
-    if (!selectedExam?.public_id || isExporting) return;
+    if (!canExportExam || isExporting) return;
     setExportError(null);
     setIsExporting(true);
-    shareExam(selectedExam.public_id, 'pdf', selectedExam.title)
+    shareExam(selectedExam!.public_id, 'pdf', selectedExam!.title)
       .catch(() => setExportError('فشل مشاركة PDF.'))
       .finally(() => setIsExporting(false));
   };
@@ -1100,7 +1104,7 @@ export default function Quizzes() {
                             type="button"
                             className="qz__refresh-btn"
                             onClick={handleExportPdf}
-                            disabled={isExporting || !selectedExam.public_id}
+                            disabled={isExporting || !canExportExam}
                             aria-busy={isExporting}
                           >
                             {isExporting && (
@@ -1113,7 +1117,7 @@ export default function Quizzes() {
                             type="button"
                             className="qz__refresh-btn"
                             onClick={handleExportWord}
-                            disabled={isExporting || !selectedExam.public_id}
+                            disabled={isExporting || !canExportExam}
                             aria-busy={isExporting}
                           >
                             {isExporting && (
@@ -1126,8 +1130,12 @@ export default function Quizzes() {
                             type="button"
                             className="qz__refresh-btn"
                             onClick={() => setWhatsAppExportOpen(true)}
-                            disabled={!selectedExam?.public_id}
-                            title="مشاركة عبر واتساب"
+                            disabled={!canExportExam}
+                            title={
+                              !canExportExam && selectedExam
+                                ? 'مزامن الاختبار مع الخادم أولاً لتمكين التصدير'
+                                : 'مشاركة عبر واتساب'
+                            }
                           >
                             <MdWhatsapp aria-hidden />
                             واتساب
@@ -1136,7 +1144,7 @@ export default function Quizzes() {
                             type="button"
                             className="qz__refresh-btn"
                             onClick={handleSharePdf}
-                            disabled={isExporting || !selectedExam.public_id}
+                            disabled={isExporting || !canExportExam}
                             aria-busy={isExporting}
                             title="مشاركة PDF عبر الجهاز"
                           >
@@ -1456,10 +1464,10 @@ export default function Quizzes() {
         onClose={() => setWhatsAppExportOpen(false)}
         isExporting={isExporting}
         onConfirm={async ({ format, message }) => {
-          if (!selectedExam?.public_id) return;
+          if (!canExportExam) return;
           setIsExporting(true);
           try {
-            await exportExam(selectedExam.public_id, format);
+            await exportExam(selectedExam!.public_id, format);
             const text =
               message.trim() ||
               `اختبار: ${selectedExam.title}\nالمعرف: ${selectedExam.public_id}`;

@@ -20,6 +20,7 @@ import type { Assignment, Class, LessonPlanRecord } from '../../types';
 import { ASSIGNMENT_TYPE_LABELS } from '../../types';
 import { clearDraft, getDraft, saveDraft } from '../../offline/drafts';
 import { useOffline } from '../../offline/useOffline';
+import { isLocalOnlyId } from '../../offline/utils';
 import type { OfflineAssignmentRecord } from '../../offline/types';
 import {
   duplicateAssignment,
@@ -678,8 +679,11 @@ export default function Assignments() {
     }
   };
 
+  const canExportAssignment =
+    selectedAssignment?.public_id && !isLocalOnlyId(selectedAssignment.public_id);
+
   const handleRefinementCommitted = async () => {
-    if (!selectedAssignment?.public_id) {
+    if (!canExportAssignment) {
       return;
     }
 
@@ -693,28 +697,28 @@ export default function Assignments() {
   };
 
   const handleExportPdf = () => {
-    if (!selectedAssignment?.public_id || isExporting) return;
+    if (!canExportAssignment || isExporting) return;
     setExportError(null);
     setIsExporting(true);
-    exportAssignment(selectedAssignment.public_id, 'pdf')
+    exportAssignment(selectedAssignment!.public_id, 'pdf')
       .catch(() => setExportError('فشل تصدير PDF.'))
       .finally(() => setIsExporting(false));
   };
 
   const handleExportWord = () => {
-    if (!selectedAssignment?.public_id || isExporting) return;
+    if (!canExportAssignment || isExporting) return;
     setExportError(null);
     setIsExporting(true);
-    exportAssignment(selectedAssignment.public_id, 'docx')
+    exportAssignment(selectedAssignment!.public_id, 'docx')
       .catch(() => setExportError('فشل تصدير Word.'))
       .finally(() => setIsExporting(false));
   };
 
   const handleSharePdf = () => {
-    if (!selectedAssignment?.public_id || isExporting) return;
+    if (!canExportAssignment || isExporting) return;
     setExportError(null);
     setIsExporting(true);
-    shareAssignment(selectedAssignment.public_id, 'pdf', selectedAssignment.name)
+    shareAssignment(selectedAssignment!.public_id, 'pdf', selectedAssignment!.name)
       .catch(() => setExportError('فشل مشاركة PDF.'))
       .finally(() => setIsExporting(false));
   };
@@ -1024,7 +1028,7 @@ export default function Assignments() {
                     type="button"
                     className="asn-btn asn-btn--ghost"
                     onClick={handleExportPdf}
-                    disabled={isExporting || !selectedAssignment?.public_id}
+                    disabled={isExporting || !canExportAssignment}
                     aria-busy={isExporting}
                   >
                     {isExporting && <span className="ui-button-spinner" aria-hidden />}
@@ -1035,7 +1039,7 @@ export default function Assignments() {
                     type="button"
                     className="asn-btn asn-btn--ghost"
                     onClick={handleExportWord}
-                    disabled={isExporting || !selectedAssignment?.public_id}
+                    disabled={isExporting || !canExportAssignment}
                     aria-busy={isExporting}
                   >
                     {isExporting && <span className="ui-button-spinner" aria-hidden />}
@@ -1046,7 +1050,7 @@ export default function Assignments() {
                     type="button"
                     className="asn-btn asn-btn--ghost"
                     onClick={handleSharePdf}
-                    disabled={isExporting || !selectedAssignment?.public_id}
+                    disabled={isExporting || !canExportAssignment}
                     aria-busy={isExporting}
                     title="مشاركة PDF عبر الجهاز"
                   >
@@ -1057,8 +1061,12 @@ export default function Assignments() {
                     type="button"
                     className="asn-btn asn-btn--ghost"
                     onClick={() => setWhatsAppExportOpen(true)}
-                    disabled={!selectedAssignment?.public_id}
-                    title="إرسال الواجب لولي الأمر عبر واتساب"
+                    disabled={!canExportAssignment}
+                    title={
+                      !canExportAssignment && selectedAssignment
+                        ? 'مزامن الواجب مع الخادم أولاً لتمكين التصدير'
+                        : 'إرسال الواجب لولي الأمر عبر واتساب'
+                    }
                   >
                     <MdWhatsapp aria-hidden />
                     إرسال بالواتساب
@@ -1297,11 +1305,11 @@ export default function Assignments() {
         isExporting={isExporting}
         confirmLabel="تصدير وفتح واتساب"
         onConfirm={async ({ format, message }) => {
-          if (!selectedAssignment?.public_id) return;
+          if (!canExportAssignment) return;
           setIsExporting(true);
           setExportError(null);
           try {
-            await exportAssignment(selectedAssignment.public_id, format);
+            await exportAssignment(selectedAssignment!.public_id, format);
             const text =
               message.trim() ||
               buildHomeworkMessage({
