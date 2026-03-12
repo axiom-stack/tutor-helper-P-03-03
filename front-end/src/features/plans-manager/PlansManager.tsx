@@ -264,8 +264,8 @@ export default function PlansManager() {
   });
 
   const syncPlanInList = (updatedPlan: OfflineLessonPlanRecord) => {
-    setPlans((current) =>
-      current.map((plan) =>
+    setAllPlans((current: OfflineLessonPlanRecord[]) =>
+      current.map((plan: OfflineLessonPlanRecord) =>
         plan.local_id === updatedPlan.local_id ? updatedPlan : plan
       )
     );
@@ -420,7 +420,7 @@ export default function PlansManager() {
     try {
       const response = await duplicatePlan(selectedPlan.public_id);
       const duplicatedPlan = response.plan as OfflineLessonPlanRecord;
-      setPlans((current) => [duplicatedPlan, ...current]);
+      setAllPlans((current: OfflineLessonPlanRecord[]) => [duplicatedPlan, ...current]);
       setSelectedPlan(duplicatedPlan);
       toast.success('تم إنشاء نسخة محلية من الخطة.');
     } catch (error: unknown) {

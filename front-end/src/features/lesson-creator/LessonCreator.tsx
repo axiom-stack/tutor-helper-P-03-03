@@ -898,7 +898,7 @@ function LessonCreator() {
                 planType={generatedPlan.plan_type}
                 planJson={planDraft?.planJson ?? generatedPlan.plan_json}
                 mode={isEditingPlan ? 'edit' : 'view'}
-                lessonTitle={planDraft?.lessonTitle ?? (generatedPlan.plan_json?.header && typeof generatedPlan.plan_json.header === 'object' && !Array.isArray(generatedPlan.plan_json.header) ? String((generatedPlan.plan_json.header as Record<string, unknown>).lesson_title ?? '') : '') || selectedLesson?.name}
+                lessonTitle={planDraft?.lessonTitle ?? ((generatedPlan.plan_json?.header && typeof generatedPlan.plan_json.header === 'object' && !Array.isArray(generatedPlan.plan_json.header) ? String((generatedPlan.plan_json.header as Record<string, unknown>).lesson_title ?? '') : '') || selectedLesson?.name || '')}
                 onLessonTitleChange={planDraft ? (value) => setPlanDraft((d) => (d ? { ...d, lessonTitle: value } : null)) : undefined}
                 onPlanJsonChange={planDraft ? (value) => setPlanDraft((d) => (d ? { ...d, planJson: value } : null)) : undefined}
                 fallback={{
