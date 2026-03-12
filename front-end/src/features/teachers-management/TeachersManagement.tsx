@@ -270,7 +270,7 @@ export default function TeachersManagement() {
       setResetDraft(null);
       setResetNewPassword('');
       setResetConfirmPassword('');
-      toast.success('تم تعيين كلمة المرور. يمكن للمعلم تسجيل الدخول وتغييرها.');
+      toast.success('تم تعيين كلمة المرور. يمكن للمعلم تسجيل الدخول بها.');
     } catch (err: unknown) {
       const message = normalizeApiError(err, 'فشل إعادة تعيين كلمة المرور.').message;
       toast.error(message);
@@ -698,7 +698,7 @@ export default function TeachersManagement() {
             </header>
             <div className="tm-modal__form">
               <p className="tm-modal__delete-message">
-                تعيين كلمة مرور جديدة للمعلم <strong>{resetDraft.username}</strong>. يمكن للمعلم لاحقاً تسجيل الدخول وتغييرها.
+                تعيين كلمة مرور جديدة للمعلم <strong>{resetDraft.username}</strong>. سيتمكن المعلم من تسجيل الدخول بهذه الكلمة.
               </p>
               <label className="tm-modal__field" htmlFor="reset-new-password">
                 كلمة المرور الجديدة (6 أحرف على الأقل)

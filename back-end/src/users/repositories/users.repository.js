@@ -147,7 +147,11 @@ export function createUsersRepository(dbClient = turso) {
     async createUser(userData) {
       const { username, password, role } = userData;
 
-      const result = await dbClient.execute({
+      if (typeof password !== "string" || password.length === 0) {
+        throw new Error("Password must be a non-empty string (use hashed password)");
+      }
+
+      await dbClient.execute({
         sql: `
           INSERT INTO Users (username, password, role)
           VALUES (?, ?, ?)
@@ -155,7 +159,17 @@ export function createUsersRepository(dbClient = turso) {
         args: [username, password, role],
       });
 
-      return result.lastInsertRowid;
+      const selectResult = await dbClient.execute({
+        sql: `SELECT id FROM Users WHERE username = ? LIMIT 1`,
+        args: [username],
+      });
+
+      const row = selectResult.rows?.[0];
+      if (!row) {
+        throw new Error("User was created but could not be retrieved");
+      }
+
+      return toNumber(row.id);
     },
 
     async getProfileByUserId(userId) {

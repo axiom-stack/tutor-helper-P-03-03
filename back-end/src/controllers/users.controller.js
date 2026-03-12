@@ -110,25 +110,30 @@ export function createUsersController(
           return res.status(403).json({ error: "Unauthorized" });
         }
 
-        const { username, password } = req.body;
+        const rawUsername =
+          typeof req.body?.username === "string" ? req.body.username.trim() : "";
+        const password =
+          typeof req.body?.password === "string" ? req.body.password : "";
 
-        if (!username || !password) {
+        if (!rawUsername || !password) {
           return res
             .status(400)
             .json({ error: "Username and password are required" });
         }
 
-        if (typeof username !== "string" || username.length < 4) {
+        if (rawUsername.length < 4) {
           return res
             .status(400)
             .json({ error: "Username must be at least 4 characters long" });
         }
 
-        if (typeof password !== "string" || password.length < 6) {
+        if (password.length < 6) {
           return res
             .status(400)
             .json({ error: "Password must be at least 6 characters long" });
         }
+
+        const username = rawUsername;
 
         // Check if username already exists
         const existingUser = await usersRepository.getUserByUsername(username);
@@ -136,10 +141,10 @@ export function createUsersController(
           return res.status(409).json({ error: "Username already exists" });
         }
 
-        // Hash the password
+        // Hash the password before storing (never store plain text)
         const hashedPassword = await hashPassword(password);
 
-        // Create the teacher
+        // Create the teacher (repository stores only the hashed password)
         const teacherId = await usersRepository.createUser({
           username,
           password: hashedPassword,
@@ -154,7 +159,14 @@ export function createUsersController(
           },
         });
       } catch (error) {
-        req.log?.error?.({ error }, "Failed to create teacher");
+        req.log?.error?.(
+          {
+            message: error?.message,
+            stack: error?.stack,
+            name: error?.name,
+          },
+          "Failed to create teacher",
+        );
         return res.status(500).json({ error: "Internal server error" });
       }
     },

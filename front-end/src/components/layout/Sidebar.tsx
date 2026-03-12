@@ -1,50 +1,12 @@
-import type { ComponentType } from 'react';
 import { NavLink } from 'react-router';
-import {
-  MdHome,
-  MdMenuBook,
-  MdAssignment,
-  MdQuiz,
-  MdSchool,
-  MdSettings,
-  MdGroup,
-  MdInsights,
-} from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
+import {
+  ADMIN_MAIN_LINKS,
+  ADMIN_SECONDARY_LINKS,
+  TEACHER_MAIN_LINKS,
+  TEACHER_SECONDARY_LINKS,
+} from './nav-links';
 import './sidebar.css';
-
-type SidebarLink = {
-  to: string;
-  label: string;
-  icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
-};
-
-const TEACHER_MAIN_LINKS: SidebarLink[] = [
-  { to: '/', label: 'الرئيسية', icon: MdHome },
-  { to: '/lessons', label: 'إنشاء الخطط', icon: MdMenuBook },
-  { to: '/plans', label: 'الخطط المولدة', icon: MdMenuBook },
-  { to: '/assignments', label: 'الواجبات', icon: MdAssignment },
-  { to: '/quizzes', label: 'الاختبارات', icon: MdQuiz },
-  { to: '/curriculum', label: 'المنهج الدراسي', icon: MdSchool },
-  { to: '/settings', label: 'الإعدادات', icon: MdSettings },
-];
-
-const ADMIN_MAIN_LINKS: SidebarLink[] = [
-  { to: '/', label: 'الرئيسية', icon: MdHome },
-  { to: '/plans', label: 'الخطط المولدة', icon: MdMenuBook },
-  { to: '/quizzes', label: 'الاختبارات', icon: MdQuiz },
-  { to: '/curriculum', label: 'المنهج الدراسي', icon: MdSchool },
-  { to: '/settings', label: 'الإعدادات', icon: MdSettings },
-];
-
-const TEACHER_SECONDARY_LINKS: SidebarLink[] = [
-  { to: '/stats', label: 'الإحصائيات', icon: MdInsights },
-];
-
-const ADMIN_SECONDARY_LINKS: SidebarLink[] = [
-  { to: '/teachers', label: 'المعلمون', icon: MdGroup },
-  { to: '/stats', label: 'الإحصائيات', icon: MdInsights },
-];
 
 export function Sidebar() {
   const { user } = useAuth();

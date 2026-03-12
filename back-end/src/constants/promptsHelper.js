@@ -414,6 +414,7 @@ const promptsHelper = {
       "header": {
         "date": "",
         "day": "",
+        "time": "",
         "grade": "",
         "section": "",
         "lesson_title": "",
@@ -437,6 +438,7 @@ const promptsHelper = {
       "header": {
         "date": "",
         "day": "",
+        "time": "",
         "subject": "",
         "grade": "",
         "section": "",

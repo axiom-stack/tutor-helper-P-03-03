@@ -7,18 +7,17 @@ function withPlanMeta(
   plan: LessonPlanRecord,
   existing?: OfflineLessonPlanRecord | null
 ): OfflineLessonPlanRecord {
+  // When storing server data (from GET or successful PUT), we always mark as synced.
   return {
     ...plan,
     plan_json: cloneJson(plan.plan_json ?? {}),
     local_id: existing?.local_id ?? createLocalId('lesson_plan'),
     server_id: plan.public_id,
-    sync_status: existing?.sync_status === 'pending_sync' || existing?.sync_status === 'conflict'
-      ? existing.sync_status
-      : 'synced',
+    sync_status: 'synced',
     local_revision: existing?.local_revision ?? 0,
     server_updated_at: plan.updated_at,
     origin_server_id: existing?.origin_server_id ?? null,
-    last_sync_error: existing?.last_sync_error ?? null,
+    last_sync_error: null,
   };
 }
 

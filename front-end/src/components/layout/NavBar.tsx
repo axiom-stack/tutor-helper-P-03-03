@@ -1,11 +1,15 @@
 import { useAuth } from '../../context/AuthContext';
-import { MdAutoStories, MdLogout } from 'react-icons/md';
+import { MdAutoStories, MdLogout, MdMenu } from 'react-icons/md';
 import { useOffline } from '../../offline/useOffline';
 import './nav-bar.css';
 
 const APP_TITLE = 'المساعد الذكي للمعلم';
 
-export function NavBar() {
+interface NavBarProps {
+  onMenuClick?: () => void;
+}
+
+export function NavBar({ onMenuClick }: NavBarProps) {
   const { user, logout } = useAuth();
   const { isOnline, queueCount, isSyncing, processQueueNow } = useOffline();
 
@@ -15,6 +19,17 @@ export function NavBar() {
   return (
     <header className="nav-bar" role="banner">
       <div className="nav-bar__brand">
+        {onMenuClick ? (
+          <button
+            type="button"
+            className="nav-bar__menu-btn"
+            onClick={onMenuClick}
+            aria-label="فتح القائمة"
+            aria-expanded="false"
+          >
+            <MdMenu className="nav-bar__menu-icon" aria-hidden />
+          </button>
+        ) : null}
         <div className="nav-bar__logo" aria-hidden>
           <MdAutoStories className="nav-bar__logo-icon" />
         </div>

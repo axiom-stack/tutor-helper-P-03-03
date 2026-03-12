@@ -234,11 +234,36 @@ export default function LessonPlanDocumentView({
             <div className="lpdv__traditional-header-grid">
               <div>
                 <label>التاريخ</label>
-                <p>{toDisplayText(header.date)}</p>
+                {isEditMode ? (
+                  <FieldInput
+                    value={toEditableText(header.date)}
+                    onChange={(value) => updateHeaderText('date', value)}
+                  />
+                ) : (
+                  <p>{toDisplayText(header.date)}</p>
+                )}
               </div>
               <div>
                 <label>اليوم</label>
-                <p>{toDisplayText(header.day)}</p>
+                {isEditMode ? (
+                  <FieldInput
+                    value={toEditableText(header.day)}
+                    onChange={(value) => updateHeaderText('day', value)}
+                  />
+                ) : (
+                  <p>{toDisplayText(header.day)}</p>
+                )}
+              </div>
+              <div>
+                <label>الساعة</label>
+                {isEditMode ? (
+                  <FieldInput
+                    value={toEditableText(header.time)}
+                    onChange={(value) => updateHeaderText('time', value)}
+                  />
+                ) : (
+                  <p>{toDisplayText(header.time)}</p>
+                )}
               </div>
               <div>
                 <label>الصف</label>
@@ -400,11 +425,36 @@ export default function LessonPlanDocumentView({
             <div className="lpdv__active-header-grid">
               <div>
                 <label>التاريخ</label>
-                <p>{toDisplayText(header.date)}</p>
+                {isEditMode ? (
+                  <FieldInput
+                    value={toEditableText(header.date)}
+                    onChange={(value) => updateHeaderText('date', value)}
+                  />
+                ) : (
+                  <p>{toDisplayText(header.date)}</p>
+                )}
               </div>
               <div>
                 <label>اليوم</label>
-                <p>{toDisplayText(header.day)}</p>
+                {isEditMode ? (
+                  <FieldInput
+                    value={toEditableText(header.day)}
+                    onChange={(value) => updateHeaderText('day', value)}
+                  />
+                ) : (
+                  <p>{toDisplayText(header.day)}</p>
+                )}
+              </div>
+              <div>
+                <label>الساعة</label>
+                {isEditMode ? (
+                  <FieldInput
+                    value={toEditableText(header.time)}
+                    onChange={(value) => updateHeaderText('time', value)}
+                  />
+                ) : (
+                  <p>{toDisplayText(header.time)}</p>
+                )}
               </div>
               <div>
                 <label>المادة</label>

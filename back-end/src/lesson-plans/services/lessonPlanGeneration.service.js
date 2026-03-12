@@ -946,6 +946,24 @@ export function createLessonPlanGenerationService(dependencies = {}) {
         );
       }
 
+      const now = new Date();
+      if (!isPlainObject(candidatePlan.header)) {
+        candidatePlan.header = {};
+      }
+      candidatePlan.header.date = now.toLocaleDateString("ar-SA", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      });
+      candidatePlan.header.day = now.toLocaleDateString("ar-SA", {
+        weekday: "long",
+      });
+      candidatePlan.header.time = now.toLocaleTimeString("ar-SA", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+
       const savedPlan = await repository.create({
         teacherId,
         lessonId: request.lesson_id,

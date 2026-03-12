@@ -285,8 +285,28 @@ export function createLessonPlansController(dependencies = {}) {
           strategyBank,
         });
 
+        // Ensure header and top-level have all schema keys (fill missing with defaults)
+        // so older plans or clients missing new keys (e.g. time, source) still validate.
+        const normalizedPlan = normalizationResult.normalizedPlan;
+        const schemaHeader =
+          targetSchema?.header && typeof targetSchema.header === "object" && !Array.isArray(targetSchema.header)
+            ? targetSchema.header
+            : {};
+        const defaultHeader = Object.fromEntries(
+          Object.keys(schemaHeader).map((k) => [k, typeof schemaHeader[k] === "string" ? "" : ""]),
+        );
+        normalizedPlan.header = { ...defaultHeader, ...asPlainObject(normalizedPlan.header) };
+        for (const key of Object.keys(targetSchema || {})) {
+          if (normalizedPlan[key] === undefined) {
+            const def = targetSchema[key];
+            if (Array.isArray(def)) normalizedPlan[key] = [];
+            else if (typeof def === "object" && def !== null && !Array.isArray(def)) normalizedPlan[key] = {};
+            else normalizedPlan[key] = "";
+          }
+        }
+
         const validation = validator({
-          plan: normalizationResult.normalizedPlan,
+          plan: normalizedPlan,
           planType: existingPlan.plan_type,
           targetSchema,
           allowedStrategies: strategyBank,

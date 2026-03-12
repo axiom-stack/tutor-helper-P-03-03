@@ -28,8 +28,11 @@
   display: grid;
   gap: var(--space-xl);
   width: 100%;
+  max-width: 100%;
   min-width: 0;
+  overflow-x: hidden;
   font-family: var(--font-main);
+  box-sizing: border-box;
 }
 
 /* ----- Hero / Welcome ----- */
@@ -41,6 +44,9 @@
   border: 1px solid var(--cd-hero-border);
   box-shadow: var(--cd-shadow);
   overflow: hidden;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .cd__hero::before {
@@ -68,6 +74,8 @@
   color: #0f172a;
   letter-spacing: -0.02em;
   line-height: 1.2;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .cd__hero p {
@@ -76,6 +84,7 @@
   color: #475569;
   line-height: 1.6;
   max-width: 42ch;
+  overflow-wrap: break-word;
 }
 
 /* ----- Stats grid ----- */
@@ -99,11 +108,22 @@
 
 @media (max-width: 640px) {
   .cd__hero {
-    padding: var(--space-md) var(--space-lg);
+    padding: var(--space-md) var(--space-md);
   }
 
   .cd__stat-card {
     padding: var(--space-md);
+    min-width: 0;
+  }
+
+  .cd__stats-grid,
+  .cd__tables {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .cd__table-card header {
+    flex-wrap: wrap;
   }
 }
 
@@ -212,8 +232,10 @@
 
 .cd__quick-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
   gap: var(--space-md);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .cd__quick-card {
@@ -303,6 +325,9 @@
   gap: 0;
   box-shadow: var(--cd-shadow);
   transition: box-shadow var(--cd-transition);
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .cd__table-card > header {
@@ -368,6 +393,9 @@
   overflow: auto;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-light);
+  max-width: 100%;
+  min-width: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 .cd__table-wrap table {
