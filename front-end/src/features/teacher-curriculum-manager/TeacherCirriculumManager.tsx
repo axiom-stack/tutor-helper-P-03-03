@@ -13,7 +13,6 @@ import {
   MdViewModule,
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
-import { getStoredToken } from '../../features/auth/auth.services';
 import ConfirmActionModal from '../../components/common/ConfirmActionModal';
 import type {
   Class,
