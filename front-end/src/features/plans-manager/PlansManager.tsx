@@ -76,6 +76,8 @@ export default function PlansManager() {
 
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
+  /** Which plan is currently loading details (by public_id). Only this card shows loading. */
+  const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const [, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [isEditingPlan, setIsEditingPlan] = useState(false);
@@ -279,6 +281,7 @@ export default function PlansManager() {
 
     setSelectedPlan(plan);
     setDetailLoading(true);
+    setLoadingPlanId(plan.public_id);
     setError(null);
 
     const requestId = ++detailRequestIdRef.current;
@@ -299,6 +302,7 @@ export default function PlansManager() {
     } finally {
       if (requestId === detailRequestIdRef.current) {
         setDetailLoading(false);
+        setLoadingPlanId(null);
       }
     }
   };
@@ -536,7 +540,8 @@ export default function PlansManager() {
           ) : (
             <div className="pm__cards" role="list">
               {plans.map((plan) => {
-                const isActive = plan.local_id === selectedPlan?.local_id;
+                const isActive = plan.public_id === selectedPlan?.public_id;
+                const isLoadingThisPlan = plan.public_id === loadingPlanId;
                 return (
                   <button
                     key={plan.local_id}
@@ -577,7 +582,7 @@ export default function PlansManager() {
                         </span>
                       </div>
                     ) : null}
-                    {detailLoading && isActive ? (
+                    {isLoadingThisPlan ? (
                       <span className="pm__card-meta">
                         <span className="ui-button-spinner" aria-hidden />
                         جارٍ تحميل التفاصيل...

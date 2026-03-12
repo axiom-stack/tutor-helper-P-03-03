@@ -186,6 +186,7 @@
   padding: var(--space-md);
   max-height: 72vh;
   overflow: auto;
+  min-width: 0;
 }
 
 .pm__card {
@@ -199,6 +200,8 @@
   cursor: pointer;
   display: grid;
   gap: var(--space-xs);
+  min-width: 0;
+  overflow: hidden;
   transition:
     border-color var(--transition-fast),
     box-shadow var(--transition-fast),
@@ -236,17 +239,23 @@
   justify-content: space-between;
   gap: var(--space-sm);
   align-items: flex-start;
+  min-width: 0;
 }
 
 .pm__card-top strong {
   font-size: var(--text-sm);
   color: var(--text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pm__card-top span {
   font-size: var(--text-xs);
   color: var(--text-secondary);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .pm__card-meta {
@@ -255,6 +264,14 @@
   gap: var(--space-sm);
   font-size: var(--text-sm);
   color: var(--text-secondary);
+  min-width: 0;
+}
+
+.pm__card-meta span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pm__state {

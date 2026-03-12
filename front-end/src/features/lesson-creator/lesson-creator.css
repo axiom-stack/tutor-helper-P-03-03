@@ -765,18 +765,27 @@
   .lcp__layout {
     display: flex;
     flex-direction: column;
+    width: 100%;
+    min-width: 0;
   }
 
   .lcp__preview {
     order: 1;
+    width: 100%;
+    min-width: 0;
+    overflow: visible;
   }
 
   .lcp__refinement-row {
     order: 2;
+    width: 100%;
+    min-width: 0;
   }
 
   .lcp__controls {
     order: 3;
+    width: 100%;
+    min-width: 0;
   }
 
   .lcp__header {
@@ -787,6 +796,41 @@
   .lcp__controls,
   .lcp__header {
     padding: var(--space-md);
+  }
+
+  /* Plan card: scrollable so generated plan is visible, not cropped (like /plans) */
+  .lcp__plan-card {
+    min-width: 0;
+    overflow-y: auto;
+    overflow-x: auto;
+    max-height: min(70vh, 600px);
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Full-width form fields under main part (like /plans filters) */
+  .lcp__steps,
+  .lcp__step,
+  .lcp__step-content,
+  .lcp__options,
+  .lcp__plan-type-toggle,
+  .lcp__duration,
+  .lcp__generate-btn {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .lcp__plan-type-toggle {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .lcp__plan-actions {
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+  }
+
+  .lcp__plan-actions button {
+    flex: 1 1 auto;
+    min-width: 120px;
   }
 
   .lcp__traditional-header-grid {
@@ -846,5 +890,29 @@
   .lcp__controls,
   .lcp__header {
     padding: var(--space-sm);
+  }
+
+  .lcp__header-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .lcp__header-actions button {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .lcp__plan-card {
+    max-height: min(65vh, 500px);
+  }
+
+  .lcp__plan-actions {
+    flex-direction: column;
+  }
+
+  .lcp__plan-actions button {
+    width: 100%;
+    min-width: 0;
   }
 }

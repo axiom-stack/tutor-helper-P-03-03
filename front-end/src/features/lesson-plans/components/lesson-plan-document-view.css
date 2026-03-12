@@ -47,7 +47,8 @@
   border-radius: calc(var(--radius-xl) + 6px);
   color: #ecf4ff;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: auto;
+  min-width: 0;
 }
 
 .lpdv__traditional-header-grid {
@@ -183,7 +184,8 @@
   border: 1px solid rgba(226, 238, 255, 0.45);
   border-radius: calc(var(--radius-xl) + 6px);
   color: #ecf4ff;
-  overflow: hidden;
+  overflow: auto;
+  min-width: 0;
 }
 
 .lpdv__active-header-grid {
