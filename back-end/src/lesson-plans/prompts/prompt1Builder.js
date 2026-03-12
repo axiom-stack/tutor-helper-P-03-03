@@ -12,6 +12,12 @@ const OBJECTIVE_MARKER_HINTS = [
   "لا تقل عن",
 ];
 
+const ARABIC_STYLE_HINTS = {
+  teacher_action_examples: ["يشرح المعلم", "يعرض المعلم", "يوجه المعلم"],
+  student_action_examples: ["يناقش الطلاب", "يستنتج الطلاب", "يطبق الطلاب"],
+  avoid_templates: ["ستستمر المحاضرة", "سوف تستمر المحاضرة"],
+};
+
 function buildCommonPayload({
   request,
   planType,
@@ -67,6 +73,7 @@ function buildCommonPayload({
             phases: Array.isArray(strategy?.phases) ? strategy.phases : [],
           }))
         : [],
+      arabic_style_hints: ARABIC_STYLE_HINTS,
     },
   };
 }
@@ -171,6 +178,7 @@ export function buildPrompt1TraditionalDraftGenerator({
     "Follow the provided traditional target schema exactly.",
     "Do not add extra keys and do not omit required keys.",
     "This is a draft, but it must already satisfy the pedagogical rules as closely as possible.",
+    "Default to 3 learning_outcomes unless the lesson size clearly requires a different count.",
     "Each learning outcome must start with أن followed immediately by one measurable behavioral verb from the provided Bloom bank.",
     "The leading learning-outcome verb should map clearly to one Bloom level only.",
     "Each learning outcome must include الطالب, lesson-specific content, and a condition or criterion when natural.",
@@ -178,16 +186,21 @@ export function buildPrompt1TraditionalDraftGenerator({
     "Never use forbidden weak verbs.",
     "learning_outcomes must be an array of plain strings only; never objects.",
     "Choose distinct teaching_strategies from the provided strategy bank only.",
+    "Choose strategies according to subject-and-task fit and avoid defaulting mechanically to lecture, discussion, or induction when another listed strategy fits better.",
     "Keep intro, activities, and assessment aligned with the objectives.",
+    "Prefer same-order semantic linkage when possible: learning_outcome 1 with activity 1 and an assessment item for the same objective, then continue in order.",
     "activities must be an array of plain Arabic strings only; never objects with name, duration, or description keys.",
     "Each activity string must explicitly mention one strategy from teaching_strategies using phrasing such as وفق طريقة ... or وفق استراتيجية ....",
     "Each activity string must end with a parseable trailing time hint exactly like (14 دقائق) and must not contain any second time hint elsewhere.",
     "assessment must be an array of plain Arabic strings only; never objects with question, type, or duration keys.",
+    "When assessment includes multiple items, vary the first items across at least two allowed question formats and keep each item tied to one objective skill.",
     "The first assessment string should end with a parseable trailing time hint like (4 دقائق) and must not contain any second time hint elsewhere.",
     "The remaining assessment strings should stay plain strings without any time hints.",
     "Encode the traditional timing only through existing text fields: header.duration, intro, activities, and assessment.",
     "Traditional time hints must match the exact phase budget and the total must equal duration_minutes.",
-    "Homework must be derived from the lesson content and grade level.",
+    "Use natural formal Arabic for classroom planning: prefer teacher phrasing مثل يشرح المعلم or يوجه المعلم, and student phrasing مثل يناقش الطلاب or يطبق الطلاب.",
+    "Avoid awkward Arabic templates such as ستستمر المحاضرة.",
+    "Homework must be derived directly from the lesson content and grade level, not generic textbook review.",
     "Fill header.grade with the provided grade/class metadata.",
     "Fill header.section with the provided section (الشعبة) if available.",
   ].join(" ");
@@ -213,14 +226,17 @@ export function buildPrompt1TraditionalDraftGenerator({
         assessment: 3,
       },
       learning_outcomes_behavioral_format_hint: "أن + فعل سلوكي + الطالب + محتوى + شرط/معيار",
+      default_learning_outcomes_count: 3,
       require_time_hint_in_intro: true,
       require_time_hints_in_activities: true,
       require_time_hint_in_assessment: true,
       require_single_time_hint_per_activity_or_assessment: true,
       require_objective_activity_assessment_alignment: true,
+      prefer_same_order_objective_activity_assessment_mapping: true,
       require_activity_strategy_linkage: true,
       require_strategy_diversity: true,
       require_assessment_variety: true,
+      arabic_style_targets: ARABIC_STYLE_HINTS,
     },
   };
 
@@ -252,6 +268,7 @@ export function buildPrompt1ActiveLearningDraftGenerator({
     "lesson_flow.activity_type must be one of intro, presentation, activity, assessment.",
     "The row order must preserve intro -> presentation -> activity -> assessment.",
     "The sum of all lesson_flow row times must equal duration_minutes exactly.",
+    "Default to 3 objectives for a standard lesson unless the lesson size clearly requires a different count.",
     "Each objective must start with أن followed immediately by one measurable behavioral verb from the provided Bloom bank.",
     "The leading objective verb should map clearly to one Bloom level only.",
     "Each objective must include الطالب, lesson-specific content, and a clear condition or criterion.",
@@ -259,11 +276,14 @@ export function buildPrompt1ActiveLearningDraftGenerator({
     "Objectives must stay aligned to the row activities and assessment rows.",
     "Never use forbidden weak verbs.",
     "objectives must be an array of plain Arabic strings only; never objects.",
+    "Select one or more suitable active-learning strategies from the provided bank and encode them naturally inside content or teacher_activity without adding new keys.",
     "Teacher and student actions must not repeat as generic prose across phases.",
+    "Prefer natural classroom Arabic such as يعرض المعلم, يوجه المعلم, يناقش الطلاب, يستنتج الطلاب, and avoid awkward templates such as ستستمر المحاضرة.",
     "Each lesson_flow row must contain exactly these keys: time, content, activity_type, teacher_activity, student_activity, learning_resources.",
     "lesson_flow.time must be a string like 5 دقائق, never a number.",
     "Do not place homework inside lesson_flow.",
-    "Homework must be derived from the lesson content and grade level.",
+    "Ensure the assessment row measures the objectives explicitly and does not stay limited to recall if the objectives target explanation, application, or analysis.",
+    "Homework must be derived directly from the lesson content and grade level.",
     "Fill header.grade with the provided grade/class metadata.",
     "Fill header.section with the provided section (الشعبة) if available.",
   ].join(" ");
@@ -291,6 +311,9 @@ export function buildPrompt1ActiveLearningDraftGenerator({
       preserve_row_based_flow: true,
       require_objective_activity_assessment_alignment: true,
       require_distinct_phase_behaviors: true,
+      prefer_same_order_objective_support_when_natural: true,
+      encode_active_strategy_name_inside_existing_rows: true,
+      arabic_style_targets: ARABIC_STYLE_HINTS,
     },
   };
 

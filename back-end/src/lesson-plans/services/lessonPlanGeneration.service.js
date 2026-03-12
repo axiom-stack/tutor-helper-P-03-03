@@ -318,6 +318,19 @@ function ensureLlmSuccess(result, stageName, logger, prompt, extraContext = {}) 
 function buildJsonRecoveryPrompt(prompt, failureResult, stageName) {
   const failureMessage = failureResult?.message || "Unknown LLM error";
   const failureType = failureResult?.errorType || "llm_error";
+  const userPrompt = typeof prompt?.userPrompt === "string" ? prompt.userPrompt : "";
+  const isPrompt2 =
+    /Prompt 2/iu.test(stageName) ||
+    userPrompt.includes("\"draft_plan_json\"") ||
+    userPrompt.includes("\"validation_errors\"");
+  const isTraditional =
+    userPrompt.includes("traditional_shape_contract") ||
+    userPrompt.includes("traditional_repair_contract") ||
+    userPrompt.includes("\"learning_outcomes\"");
+  const isActive =
+    userPrompt.includes("active_shape_contract") ||
+    userPrompt.includes("active_repair_contract") ||
+    userPrompt.includes("\"lesson_flow\"");
   const strictJsonReminder = [
     "CRITICAL OUTPUT CONTRACT:",
     "Return exactly one valid JSON object.",
@@ -327,13 +340,32 @@ function buildJsonRecoveryPrompt(prompt, failureResult, stageName) {
     "Use strict JSON syntax with double-quoted keys and strings only.",
     "Do not use trailing commas.",
   ].join(" ");
+  const stageSpecificReminder = [
+    isPrompt2
+      ? "Prompt 2 retry rule: output the repaired lesson-plan object itself only and never return wrapper keys such as task, inputs, draft_plan_json, validation_errors, or metadata."
+      : "Prompt 1 retry rule: follow the requested schema exactly and do not invent wrapper keys, commentary, or prose outside the JSON object.",
+    isTraditional
+      ? "Traditional contract reminder: keep the exact top-level keys header, intro, concepts, learning_outcomes, teaching_strategies, activities, learning_resources, assessment, homework, source. learning_outcomes, activities, and assessment must stay arrays of plain strings."
+      : null,
+    isActive
+      ? "Active-learning contract reminder: keep the exact top-level keys header, objectives, lesson_flow, homework. Each lesson_flow row must keep exactly the keys time, content, activity_type, teacher_activity, student_activity, learning_resources."
+      : null,
+    failureType === "malformed_json"
+      ? "The previous response was malformed JSON, so return the full corrected object with no truncation."
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return {
     ...prompt,
-    systemPrompt: [prompt?.systemPrompt || "", strictJsonReminder].filter(Boolean).join("\n\n"),
+    systemPrompt: [prompt?.systemPrompt || "", strictJsonReminder, stageSpecificReminder]
+      .filter(Boolean)
+      .join("\n\n"),
     userPrompt: [
       prompt?.userPrompt || "",
       `Retry context for ${stageName}: the previous attempt failed with ${failureType}. ${failureMessage}`,
+      stageSpecificReminder,
       "Return the corrected response now as JSON only.",
     ]
       .filter(Boolean)
@@ -774,6 +806,9 @@ export function createLessonPlanGenerationService(dependencies = {}) {
           planType: request.plan_type,
           durationMinutes: request.duration_minutes,
           pedagogicalRules: knowledge.pedagogical_rules,
+          bloomVerbsGeneration: knowledge.bloom_verbs_generation,
+          lessonContext: lessonValidationContext,
+          strategyBank,
         });
 
         const result = validator({

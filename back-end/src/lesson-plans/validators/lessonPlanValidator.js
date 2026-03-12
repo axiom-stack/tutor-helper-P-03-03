@@ -103,6 +103,11 @@ const OBJECTIVE_EXTRA_STOPWORDS = [
 const TRADITIONAL_TIME_HINT_PATTERN =
   /\(\s*\d+(?:\.\d+)?\s*د(?:قيقة|قائق)\s*\)/gu;
 
+const AWKWARD_ARABIC_PATTERNS = [
+  "ستستمر المحاضرة",
+  "سوف تستمر المحاضرة",
+];
+
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -326,6 +331,31 @@ function containsForbiddenVerb(text, forbiddenVerbs = []) {
       : tokens.has(normalizedVerb) || tokens.has(`و${normalizedVerb}`);
 
     if (matched) {
+      return forbiddenVerb;
+    }
+  }
+
+  return null;
+}
+
+function startsWithForbiddenVerb(text, forbiddenVerbs = []) {
+  const normalizedText = normalizeArabicForMatching(text);
+  if (!normalizedText) {
+    return null;
+  }
+
+  const strippedObjectivePrefix = normalizedText.replace(/^ان\s+/u, "").trim();
+  if (!strippedObjectivePrefix) {
+    return null;
+  }
+
+  for (const forbiddenVerb of forbiddenVerbs) {
+    const normalizedVerb = normalizeArabicForMatching(forbiddenVerb);
+    if (
+      normalizedVerb &&
+      (strippedObjectivePrefix === normalizedVerb ||
+        strippedObjectivePrefix.startsWith(`${normalizedVerb} `))
+    ) {
       return forbiddenVerb;
     }
   }
@@ -603,16 +633,6 @@ function validateObjectives({
       );
     }
 
-    const forbiddenVerb = containsForbiddenVerb(text, forbiddenVerbs);
-    if (forbiddenVerb) {
-      addError(
-        errors,
-        "business.objectives.forbidden_verb",
-        path,
-        `objective contains forbidden verb: ${forbiddenVerb}`,
-      );
-    }
-
     const leadingVerb = detectLeadingBehavioralVerb(text, normalizedVerbBank);
     objective.leadingVerb = leadingVerb;
     if (!leadingVerb) {
@@ -632,6 +652,17 @@ function validateObjectives({
         "business.objectives.measurable_verb_missing",
         path,
         "objective must include a measurable behavioral verb from the Bloom bank",
+      );
+    }
+
+    const forbiddenVerb = containsForbiddenVerb(text, forbiddenVerbs);
+    const leadingForbiddenVerb = startsWithForbiddenVerb(text, forbiddenVerbs);
+    if (forbiddenVerb && (leadingForbiddenVerb || matchedVerbs.length === 0)) {
+      addError(
+        errors,
+        "business.objectives.forbidden_verb",
+        path,
+        `objective contains forbidden verb without a measurable leading alternative: ${forbiddenVerb}`,
       );
     }
 
@@ -1260,6 +1291,58 @@ function validateActiveFlowStructure(plan, planType, errors) {
   });
 }
 
+function validateArabicPhrasing(plan, planType, errors) {
+  const textTargets =
+    planType === PLAN_TYPES.TRADITIONAL
+      ? [
+          { path: "intro", text: toDisplayText(plan?.intro) },
+          ...(Array.isArray(plan?.activities)
+            ? plan.activities.map((item, index) => ({
+                path: `activities.${index}`,
+                text: toDisplayText(item),
+              }))
+            : []),
+          ...(Array.isArray(plan?.assessment)
+            ? plan.assessment.map((item, index) => ({
+                path: `assessment.${index}`,
+                text: toDisplayText(item),
+              }))
+            : []),
+        ]
+      : Array.isArray(plan?.lesson_flow)
+        ? plan.lesson_flow.flatMap((row, index) => [
+            { path: `lesson_flow.${index}.content`, text: toDisplayText(row?.content) },
+            {
+              path: `lesson_flow.${index}.teacher_activity`,
+              text: toDisplayText(row?.teacher_activity),
+            },
+            {
+              path: `lesson_flow.${index}.student_activity`,
+              text: toDisplayText(row?.student_activity),
+            },
+          ])
+        : [];
+
+  textTargets.forEach((target) => {
+    const normalizedText = normalizeArabicForMatching(target.text);
+    if (!normalizedText) {
+      return;
+    }
+
+    const awkwardPattern = AWKWARD_ARABIC_PATTERNS.find((pattern) =>
+      normalizedText.includes(normalizeArabicForMatching(pattern)),
+    );
+    if (awkwardPattern) {
+      addError(
+        errors,
+        "business.arabic.awkward_phrase",
+        target.path,
+        `Arabic phrasing contains an awkward classroom template: ${awkwardPattern}`,
+      );
+    }
+  });
+}
+
 function validateTraditionalRichness(plan, errors) {
   const introText = typeof plan?.intro === "string" ? plan.intro.trim() : "";
   if (!introText || countWords(introText) < 12) {
@@ -1450,6 +1533,9 @@ export function validateLessonPlan({
       planType,
       durationMinutes,
       pedagogicalRules,
+      bloomVerbsGeneration,
+      lessonContext,
+      strategyBank: allowedStrategies,
     });
   const normalizedPlan = resolvedNormalization.normalizedPlan;
   const phaseBudgets =
@@ -1490,6 +1576,7 @@ export function validateLessonPlan({
 
   validateAssessment(normalizedPlan, planType, assessmentQuestionTypes, errors);
   validateHomework(normalizedPlan, lessonContextKeywords, errors);
+  validateArabicPhrasing(normalizedPlan, planType, errors);
 
   const alignmentDiagnostics = validateAlignment(
     normalizedPlan,

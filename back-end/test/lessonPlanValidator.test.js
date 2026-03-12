@@ -256,21 +256,21 @@ test("repairs active-learning timing to exact duration and keeps row flow intact
   assert.equal(result.normalizedPlan.lesson_flow[3].time, "4 دقائق");
 });
 
-test("rejects weak measurable objectives", () => {
+test("repairs weak measurable objectives conservatively", () => {
   const plan = createTraditionalPlan();
   plan.learning_outcomes[0] = "أن يفهم مفهوم الماء.";
 
   const result = validateTraditional(plan);
 
-  assert.equal(result.isValid, false);
+  assert.equal(result.isValid, true);
   assert.ok(
-    result.errors.some((error) => error.code === "business.objectives.forbidden_verb"),
-  );
-  assert.ok(
-    result.errors.some(
-      (error) => error.code === "business.objectives.missing_condition_or_criterion",
+    result.repairSummary.some(
+      (repair) => repair.code === "normalization.objective.behavioral_rewrite",
     ),
   );
+  assert.match(result.normalizedPlan.learning_outcomes[0], /^أن /u);
+  assert.match(result.normalizedPlan.learning_outcomes[0], /الطالب/u);
+  assert.doesNotMatch(result.normalizedPlan.learning_outcomes[0], /يفهم/u);
 });
 
 test("rejects objectives whose leading verb is not measurable", () => {
@@ -311,58 +311,70 @@ test("accepts percentage-based and contextual objective criteria", () => {
   assert.equal(result.isValid, true);
 });
 
-test("rejects objective-to-activity misalignment", () => {
+test("repairs objective-to-activity misalignment inside existing text", () => {
   const plan = createTraditionalPlan();
   plan.activities[2] =
     "يرسم الطلاب أشكال الكواكب في المجموعة وفق استراتيجية التعلم التعاوني (9 دقائق).";
 
   const result = validateTraditional(plan);
 
-  assert.equal(result.isValid, false);
+  assert.equal(result.isValid, true);
   assert.ok(
-    result.errors.some((error) => error.code === "business.alignment.activity_without_objective"),
+    result.repairSummary.some(
+      (repair) => repair.code === "normalization.traditional.activity_alignment",
+    ),
   );
+  assert.match(result.normalizedPlan.activities[2], /ويرتبط هذا النشاط بالهدف/u);
 });
 
-test("rejects activities missing explicit strategy linkage", () => {
+test("repairs activities missing explicit strategy linkage", () => {
   const plan = createTraditionalPlan();
   plan.activities[0] =
     "يناقش الطلاب مع المعلم فكرة دورة الماء ويراجعون صور المراحل على السبورة (14 دقائق)";
 
   const result = validateTraditional(plan);
 
-  assert.equal(result.isValid, false);
+  assert.equal(result.isValid, true);
   assert.ok(
-    result.errors.some(
-      (error) => error.code === "business.traditional.activities.strategy_linkage",
+    result.repairSummary.some(
+      (repair) => repair.code === "normalization.traditional.activity_strategy",
     ),
   );
+  assert.match(result.normalizedPlan.activities[0], /وفق/u);
 });
 
-test("rejects objective-to-assessment misalignment", () => {
+test("repairs objective-to-assessment misalignment inside existing text", () => {
   const plan = createTraditionalPlan();
   plan.assessment[1] = "سؤال مفتوح: فسر دوران الأرض حول الشمس.";
 
   const result = validateTraditional(plan);
 
-  assert.equal(result.isValid, false);
+  assert.equal(result.isValid, true);
   assert.ok(
-    result.errors.some((error) => error.code === "business.alignment.objective_assessment"),
+    result.repairSummary.some(
+      (repair) => repair.code === "normalization.traditional.assessment_alignment",
+    ),
   );
+  assert.match(result.normalizedPlan.assessment[1], /ويقيس هذا السؤال الهدف/u);
 });
 
-test("rejects weak strategy diversity and homework scope", () => {
+test("repairs weak strategy diversity and homework scope", () => {
   const plan = createTraditionalPlan();
   plan.teaching_strategies = ["طريقة المناقشة والحوار"];
   plan.homework = "حل تدريبات الكتاب صفحة 45.";
 
   const result = validateTraditional(plan);
 
-  assert.equal(result.isValid, false);
+  assert.equal(result.isValid, true);
   assert.ok(
-    result.errors.some((error) => error.code === "business.traditional.strategies.diversity"),
+    result.repairSummary.some(
+      (repair) => repair.code === "normalization.traditional.strategy_bank",
+    ),
   );
-  assert.ok(result.errors.some((error) => error.code === "business.homework.generic"));
+  assert.ok(
+    result.repairSummary.some((repair) => repair.code === "normalization.homework.scope"),
+  );
+  assert.notEqual(result.normalizedPlan.homework, "حل تدريبات الكتاب صفحة 45.");
 });
 
 test("rejects active-learning phase order and missing phase", () => {

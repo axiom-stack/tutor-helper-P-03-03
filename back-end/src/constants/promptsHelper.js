@@ -33,7 +33,7 @@ const promptsHelper = {
     // Used by Prompt 2 to prevent generating non-measurable objectives.
     // These verbs are explicitly forbidden by the pedagogical rules document.
     // Backend validator will reject any objective containing these verbs.
-    "forbidden_verbs": ["يفهم", "يعرف", "يتعرف"],
+    "forbidden_verbs": ["يفهم", "يعرف", "يتعرف", "يلم", "يدرك"],
 
     // Used by backend validation and Prompt 2 to check that
     // lesson timing follows pedagogical standards.
@@ -152,7 +152,7 @@ const promptsHelper = {
     // Level 1 — التذكر
     // Lowest cognitive level. Used for recall-based objectives.
     "remember": [
-      "يذكر", "يصف", "يسمي", "يتلو", "يستعيد",
+      "يذكر", "يعدد", "يصف", "يسمي", "يتلو", "يستعيد",
       "يرتب", "يميز", "ينظم", "يستخرج", "يلصق", "يخطط"
     ],
 

@@ -12,6 +12,30 @@ const OBJECTIVE_MARKER_HINTS = [
   "لا تقل عن",
 ];
 
+const ARABIC_STYLE_HINTS = {
+  teacher_action_examples: ["يشرح المعلم", "يعرض المعلم", "يوجه المعلم"],
+  student_action_examples: ["يناقش الطلاب", "يستنتج الطلاب", "يطبق الطلاب"],
+  avoid_templates: ["ستستمر المحاضرة", "سوف تستمر المحاضرة"],
+};
+
+function buildValidationErrorSummary(validationErrors = []) {
+  const summary = [];
+  const seen = new Set();
+
+  validationErrors.forEach((error) => {
+    const entry = [error?.path, error?.message || error?.code].filter(Boolean).join(": ");
+    const normalizedEntry = entry.trim();
+    if (!normalizedEntry || seen.has(normalizedEntry)) {
+      return;
+    }
+
+    seen.add(normalizedEntry);
+    summary.push(normalizedEntry);
+  });
+
+  return summary.slice(0, 8);
+}
+
 function buildCommonInput({
   request,
   planType,
@@ -84,6 +108,8 @@ function buildCommonInput({
         : [],
       target_output_schema: targetSchema,
       validation_errors: normalizedValidationErrors,
+      validation_error_summary: buildValidationErrorSummary(normalizedValidationErrors),
+      arabic_style_hints: ARABIC_STYLE_HINTS,
     },
   };
 }
@@ -181,6 +207,7 @@ export function buildPrompt2TraditionalPedagogicalTuner(args) {
     "Do not use trailing commas.",
     "All natural-language values must be Arabic.",
     "Repair weak or invalid values only.",
+    "Keep the plan concise and teacher-facing; do not bloat the text just to sound compliant.",
     "Every learning_outcome must start with أن followed immediately by one measurable behavioral verb from the provided Bloom bank.",
     "The leading learning_outcome verb should map clearly to one Bloom level only, so avoid stacking verbs from different Bloom levels in one objective.",
     "Every learning_outcome must include الطالب, lesson-specific content, and a condition or criterion when natural.",
@@ -188,7 +215,9 @@ export function buildPrompt2TraditionalPedagogicalTuner(args) {
     "When an objective verb is weak or vague, replace only the verb when possible and keep the rest of the objective stable.",
     "Never use forbidden verbs.",
     "teaching_strategies must belong to the provided allowed strategy bank and should not repeat exactly.",
+    "Choose strategies according to subject-and-task fit and avoid mechanically repeating lecture, discussion, or induction when another listed strategy fits better.",
     "Ensure each objective is covered by activities and assessment, and no activity or assessment sits outside the objectives.",
+    "Prefer same-order semantic mapping when natural: objective 1 with activity 1 and an assessment item for the same target, then continue in order.",
     "Keep the traditional format distinct and do not convert it into lesson_flow rows.",
     "learning_outcomes must remain an array of plain strings only; never objects.",
     "activities must remain an array of plain Arabic strings only; never objects with name, duration, or description keys.",
@@ -197,8 +226,11 @@ export function buildPrompt2TraditionalPedagogicalTuner(args) {
     "assessment must remain an array of plain Arabic strings only; never objects with question, type, or duration keys.",
     "The first assessment string should end with a parseable trailing time hint like (4 دقائق) and must not contain any second time hint elsewhere in the same string.",
     "The remaining assessment strings should stay plain strings without any time hints.",
+    "If assessment includes multiple items, vary the formats across the allowed question types and keep each item aligned to the same skill level as its objective.",
     "Encode time only through the existing traditional text fields, and make the exact total equal the requested duration.",
     "Preserve header.grade and header.section from the draft or fill them with provided values.",
+    "Use natural formal Arabic for teacher-facing lesson plans: prefer يشرح المعلم, يعرض المعلم, يوجه المعلم, يناقش الطلاب, يستنتج الطلاب, يطبق الطلاب.",
+    "Avoid awkward templates such as ستستمر المحاضرة.",
     "When validation_errors are present, repair the exact failing paths first and do not leave a reported failing path unchanged.",
     "Do not include instruction, inputs, output_requirements, draft_plan_json, validation_errors, or metadata wrapper keys in output.",
     "Return JSON only with no markdown and no commentary.",
@@ -222,6 +254,7 @@ export function buildPrompt2TraditionalPedagogicalTuner(args) {
         assessment: 3,
       },
       learning_outcomes_behavioral_prefix: "أن",
+      default_learning_outcomes_count: 3,
       require_student_reference_in_objective: true,
       require_condition_or_criterion_in_objective: true,
       require_time_hint_in_intro: true,
@@ -232,6 +265,8 @@ export function buildPrompt2TraditionalPedagogicalTuner(args) {
       require_strategy_diversity: true,
       require_assessment_variety: true,
       require_objective_activity_assessment_alignment: true,
+      prefer_same_order_objective_activity_assessment_mapping: true,
+      arabic_style_targets: ARABIC_STYLE_HINTS,
     },
   };
 
@@ -254,6 +289,7 @@ export function buildPrompt2ActiveLearningPedagogicalTuner(args) {
     "Do not use trailing commas.",
     "All natural-language values must be Arabic.",
     "Repair weak or invalid values only.",
+    "Keep the plan concise and teacher-facing; do not bloat the rows just to sound compliant.",
     "Each objective must start with أن followed immediately by one measurable behavioral verb from the provided Bloom bank.",
     "The leading objective verb should map clearly to one Bloom level only, so avoid stacking verbs from different Bloom levels in one objective.",
     "Each objective must include الطالب, lesson-specific content, and a clear condition or criterion.",
@@ -266,9 +302,13 @@ export function buildPrompt2ActiveLearningPedagogicalTuner(args) {
     "Each lesson_flow row must contain exactly these keys: time, content, activity_type, teacher_activity, student_activity, learning_resources.",
     "lesson_flow.time must be a string like 5 دقائق, never a number.",
     "Ensure the exact total row time equals the requested duration and the phase budgets are respected.",
+    "Select suitable active-learning strategies from the allowed bank and encode them naturally inside content or teacher_activity without adding new keys.",
     "Ensure teacher and student actions are not copied as repetitive generic text across phases.",
     "Ensure every objective is supported by activities and assessment rows.",
+    "Ensure the assessment row measures the objectives explicitly and does not stay limited to recall if the objectives target explanation, application, or analysis.",
     "Preserve header.grade and header.section from the draft or fill them with provided values.",
+    "Use natural classroom Arabic such as يعرض المعلم, يوجه المعلم, يناقش الطلاب, يستنتج الطلاب, يطبق الطلاب.",
+    "Avoid awkward templates such as ستستمر المحاضرة.",
     "When validation_errors are present, repair the exact failing paths first and never return a partial object such as header only.",
     "Do not include instruction, inputs, output_requirements, draft_plan_json, validation_errors, or metadata wrapper keys in output.",
     "Return JSON only with no markdown and no commentary.",
@@ -283,6 +323,7 @@ export function buildPrompt2ActiveLearningPedagogicalTuner(args) {
     active_repair_contract: buildActiveRepairContract(),
     active_quality_targets: {
       minimum_objectives: 3,
+      default_objectives_count: 3,
       minimum_lesson_flow_rows: 4,
       must_include_assessment_row: true,
       allowed_activity_types: ["intro", "presentation", "activity", "assessment"],
@@ -293,6 +334,9 @@ export function buildPrompt2ActiveLearningPedagogicalTuner(args) {
       preserve_row_based_flow: true,
       require_objective_activity_assessment_alignment: true,
       require_distinct_phase_behaviors: true,
+      prefer_same_order_objective_support_when_natural: true,
+      encode_active_strategy_name_inside_existing_rows: true,
+      arabic_style_targets: ARABIC_STYLE_HINTS,
     },
   };
 

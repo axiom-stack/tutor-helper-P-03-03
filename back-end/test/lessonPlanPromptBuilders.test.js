@@ -77,6 +77,8 @@ test("Prompt 1 traditional includes strict string-only shape contract", () => {
   assert.match(prompt.systemPrompt, /must explicitly mention one strategy from teaching_strategies/u);
   assert.match(prompt.systemPrompt, /must not contain any second time hint elsewhere/u);
   assert.match(prompt.systemPrompt, /assessment must be an array of plain Arabic strings only/u);
+  assert.match(prompt.systemPrompt, /Default to 3 learning_outcomes/u);
+  assert.match(prompt.systemPrompt, /Prefer same-order semantic linkage/u);
   assert.equal(payload.traditional_shape_contract.top_level_shape.activities, "array of strings");
   assert.equal(
     payload.traditional_shape_contract.valid_item_examples.activity,
@@ -99,6 +101,7 @@ test("Prompt 1 active includes exact row-key contract", () => {
 
   assert.match(prompt.systemPrompt, /Do not place homework inside lesson_flow/u);
   assert.match(prompt.systemPrompt, /leading objective verb should map clearly to one Bloom level only/u);
+  assert.match(prompt.systemPrompt, /encode them naturally inside content or teacher_activity/u);
   assert.deepEqual(payload.active_shape_contract.lesson_flow_required_keys, [
     "time",
     "content",
@@ -139,6 +142,7 @@ test("Prompt 2 traditional includes repair contract for string-only traditional 
   assert.match(prompt.systemPrompt, /replace only the verb when possible/u);
   assert.match(prompt.systemPrompt, /must explicitly include one teaching strategy name from teaching_strategies/u);
   assert.match(prompt.systemPrompt, /never objects with name, duration, or description keys/u);
+  assert.ok(Array.isArray(payload.inputs.validation_error_summary));
   assert.ok(
     payload.traditional_repair_contract.hard_constraints.includes(
       "if the draft contains object items in activities or assessment, flatten them into plain strings in the required schema format",
@@ -171,6 +175,7 @@ test("Prompt 2 active includes anti-partial-output contract", () => {
 
   assert.match(prompt.systemPrompt, /never return a partial object such as header only/u);
   assert.match(prompt.systemPrompt, /leading objective verb should map clearly to one Bloom level only/u);
+  assert.match(prompt.systemPrompt, /Select suitable active-learning strategies from the allowed bank/u);
   assert.equal(payload.active_repair_contract.top_level_shape.lesson_flow, "array of objects");
   assert.equal(payload.active_repair_contract.valid_row_example.activity_type, "intro");
   assert.equal(prompt.userPrompt.includes("\n"), false);
