@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router';
 import {
   MdAssignment,
   MdCheckCircle,
-  MdHistory,
   MdHourglassTop,
   MdMenuBook,
-  MdOutlineError,
   MdOutlinePictureAsPdf,
   MdOutlineTextSnippet,
   MdViewTimeline,
@@ -33,6 +32,7 @@ import {
 } from '../lesson-plans/planDisplay';
 import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel';
 import { getRefinementTargetOptions } from '../refinements/refinementTargets';
+import { getLocalizedAiLimitMessage } from '../../utils/apiErrors';
 import './lesson-creator.css';
 
 type SelectValue = number | '';
@@ -70,6 +70,30 @@ function getErrorMessage(
   error: unknown,
   fallback = 'حدث خطأ غير متوقع. حاول مرة أخرى.'
 ): string {
+  const localizedAiLimitMessage = getLocalizedAiLimitMessage(error);
+  if (localizedAiLimitMessage) {
+    return localizedAiLimitMessage;
+  }
+
+  const extractDetailMessages = (details: unknown): string[] => {
+    if (!Array.isArray(details)) {
+      return [];
+    }
+
+    return details
+      .map((item) => {
+        if (!item || typeof item !== 'object') {
+          return null;
+        }
+
+        const maybeMessage = (item as { message?: unknown }).message;
+        return typeof maybeMessage === 'string' && maybeMessage.trim().length > 0
+          ? maybeMessage.trim()
+          : null;
+      })
+      .filter((item): item is string => Boolean(item));
+  };
+
   if (error && typeof error === 'object') {
     const parsed = error as ApiErrorShape;
 
@@ -81,7 +105,15 @@ function getErrorMessage(
     if (nested && typeof nested === 'object' && 'message' in nested) {
       const maybeMessage = nested.message;
       if (typeof maybeMessage === 'string' && maybeMessage.trim().length > 0) {
-        return maybeMessage;
+        const detailMessages = extractDetailMessages(
+          (nested as { details?: unknown }).details
+        );
+
+        if (detailMessages.length > 0) {
+          return `${maybeMessage.trim()}: ${detailMessages.slice(0, 2).join(' | ')}`;
+        }
+
+        return maybeMessage.trim();
       }
     }
 
@@ -135,6 +167,7 @@ function LessonCreator() {
   const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlanResponse | null>(
     null
   );
+  const [queuedPlanNotice, setQueuedPlanNotice] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
@@ -265,6 +298,30 @@ function LessonCreator() {
     };
   }, []);
 
+  useEffect(() => {
+    if (pageError) {
+      toast.error(pageError);
+    }
+  }, [pageError]);
+
+  useEffect(() => {
+    if (generationError) {
+      toast.error(generationError);
+    }
+  }, [generationError]);
+
+  useEffect(() => {
+    if (exportError) {
+      toast.error(exportError);
+    }
+  }, [exportError]);
+
+  useEffect(() => {
+    if (generationState === 'success' && generatedPlan) {
+      toast.success('تم توليد الخطة وحفظها بنجاح.');
+    }
+  }, [generationState, generatedPlan]);
+
   const subjectsForSelectedClass = useMemo(() => {
     if (selectedClassId === '') {
       return [];
@@ -379,6 +436,7 @@ function LessonCreator() {
     setPageError(null);
     setGenerationError(null);
     setGeneratedPlan(null);
+    setQueuedPlanNotice(null);
     setIsGenerating(true);
     setGenerationState('fetching_content');
     setActiveTimelineIndex(0);
@@ -434,9 +492,15 @@ function LessonCreator() {
       });
 
       clearTimelineTimers();
-      setGeneratedPlan(generated);
-      setGenerationState('success');
-      setActiveTimelineIndex(3);
+      if ('queued' in generated && generated.queued) {
+        setQueuedPlanNotice(generated.message);
+        setGenerationState('idle');
+        setActiveTimelineIndex(0);
+      } else {
+        setGeneratedPlan(generated as GeneratedPlanResponse);
+        setGenerationState('success');
+        setActiveTimelineIndex(3);
+      }
     } catch (error: unknown) {
       clearTimelineTimers();
       setGenerationState('error');
@@ -589,8 +653,18 @@ function LessonCreator() {
     return null;
   }
 
+  if (initialLoading) {
+    return (
+      <div className="ui-loading-screen">
+        <div className="ui-loading-shell">
+          <span className="ui-spinner" aria-hidden />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="lcp">
+    <div className="lcp ui-loaded">
       <header className="lcp__header page-header">
         <div>
           <nav className="lcp__breadcrumb" aria-label="breadcrumb">
@@ -612,7 +686,8 @@ function LessonCreator() {
             disabled={!generatedPlan || isExporting}
             aria-busy={isExporting}
           >
-            <MdOutlinePictureAsPdf aria-hidden />
+            {isExporting && <span className="ui-button-spinner" aria-hidden />}
+            {!isExporting && <MdOutlinePictureAsPdf aria-hidden />}
             {isExporting ? 'جاري التصدير...' : 'تصدير PDF'}
           </button>
           <button
@@ -621,25 +696,12 @@ function LessonCreator() {
             disabled={!generatedPlan || isExporting}
             aria-busy={isExporting}
           >
-            <MdOutlineTextSnippet aria-hidden />
+            {isExporting && <span className="ui-button-spinner" aria-hidden />}
+            {!isExporting && <MdOutlineTextSnippet aria-hidden />}
             {isExporting ? 'جاري التصدير...' : 'تصدير Word'}
           </button>
         </div>
       </header>
-
-      {exportError && (
-        <div className="lcp__alert lcp__alert--error" role="alert">
-          <MdOutlineError aria-hidden />
-          <span>{exportError}</span>
-        </div>
-      )}
-
-      {pageError && (
-        <div className="lcp__alert lcp__alert--error" role="alert">
-          <MdOutlineError aria-hidden />
-          <span>{pageError}</span>
-        </div>
-      )}
 
       <div className="lcp__layout">
         <section className="lcp__preview" aria-live="polite">
@@ -867,7 +929,7 @@ function LessonCreator() {
             >
               {isGenerating ? (
                 <>
-                  <MdHistory aria-hidden />
+                  <span className="ui-button-spinner" aria-hidden />
                   جارٍ توليد الخطة...
                 </>
               ) : generationState === 'error' ? (
@@ -878,6 +940,10 @@ function LessonCreator() {
             </button>
           </div>
         </aside>
+
+        {queuedPlanNotice ? (
+          <p className="ui-inline-notice ui-inline-notice--warning">{queuedPlanNotice}</p>
+        ) : null}
 
         {generatedPlan && (
           <section className="lcp__refinement-row">

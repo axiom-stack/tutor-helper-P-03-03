@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router';
 import { MdMenuBook, MdAssignment, MdQuiz } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
@@ -39,20 +40,24 @@ function TeacherDashboard() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  function redirectIfNotTeacher() {
-    if (!user) navigate('/authentication');
-    else if (user.userRole === 'admin') navigate('/admin');
-    else if (user.userRole === 'teacher') return;
-    else navigate('/error');
-  }
+  const [, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    redirectIfNotTeacher();
+    if (!user) {
+      navigate('/authentication');
+      return;
+    }
+    if (user.userRole === 'admin') {
+      navigate('/admin');
+      return;
+    }
+    if (user.userRole !== 'teacher') {
+      navigate('/error');
+      return;
+    }
+
     let cancelled = false;
-    setLoading(true);
-    setError(null);
+
     Promise.all([getMyLessons(), getMyUnits(), getMySubjects(), getMyClasses()])
       .then(([lessonsRes, unitsRes, subjectsRes, classesRes]) => {
         if (cancelled) return;
@@ -63,7 +68,9 @@ function TeacherDashboard() {
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(err?.response?.data?.error ?? 'حدث خطأ أثناء تحميل البيانات');
+        const message = err?.response?.data?.error ?? 'حدث خطأ أثناء تحميل البيانات';
+        setError(message);
+        toast.error(message);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -71,7 +78,7 @@ function TeacherDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [user?.userRole, navigate]);
+  }, [navigate, user]);
 
   const enrichedLessons = useMemo((): EnrichedLesson[] => {
     const unitsById = new Map(units.map((u) => [u.id, u]));
@@ -93,16 +100,26 @@ function TeacherDashboard() {
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       )
       .slice(0, RECENT_LESSONS_LIMIT);
-  }, [user, lessons, units, subjects, classes]);
+  }, [lessons, units, subjects, classes]);
 
   if (user?.userRole !== 'teacher') {
     return null;
   }
 
+  if (loading) {
+    return (
+      <div className="ui-loading-screen">
+        <div className="ui-loading-shell">
+          <span className="ui-spinner" aria-hidden />
+        </div>
+      </div>
+    );
+  }
+
   const displayName = user?.username ?? 'المعلم';
 
   return (
-    <div className="td">
+    <div className="td ui-loaded">
       <header className="td__header page-header">
         <h1 className="td__title">مرحباً، {displayName} 👋</h1>
         <p className="td__subtitle">ماذا تريد أن تفعل اليوم؟</p>
@@ -175,11 +192,7 @@ function TeacherDashboard() {
           </button>
         </div>
         <div className="td__table-wrap">
-          {loading ? (
-            <div className="td__loading">جاري التحميل...</div>
-          ) : error ? (
-            <div className="td__error">{error}</div>
-          ) : enrichedLessons.length === 0 ? (
+          {enrichedLessons.length === 0 ? (
             <div className="td__empty">لا توجد خطط دروس بعد.</div>
           ) : (
             <div className="td__table-scroll">

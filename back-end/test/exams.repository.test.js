@@ -96,3 +96,70 @@ test("list applies non-admin teacher filter", async () => {
   await repo.list({}, { userId: 2, role: "teacher" });
   assert.ok(calls.some((call) => call.sql.includes("teacher_id = ?")));
 });
+
+test("updateByPublicId updates title and questions", async () => {
+  const calls = [];
+  const repo = createExamsRepository({
+    async execute({ sql, args }) {
+      calls.push({ sql, args });
+
+      if (sql.includes("FROM Exams") && sql.includes("public_id = ?")) {
+        return {
+          rows: [
+            {
+              id: 9,
+              public_id: "exm_9",
+              teacher_id: 2,
+              class_id: 3,
+              subject_id: 4,
+              title: "اختبار معدل",
+              total_questions: 2,
+              total_marks: 10,
+              blueprint_json: JSON.stringify({ cells: [] }),
+              questions_json: JSON.stringify([
+                {
+                  slot_id: "q_1",
+                  question_type: "true_false",
+                  question_text: "سؤال",
+                  correct_answer: true,
+                  answer_text: "صحيح",
+                },
+              ]),
+              created_at: "2026-03-09T00:00:00.000Z",
+              updated_at: "2026-03-12T00:00:00.000Z",
+            },
+          ],
+        };
+      }
+
+      if (sql.includes("SELECT lesson_id") && sql.includes("FROM ExamLessons")) {
+        return {
+          rows: [{ lesson_id: 11 }],
+        };
+      }
+
+      return { rows: [] };
+    },
+  });
+
+  const updated = await repo.updateByPublicId(
+    "exm_9",
+    {
+      title: "اختبار معدل",
+      questions: [
+        {
+          slot_id: "q_1",
+          question_type: "true_false",
+          question_text: "سؤال",
+          correct_answer: true,
+          answer_text: "صحيح",
+        },
+      ],
+    },
+    { userId: 2, role: "teacher" },
+  );
+
+  assert.equal(updated.title, "اختبار معدل");
+  assert.equal(updated.questions.length, 1);
+  assert.ok(calls.some((call) => call.sql.includes("UPDATE Exams")));
+});

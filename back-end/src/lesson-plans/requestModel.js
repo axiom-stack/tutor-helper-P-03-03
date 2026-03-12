@@ -4,6 +4,10 @@ function normalizeString(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
 function parsePositiveInteger(value) {
   const numberValue = Number(value);
 
@@ -83,5 +87,42 @@ export function validateGeneratePlanRequest(payload) {
   return {
     ok: true,
     value: normalized,
+  };
+}
+
+export function validateUpdatePlanRequest(payload) {
+  const errors = [];
+  const request = payload ?? {};
+
+  const lessonTitle = normalizeString(request.lesson_title);
+  const planJson = request.plan_json;
+
+  if (!lessonTitle) {
+    errors.push({
+      field: "lesson_title",
+      message: "lesson_title is required",
+    });
+  }
+
+  if (!isPlainObject(planJson)) {
+    errors.push({
+      field: "plan_json",
+      message: "plan_json must be an object",
+    });
+  }
+
+  if (errors.length > 0) {
+    return {
+      ok: false,
+      errors,
+    };
+  }
+
+  return {
+    ok: true,
+    value: {
+      lesson_title: lessonTitle,
+      plan_json: planJson,
+    },
   };
 }

@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { validateGeneratePlanRequest } from "../src/lesson-plans/requestModel.js";
+import {
+  validateGeneratePlanRequest,
+  validateUpdatePlanRequest,
+} from "../src/lesson-plans/requestModel.js";
 
 test("validateGeneratePlanRequest requires lesson_id", () => {
   const result = validateGeneratePlanRequest({
@@ -32,4 +35,33 @@ test("validateGeneratePlanRequest accepts valid lesson_id", () => {
 
   assert.equal(result.ok, true);
   assert.equal(result.value.lesson_id, 11);
+});
+
+test("validateUpdatePlanRequest accepts valid payload", () => {
+  const result = validateUpdatePlanRequest({
+    lesson_title: "عنوان محدث",
+    plan_json: {
+      header: {
+        lesson_title: "عنوان محدث",
+      },
+    },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.value.lesson_title, "عنوان محدث");
+  assert.deepEqual(result.value.plan_json, {
+    header: {
+      lesson_title: "عنوان محدث",
+    },
+  });
+});
+
+test("validateUpdatePlanRequest rejects invalid plan_json", () => {
+  const result = validateUpdatePlanRequest({
+    lesson_title: "عنوان",
+    plan_json: "not-an-object",
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.field === "plan_json"));
 });

@@ -8,6 +8,8 @@
     linear-gradient(180deg, #fbfdff 0%, #f5f9ff 100%);
   display: grid;
   gap: 1rem;
+  min-width: 0;
+  container-type: inline-size;
 }
 
 .srp__header {
@@ -603,6 +605,37 @@
   .srp__value-compare,
   .srp__secondary-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@container (max-width: 920px) {
+  .srp__request-grid,
+  .srp__value-compare,
+  .srp__secondary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@container (max-width: 720px) {
+  .srp__header,
+  .srp__proposal-header,
+  .srp__request-top,
+  .srp__diff-group-header,
+  .srp__history-head,
+  .srp__revision-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .srp__proposal-actions,
+  .srp__mode-toggle {
+    width: 100%;
+  }
+
+  .srp__proposal-actions button,
+  .srp__mode-toggle button,
+  .srp__revisions button {
+    justify-content: center;
   }
 }
 

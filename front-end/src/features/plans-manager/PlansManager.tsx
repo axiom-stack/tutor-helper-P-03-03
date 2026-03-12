@@ -1,12 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 import {
+  MdClose,
+  MdContentCopy,
+  MdEdit,
   MdOutlinePictureAsPdf,
   MdOutlineTextSnippet,
   MdRefresh,
+  MdSave,
 } from 'react-icons/md';
+import { SyncStatusBadge } from '../../components/common/SyncStatusBadge';
 import { useAuth } from '../../context/AuthContext';
 import type { LessonPlanRecord, TeacherManagementRow } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
+import { clearDraft, getDraft, saveDraft } from '../../offline/drafts';
+import { useOffline } from '../../offline/useOffline';
+import type { OfflineLessonPlanRecord } from '../../offline/types';
 import LessonPlanDocumentView from '../lesson-plans/components/LessonPlanDocumentView';
 import {
   toPlanTypeLabel,
@@ -19,11 +28,18 @@ import {
   exportPlan,
   getPlanById,
   listPlans,
+  duplicatePlan,
+  updatePlan,
   type ListPlansFilters,
 } from './plans-manager.services';
 import './plans-manager.css';
 
 type PlanTypeFilter = '' | 'traditional' | 'active_learning';
+
+interface PlanDraft {
+  lessonTitle: string;
+  planJson: Record<string, unknown>;
+}
 
 function formatDateAr(value: string): string {
   try {
@@ -39,12 +55,17 @@ function formatDateAr(value: string): string {
   }
 }
 
+function cloneValue<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value));
+}
+
 export default function PlansManager() {
   const { user } = useAuth();
+  const { lastSyncAt } = useOffline();
   const isAdmin = user?.userRole === 'admin';
 
-  const [plans, setPlans] = useState<LessonPlanRecord[]>([]);
-  const [selectedPlan, setSelectedPlan] = useState<LessonPlanRecord | null>(null);
+  const [plans, setPlans] = useState<OfflineLessonPlanRecord[]>([]);
+  const [selectedPlan, setSelectedPlan] = useState<OfflineLessonPlanRecord | null>(null);
   const [teachers, setTeachers] = useState<TeacherManagementRow[]>([]);
 
   const [planType, setPlanType] = useState<PlanTypeFilter>('');
@@ -53,8 +74,12 @@ export default function PlansManager() {
 
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [isEditingPlan, setIsEditingPlan] = useState(false);
+  const [isSavingPlan, setIsSavingPlan] = useState(false);
+  const [planDraft, setPlanDraft] = useState<PlanDraft | null>(null);
+  const [draftRecoveredNotice, setDraftRecoveredNotice] = useState<string | null>(null);
 
   const plansRequestIdRef = useRef(0);
   const detailRequestIdRef = useRef(0);
@@ -90,7 +115,7 @@ export default function PlansManager() {
         return;
       }
 
-      const nextPlans = response.plans ?? [];
+      const nextPlans = (response.plans ?? []) as OfflineLessonPlanRecord[];
       setPlans(nextPlans);
 
       setSelectedPlan((current) => {
@@ -108,7 +133,9 @@ export default function PlansManager() {
       if (requestId !== plansRequestIdRef.current) {
         return;
       }
-      setError(normalizeApiError(loadError, 'فشل تحميل الخطط.').message);
+      const message = normalizeApiError(loadError, 'فشل تحميل الخطط.').message;
+      setError(message);
+      toast.error(message);
     } finally {
       if (requestId === plansRequestIdRef.current) {
         setLoading(false);
@@ -138,6 +165,15 @@ export default function PlansManager() {
   }, [subject, grade]);
 
   useEffect(() => {
+    if (!lastSyncAt || isEditingPlan) {
+      return;
+    }
+
+    void loadPlans();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastSyncAt]);
+
+  useEffect(() => {
     if (!isAdmin) {
       return;
     }
@@ -160,7 +196,91 @@ export default function PlansManager() {
     };
   }, [isAdmin]);
 
-  const handleSelectPlan = async (plan: LessonPlanRecord) => {
+  useEffect(() => {
+    setIsEditingPlan(false);
+    setIsSavingPlan(false);
+    setPlanDraft(null);
+    setDraftRecoveredNotice(null);
+  }, [selectedPlan?.local_id]);
+
+  useEffect(() => {
+    if (!selectedPlan) {
+      return;
+    }
+
+    let cancelled = false;
+
+    getDraft<PlanDraft>('plans-manager', selectedPlan.local_id)
+      .then((draft) => {
+        if (!draft || cancelled) {
+          return;
+        }
+
+        if (draft.updated_at > selectedPlan.updated_at) {
+          setPlanDraft(draft.payload);
+          setIsEditingPlan(true);
+          setDraftRecoveredNotice('تمت استعادة مسودة الخطة المحلية بعد إعادة فتح الصفحة.');
+        }
+      })
+      .catch(() => {
+        // no-op
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPlan]);
+
+  useEffect(() => {
+    if (!isEditingPlan || !planDraft || !selectedPlan) {
+      return;
+    }
+
+    const persistDraft = () =>
+      saveDraft({
+        entityType: 'lesson_plan',
+        recordLocalId: selectedPlan.local_id,
+        routeKey: 'plans-manager',
+        payload: planDraft,
+      });
+
+    const timer = window.setTimeout(() => {
+      void persistDraft();
+    }, 1200);
+
+    const flushDraft = () => {
+      void persistDraft();
+    };
+
+    window.addEventListener('pagehide', flushDraft);
+    document.addEventListener('visibilitychange', flushDraft);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('pagehide', flushDraft);
+      document.removeEventListener('visibilitychange', flushDraft);
+    };
+  }, [isEditingPlan, planDraft, selectedPlan]);
+
+  const buildPlanDraft = (plan: LessonPlanRecord): PlanDraft => ({
+    lessonTitle: plan.lesson_title,
+    planJson: cloneValue(plan.plan_json ?? {}),
+  });
+
+  const syncPlanInList = (updatedPlan: OfflineLessonPlanRecord) => {
+    setPlans((current) =>
+      current.map((plan) =>
+        plan.local_id === updatedPlan.local_id ? updatedPlan : plan
+      )
+    );
+  };
+
+  const handleSelectPlan = async (plan: OfflineLessonPlanRecord) => {
+    if (isEditingPlan) {
+      toast.error('احفظ تعديلات الخطة الحالية أو ألغها قبل فتح خطة أخرى.');
+      return;
+    }
+
     setSelectedPlan(plan);
     setDetailLoading(true);
     setError(null);
@@ -172,12 +292,14 @@ export default function PlansManager() {
       if (requestId !== detailRequestIdRef.current) {
         return;
       }
-      setSelectedPlan(response.plan);
+      setSelectedPlan(response.plan as OfflineLessonPlanRecord);
     } catch (detailError: unknown) {
       if (requestId !== detailRequestIdRef.current) {
         return;
       }
-      setError(normalizeApiError(detailError, 'فشل تحميل تفاصيل الخطة.').message);
+      const message = normalizeApiError(detailError, 'فشل تحميل تفاصيل الخطة.').message;
+      setError(message);
+      toast.error(message);
     } finally {
       if (requestId === detailRequestIdRef.current) {
         setDetailLoading(false);
@@ -186,15 +308,18 @@ export default function PlansManager() {
   };
 
   const handleExport = (format: 'pdf' | 'docx') => {
-    if (!selectedPlan?.public_id || isExporting) {
+    if (!selectedPlan?.server_id || isExporting) {
       return;
     }
 
     setIsExporting(true);
     setError(null);
 
-    exportPlan(selectedPlan.public_id, format)
-      .catch(() => setError('فشل تصدير الخطة.'))
+    exportPlan(selectedPlan.server_id, format)
+      .catch(() => {
+        setError('فشل تصدير الخطة.');
+        toast.error('فشل تصدير الخطة.');
+      })
       .finally(() => setIsExporting(false));
   };
 
@@ -204,20 +329,107 @@ export default function PlansManager() {
     setGrade('');
   };
 
+  const handleStartEditing = () => {
+    if (!selectedPlan || detailLoading) {
+      return;
+    }
+
+    setPlanDraft(buildPlanDraft(selectedPlan));
+    setIsEditingPlan(true);
+  };
+
+  const handleCancelEditing = () => {
+    setIsEditingPlan(false);
+    setPlanDraft(null);
+    if (selectedPlan) {
+      void clearDraft('plans-manager', selectedPlan.local_id);
+    }
+  };
+
+  const handleSavePlan = async () => {
+    if (!selectedPlan || !planDraft || isSavingPlan) {
+      return;
+    }
+
+    const nextPlanJson = cloneValue(planDraft.planJson);
+    const currentHeader =
+      nextPlanJson.header && typeof nextPlanJson.header === 'object' && !Array.isArray(nextPlanJson.header)
+        ? (nextPlanJson.header as Record<string, unknown>)
+        : {};
+
+    nextPlanJson.header = {
+      ...currentHeader,
+      lesson_title: planDraft.lessonTitle,
+    };
+
+    setIsSavingPlan(true);
+    setError(null);
+
+    try {
+      const response = await updatePlan(selectedPlan.public_id, {
+        lesson_title: planDraft.lessonTitle,
+        plan_json: nextPlanJson,
+      });
+      const nextPlan = response.plan as OfflineLessonPlanRecord;
+      setSelectedPlan(nextPlan);
+      syncPlanInList(nextPlan);
+      setIsEditingPlan(false);
+      setPlanDraft(null);
+      await clearDraft('plans-manager', selectedPlan.local_id);
+      toast.success(
+        nextPlan.sync_status === 'synced'
+          ? 'تم حفظ تعديلات الخطة.'
+          : 'تم حفظ تعديلات الخطة محليًا وستتم مزامنتها عند عودة الاتصال.'
+      );
+    } catch (saveError: unknown) {
+      const message = normalizeApiError(saveError, 'فشل حفظ تعديلات الخطة.').message;
+      setError(message);
+      toast.error(message);
+    } finally {
+      setIsSavingPlan(false);
+    }
+  };
+
   const handleRefinementCommitted = async () => {
-    if (!selectedPlan?.public_id) {
+    if (!selectedPlan?.server_id) {
       return;
     }
 
     const [detailResponse] = await Promise.all([
-      getPlanById(selectedPlan.public_id),
+      getPlanById(selectedPlan.server_id),
       loadPlans(),
     ]);
-    setSelectedPlan(detailResponse.plan);
+    setSelectedPlan(detailResponse.plan as OfflineLessonPlanRecord);
   };
 
+  const handleDuplicatePlan = async () => {
+    if (!selectedPlan) {
+      return;
+    }
+
+    try {
+      const response = await duplicatePlan(selectedPlan.public_id);
+      const duplicatedPlan = response.plan as OfflineLessonPlanRecord;
+      setPlans((current) => [duplicatedPlan, ...current]);
+      setSelectedPlan(duplicatedPlan);
+      toast.success('تم إنشاء نسخة محلية من الخطة.');
+    } catch (error: unknown) {
+      toast.error(normalizeApiError(error, 'تعذر إنشاء نسخة محلية للخطة.').message);
+    }
+  };
+
+  if (loading && plans.length === 0) {
+    return (
+      <div className="ui-loading-screen">
+        <div className="ui-loading-shell">
+          <span className="ui-spinner" aria-hidden />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="pm">
+    <div className="pm ui-loaded">
       <header className="pm__header page-header">
         <div>
           <h1>إدارة الخطط المولدة</h1>
@@ -228,10 +440,8 @@ export default function PlansManager() {
         </div>
       </header>
 
-      {error ? (
-        <div className="pm__alert pm__alert--error" role="alert">
-          {error}
-        </div>
+      {draftRecoveredNotice ? (
+        <p className="ui-inline-notice ui-inline-notice--info">{draftRecoveredNotice}</p>
       ) : null}
 
       <section className="pm__filters" aria-label="مرشحات الخطط">
@@ -241,6 +451,7 @@ export default function PlansManager() {
             id="pm-plan-type"
             value={planType}
             onChange={(event) => setPlanType(event.target.value as PlanTypeFilter)}
+            disabled={isEditingPlan}
           >
             <option value="">الكل</option>
             <option value="traditional">تقليدية</option>
@@ -255,6 +466,7 @@ export default function PlansManager() {
             value={subject}
             onChange={(event) => setSubject(event.target.value)}
             placeholder="مثال: الرياضيات"
+            disabled={isEditingPlan}
           />
         </div>
 
@@ -265,6 +477,7 @@ export default function PlansManager() {
             value={grade}
             onChange={(event) => setGrade(event.target.value)}
             placeholder="مثال: الصف الثامن"
+            disabled={isEditingPlan}
           />
         </div>
 
@@ -273,7 +486,7 @@ export default function PlansManager() {
             type="button"
             className="pm__btn pm__btn--ghost"
             onClick={clearFilters}
-            disabled={!planType && !subject && !grade}
+            disabled={isEditingPlan || (!planType && !subject && !grade)}
           >
             مسح الكل
           </button>
@@ -281,10 +494,11 @@ export default function PlansManager() {
             type="button"
             className="pm__btn pm__btn--subtle"
             onClick={() => void loadPlans()}
-            disabled={loading}
+            disabled={loading || isEditingPlan}
             aria-busy={loading}
           >
-            <MdRefresh aria-hidden />
+            {loading && <span className="ui-button-spinner" aria-hidden />}
+            {!loading && <MdRefresh aria-hidden />}
             {loading ? 'جارٍ التحديث...' : 'تحديث'}
           </button>
         </div>
@@ -304,12 +518,14 @@ export default function PlansManager() {
           ) : (
             <div className="pm__cards" role="list">
               {plans.map((plan) => {
-                const isActive = plan.public_id === selectedPlan?.public_id;
+                const isActive = plan.local_id === selectedPlan?.local_id;
                 return (
                   <button
-                    key={plan.public_id}
+                    key={plan.local_id}
                     type="button"
-                    className={isActive ? 'pm__card pm__card--active' : 'pm__card'}
+                    className={
+                      isActive ? 'pm__card pm__card--active animate-fadeIn' : 'pm__card animate-fadeIn'
+                    }
                     onClick={() => void handleSelectPlan(plan)}
                     aria-pressed={isActive}
                   >
@@ -323,7 +539,11 @@ export default function PlansManager() {
                     </div>
                     <div className="pm__card-meta">
                       <span>{plan.subject}</span>
+                      <SyncStatusBadge status={plan.sync_status} />
+                    </div>
+                    <div className="pm__card-meta">
                       <span>{plan.grade}</span>
+                      {plan.last_sync_error ? <span>{plan.last_sync_error}</span> : <span />}
                     </div>
                     {isAdmin ? (
                       <div className="pm__card-meta">
@@ -332,6 +552,12 @@ export default function PlansManager() {
                           {teacherNameMap.get(plan.teacher_id) || `#${plan.teacher_id}`}
                         </span>
                       </div>
+                    ) : null}
+                    {detailLoading && isActive ? (
+                      <span className="pm__card-meta">
+                        <span className="ui-button-spinner" aria-hidden />
+                        جارٍ تحميل التفاصيل...
+                      </span>
                     ) : null}
                   </button>
                 );
@@ -348,26 +574,73 @@ export default function PlansManager() {
                 <p>عرض مفصل بنفس تنسيق صفحة إنشاء الخطط.</p>
               </div>
               <div className="pm__export-actions">
-                <button
-                  type="button"
-                  className="pm__btn pm__btn--subtle"
-                  disabled={!selectedPlan || isExporting}
-                  onClick={() => handleExport('pdf')}
-                  aria-busy={isExporting}
-                >
-                  <MdOutlinePictureAsPdf aria-hidden />
-                  PDF
-                </button>
-                <button
-                  type="button"
-                  className="pm__btn pm__btn--subtle"
-                  disabled={!selectedPlan || isExporting}
-                  onClick={() => handleExport('docx')}
-                  aria-busy={isExporting}
-                >
-                  <MdOutlineTextSnippet aria-hidden />
-                  Word
-                </button>
+                {isEditingPlan ? (
+                  <>
+                    <button
+                      type="button"
+                      className="pm__btn pm__btn--ghost"
+                      onClick={handleCancelEditing}
+                      disabled={isSavingPlan}
+                    >
+                      <MdClose aria-hidden />
+                      إلغاء
+                    </button>
+                    <button
+                      type="button"
+                      className="pm__btn pm__btn--subtle"
+                      onClick={() => void handleSavePlan()}
+                      disabled={!selectedPlan || !planDraft || isSavingPlan}
+                      aria-busy={isSavingPlan}
+                    >
+                      {isSavingPlan && <span className="ui-button-spinner" aria-hidden />}
+                      {!isSavingPlan && <MdSave aria-hidden />}
+                      {isSavingPlan ? 'جارٍ الحفظ...' : 'حفظ'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="pm__btn pm__btn--subtle"
+                      disabled={!selectedPlan?.server_id || isExporting}
+                      onClick={() => handleExport('pdf')}
+                      aria-busy={isExporting}
+                    >
+                      {isExporting && <span className="ui-button-spinner" aria-hidden />}
+                      {!isExporting && <MdOutlinePictureAsPdf aria-hidden />}
+                      PDF
+                    </button>
+                    <button
+                      type="button"
+                      className="pm__btn pm__btn--subtle"
+                      disabled={!selectedPlan?.server_id || isExporting}
+                      onClick={() => handleExport('docx')}
+                      aria-busy={isExporting}
+                    >
+                      {isExporting && <span className="ui-button-spinner" aria-hidden />}
+                      {!isExporting && <MdOutlineTextSnippet aria-hidden />}
+                      Word
+                    </button>
+                    <button
+                      type="button"
+                      className="pm__btn pm__btn--subtle"
+                      disabled={!selectedPlan || detailLoading}
+                      onClick={handleStartEditing}
+                    >
+                      <MdEdit aria-hidden />
+                      تعديل
+                    </button>
+                    <button
+                      type="button"
+                      className="pm__btn pm__btn--subtle"
+                      disabled={!selectedPlan || detailLoading}
+                      onClick={() => void handleDuplicatePlan()}
+                    >
+                      <MdContentCopy aria-hidden />
+                      نسخة محلية
+                    </button>
+                  </>
+                )}
               </div>
             </header>
 
@@ -377,6 +650,9 @@ export default function PlansManager() {
               <div className="pm__detail-content">
                 <div className="pm__chips">
                   <span className="pm__chip">المعرف: {selectedPlan.public_id}</span>
+                  <span className="pm__chip">
+                    <SyncStatusBadge status={selectedPlan.sync_status} />
+                  </span>
                   <span className="pm__chip">
                     النوع: {toPlanTypeLabel(selectedPlan.plan_type)}
                   </span>
@@ -398,13 +674,41 @@ export default function PlansManager() {
                   ) : null}
                 </div>
 
+                {selectedPlan.last_sync_error ? (
+                  <p className="ui-inline-notice ui-inline-notice--warning">
+                    {selectedPlan.last_sync_error}
+                  </p>
+                ) : null}
+
                 {detailLoading ? (
                   <p className="pm__state pm__state--inline">جاري تحديث تفاصيل الخطة...</p>
                 ) : null}
 
                 <LessonPlanDocumentView
                   planType={selectedPlan.plan_type}
-                  planJson={selectedPlan.plan_json}
+                  mode={isEditingPlan ? 'edit' : 'view'}
+                  lessonTitle={planDraft?.lessonTitle ?? selectedPlan.lesson_title}
+                  planJson={planDraft?.planJson ?? selectedPlan.plan_json}
+                  onLessonTitleChange={(value) =>
+                    setPlanDraft((current) =>
+                      current
+                        ? {
+                            ...current,
+                            lessonTitle: value,
+                          }
+                        : current
+                    )
+                  }
+                  onPlanJsonChange={(nextPlanJson) =>
+                    setPlanDraft((current) =>
+                      current
+                        ? {
+                            ...current,
+                            planJson: nextPlanJson,
+                          }
+                        : current
+                    )
+                  }
                   fallback={{
                     lessonTitle: selectedPlan.lesson_title,
                     subject: selectedPlan.subject,
@@ -414,22 +718,24 @@ export default function PlansManager() {
                   }}
                 />
 
-                <SmartRefinementPanel
-                  artifactType="lesson_plan"
-                  artifactId={selectedPlan.public_id}
-                  baseArtifact={{
-                    id: selectedPlan.public_id,
-                    plan_type: selectedPlan.plan_type,
-                    lesson_title: selectedPlan.lesson_title,
-                    subject: selectedPlan.subject,
-                    grade: selectedPlan.grade,
-                    unit: selectedPlan.unit,
-                    duration_minutes: selectedPlan.duration_minutes,
-                    plan_json: selectedPlan.plan_json ?? {},
-                  }}
-                  targetSelectors={getRefinementTargetOptions('lesson_plan')}
-                  onCommitted={handleRefinementCommitted}
-                />
+                {!isEditingPlan && selectedPlan.server_id ? (
+                  <SmartRefinementPanel
+                    artifactType="lesson_plan"
+                    artifactId={selectedPlan.public_id}
+                    baseArtifact={{
+                      id: selectedPlan.public_id,
+                      plan_type: selectedPlan.plan_type,
+                      lesson_title: selectedPlan.lesson_title,
+                      subject: selectedPlan.subject,
+                      grade: selectedPlan.grade,
+                      unit: selectedPlan.unit,
+                      duration_minutes: selectedPlan.duration_minutes,
+                      plan_json: selectedPlan.plan_json ?? {},
+                    }}
+                    targetSelectors={getRefinementTargetOptions('lesson_plan')}
+                    onCommitted={handleRefinementCommitted}
+                  />
+                ) : null}
               </div>
             )}
           </div>

@@ -69,6 +69,9 @@ export interface Assignment {
   teacher_id: number;
   lesson_plan_public_id: string;
   lesson_id: number;
+  class_id?: number | null;
+  class_name?: string | null;
+  class_grade_label?: string | null;
   name: string;
   description: string | null;
   type: AssignmentType;

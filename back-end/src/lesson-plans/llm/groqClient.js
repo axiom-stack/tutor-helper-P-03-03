@@ -36,6 +36,45 @@ function buildFailure(errorType, message, extra = {}) {
   };
 }
 
+function buildGroqMetadata({ model, timeoutMs }) {
+  return {
+    provider: "groq",
+    model,
+    timeoutMs,
+  };
+}
+
+function getFirstHeader(response, names = []) {
+  if (!response?.headers?.get) {
+    return null;
+  }
+
+  for (const name of names) {
+    const value = response.headers.get(name);
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return null;
+}
+
+function buildFailureResponseMetadata(response, parsedBody) {
+  return {
+    requestId: getFirstHeader(response, [
+      "x-request-id",
+      "request-id",
+      "groq-request-id",
+    ]),
+    retryAfter: getFirstHeader(response, ["retry-after"]),
+    upstreamError: {
+      type: parsedBody?.error?.type || null,
+      code: parsedBody?.error?.code || null,
+      param: parsedBody?.error?.param || null,
+    },
+  };
+}
+
 export function createGroqClient(options = {}) {
   const apiKey = options.apiKey ?? process.env.GROQ_API_KEY;
   const model = options.model ?? DEFAULT_GROQ_MODEL;
@@ -45,8 +84,14 @@ export function createGroqClient(options = {}) {
 
   return {
     async generateJson({ systemPrompt, userPrompt, model: overrideModel } = {}) {
+      const resolvedModel = overrideModel || model;
+      const baseMetadata = buildGroqMetadata({
+        model: resolvedModel,
+        timeoutMs,
+      });
+
       if (!apiKey) {
-        return buildFailure("api_error", "GROQ_API_KEY is not configured.");
+        return buildFailure("api_error", "GROQ_API_KEY is not configured.", baseMetadata);
       }
 
       const controller = new AbortController();
@@ -61,7 +106,7 @@ export function createGroqClient(options = {}) {
           },
           signal: controller.signal,
           body: JSON.stringify({
-            model: overrideModel || model,
+            model: resolvedModel,
             temperature: 0,
             response_format: { type: "json_object" },
             messages: [
@@ -85,7 +130,9 @@ export function createGroqClient(options = {}) {
             "api_error",
             parsedBody?.error?.message || "Groq API request failed.",
             {
+              ...baseMetadata,
               status: response.status,
+              ...buildFailureResponseMetadata(response, parsedBody),
               raw: rawBody,
             },
           );
@@ -99,19 +146,37 @@ export function createGroqClient(options = {}) {
             ok: true,
             data,
             rawText,
+            provider: baseMetadata.provider,
+            model: baseMetadata.model,
             usage: parsedBody?.usage,
           };
         } catch {
           return buildFailure("malformed_json", "Model output was not valid JSON.", {
+            ...baseMetadata,
             raw: rawText,
           });
         }
       } catch (error) {
         if (error?.name === "AbortError") {
-          return buildFailure("timeout", `Groq request timed out after ${timeoutMs}ms.`);
+          return buildFailure(
+            "timeout",
+            `Groq request timed out after ${timeoutMs}ms.`,
+            baseMetadata,
+          );
         }
 
-        return buildFailure("api_error", error?.message || "Groq request failed unexpectedly.");
+        return buildFailure(
+          "api_error",
+          error?.message || "Groq request failed unexpectedly.",
+          {
+            ...baseMetadata,
+            upstreamError: {
+              type: error?.name || null,
+              code: null,
+              param: null,
+            },
+          },
+        );
       } finally {
         clearTimeout(timeoutHandle);
       }

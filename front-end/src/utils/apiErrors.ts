@@ -7,6 +7,9 @@ export interface NormalizedApiError {
   details?: unknown;
 }
 
+export const AI_FREE_TIER_LIMIT_MESSAGE =
+  'تعذر تنفيذ الطلب الآن لأن الباقة المجانية لخدمة الذكاء الاصطناعي وصلت إلى حدها المؤقت. يرجى الانتظار قليلًا ثم إعادة المحاولة.';
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
@@ -41,6 +44,69 @@ function extractAssignmentsApiError(
   };
 }
 
+function includesRateLimitSignal(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  return (
+    normalized.includes('rate limit') ||
+    normalized.includes('limit reached') ||
+    normalized.includes('too many requests') ||
+    normalized.includes('tokens per minute') ||
+    normalized.includes('requested') && normalized.includes('try again in') ||
+    normalized.includes('rate_limit') ||
+    normalized.includes('429')
+  );
+}
+
+function detailIndicatesAiRateLimit(detail: unknown): boolean {
+  if (!isRecord(detail)) {
+    return false;
+  }
+
+  const code = typeof detail.code === 'string' ? detail.code : '';
+  const message = typeof detail.message === 'string' ? detail.message : '';
+
+  return includesRateLimitSignal(code) || includesRateLimitSignal(message);
+}
+
+export function getLocalizedAiLimitMessage(error: unknown): string | null {
+  if (typeof error === 'string') {
+    return includesRateLimitSignal(error) ? AI_FREE_TIER_LIMIT_MESSAGE : null;
+  }
+
+  if (!isRecord(error)) {
+    return null;
+  }
+
+  const directMessage =
+    typeof error.message === 'string' ? error.message : '';
+  if (includesRateLimitSignal(directMessage)) {
+    return AI_FREE_TIER_LIMIT_MESSAGE;
+  }
+
+  const directCode = typeof error.code === 'string' ? error.code : '';
+  if (includesRateLimitSignal(directCode)) {
+    return AI_FREE_TIER_LIMIT_MESSAGE;
+  }
+
+  if (Array.isArray(error.details) && error.details.some(detailIndicatesAiRateLimit)) {
+    return AI_FREE_TIER_LIMIT_MESSAGE;
+  }
+
+  if (isRecord(error.error)) {
+    return getLocalizedAiLimitMessage(error.error);
+  }
+
+  if (isRecord(error.response) && isRecord(error.response.data)) {
+    return getLocalizedAiLimitMessage(error.response.data);
+  }
+
+  return null;
+}
+
 export function normalizeApiError(
   error: unknown,
   fallback = 'حدث خطأ غير متوقع. حاول مرة أخرى.'
@@ -52,11 +118,17 @@ export function normalizeApiError(
   if (axios.isAxiosError(error)) {
     const apiError = extractAssignmentsApiError(error.response?.data);
     if (apiError) {
+      const localizedAiLimitMessage = getLocalizedAiLimitMessage(apiError);
       return {
-        message: apiError.message.trim() || fallback,
+        message: localizedAiLimitMessage || apiError.message.trim() || fallback,
         code: apiError.code,
         details: apiError.details,
       };
+    }
+
+    const localizedAiLimitMessage = getLocalizedAiLimitMessage(error);
+    if (localizedAiLimitMessage) {
+      return { message: localizedAiLimitMessage };
     }
 
     if (typeof error.message === 'string' && error.message.trim().length > 0) {
@@ -67,10 +139,20 @@ export function normalizeApiError(
   }
 
   if (error instanceof Error && error.message.trim().length > 0) {
+    const localizedAiLimitMessage = getLocalizedAiLimitMessage(error);
+    if (localizedAiLimitMessage) {
+      return { message: localizedAiLimitMessage };
+    }
+
     return { message: error.message.trim() };
   }
 
   if (typeof error === 'string' && error.trim().length > 0) {
+    const localizedAiLimitMessage = getLocalizedAiLimitMessage(error);
+    if (localizedAiLimitMessage) {
+      return { message: localizedAiLimitMessage };
+    }
+
     return { message: error.trim() };
   }
 

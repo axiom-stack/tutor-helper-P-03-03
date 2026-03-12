@@ -5,6 +5,21 @@ import {
   VALID_ASSIGNMENT_TYPES,
 } from "../types.js";
 
+const ASSIGNMENT_SELECT = `
+  SELECT
+    a.*,
+    ag.public_id AS assignment_group_public_id,
+    c.id AS class_id,
+    c.name AS class_name,
+    c.grade_label AS class_grade_label
+  FROM ${ASSIGNMENTS_TABLE} a
+  LEFT JOIN AssignmentGroups ag ON ag.id = a.assignment_group_id
+  LEFT JOIN Lessons l ON l.id = a.lesson_id
+  LEFT JOIN Units u ON u.id = l.unit_id
+  LEFT JOIN Subjects s ON s.id = u.subject_id
+  LEFT JOIN Classes c ON c.id = s.class_id
+`;
+
 function toAssignmentRecord(row) {
   if (!row) return null;
   return {
@@ -15,6 +30,9 @@ function toAssignmentRecord(row) {
     teacher_id: Number(row.teacher_id),
     lesson_plan_public_id: row.lesson_plan_public_id,
     lesson_id: Number(row.lesson_id),
+    class_id: row.class_id != null ? Number(row.class_id) : null,
+    class_name: row.class_name ?? null,
+    class_grade_label: row.class_grade_label ?? null,
     name: row.name,
     description: row.description ?? null,
     type: row.type,
@@ -77,11 +95,7 @@ export function createAssignmentsRepository(dbClient = turso) {
 
       const saved = await dbClient.execute({
         sql: `
-          SELECT
-            a.*,
-            ag.public_id AS assignment_group_public_id
-          FROM ${ASSIGNMENTS_TABLE} a
-          LEFT JOIN AssignmentGroups ag ON ag.id = a.assignment_group_id
+          ${ASSIGNMENT_SELECT}
           WHERE a.id = ?
           LIMIT 1
         `,
@@ -106,11 +120,7 @@ export function createAssignmentsRepository(dbClient = turso) {
 
       const result = await dbClient.execute({
         sql: `
-          SELECT
-            a.*,
-            ag.public_id AS assignment_group_public_id
-          FROM ${ASSIGNMENTS_TABLE} a
-          LEFT JOIN AssignmentGroups ag ON ag.id = a.assignment_group_id
+          ${ASSIGNMENT_SELECT}
           WHERE ${whereClauses.join(" AND ")}
           LIMIT 1
         `,
@@ -136,16 +146,16 @@ export function createAssignmentsRepository(dbClient = turso) {
         whereClauses.push("a.lesson_id = ?");
         args.push(filters.lesson_id);
       }
+      if (filters.class_id != null) {
+        whereClauses.push("c.id = ?");
+        args.push(filters.class_id);
+      }
 
       const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
 
       const result = await dbClient.execute({
         sql: `
-          SELECT
-            a.*,
-            ag.public_id AS assignment_group_public_id
-          FROM ${ASSIGNMENTS_TABLE} a
-          LEFT JOIN AssignmentGroups ag ON ag.id = a.assignment_group_id
+          ${ASSIGNMENT_SELECT}
           ${whereSql}
           ORDER BY a.created_at DESC, a.id DESC
         `,
@@ -219,11 +229,7 @@ export function createAssignmentsRepository(dbClient = turso) {
 
       const result = await dbClient.execute({
         sql: `
-          SELECT
-            a.*,
-            ag.public_id AS assignment_group_public_id
-          FROM ${ASSIGNMENTS_TABLE} a
-          INNER JOIN AssignmentGroups ag ON ag.id = a.assignment_group_id
+          ${ASSIGNMENT_SELECT}
           WHERE ${whereClauses.join(" AND ")}
           ORDER BY a.created_at ASC, a.id ASC
         `,

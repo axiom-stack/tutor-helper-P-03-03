@@ -5,6 +5,7 @@ import {
   isValidExamPublicId,
   validateGenerateExamRequest,
   validateListExamsQuery,
+  validateUpdateExamRequest,
 } from "../src/exams/requestModel.js";
 
 test("validateGenerateExamRequest accepts valid payload", () => {
@@ -49,6 +50,19 @@ test("validateGenerateExamRequest rejects invalid totals", () => {
   assert.ok(result.errors.some((error) => error.field === "total_marks"));
 });
 
+test("validateGenerateExamRequest rejects non-quarter marks and underweighted totals", () => {
+  const result = validateGenerateExamRequest({
+    subject_id: 2,
+    lesson_ids: [11, 12, 13, 14],
+    total_questions: 4,
+    total_marks: 0.6,
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.message.includes("0.25")));
+  assert.ok(result.errors.some((error) => error.message.includes("at least 0.25")));
+});
+
 test("validateListExamsQuery parses and validates filters", () => {
   const result = validateListExamsQuery({
     subject_id: "3",
@@ -68,4 +82,24 @@ test("isValidExamPublicId validates exm_ pattern", () => {
   assert.equal(isValidExamPublicId("exm_12"), true);
   assert.equal(isValidExamPublicId("asn_12"), false);
   assert.equal(isValidExamPublicId("exm_x"), false);
+});
+
+test("validateUpdateExamRequest accepts title and questions", () => {
+  const result = validateUpdateExamRequest({
+    title: "اختبار معدل",
+    questions: [],
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.value.title, "اختبار معدل");
+  assert.deepEqual(result.value.questions, []);
+});
+
+test("validateUpdateExamRequest rejects missing questions array", () => {
+  const result = validateUpdateExamRequest({
+    title: "اختبار",
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.field === "questions"));
 });

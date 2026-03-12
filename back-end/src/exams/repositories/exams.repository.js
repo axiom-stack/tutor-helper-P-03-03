@@ -256,5 +256,42 @@ export function createExamsRepository(dbClient = turso) {
 
       return this.getByPublicId(publicId, accessContext, { includePayload: true });
     },
+
+    async updateByPublicId(publicId, { title, questions }, accessContext) {
+      const existing = await this.getByPublicId(publicId, accessContext, {
+        includePayload: true,
+      });
+      if (!existing) {
+        return null;
+      }
+
+      const updates = ["updated_at = CURRENT_TIMESTAMP"];
+      const args = [];
+
+      if (title !== undefined) {
+        updates.push("title = ?");
+        args.push(title);
+      }
+
+      if (questions !== undefined) {
+        updates.push("questions_json = ?");
+        args.push(JSON.stringify(questions));
+      }
+
+      args.push(publicId);
+      const accessWhere = buildAccessWhere(accessContext, args);
+
+      await dbClient.execute({
+        sql: `
+          UPDATE ${EXAMS_TABLE}
+          SET ${updates.join(", ")}
+          WHERE public_id = ?
+          ${accessWhere}
+        `,
+        args,
+      });
+
+      return this.getByPublicId(publicId, accessContext, { includePayload: true });
+    },
   };
 }

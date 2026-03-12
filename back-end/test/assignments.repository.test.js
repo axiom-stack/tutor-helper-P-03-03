@@ -108,6 +108,44 @@ test("list applies lesson_plan_public_id and lesson_id filters", async () => {
   assert.ok(calls.some((c) => c.sql.includes("lesson_id = ?")));
 });
 
+test("list applies class filter and maps class metadata", async () => {
+  const calls = [];
+  const dbClient = {
+    async execute({ sql, args }) {
+      calls.push({ sql, args });
+      return {
+        rows: [
+          {
+            id: 2,
+            public_id: "asn_2",
+            assignment_group_public_id: "asg_2",
+            teacher_id: 1,
+            lesson_plan_public_id: "trd_1",
+            lesson_id: 6,
+            class_id: 9,
+            class_name: "ثامن أ",
+            class_grade_label: "الصف الثامن",
+            name: "واجب الصف",
+            description: null,
+            type: "practical",
+            content: "محتوى",
+            created_at: "2026-03-09T00:00:00.000Z",
+            updated_at: "2026-03-09T00:00:00.000Z",
+          },
+        ],
+      };
+    },
+  };
+
+  const repository = createAssignmentsRepository(dbClient);
+  const list = await repository.list({ class_id: 9 }, { userId: 1, role: "teacher" });
+
+  assert.equal(list.length, 1);
+  assert.equal(list[0].class_id, 9);
+  assert.equal(list[0].class_name, "ثامن أ");
+  assert.ok(calls.some((c) => c.sql.includes("c.id = ?")));
+});
+
 test("update returns updated assignment", async () => {
   const dbClient = {
     async execute({ sql, args }) {

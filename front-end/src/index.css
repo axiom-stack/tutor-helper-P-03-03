@@ -1,9 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Noto+Sans+Arabic:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Noto+Sans+Arabic:wght@300;400;500;600;700&family=Cairo:wght@200;300;400;500;600;700&display=swap');
 
 :root {
   --font-main:
     'IBM Plex Sans Arabic', 'Noto Sans Arabic', system-ui, sans-serif;
   --font-document: 'Amiri', 'Noto Naskh Arabic', serif;
+  --font-display: 'Cairo', 'IBM Plex Sans Arabic', sans-serif;
 }
 
 /* Typography Scale */
@@ -149,12 +150,139 @@ body {
   min-height: 100vh;
 }
 
+button:not(:disabled) {
+  transition: transform 100ms ease;
+}
+
+button:not(:disabled):active {
+  transform: scale(0.95);
+}
+
+.ui-loaded {
+  animation: ui-content-in 300ms ease both;
+}
+
+.ui-loading-screen {
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.ui-loading-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.ui-spinner,
+.ui-button-spinner {
+  display: inline-block;
+  border-radius: 999px;
+  animation: ui-spin 0.8s linear infinite;
+}
+
+.ui-spinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 3px solid rgba(37, 99, 235, 0.18);
+  border-top-color: var(--primary);
+}
+
+.ui-button-spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid currentColor;
+  border-left-color: transparent;
+  margin-inline-end: 0.45rem;
+  vertical-align: middle;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 200ms ease both;
+}
+
+.cd__stat-card,
+.cd__table-card,
+.td__quick-card,
+.td__section,
+.cc__summary-grid article,
+.cc__table-card,
+.pm__card,
+.asn__context article,
+.asn-card,
+.asn__details-card,
+.qz__exam-card,
+.qz__question-card,
+.st__kpi-card,
+.st__panel,
+.tm__table-card,
+.tm__editor-card,
+.tcm2__panel,
+.tcm2__unit,
+.tcm2__lesson-row {
+  transition: box-shadow 150ms ease;
+}
+
+.cd__stat-card:hover,
+.cd__table-card:hover,
+.td__quick-card:hover,
+.td__section:hover,
+.cc__summary-grid article:hover,
+.cc__table-card:hover,
+.pm__card:hover,
+.asn__context article:hover,
+.asn-card:hover,
+.asn__details-card:hover,
+.qz__exam-card:hover,
+.qz__question-card:hover,
+.st__kpi-card:hover,
+.st__panel:hover,
+.tm__table-card:hover,
+.tm__editor-card:hover,
+.tcm2__panel:hover,
+.tcm2__unit:hover,
+.tcm2__lesson-row:hover {
+  box-shadow: var(--shadow-md);
+}
+
 img,
 svg,
 video,
 canvas,
 iframe {
   max-width: 100%;
+}
+
+.ui-inline-notice {
+  margin: 0;
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  font-size: var(--text-sm);
+}
+
+.ui-inline-notice--info {
+  color: var(--info);
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.2);
+}
+
+.ui-inline-notice--warning {
+  color: var(--warning);
+  background: rgba(217, 119, 6, 0.08);
+  border-color: rgba(217, 119, 6, 0.2);
+}
+
+.ui-inline-notice--error {
+  color: var(--error);
+  background: rgba(220, 38, 38, 0.08);
+  border-color: rgba(220, 38, 38, 0.2);
 }
 
 input,
@@ -204,6 +332,34 @@ table {
 pre {
   margin: 0;
   font-family: inherit;
+}
+
+@keyframes ui-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ui-content-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Print Styles */

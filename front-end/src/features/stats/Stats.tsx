@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import {
   MdCalendarMonth,
   MdFileDownload,
   MdInsights,
   MdRefresh,
   MdTrendingUp,
-  MdWarningAmber,
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
 import type {
@@ -246,7 +246,7 @@ export default function Stats() {
 
   const [summary, setSummary] = useState<StatsSummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [reloadSeed, setReloadSeed] = useState(0);
   const [exporting, setExporting] = useState(false);
 
@@ -322,6 +322,7 @@ export default function Stats() {
             : 'تعذر تحميل بيانات الإحصائيات.';
 
         setError(message);
+        toast.error(message);
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -335,6 +336,12 @@ export default function Stats() {
       cancelled = true;
     };
   }, [user?.userRole, customRangeError, filters, reloadSeed]);
+
+  useEffect(() => {
+    if (customRangeError) {
+      toast.error(customRangeError);
+    }
+  }, [customRangeError]);
 
   const kpiCards = useMemo(() => {
     if (!summary) {
@@ -385,6 +392,7 @@ export default function Stats() {
 
     if (customRangeError) {
       setError(customRangeError);
+      toast.error(customRangeError);
       return;
     }
 
@@ -402,6 +410,7 @@ export default function Stats() {
             : 'فشل تصدير التقرير.';
 
         setError(message);
+        toast.error(message);
       })
       .finally(() => {
         setExporting(false);
@@ -412,11 +421,20 @@ export default function Stats() {
     return null;
   }
 
-  const displayError = customRangeError ?? error;
   const effectiveLoading = customRangeError ? false : loading;
 
+  if (loading && !summary && !customRangeError) {
+    return (
+      <div className="ui-loading-screen">
+        <div className="ui-loading-shell">
+          <span className="ui-spinner" aria-hidden />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="st">
+    <div className="st ui-loaded">
       <header className="st__header page-header">
         <div className="st__title-wrap">
           <span className="st__eyebrow">
@@ -505,7 +523,8 @@ export default function Stats() {
             onClick={() => setReloadSeed((prev) => prev + 1)}
             disabled={effectiveLoading}
           >
-            <MdRefresh aria-hidden />
+            {effectiveLoading && <span className="ui-button-spinner" aria-hidden />}
+            {!effectiveLoading && <MdRefresh aria-hidden />}
             تحديث
           </button>
 
@@ -515,21 +534,12 @@ export default function Stats() {
             onClick={handleExport}
             disabled={effectiveLoading || exporting}
           >
-            <MdFileDownload aria-hidden />
+            {exporting && <span className="ui-button-spinner" aria-hidden />}
+            {!exporting && <MdFileDownload aria-hidden />}
             {exporting ? 'جاري التصدير...' : 'تصدير PDF'}
           </button>
         </div>
       </section>
-
-      {displayError ? (
-        <div className="st__alert st__alert--error" role="alert">
-          <MdWarningAmber aria-hidden />
-          <span>{displayError}</span>
-          <button type="button" onClick={() => setReloadSeed((prev) => prev + 1)}>
-            إعادة المحاولة
-          </button>
-        </div>
-      ) : null}
 
       {effectiveLoading ? (
         <>

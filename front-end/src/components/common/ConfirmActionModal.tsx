@@ -50,6 +50,7 @@ export default function ConfirmActionModal({
             onClick={() => void onConfirm({ endpoint, payload })}
             disabled={isLoading}
           >
+            {isLoading && <span className="ui-button-spinner" aria-hidden />}
             {isLoading ? 'جارٍ التنفيذ...' : confirmLabel}
           </button>
         </div>

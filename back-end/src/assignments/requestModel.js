@@ -1,3 +1,5 @@
+import { VALID_ASSIGNMENT_TYPES } from "./types.js";
+
 function normalizeString(value) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -92,6 +94,59 @@ export function validateModifyAssignmentRequest(payload) {
     value: {
       assignment_id: assignmentId,
       modification_request: modificationRequest,
+    },
+  };
+}
+
+export function validateUpdateAssignmentRequest(payload) {
+  const errors = [];
+  const request = payload ?? {};
+
+  const name = normalizeString(request.name);
+  const description =
+    request.description == null ? "" : typeof request.description === "string" ? request.description.trim() : null;
+  const type = normalizeString(request.type);
+  const content = normalizeString(request.content);
+
+  if (!name) {
+    errors.push({
+      field: "name",
+      message: "name is required",
+    });
+  }
+
+  if (description === null) {
+    errors.push({
+      field: "description",
+      message: "description must be a string or null",
+    });
+  }
+
+  if (!VALID_ASSIGNMENT_TYPES.includes(type)) {
+    errors.push({
+      field: "type",
+      message: `type must be one of: ${VALID_ASSIGNMENT_TYPES.join(", ")}`,
+    });
+  }
+
+  if (!content) {
+    errors.push({
+      field: "content",
+      message: "content is required",
+    });
+  }
+
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  return {
+    ok: true,
+    value: {
+      name,
+      description,
+      type,
+      content,
     },
   };
 }

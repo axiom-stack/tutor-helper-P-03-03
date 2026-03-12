@@ -65,3 +65,28 @@ test("buildQuestionSlotsFromBlueprint assigns deterministic type cycle order", (
     ["multiple_choice", "true_false", "fill_blank", "open_ended", "multiple_choice"],
   );
 });
+
+test("buildExamBlueprint keeps every question mark on quarter-step increments", () => {
+  const lessons = [
+    { id: 1, name: "الدرس الأول", number_of_periods: 2 },
+    { id: 2, name: "الدرس الثاني", number_of_periods: 1 },
+  ];
+
+  const classifiedObjectivesByLesson = {
+    1: [{ level: "remember" }, { level: "understand" }],
+    2: [{ level: "apply" }, { level: "analyze" }],
+  };
+
+  const blueprint = buildExamBlueprint({
+    lessons,
+    classifiedObjectivesByLesson,
+    totalQuestions: 4,
+    totalMarks: 5.25,
+  });
+
+  const perQuestionMarks = blueprint.cells.flatMap((cell) => cell.per_question_marks);
+  assert.equal(perQuestionMarks.length, 4);
+  assert.ok(perQuestionMarks.every((mark) => mark >= 0.25));
+  assert.ok(perQuestionMarks.every((mark) => Number.isInteger(mark * 4)));
+  assert.equal(Number(perQuestionMarks.reduce((sum, mark) => sum + mark, 0).toFixed(2)), 5.25);
+});

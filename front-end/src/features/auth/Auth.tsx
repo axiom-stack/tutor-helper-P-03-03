@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { MdMenuBook, MdErrorOutline } from 'react-icons/md';
+import toast from 'react-hot-toast';
+import { MdMenuBook } from 'react-icons/md';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
 import './auth.css';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router';
+import { normalizeApiError } from '../../utils/apiErrors';
 
 export type LoginCredentials = {
   username: string;
@@ -23,9 +25,19 @@ function Auth() {
   // Redirect if already authenticated
   React.useEffect(() => {
     if (isAuthenticated) {
-      user?.userRole === 'admin' ? navigate('/admin') : navigate('/teacher');
+      if (user?.userRole === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/teacher');
+      }
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, user?.userRole]);
+
+  React.useEffect(() => {
+    if (error) {
+      toast.error(error);
+    }
+  }, [error]);
 
   const clearError = () => setError(null);
 
@@ -47,9 +59,8 @@ function Auth() {
     try {
       await login(username, password);
       navigate('/');
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.error || 'حدث خطأ أثناء تسجيل الدخول';
-      setError(errorMessage);
+    } catch (error: unknown) {
+      setError(normalizeApiError(error, 'حدث خطأ أثناء تسجيل الدخول').message);
     } finally {
       setIsSubmitting(false);
     }
@@ -105,20 +116,6 @@ function Auth() {
               data-purpose="login-form"
               aria-label="تسجيل الدخول"
             >
-              {error && (
-                <div
-                  className="auth-error"
-                  role="alert"
-                  data-purpose="error-message"
-                  aria-live="polite"
-                >
-                  <MdErrorOutline className="auth-error__icon" />
-                  <p id="auth-error-desc" className="auth-error__text">
-                    {error}
-                  </p>
-                </div>
-              )}
-
               <div className="auth-field">
                 <label className="auth-field__label" htmlFor="auth-username">
                   اسم المستخدم
@@ -136,7 +133,6 @@ function Auth() {
                   autoComplete="username"
                   disabled={isSubmitting}
                   aria-invalid={!!error}
-                  aria-describedby={error ? 'auth-error-desc' : undefined}
                 />
               </div>
 

@@ -131,8 +131,10 @@ export function createArtifactRevisionsRepository(dbClient = turso) {
       const current = await this.getCurrentRevision(artifactType, artifactPublicId);
       const nextRevisionNumber = current ? current.revision_number + 1 : 1;
 
+      const statements = [];
+
       if (current) {
-        await dbClient.execute({
+        statements.push({
           sql: `
             UPDATE ArtifactRevisions
             SET is_current = 0
@@ -142,7 +144,7 @@ export function createArtifactRevisionsRepository(dbClient = turso) {
         });
       }
 
-      const insertResult = await dbClient.execute({
+      statements.push({
         sql: `
           INSERT INTO ArtifactRevisions
             (
@@ -173,6 +175,17 @@ export function createArtifactRevisionsRepository(dbClient = turso) {
           createdAt,
         ],
       });
+
+      let insertResult = null;
+      if (typeof dbClient.batch === "function") {
+        const results = await dbClient.batch(statements, "write");
+        insertResult = results[results.length - 1];
+      } else {
+        for (const statement of statements) {
+          // Fallback for tests and simpler in-memory stubs without batch support.
+          insertResult = await dbClient.execute(statement);
+        }
+      }
 
       return this.getById(insertResult.lastInsertRowid);
     },

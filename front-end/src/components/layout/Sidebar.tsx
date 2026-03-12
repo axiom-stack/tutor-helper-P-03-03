@@ -96,14 +96,6 @@ export function Sidebar() {
           ))}
         </ul>
       </nav>
-
-      <div className="sidebar__footer">
-        <div className="sidebar__support">
-          <p className="sidebar__support-text">
-            تحتاج مساعدة؟ تواصل مع الدعم الفني
-          </p>
-        </div>
-      </div>
     </aside>
   );
 }

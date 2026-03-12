@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   validateGenerateAssignmentsRequest,
   validateModifyAssignmentRequest,
+  validateUpdateAssignmentRequest,
 } from "../src/assignments/requestModel.js";
 
 test("validateGenerateAssignmentsRequest accepts valid payload", () => {
@@ -96,4 +97,29 @@ test("validateModifyAssignmentRequest rejects missing modification_request", () 
   });
   assert.equal(result.ok, false);
   assert.ok(result.errors.some((e) => e.field === "modification_request"));
+});
+
+test("validateUpdateAssignmentRequest accepts valid payload", () => {
+  const result = validateUpdateAssignmentRequest({
+    name: "واجب معدل",
+    description: "وصف",
+    type: "written",
+    content: "محتوى",
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.value.name, "واجب معدل");
+  assert.equal(result.value.type, "written");
+});
+
+test("validateUpdateAssignmentRequest rejects invalid type", () => {
+  const result = validateUpdateAssignmentRequest({
+    name: "واجب",
+    description: "وصف",
+    type: "invalid",
+    content: "محتوى",
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.field === "type"));
 });

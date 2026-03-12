@@ -5,7 +5,10 @@ import type {
   RefinementRequestRecord,
   RefinementStatus,
 } from '../../types';
-import type { NormalizedApiError } from '../../utils/apiErrors';
+import {
+  getLocalizedAiLimitMessage,
+  type NormalizedApiError,
+} from '../../utils/apiErrors';
 
 export type SelectorOption = {
   value: string;
@@ -141,6 +144,7 @@ const TARGET_SELECTOR_LABELS: Record<RefinementArtifactType, Record<string, stri
 const REVISION_SOURCE_LABELS: Record<string, string> = {
   seed: 'نسخة أولية',
   refinement_approval: 'اعتماد تحسين',
+  manual_edit: 'تعديل يدوي',
   revert: 'استرجاع',
 };
 
@@ -771,6 +775,11 @@ export function localizeApiError(
 ): string[] {
   if (!error) {
     return [];
+  }
+
+  const localizedAiLimitMessage = getLocalizedAiLimitMessage(error);
+  if (localizedAiLimitMessage) {
+    return [localizedAiLimitMessage];
   }
 
   const detailMessages = Array.isArray(error.details)

@@ -1,22 +1,30 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { Link } from 'react-router';
 import {
   MdAutoAwesome,
-  MdCheckCircle,
+  MdClose,
+  MdContentCopy,
   MdDelete,
-  MdErrorOutline,
+  MdEdit,
   MdOutlinePictureAsPdf,
   MdOutlineTextSnippet,
   MdQuiz,
   MdRefresh,
+  MdSave,
 } from 'react-icons/md';
+import { SyncStatusBadge } from '../../components/common/SyncStatusBadge';
 import { useAuth } from '../../context/AuthContext';
-import type { Class, Exam, Lesson, Subject, Unit } from '../../types';
+import type { Class, Exam, ExamQuestion, Lesson, Subject, Unit } from '../../types';
 import { QUESTION_TYPE_LABELS } from '../../types';
 import type { NormalizedApiError } from '../../utils/apiErrors';
 import { normalizeApiError } from '../../utils/apiErrors';
+import { clearDraft, getDraft, saveDraft } from '../../offline/drafts';
+import { useOffline } from '../../offline/useOffline';
+import type { OfflineExamRecord } from '../../offline/types';
 import {
   deleteExamById,
+  duplicateExam,
   exportExam,
   generateExam,
   getAllClasses,
@@ -27,6 +35,7 @@ import {
   getMySubjects,
   getUnitsBySubject,
   listExams,
+  updateExam,
 } from './quizzes.services';
 import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel';
 import { getRefinementTargetOptions } from '../refinements/refinementTargets';
@@ -37,6 +46,11 @@ type SelectValue = number | '';
 
 interface LessonOption extends Lesson {
   unit_name: string;
+}
+
+interface ExamDraft {
+  title: string;
+  questions: ExamQuestion[];
 }
 
 function formatDateTimeAr(iso: string): string {
@@ -58,8 +72,50 @@ function autoTitle(subjectName: string): string {
   return `اختبار ${subjectName} - ${date}`;
 }
 
+function isQuarterStepMark(value: number): boolean {
+  const scaled = value * 4;
+  return Math.abs(scaled - Math.round(scaled)) < 1e-9;
+}
+
+function cloneExamQuestion(question: ExamQuestion): ExamQuestion {
+  const nextQuestion: ExamQuestion = {
+    ...question,
+    options: question.options ? [...question.options] : undefined,
+    rubric: question.rubric ? [...question.rubric] : undefined,
+  };
+
+  if (nextQuestion.question_type === 'multiple_choice' && !nextQuestion.options) {
+    nextQuestion.options = ['', '', '', ''];
+  }
+
+  if (nextQuestion.question_type === 'open_ended' && !nextQuestion.rubric) {
+    nextQuestion.rubric = [];
+  }
+
+  return nextQuestion;
+}
+
+function createExamDraft(exam: Exam): ExamDraft {
+  return {
+    title: exam.title,
+    questions: (exam.questions ?? []).map(cloneExamQuestion),
+  };
+}
+
+function joinLines(lines: string[] | undefined): string {
+  return (lines ?? []).join('\n');
+}
+
+function splitLines(value: string): string[] {
+  return value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
 export default function Quizzes() {
   const { user } = useAuth();
+  const { lastSyncAt } = useOffline();
   const isAdmin = user?.userRole === 'admin';
   const isTeacher = user?.userRole === 'teacher';
 
@@ -80,8 +136,8 @@ export default function Quizzes() {
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
 
-  const [exams, setExams] = useState<Exam[]>([]);
-  const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
+  const [exams, setExams] = useState<OfflineExamRecord[]>([]);
+  const [selectedExam, setSelectedExam] = useState<OfflineExamRecord | null>(null);
 
   const [isBootLoading, setIsBootLoading] = useState(true);
   const [isLessonsLoading, setIsLessonsLoading] = useState(false);
@@ -89,6 +145,8 @@ export default function Quizzes() {
   const [isListLoading, setIsListLoading] = useState(false);
   const [isExamLoading, setIsExamLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditingExam, setIsEditingExam] = useState(false);
+  const [isSavingExam, setIsSavingExam] = useState(false);
   const [deleteExamRequest, setDeleteExamRequest] = useState<{
     examId: string;
     endpoint: string;
@@ -99,6 +157,8 @@ export default function Quizzes() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [examDraft, setExamDraft] = useState<ExamDraft | null>(null);
+  const [draftRecoveredNotice, setDraftRecoveredNotice] = useState<string | null>(null);
 
   const loadExams = useCallback(async () => {
     setIsListLoading(true);
@@ -109,13 +169,21 @@ export default function Quizzes() {
         date_from: filterDateFrom || undefined,
         date_to: filterDateTo || undefined,
       });
-      setExams(response.exams ?? []);
+      setExams((response.exams ?? []) as OfflineExamRecord[]);
     } catch (loadError: unknown) {
       setError(normalizeApiError(loadError, 'فشل تحميل قائمة الاختبارات.'));
     } finally {
       setIsListLoading(false);
     }
   }, [filterClassId, filterDateFrom, filterDateTo, filterSubjectId]);
+
+  useEffect(() => {
+    if (!lastSyncAt || isEditingExam) {
+      return;
+    }
+
+    void loadExams();
+  }, [isEditingExam, lastSyncAt, loadExams]);
 
   useEffect(() => {
     if (!isTeacher && !isAdmin) {
@@ -159,6 +227,98 @@ export default function Quizzes() {
       cancelled = true;
     };
   }, [isAdmin, isTeacher, loadExams]);
+
+  useEffect(() => {
+    if (error) {
+      toast.error(error.message);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    if (successMessage) {
+      toast.success(successMessage);
+    }
+  }, [successMessage]);
+
+  useEffect(() => {
+    if (exportError) {
+      toast.error(exportError);
+    }
+  }, [exportError]);
+
+  useEffect(() => {
+    if (!selectedExam) {
+      setIsEditingExam(false);
+      setIsSavingExam(false);
+      setExamDraft(null);
+      setDraftRecoveredNotice(null);
+      return;
+    }
+
+    setIsEditingExam(false);
+    setIsSavingExam(false);
+    setExamDraft(createExamDraft(selectedExam));
+    setDraftRecoveredNotice(null);
+  }, [selectedExam]);
+
+  useEffect(() => {
+    if (!selectedExam) {
+      return;
+    }
+
+    let cancelled = false;
+
+    getDraft<ExamDraft>('quizzes', selectedExam.local_id)
+      .then((draft) => {
+        if (!draft || cancelled) {
+          return;
+        }
+
+        if (draft.updated_at > selectedExam.updated_at) {
+          setExamDraft(draft.payload);
+          setIsEditingExam(true);
+          setDraftRecoveredNotice('تمت استعادة مسودة الاختبار المحلية.');
+        }
+      })
+      .catch(() => {
+        // no-op
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedExam]);
+
+  useEffect(() => {
+    if (!isEditingExam || !examDraft || !selectedExam) {
+      return;
+    }
+
+    const persistDraft = () =>
+      saveDraft({
+        entityType: 'exam',
+        recordLocalId: selectedExam.local_id,
+        routeKey: 'quizzes',
+        payload: examDraft,
+      });
+
+    const timer = window.setTimeout(() => {
+      void persistDraft();
+    }, 1200);
+
+    const flushDraft = () => {
+      void persistDraft();
+    };
+
+    window.addEventListener('pagehide', flushDraft);
+    document.addEventListener('visibilitychange', flushDraft);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('pagehide', flushDraft);
+      document.removeEventListener('visibilitychange', flushDraft);
+    };
+  }, [examDraft, isEditingExam, selectedExam]);
 
   const selectedSubject = useMemo(
     () => subjects.find((subject) => subject.id === selectedSubjectId) ?? null,
@@ -281,6 +441,14 @@ export default function Quizzes() {
       setError({ message: 'الدرجة الكلية يجب أن تكون رقمًا موجبًا.' });
       return;
     }
+    if (!isQuarterStepMark(totalMarks)) {
+      setError({ message: 'الدرجة الكلية يجب أن تكون بمضاعفات 0.25 مثل 1 أو 1.25 أو 1.5.' });
+      return;
+    }
+    if (totalMarks * 4 < totalQuestions) {
+      setError({ message: 'يجب توفير 0.25 درجة على الأقل لكل سؤال.' });
+      return;
+    }
 
     setIsGenerating(true);
     setError(null);
@@ -295,9 +463,13 @@ export default function Quizzes() {
         title: examTitle.trim() || undefined,
       });
 
-      setSelectedExam(response.exam);
-      setSuccessMessage('تم توليد الاختبار وحفظه بنجاح.');
-      await loadExams();
+      if ('queued' in response && response.queued) {
+        setSuccessMessage(response.message);
+      } else {
+        setSelectedExam((response as { exam: Exam }).exam as OfflineExamRecord);
+        setSuccessMessage('تم توليد الاختبار وحفظه بنجاح.');
+        await loadExams();
+      }
     } catch (generationError: unknown) {
       setError(normalizeApiError(generationError, 'فشل توليد الاختبار.'));
     } finally {
@@ -306,11 +478,16 @@ export default function Quizzes() {
   };
 
   const handleLoadExamDetails = async (examId: string) => {
+    if (isEditingExam) {
+      toast.error('احفظ تعديلات الاختبار الحالي أو ألغها قبل فتح اختبار آخر.');
+      return;
+    }
+
     setIsExamLoading(true);
     setError(null);
     try {
       const response = await getExamById(examId);
-      setSelectedExam(response.exam);
+      setSelectedExam(response.exam as OfflineExamRecord);
     } catch (loadError: unknown) {
       setError(normalizeApiError(loadError, 'تعذر تحميل تفاصيل الاختبار.'));
     } finally {
@@ -319,6 +496,11 @@ export default function Quizzes() {
   };
 
   const requestDeleteExam = (examId: string) => {
+    if (isEditingExam) {
+      toast.error('احفظ تعديلات الاختبار الحالي أو ألغها قبل حذف اختبار آخر.');
+      return;
+    }
+
     setDeleteExamRequest({
       examId,
       endpoint: `/api/exams/${examId}`,
@@ -349,38 +531,179 @@ export default function Quizzes() {
   };
 
   const handleExportPdf = () => {
-    if (!selectedExam?.public_id || isExporting) return;
+    if (!selectedExam?.server_id || isExporting) return;
     setExportError(null);
     setIsExporting(true);
-    exportExam(selectedExam.public_id, 'pdf')
+    exportExam(selectedExam.server_id, 'pdf')
       .catch(() => setExportError('فشل تصدير PDF.'))
       .finally(() => setIsExporting(false));
   };
 
   const handleExportWord = () => {
-    if (!selectedExam?.public_id || isExporting) return;
+    if (!selectedExam?.server_id || isExporting) return;
     setExportError(null);
     setIsExporting(true);
-    exportExam(selectedExam.public_id, 'docx')
+    exportExam(selectedExam.server_id, 'docx')
       .catch(() => setExportError('فشل تصدير Word.'))
       .finally(() => setIsExporting(false));
   };
 
+  const handleStartEditingExam = () => {
+    if (!selectedExam) {
+      return;
+    }
+
+    setExamDraft(createExamDraft(selectedExam));
+    setIsEditingExam(true);
+    setError(null);
+    setSuccessMessage(null);
+  };
+
+  const handleCancelEditingExam = () => {
+    if (selectedExam) {
+      setExamDraft(createExamDraft(selectedExam));
+      void clearDraft('quizzes', selectedExam.local_id);
+    } else {
+      setExamDraft(null);
+    }
+    setIsEditingExam(false);
+    setIsSavingExam(false);
+  };
+
+  const updateDraftQuestion = (
+    slotId: string,
+    updater: (question: ExamQuestion) => ExamQuestion
+  ) => {
+    setExamDraft((current) => {
+      if (!current) {
+        return current;
+      }
+
+      return {
+        ...current,
+        questions: current.questions.map((question) =>
+          question.slot_id === slotId ? updater(question) : question
+        ),
+      };
+    });
+  };
+
+  const handleSaveExam = async () => {
+    if (!selectedExam?.public_id || !examDraft || isSavingExam) {
+      return;
+    }
+
+    const trimmedTitle = examDraft.title.trim();
+    if (!trimmedTitle) {
+      setError({ message: 'عنوان الاختبار مطلوب.' });
+      return;
+    }
+
+    setIsSavingExam(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const normalizedQuestions = examDraft.questions.map((question) => {
+        if (question.question_type === 'multiple_choice') {
+          return {
+            ...cloneExamQuestion(question),
+            question_text: question.question_text.trim(),
+            options: (question.options ?? []).map((option) => option.trim()),
+          };
+        }
+
+        if (question.question_type === 'true_false') {
+          return {
+            ...cloneExamQuestion(question),
+            question_text: question.question_text.trim(),
+          };
+        }
+
+        if (question.question_type === 'fill_blank') {
+          return {
+            ...cloneExamQuestion(question),
+            question_text: question.question_text.trim(),
+            answer_text: question.answer_text.trim(),
+          };
+        }
+
+        return {
+          ...cloneExamQuestion(question),
+          question_text: question.question_text.trim(),
+          answer_text: question.answer_text.trim(),
+          rubric: (question.rubric ?? []).map((item) => item.trim()).filter(Boolean),
+        };
+      });
+
+      const response = await updateExam(selectedExam.public_id, {
+        title: trimmedTitle,
+        questions: normalizedQuestions,
+      });
+
+      const nextExam = response.exam as OfflineExamRecord;
+      setSelectedExam(nextExam);
+      setExams((current) =>
+        current.map((exam) =>
+          exam.local_id === nextExam.local_id ? nextExam : exam
+        )
+      );
+      setExamDraft(createExamDraft(nextExam));
+      setIsEditingExam(false);
+      await clearDraft('quizzes', selectedExam.local_id);
+      setSuccessMessage(
+        nextExam.sync_status === 'synced'
+          ? 'تم حفظ تعديلات الاختبار بنجاح.'
+          : 'تم حفظ تعديلات الاختبار محليًا وستتم مزامنتها عند عودة الاتصال.'
+      );
+    } catch (saveError: unknown) {
+      setError(normalizeApiError(saveError, 'فشل حفظ تعديلات الاختبار.'));
+    } finally {
+      setIsSavingExam(false);
+    }
+  };
+
   const handleRefinementCommitted = async () => {
-    if (!selectedExam?.public_id) {
+    if (!selectedExam?.server_id) {
       return;
     }
     const response = await getExamById(selectedExam.public_id);
-    setSelectedExam(response.exam);
+    setSelectedExam(response.exam as OfflineExamRecord);
     await loadExams();
+  };
+
+  const handleDuplicateExam = async () => {
+    if (!selectedExam) {
+      return;
+    }
+
+    try {
+      const response = await duplicateExam(selectedExam.public_id);
+      const nextExam = response.exam as OfflineExamRecord;
+      setExams((current) => [nextExam, ...current]);
+      setSelectedExam(nextExam);
+      setSuccessMessage('تم إنشاء نسخة محلية من الاختبار.');
+    } catch (error: unknown) {
+      setError(normalizeApiError(error, 'تعذر إنشاء نسخة محلية من الاختبار.'));
+    }
   };
 
   if (!user) {
     return null;
   }
 
+  if (isBootLoading) {
+    return (
+      <div className="ui-loading-screen">
+        <div className="ui-loading-shell">
+          <span className="ui-spinner" aria-hidden />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="qz">
+    <div className="qz ui-loaded">
       <header className="qz__header page-header">
         <div>
           <nav className="qz__breadcrumb" aria-label="breadcrumb">
@@ -401,35 +724,22 @@ export default function Quizzes() {
         </div>
       </header>
 
-      {error && (
-        <div className="qz-alert qz-alert--error" role="alert">
-          <MdErrorOutline aria-hidden />
-          <p>{error.message}</p>
-        </div>
-      )}
-
-      {successMessage && (
-        <div className="qz-alert qz-alert--success" role="status">
-          <MdCheckCircle aria-hidden />
-          <p>{successMessage}</p>
-        </div>
-      )}
+      {draftRecoveredNotice ? (
+        <p className="ui-inline-notice ui-inline-notice--info">{draftRecoveredNotice}</p>
+      ) : null}
 
       <div className={`qz__layout ${isAdmin ? 'qz__layout--admin' : ''}`}>
         {isTeacher ? (
           <aside className="qz__panel">
           <h2>إعداد الاختبار</h2>
-          {isBootLoading ? (
-            <p>جارٍ تحميل المواد...</p>
-          ) : (
-            <>
+          <>
               <div className="qz__field">
                 <label htmlFor="qz-subject">المادة</label>
                 <select
                   id="qz-subject"
                   value={selectedSubjectId}
                   onChange={(event) => void handleSubjectChange(event.target.value)}
-                  disabled={isGenerating}
+                  disabled={isGenerating || isEditingExam}
                 >
                   <option value="">اختر المادة...</option>
                   {subjects.map((subject) => (
@@ -451,7 +761,7 @@ export default function Quizzes() {
                     setIsTitleTouched(true);
                   }}
                   placeholder="عنوان الاختبار"
-                  disabled={isGenerating}
+                  disabled={isGenerating || isEditingExam}
                 />
               </div>
 
@@ -464,7 +774,7 @@ export default function Quizzes() {
                     min={1}
                     value={totalQuestions}
                     onChange={(event) => setTotalQuestions(Number(event.target.value))}
-                    disabled={isGenerating}
+                    disabled={isGenerating || isEditingExam}
                   />
                 </div>
                 <div className="qz__field">
@@ -472,12 +782,13 @@ export default function Quizzes() {
                   <input
                     id="qz-total-marks"
                     type="number"
-                    min={0.1}
-                    step={0.5}
+                    min={0.25}
+                    step={0.25}
                     value={totalMarks}
                     onChange={(event) => setTotalMarks(Number(event.target.value))}
-                    disabled={isGenerating}
+                    disabled={isGenerating || isEditingExam}
                   />
+                  <small>تُوزَّع الدرجات على الأسئلة بمضاعفات 0.25.</small>
                 </div>
               </div>
 
@@ -502,7 +813,7 @@ export default function Quizzes() {
                               type="checkbox"
                               checked={selectedLessonIds.has(lesson.id)}
                               onChange={() => toggleLessonSelection(lesson.id)}
-                              disabled={isGenerating}
+                              disabled={isGenerating || isEditingExam}
                             />
                             <span>{lesson.name}</span>
                             <small>{lesson.number_of_periods ?? 1} حصة</small>
@@ -518,13 +829,13 @@ export default function Quizzes() {
                 type="button"
                 className="qz__generate-btn"
                 onClick={() => void handleGenerateExam()}
-                disabled={isGenerating || selectedSubjectId === ''}
+                disabled={isGenerating || isEditingExam || selectedSubjectId === ''}
               >
-                <MdAutoAwesome aria-hidden />
+                {isGenerating && <span className="ui-button-spinner" aria-hidden />}
+                {!isGenerating && <MdAutoAwesome aria-hidden />}
                 {isGenerating ? 'جارٍ التوليد...' : 'توليد الاختبار'}
               </button>
-            </>
-          )}
+          </>
           </aside>
         ) : null}
 
@@ -540,6 +851,7 @@ export default function Quizzes() {
                   onChange={(event) =>
                     setFilterSubjectId(event.target.value ? Number(event.target.value) : '')
                   }
+                  disabled={isEditingExam}
                 >
                   <option value="">الكل</option>
                   {subjects.map((subject) => (
@@ -557,6 +869,7 @@ export default function Quizzes() {
                   onChange={(event) =>
                     setFilterClassId(event.target.value ? Number(event.target.value) : '')
                   }
+                  disabled={isEditingExam}
                 >
                   <option value="">الكل</option>
                   {classes.map((classItem) => (
@@ -573,6 +886,7 @@ export default function Quizzes() {
                   type="date"
                   value={filterDateFrom}
                   onChange={(event) => setFilterDateFrom(event.target.value)}
+                  disabled={isEditingExam}
                 />
               </div>
               <div className="qz__field">
@@ -582,6 +896,7 @@ export default function Quizzes() {
                   type="date"
                   value={filterDateTo}
                   onChange={(event) => setFilterDateTo(event.target.value)}
+                  disabled={isEditingExam}
                 />
               </div>
             </div>
@@ -589,9 +904,10 @@ export default function Quizzes() {
               type="button"
               className="qz__refresh-btn"
               onClick={() => void loadExams()}
-              disabled={isListLoading}
+              disabled={isListLoading || isEditingExam}
             >
-              <MdRefresh aria-hidden />
+              {isListLoading && <span className="ui-button-spinner" aria-hidden />}
+              {!isListLoading && <MdRefresh aria-hidden />}
               {isListLoading ? 'جارٍ التحديث...' : 'تحديث القائمة'}
             </button>
           </div>
@@ -611,15 +927,21 @@ export default function Quizzes() {
                   return (
                     <article
                       key={exam.public_id}
-                      className={`qz__exam-card ${isActive ? 'qz__exam-card--active' : ''}`}
+                      className={`qz__exam-card animate-fadeIn ${
+                        isActive ? 'qz__exam-card--active' : ''
+                      }`}
                     >
                       <button
                         type="button"
                         className="qz__exam-open"
                         onClick={() => void handleLoadExamDetails(exam.public_id)}
-                        disabled={isExamLoading}
+                        disabled={isExamLoading || isEditingExam}
                       >
-                        <MdQuiz aria-hidden />
+                        {isExamLoading && isActive ? (
+                          <span className="ui-button-spinner" aria-hidden />
+                        ) : (
+                          <MdQuiz aria-hidden />
+                        )}
                         <div>
                           <h4>{exam.title}</h4>
                           <p>
@@ -630,6 +952,7 @@ export default function Quizzes() {
                             {exam.total_questions} سؤال | {exam.total_marks} درجة
                           </small>
                           <small>{formatDateTimeAr(exam.created_at)}</small>
+                          <SyncStatusBadge status={exam.sync_status} />
                         </div>
                       </button>
 
@@ -638,7 +961,7 @@ export default function Quizzes() {
                           type="button"
                           className="qz__delete-btn"
                           onClick={() => requestDeleteExam(exam.public_id)}
-                          disabled={isDeleting}
+                          disabled={isDeleting || isEditingExam || !exam.server_id}
                         >
                           <MdDelete aria-hidden />
                           حذف
@@ -658,41 +981,114 @@ export default function Quizzes() {
                 <p>جارٍ تحميل التفاصيل...</p>
               ) : (
                 <div className="qz__details-body">
-                  {exportError && (
-                    <div className="qz-alert qz-alert--error" role="alert">
-                      <MdErrorOutline aria-hidden />
-                      <p>{exportError}</p>
-                    </div>
-                  )}
                   <header className="qz__details-head">
-                    <h4>{selectedExam.title}</h4>
-                    <p>
-                      المعرف: {selectedExam.public_id} | {selectedExam.total_questions}{' '}
-                      سؤال | {selectedExam.total_marks} درجة
-                    </p>
-                    <div className="qz__details-export-actions">
-                      <button
-                        type="button"
-                        className="qz__refresh-btn"
-                        onClick={handleExportPdf}
-                        disabled={isExporting}
-                        aria-busy={isExporting}
-                      >
-                        <MdOutlinePictureAsPdf aria-hidden />
-                        تصدير PDF
-                      </button>
-                      <button
-                        type="button"
-                        className="qz__refresh-btn"
-                        onClick={handleExportWord}
-                        disabled={isExporting}
-                        aria-busy={isExporting}
-                      >
-                        <MdOutlineTextSnippet aria-hidden />
-                        تصدير Word
-                      </button>
+                    <div className="qz__details-heading">
+                      {isEditingExam && examDraft ? (
+                        <input
+                          type="text"
+                          className="qz__edit-input"
+                          value={examDraft.title}
+                          onChange={(event) =>
+                            setExamDraft((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    title: event.target.value,
+                                  }
+                                : current
+                            )
+                          }
+                        />
+                      ) : (
+                        <div className="qz__details-title">
+                          <h4>{selectedExam.title}</h4>
+                          <SyncStatusBadge status={selectedExam.sync_status} />
+                        </div>
+                      )}
+                      <p>
+                        المعرّف: {selectedExam.public_id} | {selectedExam.total_questions}{' '}
+                        سؤال | {selectedExam.total_marks} درجة
+                      </p>
+                    </div>
+                    <div className="qz__details-actions">
+                      {isEditingExam ? (
+                        <>
+                          <button
+                            type="button"
+                            className="qz__details-action-btn qz__details-action-btn--secondary"
+                            onClick={handleCancelEditingExam}
+                            disabled={isSavingExam}
+                          >
+                            <MdClose aria-hidden />
+                            إلغاء
+                          </button>
+                          <button
+                            type="button"
+                            className="qz__details-action-btn qz__details-action-btn--primary"
+                            onClick={() => void handleSaveExam()}
+                            disabled={isSavingExam || !examDraft}
+                          >
+                            {isSavingExam && <span className="ui-button-spinner" aria-hidden />}
+                            {!isSavingExam && <MdSave aria-hidden />}
+                            {isSavingExam ? 'جارٍ الحفظ...' : 'حفظ'}
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className="qz__refresh-btn"
+                            onClick={handleExportPdf}
+                            disabled={isExporting || !selectedExam.server_id}
+                            aria-busy={isExporting}
+                          >
+                            {isExporting && (
+                              <span className="ui-button-spinner" aria-hidden />
+                            )}
+                            {!isExporting && <MdOutlinePictureAsPdf aria-hidden />}
+                            تصدير PDF
+                          </button>
+                          <button
+                            type="button"
+                            className="qz__refresh-btn"
+                            onClick={handleExportWord}
+                            disabled={isExporting || !selectedExam.server_id}
+                            aria-busy={isExporting}
+                          >
+                            {isExporting && (
+                              <span className="ui-button-spinner" aria-hidden />
+                            )}
+                            {!isExporting && <MdOutlineTextSnippet aria-hidden />}
+                            تصدير Word
+                          </button>
+                          <button
+                            type="button"
+                            className="qz__details-action-btn qz__details-action-btn--secondary"
+                            onClick={handleStartEditingExam}
+                            disabled={isExamLoading}
+                          >
+                            <MdEdit aria-hidden />
+                            تعديل
+                          </button>
+                          <button
+                            type="button"
+                            className="qz__details-action-btn qz__details-action-btn--secondary"
+                            onClick={() => void handleDuplicateExam()}
+                            disabled={isExamLoading}
+                          >
+                            <MdContentCopy aria-hidden />
+                            نسخة محلية
+                          </button>
+                        </>
+                      )}
                     </div>
                   </header>
+
+                  {selectedExam.last_sync_error ? (
+                    <p className="ui-inline-notice ui-inline-notice--warning">
+                      {selectedExam.last_sync_error}
+                    </p>
+                  ) : null}
 
                   {selectedExam.blueprint?.cells && (
                     <section className="qz__blueprint">
@@ -730,8 +1126,14 @@ export default function Quizzes() {
 
                   <section className="qz__questions">
                     <h5>الأسئلة والإجابات</h5>
-                    {selectedExam.questions && selectedExam.questions.length > 0 ? (
-                      selectedExam.questions.map((question) => (
+                    {(isEditingExam
+                      ? examDraft?.questions ?? []
+                      : selectedExam.questions ?? []
+                    ).length > 0 ? (
+                      (isEditingExam
+                        ? examDraft?.questions ?? []
+                        : selectedExam.questions ?? []
+                      ).map((question) => (
                         <article key={question.slot_id} className="qz__question-card">
                           <div className="qz__question-meta">
                             <strong>س{question.question_number}</strong>
@@ -740,33 +1142,177 @@ export default function Quizzes() {
                             <span>{question.marks} درجة</span>
                             <span>{question.lesson_name}</span>
                           </div>
-                          <p className="qz__question-text">{question.question_text}</p>
+                          {isEditingExam ? (
+                            <div className="qz__question-editor">
+                              <label className="qz__editor-label" htmlFor={question.slot_id}>
+                                نص السؤال
+                              </label>
+                              <textarea
+                                id={question.slot_id}
+                                className="qz__edit-textarea"
+                                rows={4}
+                                value={question.question_text}
+                                onChange={(event) =>
+                                  updateDraftQuestion(question.slot_id, (current) => ({
+                                    ...current,
+                                    question_text: event.target.value,
+                                  }))
+                                }
+                              />
 
-                          {question.question_type === 'multiple_choice' &&
-                            question.options && (
-                              <ul className="qz__options">
-                                {question.options.map((option, index) => (
-                                  <li key={`${question.slot_id}-opt-${index}`}>
-                                    {index + 1}. {option}
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
+                              {question.question_type === 'multiple_choice' ? (
+                                <>
+                                  <div className="qz__question-edit-grid">
+                                    <label className="qz__editor-label">الخيار الصحيح</label>
+                                    <select
+                                      className="qz__edit-select"
+                                      value={question.correct_option_index ?? 0}
+                                      onChange={(event) =>
+                                        updateDraftQuestion(question.slot_id, (current) => ({
+                                          ...current,
+                                          correct_option_index: Number(event.target.value),
+                                        }))
+                                      }
+                                    >
+                                      {(question.options ?? []).map((_, index) => (
+                                        <option key={`${question.slot_id}-correct-${index}`} value={index}>
+                                          الخيار {index + 1}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div className="qz__options-edit">
+                                    {(question.options ?? []).map((option, index) => (
+                                      <label
+                                        key={`${question.slot_id}-opt-edit-${index}`}
+                                        className="qz__option-edit-row"
+                                      >
+                                        <span>{index + 1}</span>
+                                        <input
+                                          type="text"
+                                          className="qz__edit-input"
+                                          value={option}
+                                          onChange={(event) =>
+                                            updateDraftQuestion(question.slot_id, (current) => {
+                                              const nextOptions = [...(current.options ?? [])];
+                                              nextOptions[index] = event.target.value;
+                                              return {
+                                                ...current,
+                                                options: nextOptions,
+                                              };
+                                            })
+                                          }
+                                        />
+                                      </label>
+                                    ))}
+                                  </div>
+                                </>
+                              ) : null}
 
-                          {question.question_type === 'open_ended' &&
-                            question.rubric &&
-                            question.rubric.length > 0 && (
-                              <ul className="qz__rubric">
-                                {question.rubric.map((item, index) => (
-                                  <li key={`${question.slot_id}-rubric-${index}`}>{item}</li>
-                                ))}
-                              </ul>
-                            )}
+                              {question.question_type === 'true_false' ? (
+                                <div className="qz__question-edit-grid">
+                                  <label className="qz__editor-label">الإجابة الصحيحة</label>
+                                  <select
+                                    className="qz__edit-select"
+                                    value={question.correct_answer ? 'true' : 'false'}
+                                    onChange={(event) =>
+                                      updateDraftQuestion(question.slot_id, (current) => ({
+                                        ...current,
+                                        correct_answer: event.target.value === 'true',
+                                      }))
+                                    }
+                                  >
+                                    <option value="true">صحيح</option>
+                                    <option value="false">خطأ</option>
+                                  </select>
+                                </div>
+                              ) : null}
 
-                          <div className="qz__answer">
-                            <label>الإجابة النموذجية</label>
-                            <p>{question.answer_text}</p>
-                          </div>
+                              {question.question_type === 'fill_blank' ? (
+                                <div className="qz__question-edit-grid">
+                                  <label className="qz__editor-label">الإجابة النموذجية</label>
+                                  <textarea
+                                    className="qz__edit-textarea"
+                                    rows={3}
+                                    value={question.answer_text}
+                                    onChange={(event) =>
+                                      updateDraftQuestion(question.slot_id, (current) => ({
+                                        ...current,
+                                        answer_text: event.target.value,
+                                      }))
+                                    }
+                                  />
+                                </div>
+                              ) : null}
+
+                              {question.question_type === 'open_ended' ? (
+                                <>
+                                  <div className="qz__question-edit-grid">
+                                    <label className="qz__editor-label">الإجابة النموذجية</label>
+                                    <textarea
+                                      className="qz__edit-textarea"
+                                      rows={4}
+                                      value={question.answer_text}
+                                      onChange={(event) =>
+                                        updateDraftQuestion(question.slot_id, (current) => ({
+                                          ...current,
+                                          answer_text: event.target.value,
+                                        }))
+                                      }
+                                    />
+                                  </div>
+                                  <div className="qz__question-edit-grid">
+                                    <label className="qz__editor-label">
+                                      معيار التصحيح
+                                    </label>
+                                    <textarea
+                                      className="qz__edit-textarea"
+                                      rows={4}
+                                      value={joinLines(question.rubric)}
+                                      onChange={(event) =>
+                                        updateDraftQuestion(question.slot_id, (current) => ({
+                                          ...current,
+                                          rubric: splitLines(event.target.value),
+                                        }))
+                                      }
+                                    />
+                                  </div>
+                                </>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <>
+                              <p className="qz__question-text">{question.question_text}</p>
+
+                              {question.question_type === 'multiple_choice' &&
+                                question.options && (
+                                  <ul className="qz__options">
+                                    {question.options.map((option, index) => (
+                                      <li key={`${question.slot_id}-opt-${index}`}>
+                                        {index + 1}. {option}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+
+                              {question.question_type === 'open_ended' &&
+                                question.rubric &&
+                                question.rubric.length > 0 && (
+                                  <ul className="qz__rubric">
+                                    {question.rubric.map((item, index) => (
+                                      <li key={`${question.slot_id}-rubric-${index}`}>
+                                        {item}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+
+                              <div className="qz__answer">
+                                <label>الإجابة النموذجية</label>
+                                <p>{question.answer_text}</p>
+                              </div>
+                            </>
+                          )}
                         </article>
                       ))
                     ) : (
@@ -774,21 +1320,23 @@ export default function Quizzes() {
                     )}
                   </section>
 
-                  <SmartRefinementPanel
-                    artifactType="exam"
-                    artifactId={selectedExam.public_id}
-                    baseArtifact={{
-                      id: selectedExam.public_id,
-                      title: selectedExam.title,
-                      total_questions: selectedExam.total_questions,
-                      total_marks: selectedExam.total_marks,
-                      lesson_ids: selectedExam.lesson_ids,
-                      blueprint: selectedExam.blueprint ?? {},
-                      questions: selectedExam.questions ?? [],
-                    }}
-                    targetSelectors={getRefinementTargetOptions('exam')}
-                    onCommitted={handleRefinementCommitted}
-                  />
+                  {!isEditingExam && selectedExam.server_id ? (
+                    <SmartRefinementPanel
+                      artifactType="exam"
+                      artifactId={selectedExam.public_id}
+                      baseArtifact={{
+                        id: selectedExam.public_id,
+                        title: selectedExam.title,
+                        total_questions: selectedExam.total_questions,
+                        total_marks: selectedExam.total_marks,
+                        lesson_ids: selectedExam.lesson_ids,
+                        blueprint: selectedExam.blueprint ?? {},
+                        questions: selectedExam.questions ?? [],
+                      }}
+                      targetSelectors={getRefinementTargetOptions('exam')}
+                      onCommitted={handleRefinementCommitted}
+                    />
+                  ) : null}
                 </div>
               )}
             </div>
