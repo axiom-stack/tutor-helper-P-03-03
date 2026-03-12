@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 import {
   MdOutlinePictureAsPdf,
   MdOutlineTextSnippet,
@@ -53,7 +54,7 @@ export default function PlansManager() {
 
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
   const plansRequestIdRef = useRef(0);
@@ -108,7 +109,9 @@ export default function PlansManager() {
       if (requestId !== plansRequestIdRef.current) {
         return;
       }
-      setError(normalizeApiError(loadError, 'فشل تحميل الخطط.').message);
+      const message = normalizeApiError(loadError, 'فشل تحميل الخطط.').message;
+      setError(message);
+      toast.error(message);
     } finally {
       if (requestId === plansRequestIdRef.current) {
         setLoading(false);
@@ -177,7 +180,9 @@ export default function PlansManager() {
       if (requestId !== detailRequestIdRef.current) {
         return;
       }
-      setError(normalizeApiError(detailError, 'فشل تحميل تفاصيل الخطة.').message);
+      const message = normalizeApiError(detailError, 'فشل تحميل تفاصيل الخطة.').message;
+      setError(message);
+      toast.error(message);
     } finally {
       if (requestId === detailRequestIdRef.current) {
         setDetailLoading(false);
@@ -194,7 +199,10 @@ export default function PlansManager() {
     setError(null);
 
     exportPlan(selectedPlan.public_id, format)
-      .catch(() => setError('فشل تصدير الخطة.'))
+      .catch(() => {
+        setError('فشل تصدير الخطة.');
+        toast.error('فشل تصدير الخطة.');
+      })
       .finally(() => setIsExporting(false));
   };
 
@@ -216,8 +224,18 @@ export default function PlansManager() {
     setSelectedPlan(detailResponse.plan);
   };
 
+  if (loading && plans.length === 0) {
+    return (
+      <div className="ui-loading-screen">
+        <div className="ui-loading-shell">
+          <span className="ui-spinner" aria-hidden />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="pm">
+    <div className="pm ui-loaded">
       <header className="pm__header page-header">
         <div>
           <h1>إدارة الخطط المولدة</h1>
@@ -227,12 +245,6 @@ export default function PlansManager() {
           </p>
         </div>
       </header>
-
-      {error ? (
-        <div className="pm__alert pm__alert--error" role="alert">
-          {error}
-        </div>
-      ) : null}
 
       <section className="pm__filters" aria-label="مرشحات الخطط">
         <div className="pm__field">
@@ -284,7 +296,8 @@ export default function PlansManager() {
             disabled={loading}
             aria-busy={loading}
           >
-            <MdRefresh aria-hidden />
+            {loading && <span className="ui-button-spinner" aria-hidden />}
+            {!loading && <MdRefresh aria-hidden />}
             {loading ? 'جارٍ التحديث...' : 'تحديث'}
           </button>
         </div>
@@ -309,7 +322,9 @@ export default function PlansManager() {
                   <button
                     key={plan.public_id}
                     type="button"
-                    className={isActive ? 'pm__card pm__card--active' : 'pm__card'}
+                    className={
+                      isActive ? 'pm__card pm__card--active animate-fadeIn' : 'pm__card animate-fadeIn'
+                    }
                     onClick={() => void handleSelectPlan(plan)}
                     aria-pressed={isActive}
                   >
@@ -333,6 +348,12 @@ export default function PlansManager() {
                         </span>
                       </div>
                     ) : null}
+                    {detailLoading && isActive ? (
+                      <span className="pm__card-meta">
+                        <span className="ui-button-spinner" aria-hidden />
+                        جارٍ تحميل التفاصيل...
+                      </span>
+                    ) : null}
                   </button>
                 );
               })}
@@ -355,7 +376,8 @@ export default function PlansManager() {
                   onClick={() => handleExport('pdf')}
                   aria-busy={isExporting}
                 >
-                  <MdOutlinePictureAsPdf aria-hidden />
+                  {isExporting && <span className="ui-button-spinner" aria-hidden />}
+                  {!isExporting && <MdOutlinePictureAsPdf aria-hidden />}
                   PDF
                 </button>
                 <button
@@ -365,7 +387,8 @@ export default function PlansManager() {
                   onClick={() => handleExport('docx')}
                   aria-busy={isExporting}
                 >
-                  <MdOutlineTextSnippet aria-hidden />
+                  {isExporting && <span className="ui-button-spinner" aria-hidden />}
+                  {!isExporting && <MdOutlineTextSnippet aria-hidden />}
                   Word
                 </button>
               </div>

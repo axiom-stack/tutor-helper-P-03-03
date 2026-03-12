@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import {
   MdAssignment,
   MdAutoAwesome,
-  MdCheckCircle,
-  MdErrorOutline,
   MdOutlinePictureAsPdf,
   MdOutlineTextSnippet,
   MdRefresh,
@@ -407,6 +406,24 @@ export default function Assignments() {
     };
   }, [isScopedView, user?.userRole]);
 
+  useEffect(() => {
+    if (error) {
+      toast.error(error.message);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    if (successMessage) {
+      toast.success(successMessage);
+    }
+  }, [successMessage]);
+
+  useEffect(() => {
+    if (exportError) {
+      toast.error(exportError);
+    }
+  }, [exportError]);
+
   const handleGenerateAssignments = async () => {
     if (!context) {
       return;
@@ -488,8 +505,18 @@ export default function Assignments() {
     return null;
   }
 
+  if (isListLoading && assignments.length === 0 && !selectedAssignment) {
+    return (
+      <div className="ui-loading-screen">
+        <div className="ui-loading-shell">
+          <span className="ui-spinner" aria-hidden />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="asn">
+    <div className="asn ui-loaded">
       <header className="asn__header page-header">
         <div>
           <nav className="asn__breadcrumb" aria-label="breadcrumb">
@@ -511,37 +538,21 @@ export default function Assignments() {
           onClick={() => void handleGenerateAssignments()}
           disabled={!context || isGenerating || isListLoading}
         >
-          <MdAutoAwesome aria-hidden />
+          {isGenerating && <span className="ui-button-spinner" aria-hidden />}
+          {!isGenerating && <MdAutoAwesome aria-hidden />}
           {isGenerating ? 'جارٍ التوليد...' : 'اقتراح واجبات جديدة'}
         </button>
       </header>
 
       <section className="asn__context">
         {summaryCards.map((card) => (
-          <article key={card.label}>
+          <article key={card.label} className="animate-fadeIn">
             <span>{card.label}</span>
             {card.label.includes('الخطة') ? <code>{card.value}</code> : <p>{card.value}</p>}
             <small>{card.hint}</small>
           </article>
         ))}
       </section>
-
-      {error && (
-        <div className="asn-alert asn-alert--error" role="alert">
-          <MdErrorOutline aria-hidden />
-          <div>
-            <p>{error.message}</p>
-            {error.code && <small>رمز الخطأ: {error.code}</small>}
-          </div>
-        </div>
-      )}
-
-      {successMessage && (
-        <div className="asn-alert asn-alert--success" role="status">
-          <MdCheckCircle aria-hidden />
-          <p>{successMessage}</p>
-        </div>
-      )}
 
       {!context && (
         <section className="asn__filters" aria-label="فلترة الواجبات">
@@ -593,7 +604,8 @@ export default function Assignments() {
                 onClick={() => void loadAssignments(true)}
                 disabled={isListLoading || isRefreshing}
               >
-                <MdRefresh aria-hidden />
+                {isRefreshing && <span className="ui-button-spinner" aria-hidden />}
+                {!isRefreshing && <MdRefresh aria-hidden />}
                 {isRefreshing ? 'جارٍ التحديث...' : 'تحديث القائمة'}
               </button>
             </div>
@@ -630,7 +642,8 @@ export default function Assignments() {
                     onClick={() => void handleGenerateAssignments()}
                     disabled={isGenerating}
                   >
-                    <MdAutoAwesome aria-hidden />
+                    {isGenerating && <span className="ui-button-spinner" aria-hidden />}
+                    {!isGenerating && <MdAutoAwesome aria-hidden />}
                     {isGenerating ? 'جارٍ التوليد...' : 'توليد الواجبات الآن'}
                   </button>
                 )}
@@ -662,7 +675,8 @@ export default function Assignments() {
                     disabled={isExporting}
                     aria-busy={isExporting}
                   >
-                    <MdOutlinePictureAsPdf aria-hidden />
+                    {isExporting && <span className="ui-button-spinner" aria-hidden />}
+                    {!isExporting && <MdOutlinePictureAsPdf aria-hidden />}
                     تصدير PDF
                   </button>
                   <button
@@ -672,19 +686,13 @@ export default function Assignments() {
                     disabled={isExporting}
                     aria-busy={isExporting}
                   >
-                    <MdOutlineTextSnippet aria-hidden />
+                    {isExporting && <span className="ui-button-spinner" aria-hidden />}
+                    {!isExporting && <MdOutlineTextSnippet aria-hidden />}
                     تصدير Word
                   </button>
                 </>
               )}
             </div>
-
-            {exportError && (
-              <div className="asn-alert asn-alert--error" role="alert">
-                <MdErrorOutline aria-hidden />
-                <p>{exportError}</p>
-              </div>
-            )}
 
             {!selectedAssignment ? (
               <div className="asn__details-empty">

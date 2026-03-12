@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import type { Class, Lesson, Subject, TeacherManagementRow, Unit } from '../../types';
 import TeacherCirriculumManager from '../teacher-curriculum-manager/TeacherCirriculumManager';
@@ -61,6 +62,7 @@ function AdminCurriculumExplorer() {
       .catch(() => {
         if (!cancelled) {
           setError('تعذر تحميل بيانات المنهج على مستوى النظام.');
+          toast.error('تعذر تحميل بيانات المنهج على مستوى النظام.');
         }
       })
       .finally(() => {
@@ -134,8 +136,18 @@ function AdminCurriculumExplorer() {
     });
   }, [lessons, filteredUnits, teacherFilter]);
 
+  if (loading) {
+    return (
+      <div className="ui-loading-screen">
+        <div className="ui-loading-shell">
+          <span className="ui-spinner" aria-hidden />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="cc">
+    <div className="cc ui-loaded">
       <header className="cc__header page-header">
         <h1>المنهج الدراسي (نطاق النظام)</h1>
         <p>استعراض هرم الصفوف والمواد والوحدات والدروس لجميع المعلمين.</p>
@@ -203,10 +215,7 @@ function AdminCurriculumExplorer() {
         </label>
       </section>
 
-      {loading ? <p className="cc__state">جاري تحميل البيانات...</p> : null}
-      {error ? <p className="cc__state cc__state--error">{error}</p> : null}
-
-      {!loading && !error ? (
+      {!error ? (
         <section className="cc__summary-grid">
           <article>
             <span>عدد الصفوف</span>
@@ -227,7 +236,7 @@ function AdminCurriculumExplorer() {
         </section>
       ) : null}
 
-      {!loading && !error ? (
+      {!error ? (
         <section className="cc__table-card">
           <h2>قائمة الدروس</h2>
           {filteredLessons.length === 0 ? (

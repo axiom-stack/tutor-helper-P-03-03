@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router';
 import {
   MdAdd,
@@ -253,6 +254,28 @@ function TeacherCirriculumManager() {
     (sum, unitItem) => sum + (lessonsByUnit[unitItem.id]?.length ?? 0),
     0
   );
+
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    if (success) {
+      toast.success(success);
+    }
+  }, [success]);
+
+  if (loading) {
+    return (
+      <div className="ui-loading-screen">
+        <div className="ui-loading-shell">
+          <span className="ui-spinner" aria-hidden />
+        </div>
+      </div>
+    );
+  }
 
   const isCreatorValid = (() => {
     if (creatorClassMode === 'existing') {
@@ -1189,7 +1212,7 @@ function TeacherCirriculumManager() {
   };
 
   return (
-    <div className="tcm2">
+    <div className="tcm2 ui-loaded">
       <nav aria-label="breadcrumb">
         <ol className="tcm2__breadcrumb">
           <li>
@@ -1204,22 +1227,7 @@ function TeacherCirriculumManager() {
         <p>إدارة الصفوف والمواد والوحدات والدروس من صفحة واحدة.</p>
       </header>
 
-      {error && (
-        <div className="tcm2__alert tcm2__alert--error" role="alert">
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="tcm2__alert tcm2__alert--success" role="status">
-          {success}
-        </div>
-      )}
-
-      {loading ? (
-        <div className="tcm2__loading">جاري تحميل بيانات المنهج...</div>
-      ) : (
-        <div className="tcm2__grid">
+      <div className="tcm2__grid">
           <section className="tcm2__panel">
             <div className="tcm2__panel-head">
               <h2>
@@ -1432,7 +1440,7 @@ function TeacherCirriculumManager() {
                   const isExpanded = expandedUnitIds.has(unitItem.id);
 
                   return (
-                    <article key={unitItem.id} className="tcm2__unit">
+                    <article key={unitItem.id} className="tcm2__unit animate-fadeIn">
                       <header className="tcm2__unit-head">
                         <button
                           type="button"
@@ -1489,7 +1497,7 @@ function TeacherCirriculumManager() {
                           ) : (
                             <ul className="tcm2__lesson-list">
                               {unitLessons.map((lessonItem) => (
-                                <li key={lessonItem.id} className="tcm2__lesson-row">
+                                <li key={lessonItem.id} className="tcm2__lesson-row animate-fadeIn">
                                   <div className="tcm2__lesson-main">
                                     <MdMenuBook aria-hidden />
                                     <div>
@@ -1955,6 +1963,7 @@ function TeacherCirriculumManager() {
                   className="tcm2__primary"
                   disabled={saving || !isCreatorValid}
                 >
+                  {saving && <span className="ui-button-spinner" aria-hidden />}
                   {saving ? 'جارٍ الحفظ...' : 'تنفيذ المسار'}
                 </button>
               </div>
@@ -1966,7 +1975,6 @@ function TeacherCirriculumManager() {
             )}
           </section>
         </div>
-      )}
 
       <ConfirmActionModal
         isOpen={Boolean(deleteRequest)}
@@ -2225,6 +2233,7 @@ function TeacherCirriculumManager() {
                 onClick={() => void handleQuickAddSubmit()}
                 disabled={saving || !isQuickAddValid}
               >
+                {saving && <span className="ui-button-spinner" aria-hidden />}
                 {saving ? 'جارٍ الحفظ...' : 'إضافة'}
               </button>
             </div>
@@ -2498,6 +2507,7 @@ function TeacherCirriculumManager() {
                 onClick={() => void handleSaveEdit()}
                 disabled={saving}
               >
+                {saving && <span className="ui-button-spinner" aria-hidden />}
                 {saving ? 'جارٍ الحفظ...' : 'حفظ'}
               </button>
             </div>

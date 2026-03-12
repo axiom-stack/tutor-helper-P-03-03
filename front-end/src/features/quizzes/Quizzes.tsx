@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { Link } from 'react-router';
 import {
   MdAutoAwesome,
-  MdCheckCircle,
   MdDelete,
-  MdErrorOutline,
   MdOutlinePictureAsPdf,
   MdOutlineTextSnippet,
   MdQuiz,
@@ -164,6 +163,24 @@ export default function Quizzes() {
       cancelled = true;
     };
   }, [isAdmin, isTeacher, loadExams]);
+
+  useEffect(() => {
+    if (error) {
+      toast.error(error.message);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    if (successMessage) {
+      toast.success(successMessage);
+    }
+  }, [successMessage]);
+
+  useEffect(() => {
+    if (exportError) {
+      toast.error(exportError);
+    }
+  }, [exportError]);
 
   const selectedSubject = useMemo(
     () => subjects.find((subject) => subject.id === selectedSubjectId) ?? null,
@@ -392,8 +409,18 @@ export default function Quizzes() {
     return null;
   }
 
+  if (isBootLoading) {
+    return (
+      <div className="ui-loading-screen">
+        <div className="ui-loading-shell">
+          <span className="ui-spinner" aria-hidden />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="qz">
+    <div className="qz ui-loaded">
       <header className="qz__header page-header">
         <div>
           <nav className="qz__breadcrumb" aria-label="breadcrumb">
@@ -414,28 +441,11 @@ export default function Quizzes() {
         </div>
       </header>
 
-      {error && (
-        <div className="qz-alert qz-alert--error" role="alert">
-          <MdErrorOutline aria-hidden />
-          <p>{error.message}</p>
-        </div>
-      )}
-
-      {successMessage && (
-        <div className="qz-alert qz-alert--success" role="status">
-          <MdCheckCircle aria-hidden />
-          <p>{successMessage}</p>
-        </div>
-      )}
-
       <div className={`qz__layout ${isAdmin ? 'qz__layout--admin' : ''}`}>
         {isTeacher ? (
           <aside className="qz__panel">
           <h2>إعداد الاختبار</h2>
-          {isBootLoading ? (
-            <p>جارٍ تحميل المواد...</p>
-          ) : (
-            <>
+          <>
               <div className="qz__field">
                 <label htmlFor="qz-subject">المادة</label>
                 <select
@@ -534,11 +544,11 @@ export default function Quizzes() {
                 onClick={() => void handleGenerateExam()}
                 disabled={isGenerating || selectedSubjectId === ''}
               >
-                <MdAutoAwesome aria-hidden />
+                {isGenerating && <span className="ui-button-spinner" aria-hidden />}
+                {!isGenerating && <MdAutoAwesome aria-hidden />}
                 {isGenerating ? 'جارٍ التوليد...' : 'توليد الاختبار'}
               </button>
-            </>
-          )}
+          </>
           </aside>
         ) : null}
 
@@ -605,7 +615,8 @@ export default function Quizzes() {
               onClick={() => void loadExams()}
               disabled={isListLoading}
             >
-              <MdRefresh aria-hidden />
+              {isListLoading && <span className="ui-button-spinner" aria-hidden />}
+              {!isListLoading && <MdRefresh aria-hidden />}
               {isListLoading ? 'جارٍ التحديث...' : 'تحديث القائمة'}
             </button>
           </div>
@@ -625,7 +636,9 @@ export default function Quizzes() {
                   return (
                     <article
                       key={exam.public_id}
-                      className={`qz__exam-card ${isActive ? 'qz__exam-card--active' : ''}`}
+                      className={`qz__exam-card animate-fadeIn ${
+                        isActive ? 'qz__exam-card--active' : ''
+                      }`}
                     >
                       <button
                         type="button"
@@ -633,7 +646,11 @@ export default function Quizzes() {
                         onClick={() => void handleLoadExamDetails(exam.public_id)}
                         disabled={isExamLoading}
                       >
-                        <MdQuiz aria-hidden />
+                        {isExamLoading && isActive ? (
+                          <span className="ui-button-spinner" aria-hidden />
+                        ) : (
+                          <MdQuiz aria-hidden />
+                        )}
                         <div>
                           <h4>{exam.title}</h4>
                           <p>
@@ -672,12 +689,6 @@ export default function Quizzes() {
                 <p>جارٍ تحميل التفاصيل...</p>
               ) : (
                 <div className="qz__details-body">
-                  {exportError && (
-                    <div className="qz-alert qz-alert--error" role="alert">
-                      <MdErrorOutline aria-hidden />
-                      <p>{exportError}</p>
-                    </div>
-                  )}
                   <header className="qz__details-head">
                     <h4>{selectedExam.title}</h4>
                     <p>
@@ -692,7 +703,8 @@ export default function Quizzes() {
                         disabled={isExporting}
                         aria-busy={isExporting}
                       >
-                        <MdOutlinePictureAsPdf aria-hidden />
+                        {isExporting && <span className="ui-button-spinner" aria-hidden />}
+                        {!isExporting && <MdOutlinePictureAsPdf aria-hidden />}
                         تصدير PDF
                       </button>
                       <button
@@ -702,7 +714,8 @@ export default function Quizzes() {
                         disabled={isExporting}
                         aria-busy={isExporting}
                       >
-                        <MdOutlineTextSnippet aria-hidden />
+                        {isExporting && <span className="ui-button-spinner" aria-hidden />}
+                        {!isExporting && <MdOutlineTextSnippet aria-hidden />}
                         تصدير Word
                       </button>
                     </div>

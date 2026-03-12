@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import {
   MdAutoAwesome,
   MdCheckCircle,
@@ -241,6 +242,16 @@ export default function SmartRefinementPanel({
     setTargetSelector(targetSelectors[0]?.value ?? 'full_document');
   }, [targetSelectors]);
 
+  useEffect(() => {
+    errorMessages.forEach((item) => toast.error(item));
+  }, [errorMessages]);
+
+  useEffect(() => {
+    if (successMessage) {
+      toast.success(successMessage);
+    }
+  }, [successMessage]);
+
   const handleCreateRefinement = async () => {
     if (!feedbackText.trim() || !canSubmit) {
       return;
@@ -429,20 +440,21 @@ export default function SmartRefinementPanel({
             onClick={() => void handleCreateRefinement()}
             disabled={!canSubmit || !feedbackText.trim() || isCreating || isDecisionLoading}
           >
-            <MdAutoAwesome aria-hidden />
+            {isCreating && <span className="ui-button-spinner" aria-hidden />}
+            {!isCreating && <MdAutoAwesome aria-hidden />}
             {isCreating ? 'جارٍ توليد المقترح...' : 'توليد مقترح تحسين'}
           </button>
+
+          {!activeProposal && errorMessages.length > 0 && (
+            <div className="srp__error" role="alert">
+              {errorMessages.map((item) => (
+                <p key={item}>{item}</p>
+              ))}
+            </div>
+          )}
+          {!activeProposal && successMessage && <div className="srp__success">{successMessage}</div>}
         </div>
       </div>
-
-      {errorMessages.length > 0 && (
-        <div className="srp__error" role="alert">
-          {errorMessages.map((item) => (
-            <p key={item}>{item}</p>
-          ))}
-        </div>
-      )}
-      {successMessage && <div className="srp__success">{successMessage}</div>}
 
       {activeRequest && (
         <article className="srp__request-meta">
@@ -506,7 +518,7 @@ export default function SmartRefinementPanel({
           ) : (
             <div className="srp__diff-groups">
               {proposalViewModel.groups.map((group) => (
-                <section key={group.key} className="srp__diff-group">
+                <section key={group.key} className="srp__diff-group animate-fadeIn">
                   <header className="srp__diff-group-header">
                     <div>
                       <h5>{group.label}</h5>
@@ -517,7 +529,7 @@ export default function SmartRefinementPanel({
 
                   <div className="srp__diff-list">
                     {group.items.map((item) => (
-                      <article key={item.key} className="srp__diff-card">
+                      <article key={item.key} className="srp__diff-card animate-fadeIn">
                         <header className="srp__diff-card-header">
                           <div>
                             <h6>{item.label}</h6>
@@ -585,7 +597,8 @@ export default function SmartRefinementPanel({
               onClick={() => void handleRetry()}
               disabled={isDecisionLoading || isCreating || !activeRequest}
             >
-              <MdReplay aria-hidden />
+              {isDecisionLoading && <span className="ui-button-spinner" aria-hidden />}
+              {!isDecisionLoading && <MdReplay aria-hidden />}
               إعادة التوليد
             </button>
             <button
@@ -594,7 +607,8 @@ export default function SmartRefinementPanel({
               onClick={() => void handleApprove()}
               disabled={!isPendingApproval || isDecisionLoading || isCreating}
             >
-              <MdThumbUp aria-hidden />
+              {isDecisionLoading && <span className="ui-button-spinner" aria-hidden />}
+              {!isDecisionLoading && <MdThumbUp aria-hidden />}
               اعتماد
             </button>
             <button
@@ -603,10 +617,19 @@ export default function SmartRefinementPanel({
               onClick={() => void handleReject()}
               disabled={!isPendingApproval || isDecisionLoading || isCreating}
             >
-              <MdThumbDown aria-hidden />
+              {isDecisionLoading && <span className="ui-button-spinner" aria-hidden />}
+              {!isDecisionLoading && <MdThumbDown aria-hidden />}
               رفض
             </button>
           </div>
+          {errorMessages.length > 0 && (
+            <div className="srp__error" role="alert">
+              {errorMessages.map((item) => (
+                <p key={item}>{item}</p>
+              ))}
+            </div>
+          )}
+          {successMessage && <div className="srp__success">{successMessage}</div>}
         </section>
       )}
 
@@ -625,7 +648,7 @@ export default function SmartRefinementPanel({
           ) : (
             <ul>
               {history.map((item) => (
-                <li key={item.public_id}>
+                <li key={item.public_id} className="animate-fadeIn">
                   <div className="srp__history-head">
                     <strong>{item.public_id}</strong>
                     <span className={`srp__status-chip srp__status-chip--${item.status}`}>
@@ -651,7 +674,7 @@ export default function SmartRefinementPanel({
             </h4>
             <ul>
               {revisionList.map((item) => (
-                <li key={item.id}>
+                <li key={item.id} className="animate-fadeIn">
                   <div className="srp__revision-head">
                     <strong>الإصدار {item.revision_number}</strong>
                     <span>{getRevisionSourceLabel(item.source)}</span>
@@ -663,11 +686,20 @@ export default function SmartRefinementPanel({
                     disabled={item.is_current || isDecisionLoading}
                     onClick={() => void handleRevert(item.id)}
                   >
+                    {isDecisionLoading && <span className="ui-button-spinner" aria-hidden />}
                     استرجاع هذه النسخة
                   </button>
                 </li>
               ))}
             </ul>
+            {!activeProposal && errorMessages.length > 0 && (
+              <div className="srp__error" role="alert">
+                {errorMessages.map((item) => (
+                  <p key={item}>{item}</p>
+                ))}
+              </div>
+            )}
+            {!activeProposal && successMessage && <div className="srp__success">{successMessage}</div>}
           </section>
         )}
       </div>

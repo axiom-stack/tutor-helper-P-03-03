@@ -40,7 +40,9 @@
   font-weight: 500;
   color: var(--text-secondary);
   text-decoration: none;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
   border-inline-start: 4px solid transparent;
 }
 
@@ -74,10 +76,6 @@
   border: none;
   border-top: 1px solid var(--border-light);
   margin: 0;
-}
-
-.sidebar__footer {
-  padding: var(--space-lg);
 }
 
 .sidebar__support {
@@ -140,10 +138,6 @@
   }
 
   .sidebar__divider {
-    display: none;
-  }
-
-  .sidebar__footer {
     display: none;
   }
 }

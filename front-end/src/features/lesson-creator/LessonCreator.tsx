@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router';
 import {
   MdAssignment,
   MdCheckCircle,
-  MdHistory,
   MdHourglassTop,
   MdMenuBook,
-  MdOutlineError,
   MdOutlinePictureAsPdf,
   MdOutlineTextSnippet,
   MdViewTimeline,
@@ -297,6 +296,30 @@ function LessonCreator() {
       timelineTimersRef.current = [];
     };
   }, []);
+
+  useEffect(() => {
+    if (pageError) {
+      toast.error(pageError);
+    }
+  }, [pageError]);
+
+  useEffect(() => {
+    if (generationError) {
+      toast.error(generationError);
+    }
+  }, [generationError]);
+
+  useEffect(() => {
+    if (exportError) {
+      toast.error(exportError);
+    }
+  }, [exportError]);
+
+  useEffect(() => {
+    if (generationState === 'success' && generatedPlan) {
+      toast.success('تم توليد الخطة وحفظها بنجاح.');
+    }
+  }, [generationState, generatedPlan]);
 
   const subjectsForSelectedClass = useMemo(() => {
     if (selectedClassId === '') {
@@ -622,8 +645,18 @@ function LessonCreator() {
     return null;
   }
 
+  if (initialLoading) {
+    return (
+      <div className="ui-loading-screen">
+        <div className="ui-loading-shell">
+          <span className="ui-spinner" aria-hidden />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="lcp">
+    <div className="lcp ui-loaded">
       <header className="lcp__header page-header">
         <div>
           <nav className="lcp__breadcrumb" aria-label="breadcrumb">
@@ -645,7 +678,8 @@ function LessonCreator() {
             disabled={!generatedPlan || isExporting}
             aria-busy={isExporting}
           >
-            <MdOutlinePictureAsPdf aria-hidden />
+            {isExporting && <span className="ui-button-spinner" aria-hidden />}
+            {!isExporting && <MdOutlinePictureAsPdf aria-hidden />}
             {isExporting ? 'جاري التصدير...' : 'تصدير PDF'}
           </button>
           <button
@@ -654,25 +688,12 @@ function LessonCreator() {
             disabled={!generatedPlan || isExporting}
             aria-busy={isExporting}
           >
-            <MdOutlineTextSnippet aria-hidden />
+            {isExporting && <span className="ui-button-spinner" aria-hidden />}
+            {!isExporting && <MdOutlineTextSnippet aria-hidden />}
             {isExporting ? 'جاري التصدير...' : 'تصدير Word'}
           </button>
         </div>
       </header>
-
-      {exportError && (
-        <div className="lcp__alert lcp__alert--error" role="alert">
-          <MdOutlineError aria-hidden />
-          <span>{exportError}</span>
-        </div>
-      )}
-
-      {pageError && (
-        <div className="lcp__alert lcp__alert--error" role="alert">
-          <MdOutlineError aria-hidden />
-          <span>{pageError}</span>
-        </div>
-      )}
 
       <div className="lcp__layout">
         <section className="lcp__preview" aria-live="polite">
@@ -900,7 +921,7 @@ function LessonCreator() {
             >
               {isGenerating ? (
                 <>
-                  <MdHistory aria-hidden />
+                  <span className="ui-button-spinner" aria-hidden />
                   جارٍ توليد الخطة...
                 </>
               ) : generationState === 'error' ? (

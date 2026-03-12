@@ -24,7 +24,7 @@ export default function AssignmentCard({
   onView,
 }: AssignmentCardProps) {
   return (
-    <article className={`asn-card ${isActive ? 'asn-card--active' : ''}`}>
+    <article className={`asn-card animate-fadeIn ${isActive ? 'asn-card--active' : ''}`}>
       <div className="asn-card__header">
         <h3 className="asn-card__title">{assignment.name}</h3>
         <span
@@ -48,7 +48,11 @@ export default function AssignmentCard({
           onClick={() => onView(assignment)}
           disabled={isDetailLoading}
         >
-          <MdVisibility aria-hidden />
+          {isDetailLoading && isActive ? (
+            <span className="ui-button-spinner" aria-hidden />
+          ) : (
+            <MdVisibility aria-hidden />
+          )}
           {isDetailLoading && isActive ? 'جارٍ تحميل التفاصيل...' : 'عرض الواجب'}
         </button>
       </div>

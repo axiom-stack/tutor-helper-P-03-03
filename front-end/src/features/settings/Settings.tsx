@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { MdCheckCircle, MdErrorOutline, MdSave } from 'react-icons/md';
+import toast from 'react-hot-toast';
+import { MdSave } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
 import type { UserProfileUpdatePayload } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
@@ -30,8 +31,8 @@ export default function Settings() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
+  const [, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     const win = window as Window & { googleTranslateElementInit?: () => void };
@@ -65,9 +66,10 @@ export default function Settings() {
       })
       .catch((loadError: unknown) => {
         if (!cancelled) {
-          setError(
-            normalizeApiError(loadError, 'تعذر تحميل الإعدادات الشخصية.').message
-          );
+          const message =
+            normalizeApiError(loadError, 'تعذر تحميل الإعدادات الشخصية.').message;
+          setError(message);
+          toast.error(message);
         }
       })
       .finally(() => {
@@ -99,10 +101,13 @@ export default function Settings() {
       const response = await updateMyProfile(payload);
       updateUserProfile(response.profile);
       setSuccess('تم حفظ الإعدادات بنجاح.');
+      toast.success('تم حفظ الإعدادات بنجاح.');
       applyDisplayLanguageAndReload(language);
       return;
     } catch (saveError: unknown) {
-      setError(normalizeApiError(saveError, 'فشل حفظ الإعدادات.').message);
+      const message = normalizeApiError(saveError, 'فشل حفظ الإعدادات.').message;
+      setError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -112,8 +117,18 @@ export default function Settings() {
     return null;
   }
 
+  if (loading) {
+    return (
+      <div className="ui-loading-screen">
+        <div className="ui-loading-shell">
+          <span className="ui-spinner" aria-hidden />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="st">
+    <div className="st ui-loaded">
       <header className="st__header page-header">
         <h1>الإعدادات العامة</h1>
         <p>
@@ -124,96 +139,78 @@ export default function Settings() {
       </header>
 
       <section className="st__panel">
-        {loading ? <p className="st__state">جاري تحميل الإعدادات...</p> : null}
+        <div className="st__form-grid">
+          <label className="st__field" htmlFor="settings-language">
+            <span>لغة العرض</span>
+            <select
+              id="settings-language"
+              className="notranslate"
+              value={language}
+              onChange={(event) => setLanguage(event.target.value as LanguageValue)}
+            >
+              <option value="ar">العربية</option>
+              <option value="en">English</option>
+            </select>
+          </label>
 
-        {!loading ? (
-          <div className="st__form-grid">
-            <label className="st__field" htmlFor="settings-language">
-              <span>لغة العرض</span>
-              <select
-                id="settings-language"
-                className="notranslate"
-                value={language}
-                onChange={(event) => setLanguage(event.target.value as LanguageValue)}
-              >
-                <option value="ar">العربية</option>
-                <option value="en">English</option>
-              </select>
-            </label>
+          <label className="st__field" htmlFor="settings-stage">
+            <span>المرحلة التعليمية الافتراضية</span>
+            <input
+              id="settings-stage"
+              value={educationalStage}
+              onChange={(event) => setEducationalStage(event.target.value)}
+              placeholder="مثال: المرحلة الإعدادية"
+            />
+          </label>
 
-            <label className="st__field" htmlFor="settings-stage">
-              <span>المرحلة التعليمية الافتراضية</span>
-              <input
-                id="settings-stage"
-                value={educationalStage}
-                onChange={(event) => setEducationalStage(event.target.value)}
-                placeholder="مثال: المرحلة الإعدادية"
-              />
-            </label>
+          <label className="st__field" htmlFor="settings-subject">
+            <span>المادة الافتراضية</span>
+            <input
+              id="settings-subject"
+              value={subject}
+              onChange={(event) => setSubject(event.target.value)}
+              placeholder="مثال: الرياضيات"
+            />
+          </label>
 
-            <label className="st__field" htmlFor="settings-subject">
-              <span>المادة الافتراضية</span>
-              <input
-                id="settings-subject"
-                value={subject}
-                onChange={(event) => setSubject(event.target.value)}
-                placeholder="مثال: الرياضيات"
-              />
-            </label>
+          <label className="st__field" htmlFor="settings-preparation-type">
+            <span>نوع التحضير</span>
+            <input
+              id="settings-preparation-type"
+              value={preparationType}
+              onChange={(event) => setPreparationType(event.target.value)}
+              placeholder="مثال: تحضير يومي"
+            />
+          </label>
 
-            <label className="st__field" htmlFor="settings-preparation-type">
-              <span>نوع التحضير</span>
-              <input
-                id="settings-preparation-type"
-                value={preparationType}
-                onChange={(event) => setPreparationType(event.target.value)}
-                placeholder="مثال: تحضير يومي"
-              />
-            </label>
+          <label className="st__field" htmlFor="settings-default-plan-type">
+            <span>نوع الخطة الافتراضي</span>
+            <select
+              id="settings-default-plan-type"
+              value={defaultPlanType}
+              onChange={(event) =>
+                setDefaultPlanType(event.target.value as DefaultPlanTypeValue)
+              }
+            >
+              <option value="traditional">تقليدية</option>
+              <option value="active_learning">تعلم نشط</option>
+            </select>
+          </label>
 
-            <label className="st__field" htmlFor="settings-default-plan-type">
-              <span>نوع الخطة الافتراضي</span>
-              <select
-                id="settings-default-plan-type"
-                value={defaultPlanType}
-                onChange={(event) =>
-                  setDefaultPlanType(event.target.value as DefaultPlanTypeValue)
-                }
-              >
-                <option value="traditional">تقليدية</option>
-                <option value="active_learning">تعلم نشط</option>
-              </select>
-            </label>
-
-            <label className="st__field" htmlFor="settings-duration">
-              <span>المدة الافتراضية للحصة (دقيقة)</span>
-              <input
-                id="settings-duration"
-                type="number"
-                min={1}
-                step={1}
-                value={defaultLessonDuration}
-                onChange={(event) =>
-                  setDefaultLessonDuration(Number(event.target.value) || 45)
-                }
-              />
-            </label>
-          </div>
-        ) : null}
-
-        {error ? (
-          <div className="st__message st__message--error">
-            <MdErrorOutline aria-hidden />
-            <span>{error}</span>
-          </div>
-        ) : null}
-
-        {success ? (
-          <div className="st__message st__message--success">
-            <MdCheckCircle aria-hidden />
-            <span>{success}</span>
-          </div>
-        ) : null}
+          <label className="st__field" htmlFor="settings-duration">
+            <span>المدة الافتراضية للحصة (دقيقة)</span>
+            <input
+              id="settings-duration"
+              type="number"
+              min={1}
+              step={1}
+              value={defaultLessonDuration}
+              onChange={(event) =>
+                setDefaultLessonDuration(Number(event.target.value) || 45)
+              }
+            />
+          </label>
+        </div>
 
         <div className="st__actions">
           <button
@@ -221,7 +218,8 @@ export default function Settings() {
             onClick={() => void handleSave()}
             disabled={loading || saving}
           >
-            <MdSave aria-hidden />
+            {saving && <span className="ui-button-spinner" aria-hidden />}
+            {!saving && <MdSave aria-hidden />}
             {saving ? 'جارٍ الحفظ...' : 'حفظ الإعدادات'}
           </button>
         </div>

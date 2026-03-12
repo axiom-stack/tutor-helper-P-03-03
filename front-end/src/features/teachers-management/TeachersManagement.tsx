@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import {
   MdClose,
   MdDeleteOutline,
@@ -69,15 +70,15 @@ export default function TeachersManagement() {
   const [teachers, setTeachers] = useState<TeacherManagementRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
+  const [, setSuccess] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [newTeacherUsername, setNewTeacherUsername] = useState('');
   const [newTeacherPassword, setNewTeacherPassword] = useState('');
-  const [createError, setCreateError] = useState<string | null>(null);
+  const [, setCreateError] = useState<string | null>(null);
   const [deleteDraft, setDeleteDraft] = useState<DeleteDraft | null>(null);
 
   const teacherById = useMemo(
@@ -93,7 +94,9 @@ export default function TeachersManagement() {
       const response = await listTeachers();
       setTeachers(response.teachers ?? []);
     } catch (loadError: unknown) {
-      setError(normalizeApiError(loadError, 'فشل تحميل قائمة المعلمين.').message);
+      const message = normalizeApiError(loadError, 'فشل تحميل قائمة المعلمين.').message;
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -107,11 +110,13 @@ export default function TeachersManagement() {
     // Client-side validation
     if (newTeacherUsername.length < 4) {
       setCreateError('اسم المستخدم يجب أن يكون 4 أحرف على الأقل');
+      toast.error('اسم المستخدم يجب أن يكون 4 أحرف على الأقل');
       return;
     }
 
     if (newTeacherPassword.length < 6) {
       setCreateError('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+      toast.error('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
       return;
     }
 
@@ -125,13 +130,16 @@ export default function TeachersManagement() {
       });
 
       setSuccess('تم إضافة المعلم بنجاح.');
+      toast.success('تم إضافة المعلم بنجاح.');
       setShowCreateModal(false);
       setNewTeacherUsername('');
       setNewTeacherPassword('');
       // Reload teachers list
       await loadTeachers();
     } catch (createError: unknown) {
-      setCreateError(normalizeApiError(createError, 'فشل إضافة المعلم.').message);
+      const message = normalizeApiError(createError, 'فشل إضافة المعلم.').message;
+      setCreateError(message);
+      toast.error(message);
     } finally {
       setCreating(false);
     }
@@ -145,11 +153,13 @@ export default function TeachersManagement() {
     const username = editDraft.username.trim();
     if (username.length < 4) {
       setError('اسم المستخدم يجب أن يكون 4 أحرف على الأقل.');
+      toast.error('اسم المستخدم يجب أن يكون 4 أحرف على الأقل.');
       return;
     }
 
     if (editDraft.default_lesson_duration_minutes < 1) {
       setError('المدة الافتراضية يجب أن تكون دقيقة واحدة على الأقل.');
+      toast.error('المدة الافتراضية يجب أن تكون دقيقة واحدة على الأقل.');
       return;
     }
 
@@ -190,9 +200,12 @@ export default function TeachersManagement() {
         )
       );
       setSuccess('تم تحديث ملف المعلم بنجاح.');
+      toast.success('تم تحديث ملف المعلم بنجاح.');
       setEditDraft(null);
     } catch (saveError: unknown) {
-      setError(normalizeApiError(saveError, 'فشل حفظ ملف المعلم.').message);
+      const message = normalizeApiError(saveError, 'فشل حفظ ملف المعلم.').message;
+      setError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -218,8 +231,11 @@ export default function TeachersManagement() {
       );
       setDeleteDraft(null);
       setSuccess('تم حذف المعلم بنجاح.');
+      toast.success('تم حذف المعلم بنجاح.');
     } catch (deleteError: unknown) {
-      setError(normalizeApiError(deleteError, 'فشل حذف المعلم.').message);
+      const message = normalizeApiError(deleteError, 'فشل حذف المعلم.').message;
+      setError(message);
+      toast.error(message);
     } finally {
       setDeleting(false);
     }
@@ -229,8 +245,18 @@ export default function TeachersManagement() {
     ? teacherById.get(editDraft.teacherId) ?? null
     : null;
 
+  if (loading && teachers.length === 0) {
+    return (
+      <div className="ui-loading-screen">
+        <div className="ui-loading-shell">
+          <span className="ui-spinner" aria-hidden />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="tm">
+    <div className="tm ui-loaded">
       <header className="tm__header page-header">
         <h1>إدارة المعلمين</h1>
         <p>عرض سياق المعلمين التعليمي وسجل الاستخدام مع إمكانية تحديث الملف.</p>
@@ -242,13 +268,11 @@ export default function TeachersManagement() {
           إضافة معلم جديد
         </button>
         <button type="button" onClick={() => void loadTeachers()} disabled={loading}>
-          <MdRefresh aria-hidden />
+          {loading && <span className="ui-button-spinner" aria-hidden />}
+          {!loading && <MdRefresh aria-hidden />}
           {loading ? 'جارٍ التحديث...' : 'تحديث القائمة'}
         </button>
       </div>
-
-      {error ? <div className="tm__alert tm__alert--error">{error}</div> : null}
-      {success ? <div className="tm__alert tm__alert--success">{success}</div> : null}
 
       <section className="tm__layout">
         <article className="tm__table-card">
@@ -280,7 +304,9 @@ export default function TeachersManagement() {
                     <tr
                       key={teacher.id}
                       className={
-                        editDraft?.teacherId === teacher.id ? 'tm__row tm__row--selected' : 'tm__row'
+                        editDraft?.teacherId === teacher.id
+                          ? 'tm__row tm__row--selected animate-fadeIn'
+                          : 'tm__row animate-fadeIn'
                       }
                     >
                       <td>
@@ -463,7 +489,8 @@ export default function TeachersManagement() {
 
               <div className="tm__editor-actions">
                 <button type="button" onClick={() => void handleSave()} disabled={saving}>
-                  <MdSave aria-hidden />
+                  {saving && <span className="ui-button-spinner" aria-hidden />}
+                  {!saving && <MdSave aria-hidden />}
                   {saving ? 'جارٍ الحفظ...' : 'حفظ'}
                 </button>
               </div>
@@ -523,12 +550,6 @@ export default function TeachersManagement() {
                 />
               </label>
 
-              {createError && (
-                <div className="tm-modal__error" role="alert">
-                  {createError}
-                </div>
-              )}
-
               <div className="tm-modal__actions">
                 <button
                   type="button"
@@ -543,6 +564,7 @@ export default function TeachersManagement() {
                   className="tm-modal__btn tm-modal__btn--primary"
                   disabled={creating}
                 >
+                  {creating && <span className="ui-button-spinner" aria-hidden />}
                   {creating ? 'جارٍ الإضافة...' : 'إضافة المعلم'}
                 </button>
               </div>
@@ -595,6 +617,7 @@ export default function TeachersManagement() {
                   onClick={() => void handleDeleteTeacher()}
                   disabled={deleting}
                 >
+                  {deleting && <span className="ui-button-spinner" aria-hidden />}
                   {deleting ? 'جارٍ الحذف...' : 'تأكيد الحذف'}
                 </button>
               </div>

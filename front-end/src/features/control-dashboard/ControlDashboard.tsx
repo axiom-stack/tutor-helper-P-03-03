@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router';
 import {
   MdAssignment,
@@ -132,6 +133,7 @@ export default function ControlDashboard() {
           return;
         }
         setError('تعذر تحميل بيانات لوحة التحكم.');
+        toast.error('تعذر تحميل بيانات لوحة التحكم.');
       })
       .finally(() => {
         if (!cancelled) {
@@ -174,8 +176,18 @@ export default function ControlDashboard() {
     return null;
   }
 
+  if (loading) {
+    return (
+      <div className="ui-loading-screen">
+        <div className="ui-loading-shell">
+          <span className="ui-spinner" aria-hidden />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="cd">
+    <div className="cd ui-loaded">
       <header className="cd__header page-header">
         <h1>
           {isAdmin ? 'لوحة تحكم النظام' : `مرحباً، ${user.username}`} 
@@ -256,10 +268,7 @@ export default function ControlDashboard() {
         )}
       </section>
 
-      {loading ? <div className="cd__state">جاري التحميل...</div> : null}
-      {error ? <div className="cd__state cd__state--error">{error}</div> : null}
-
-      {!loading && !error ? (
+      {!error ? (
         <section className="cd__tables">
           <article className="cd__table-card">
             <header>
