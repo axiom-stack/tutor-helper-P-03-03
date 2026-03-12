@@ -76,6 +76,8 @@ export interface Assignment {
   description: string | null;
   type: AssignmentType;
   content: string;
+  due_date?: string | null;
+  whatsapp_message_text?: string | null;
   created_at: string; // ISO date string
   updated_at: string; // ISO date string
 }
@@ -162,6 +164,7 @@ export interface Exam {
   title: string;
   total_questions: number;
   total_marks: number;
+  duration_minutes?: number;
   lesson_ids: number[];
   blueprint?: ExamBlueprint;
   questions?: ExamQuestion[];
@@ -366,6 +369,7 @@ export interface GenerateExamRequest {
   lesson_ids: number[];
   total_questions: number;
   total_marks: number;
+  duration_minutes?: number;
   title?: string;
 }
 

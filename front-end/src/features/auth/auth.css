@@ -28,6 +28,49 @@
   box-sizing: border-box;
 }
 
+/* Server waking up notice (free tier) */
+.auth__wake-notice {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: var(--auth-error-bg);
+  border-bottom: 2px solid var(--auth-error);
+  color: var(--text-primary);
+  padding: var(--space-md);
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.auth__wake-notice-text {
+  margin: 0 0 var(--space-xs);
+  font-weight: 600;
+}
+.auth__wake-notice-en {
+  margin: 0 0 var(--space-sm);
+  font-size: 0.9em;
+  opacity: 0.9;
+}
+.auth__wake-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--bg);
+  background: var(--primary);
+  border: none;
+  border-radius: var(--auth-radius);
+  cursor: pointer;
+}
+.auth__wake-refresh-btn:hover {
+  background: var(--auth-brand-dark);
+}
+.auth--wake-notice-visible .auth__container {
+  padding-top: 8rem;
+}
+
 /* Split container */
 .auth__container {
   min-height: 100vh;

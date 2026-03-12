@@ -4,6 +4,7 @@ import {
   MdClose,
   MdDeleteOutline,
   MdEdit,
+  MdLockReset,
   MdPersonAdd,
   MdRefresh,
   MdSave,
@@ -17,6 +18,7 @@ import {
   createTeacher,
   deleteTeacher,
   listTeachers,
+  resetTeacherPassword,
   updateTeacherProfile,
 } from '../users/users.services';
 import './teachers-management.css';
@@ -33,6 +35,11 @@ interface EditDraft {
 }
 
 interface DeleteDraft {
+  teacherId: number;
+  username: string;
+}
+
+interface ResetPasswordDraft {
   teacherId: number;
   username: string;
 }
@@ -80,6 +87,10 @@ export default function TeachersManagement() {
   const [newTeacherPassword, setNewTeacherPassword] = useState('');
   const [, setCreateError] = useState<string | null>(null);
   const [deleteDraft, setDeleteDraft] = useState<DeleteDraft | null>(null);
+  const [resetDraft, setResetDraft] = useState<ResetPasswordDraft | null>(null);
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+  const [resetSubmitting, setResetSubmitting] = useState(false);
 
   const teacherById = useMemo(
     () => new Map(teachers.map((teacher) => [teacher.id, teacher])),
@@ -241,6 +252,33 @@ export default function TeachersManagement() {
     }
   };
 
+  const handleResetPasswordSubmit = async () => {
+    if (!resetDraft || resetSubmitting) return;
+    if (resetNewPassword.length < 6) {
+      toast.error('كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل.');
+      return;
+    }
+    if (resetNewPassword !== resetConfirmPassword) {
+      toast.error('كلمة المرور وتأكيدها غير متطابقتين.');
+      return;
+    }
+    setResetSubmitting(true);
+    try {
+      await resetTeacherPassword(resetDraft.teacherId, {
+        new_password: resetNewPassword,
+      });
+      setResetDraft(null);
+      setResetNewPassword('');
+      setResetConfirmPassword('');
+      toast.success('تم تعيين كلمة المرور. يمكن للمعلم تسجيل الدخول وتغييرها.');
+    } catch (err: unknown) {
+      const message = normalizeApiError(err, 'فشل إعادة تعيين كلمة المرور.').message;
+      toast.error(message);
+    } finally {
+      setResetSubmitting(false);
+    }
+  };
+
   const selectedTeacher = editDraft
     ? teacherById.get(editDraft.teacherId) ?? null
     : null;
@@ -330,6 +368,22 @@ export default function TeachersManagement() {
                           >
                             <MdEdit aria-hidden />
                             تعديل
+                          </button>
+                          <button
+                            type="button"
+                            className="tm__action-btn tm__action-btn--secondary"
+                            onClick={() => {
+                              setResetDraft({
+                                teacherId: teacher.id,
+                                username: teacher.username,
+                              });
+                              setResetNewPassword('');
+                              setResetConfirmPassword('');
+                            }}
+                            title="إعادة تعيين كلمة المرور"
+                          >
+                            <MdLockReset aria-hidden />
+                            إعادة تعيين كلمة المرور
                           </button>
                           <button
                             type="button"
@@ -619,6 +673,73 @@ export default function TeachersManagement() {
                 >
                   {deleting && <span className="ui-button-spinner" aria-hidden />}
                   {deleting ? 'جارٍ الحذف...' : 'تأكيد الحذف'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {resetDraft && (
+        <div className="tm-modal" role="dialog" aria-modal="true" aria-labelledby="reset-password-title">
+          <div className="tm-modal__backdrop" onClick={() => setResetDraft(null)} />
+          <div className="tm-modal__panel">
+            <header className="tm-modal__header">
+              <h3 id="reset-password-title">إعادة تعيين كلمة المرور</h3>
+              <button
+                type="button"
+                className="tm-modal__close"
+                onClick={() => setResetDraft(null)}
+                disabled={resetSubmitting}
+                aria-label="إغلاق نافذة إعادة تعيين كلمة المرور"
+              >
+                <MdClose aria-hidden />
+              </button>
+            </header>
+            <div className="tm-modal__form">
+              <p className="tm-modal__delete-message">
+                تعيين كلمة مرور جديدة للمعلم <strong>{resetDraft.username}</strong>. يمكن للمعلم لاحقاً تسجيل الدخول وتغييرها.
+              </p>
+              <label className="tm-modal__field" htmlFor="reset-new-password">
+                كلمة المرور الجديدة (6 أحرف على الأقل)
+                <input
+                  id="reset-new-password"
+                  type="password"
+                  value={resetNewPassword}
+                  onChange={(e) => setResetNewPassword(e.target.value)}
+                  disabled={resetSubmitting}
+                  minLength={6}
+                  autoComplete="new-password"
+                />
+              </label>
+              <label className="tm-modal__field" htmlFor="reset-confirm-password">
+                تأكيد كلمة المرور
+                <input
+                  id="reset-confirm-password"
+                  type="password"
+                  value={resetConfirmPassword}
+                  onChange={(e) => setResetConfirmPassword(e.target.value)}
+                  disabled={resetSubmitting}
+                  autoComplete="new-password"
+                />
+              </label>
+              <div className="tm-modal__actions">
+                <button
+                  type="button"
+                  className="tm-modal__btn tm-modal__btn--secondary"
+                  onClick={() => setResetDraft(null)}
+                  disabled={resetSubmitting}
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  className="tm-modal__btn tm-modal__btn--primary"
+                  onClick={() => void handleResetPasswordSubmit()}
+                  disabled={resetSubmitting || resetNewPassword.length < 6 || resetNewPassword !== resetConfirmPassword}
+                >
+                  {resetSubmitting && <span className="ui-button-spinner" aria-hidden />}
+                  {resetSubmitting ? 'جارٍ الحفظ...' : 'تعيين كلمة المرور'}
                 </button>
               </div>
             </div>

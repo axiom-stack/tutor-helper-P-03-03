@@ -98,6 +98,12 @@ export function validateModifyAssignmentRequest(payload) {
   };
 }
 
+function isIsoDateString(value) {
+  if (value == null || value === "") return true;
+  if (typeof value !== "string") return false;
+  return /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
+}
+
 export function validateUpdateAssignmentRequest(payload) {
   const errors = [];
   const request = payload ?? {};
@@ -107,6 +113,18 @@ export function validateUpdateAssignmentRequest(payload) {
     request.description == null ? "" : typeof request.description === "string" ? request.description.trim() : null;
   const type = normalizeString(request.type);
   const content = normalizeString(request.content);
+  const dueDate =
+    request.due_date == null || request.due_date === ""
+      ? null
+      : typeof request.due_date === "string"
+        ? request.due_date.trim()
+        : undefined;
+  const whatsappMessageText =
+    request.whatsapp_message_text == null || request.whatsapp_message_text === ""
+      ? null
+      : typeof request.whatsapp_message_text === "string"
+        ? request.whatsapp_message_text.trim()
+        : undefined;
 
   if (!name) {
     errors.push({
@@ -136,17 +154,28 @@ export function validateUpdateAssignmentRequest(payload) {
     });
   }
 
+  if (dueDate !== null && dueDate !== undefined && !isIsoDateString(dueDate)) {
+    errors.push({
+      field: "due_date",
+      message: "due_date must be YYYY-MM-DD or empty",
+    });
+  }
+
   if (errors.length > 0) {
     return { ok: false, errors };
   }
 
+  const value = {
+    name,
+    description,
+    type,
+    content,
+  };
+  if (dueDate !== undefined) value.due_date = dueDate || null;
+  if (whatsappMessageText !== undefined) value.whatsapp_message_text = whatsappMessageText || null;
+
   return {
     ok: true,
-    value: {
-      name,
-      description,
-      type,
-      content,
-    },
+    value,
   };
 }

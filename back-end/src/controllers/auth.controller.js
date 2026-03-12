@@ -2,6 +2,7 @@ import { turso } from "../lib/turso.js";
 import { signToken } from "../lib/jwt.js";
 import { verifyPassword } from "../utils/utils.js";
 import { createUsersRepository } from "../users/repositories/users.repository.js";
+import { insertAuditLog } from "../audit/auditLog.js";
 
 export async function login(req, res) {
   try {
@@ -45,6 +46,12 @@ export async function login(req, res) {
 
     if (result.rows.length === 0) {
       req.log.warn({ username }, "User not found");
+      await insertAuditLog({
+        action: "login_failure",
+        userId: null,
+        details: JSON.stringify({ username }),
+        logger: req.log,
+      });
       return res.status(401).json({ error: "بيانات الدخول غير صحيحة" });
     }
 
@@ -59,8 +66,21 @@ export async function login(req, res) {
     console.log(match);
     if (!match) {
       req.log.warn({ userId: user.id, username }, "Invalid password");
+      await insertAuditLog({
+        action: "login_failure",
+        userId: user.id,
+        details: JSON.stringify({ username }),
+        logger: req.log,
+      });
       return res.status(401).json({ error: "بيانات الدخول غير صحيحة" });
     }
+
+    await insertAuditLog({
+      action: "login",
+      userId: user.id,
+      details: JSON.stringify({ username: user.username }),
+      logger: req.log,
+    });
 
     req.log.info(
       { userId: user.id, username },

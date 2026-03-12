@@ -5,6 +5,8 @@ import {
   normalizeOptionalText,
 } from "../utils/normalization.js";
 
+const MIN_PASSWORD_LENGTH = 6;
+
 const VALID_LANGUAGES = ["ar", "en"];
 const VALID_PLAN_TYPES = ["traditional", "active_learning"];
 
@@ -329,6 +331,51 @@ export function createUsersController(
         return res.status(500).json({ error: "Internal server error" });
       }
     },
+
+    async resetTeacherPassword(req, res) {
+      try {
+        if (req.user.role !== "admin") {
+          return res.status(403).json({ error: "Unauthorized" });
+        }
+
+        const teacherId = parsePositiveInteger(req.params.teacherId);
+        if (!teacherId) {
+          return res
+            .status(400)
+            .json({ error: "teacherId must be a positive integer" });
+        }
+
+        const teacher = await usersRepository.getUserById(teacherId);
+        if (!teacher) {
+          return res.status(404).json({ error: "Teacher not found" });
+        }
+
+        if (teacher.role !== "teacher") {
+          return res
+            .status(400)
+            .json({ error: "Provided user is not a teacher" });
+        }
+
+        const newPassword = typeof req.body?.new_password === "string"
+          ? req.body.new_password.trim()
+          : "";
+        if (newPassword.length < MIN_PASSWORD_LENGTH) {
+          return res.status(400).json({
+            error: `new_password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+          });
+        }
+
+        const hashedPassword = await hashPassword(newPassword);
+        await usersRepository.updatePasswordByUserId(teacherId, hashedPassword);
+
+        return res.status(200).json({
+          message: "Password has been reset. The teacher can log in and change it.",
+        });
+      } catch (error) {
+        req.log?.error?.({ error }, "Failed to reset teacher password");
+        return res.status(500).json({ error: "Internal server error" });
+      }
+    },
   };
 }
 
@@ -339,4 +386,5 @@ export const updateMyProfile = usersController.updateMyProfile;
 export const createTeacher = usersController.createTeacher;
 export const listTeachers = usersController.listTeachers;
 export const updateTeacherProfile = usersController.updateTeacherProfile;
+export const resetTeacherPassword = usersController.resetTeacherPassword;
 export const deleteTeacher = usersController.deleteTeacher;

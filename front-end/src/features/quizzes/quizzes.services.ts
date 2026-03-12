@@ -319,3 +319,22 @@ export async function exportExam(
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+/**
+ * Share exam export via native share when available, else download.
+ */
+export async function shareExam(
+  examId: string,
+  format: 'pdf' | 'docx',
+  title?: string
+): Promise<void> {
+  const response = await api().get(`/api/exams/${examId}/export`, {
+    params: { format },
+    responseType: 'blob',
+  });
+  const blob = response.data as Blob;
+  const ext = format === 'pdf' ? 'pdf' : 'docx';
+  const filename = `exam_${examId}.${ext}`;
+  const { shareOrDownload } = await import('../../utils/share');
+  await shareOrDownload(blob, filename, title ?? filename);
+}

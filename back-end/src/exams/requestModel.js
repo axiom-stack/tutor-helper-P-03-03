@@ -39,6 +39,7 @@ export function validateGenerateExamRequest(payload) {
   const subjectId = parsePositiveInteger(request.subject_id);
   const totalQuestions = parsePositiveInteger(request.total_questions);
   const totalMarks = parsePositiveNumber(request.total_marks);
+  const durationMinutes = parsePositiveInteger(request.duration_minutes);
   const title = normalizeString(request.title);
 
   if (!subjectId) {
@@ -108,6 +109,14 @@ export function validateGenerateExamRequest(payload) {
     });
   }
 
+  const resolvedDuration = durationMinutes != null ? durationMinutes : 45;
+  if (resolvedDuration < 1) {
+    errors.push({
+      field: "duration_minutes",
+      message: "duration_minutes must be a positive integer",
+    });
+  }
+
   if (errors.length > 0) {
     return { ok: false, errors };
   }
@@ -119,6 +128,7 @@ export function validateGenerateExamRequest(payload) {
       lesson_ids: uniqueLessonIds,
       total_questions: totalQuestions,
       total_marks: totalMarks,
+      duration_minutes: resolvedDuration,
       title,
     },
   };

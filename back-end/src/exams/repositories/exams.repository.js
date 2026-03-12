@@ -21,6 +21,8 @@ function toExamRecord(row, options = {}) {
   if (!row) return null;
 
   const includePayload = options.includePayload !== false;
+  const durationMinutes =
+    row.duration_minutes != null ? Number(row.duration_minutes) : 45;
 
   return {
     id: row.public_id,
@@ -32,6 +34,7 @@ function toExamRecord(row, options = {}) {
     title: row.title,
     total_questions: Number(row.total_questions),
     total_marks: Number(row.total_marks),
+    duration_minutes: durationMinutes,
     blueprint: includePayload ? parseJsonSafely(row.blueprint_json) : undefined,
     questions: includePayload ? parseJsonSafely(row.questions_json) : undefined,
     created_at: row.created_at,
@@ -71,15 +74,17 @@ export function createExamsRepository(dbClient = turso) {
       title,
       totalQuestions,
       totalMarks,
+      durationMinutes,
       blueprint,
       questions,
       lessonIds,
     }) {
+      const duration = durationMinutes != null ? durationMinutes : 45;
       const insertResult = await dbClient.execute({
         sql: `
           INSERT INTO ${EXAMS_TABLE}
-            (public_id, teacher_id, class_id, subject_id, title, total_questions, total_marks, blueprint_json, questions_json)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (public_id, teacher_id, class_id, subject_id, title, total_questions, total_marks, duration_minutes, blueprint_json, questions_json)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         args: [
           null,
@@ -89,6 +94,7 @@ export function createExamsRepository(dbClient = turso) {
           title,
           totalQuestions,
           totalMarks,
+          duration,
           JSON.stringify(blueprint),
           JSON.stringify(questions),
         ],

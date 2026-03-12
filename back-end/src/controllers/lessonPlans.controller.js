@@ -11,6 +11,7 @@ import { normalizeLessonPlan } from "../lesson-plans/lessonPlanNormalizer.js";
 import { validateLessonPlan } from "../lesson-plans/validators/lessonPlanValidator.js";
 import { createArtifactRevisionsRepository } from "../refinements/repositories/artifactRevisions.repository.js";
 import { REVISION_SOURCES } from "../refinements/types.js";
+import { insertAuditLog } from "../audit/auditLog.js";
 
 function isValidPlanId(planPublicId) {
   return Boolean(planPublicId) && /^(trd|act)_\d+$/.test(planPublicId);
@@ -332,6 +333,13 @@ export function createLessonPlansController(dependencies = {}) {
           source: REVISION_SOURCES.MANUAL_EDIT,
           createdByUserId: req.user.id,
           createdByRole: req.user.role,
+        });
+
+        await insertAuditLog({
+          action: "record_edit",
+          userId: req.user.id,
+          details: JSON.stringify({ artifact_type: "lesson_plan", artifact_id: updatedPlan.public_id }),
+          logger: req.log,
         });
 
         return res.status(200).json({ plan: updatedPlan });

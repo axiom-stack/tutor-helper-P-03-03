@@ -53,6 +53,17 @@ export async function updateTeacherProfile(
   return response.data;
 }
 
+export async function resetTeacherPassword(
+  teacherId: number,
+  payload: { new_password: string }
+): Promise<{ message: string }> {
+  const response = await api().post<{ message: string }>(
+    `/api/users/teachers/${teacherId}/reset-password`,
+    payload
+  );
+  return response.data;
+}
+
 export async function deleteTeacher(
   teacherId: number
 ): Promise<{ teacher: { id: number; username: string; role: string } }> {

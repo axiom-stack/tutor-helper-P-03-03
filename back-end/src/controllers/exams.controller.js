@@ -13,6 +13,7 @@ import { validateGeneratedExamOutput } from "../exams/validators/examOutputValid
 import { createExamsRepository } from "../exams/repositories/exams.repository.js";
 import { createArtifactRevisionsRepository } from "../refinements/repositories/artifactRevisions.repository.js";
 import { REVISION_SOURCES } from "../refinements/types.js";
+import { insertAuditLog } from "../audit/auditLog.js";
 
 function buildExamPayload(exam) {
   return {
@@ -394,6 +395,13 @@ export function createExamsController(dependencies = {}) {
           source: REVISION_SOURCES.MANUAL_EDIT,
           createdByUserId: req.user.id,
           createdByRole: req.user.role,
+        });
+
+        await insertAuditLog({
+          action: "record_edit",
+          userId: req.user.id,
+          details: JSON.stringify({ artifact_type: "exam", artifact_id: updatedExam.public_id }),
+          logger: req.log,
         });
 
         return res.status(200).json({ exam: updatedExam });

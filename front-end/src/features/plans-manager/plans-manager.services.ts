@@ -145,3 +145,15 @@ export async function exportPlan(planId: string, format: 'pdf' | 'docx'): Promis
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+export async function sharePlan(planId: string, format: 'pdf' | 'docx', title?: string): Promise<void> {
+  const response = await api().get(`/api/plans/${planId}/export`, {
+    params: { format },
+    responseType: 'blob',
+  });
+  const blob = response.data as Blob;
+  const ext = format === 'pdf' ? 'pdf' : 'docx';
+  const filename = `plan_${planId}.${ext}`;
+  const { shareOrDownload } = await import('../../utils/share');
+  await shareOrDownload(blob, filename, title ?? filename);
+}

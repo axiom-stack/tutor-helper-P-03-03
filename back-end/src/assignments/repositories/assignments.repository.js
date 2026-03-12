@@ -37,6 +37,8 @@ function toAssignmentRecord(row) {
     description: row.description ?? null,
     type: row.type,
     content: row.content,
+    due_date: row.due_date ?? null,
+    whatsapp_message_text: row.whatsapp_message_text ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -53,6 +55,8 @@ export function createAssignmentsRepository(dbClient = turso) {
       description,
       type,
       content,
+      dueDate = null,
+      whatsappMessageText = null,
     }) {
       if (!VALID_ASSIGNMENT_TYPES.includes(type)) {
         throw new Error(`Unsupported assignment type: ${type}`);
@@ -61,11 +65,11 @@ export function createAssignmentsRepository(dbClient = turso) {
       const insertResult = await dbClient.execute({
         sql: `
           INSERT INTO ${ASSIGNMENTS_TABLE}
-            (public_id, assignment_group_id, teacher_id, lesson_plan_public_id, lesson_id, name, description, type, content)
+            (public_id, assignment_group_id, teacher_id, lesson_plan_public_id, lesson_id, name, description, type, content, due_date, whatsapp_message_text)
           VALUES (
             ?,
             (SELECT id FROM AssignmentGroups WHERE public_id = ? LIMIT 1),
-            ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?
           )
         `,
         args: [
@@ -78,6 +82,8 @@ export function createAssignmentsRepository(dbClient = turso) {
           description ?? null,
           type,
           content,
+          dueDate ?? null,
+          whatsappMessageText ?? null,
         ],
       });
 
@@ -165,7 +171,7 @@ export function createAssignmentsRepository(dbClient = turso) {
       return result.rows.map((row) => toAssignmentRecord(row));
     },
 
-    async update(publicId, { name, description, type, content }, accessContext) {
+    async update(publicId, { name, description, type, content, due_date, whatsapp_message_text }, accessContext) {
       const updates = ["updated_at = CURRENT_TIMESTAMP"];
       const updateArgs = [];
 
@@ -187,6 +193,14 @@ export function createAssignmentsRepository(dbClient = turso) {
       if (content !== undefined) {
         updates.push("content = ?");
         updateArgs.push(content);
+      }
+      if (due_date !== undefined) {
+        updates.push("due_date = ?");
+        updateArgs.push(due_date === null || due_date === "" ? null : due_date);
+      }
+      if (whatsapp_message_text !== undefined) {
+        updates.push("whatsapp_message_text = ?");
+        updateArgs.push(whatsapp_message_text === null || whatsapp_message_text === "" ? null : whatsapp_message_text);
       }
 
       if (updateArgs.length === 0) {

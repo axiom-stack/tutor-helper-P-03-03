@@ -11,6 +11,7 @@ import {
 import { ASSIGNMENT_PUBLIC_ID_PREFIX } from "../assignments/types.js";
 import { createArtifactRevisionsRepository } from "../refinements/repositories/artifactRevisions.repository.js";
 import { REVISION_SOURCES } from "../refinements/types.js";
+import { insertAuditLog } from "../audit/auditLog.js";
 
 function isValidAssignmentId(publicId) {
   return (
@@ -270,6 +271,13 @@ export function createAssignmentsController(dependencies = {}) {
           source: REVISION_SOURCES.MANUAL_EDIT,
           createdByUserId: req.user.id,
           createdByRole: req.user.role,
+        });
+
+        await insertAuditLog({
+          action: "record_edit",
+          userId: req.user.id,
+          details: JSON.stringify({ artifact_type: "assignment", artifact_id: updatedAssignment.public_id }),
+          logger: req.log,
         });
 
         return res.status(200).json({ assignment: updatedAssignment });

@@ -182,7 +182,7 @@ export async function getAssignmentById(id: string): Promise<GetAssignmentRespon
 
 export async function updateAssignment(
   id: string,
-  payload: Pick<Assignment, 'name' | 'description' | 'type' | 'content'>
+  payload: Pick<Assignment, 'name' | 'description' | 'type' | 'content' | 'due_date' | 'whatsapp_message_text'>
 ): Promise<UpdateAssignmentResponse> {
   const local = await saveAssignmentOffline({ id, payload });
 
@@ -244,4 +244,23 @@ export async function exportAssignment(
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Share assignment export via native share when available, else download.
+ */
+export async function shareAssignment(
+  assignmentId: string,
+  format: 'pdf' | 'docx',
+  title?: string
+): Promise<void> {
+  const response = await api().get(`/api/assignments/${assignmentId}/export`, {
+    params: { format },
+    responseType: 'blob',
+  });
+  const blob = response.data as Blob;
+  const ext = format === 'pdf' ? 'pdf' : 'docx';
+  const filename = `assignment_${assignmentId}.${ext}`;
+  const { shareOrDownload } = await import('../../utils/share');
+  await shareOrDownload(blob, filename, title ?? filename);
 }

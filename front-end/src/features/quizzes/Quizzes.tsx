@@ -12,6 +12,7 @@ import {
   MdQuiz,
   MdRefresh,
   MdSave,
+  MdWhatsapp,
 } from 'react-icons/md';
 import { SyncStatusBadge } from '../../components/common/SyncStatusBadge';
 import { useAuth } from '../../context/AuthContext';
@@ -19,6 +20,7 @@ import type { Class, Exam, ExamQuestion, Lesson, Subject, Unit } from '../../typ
 import { QUESTION_TYPE_LABELS } from '../../types';
 import type { NormalizedApiError } from '../../utils/apiErrors';
 import { normalizeApiError } from '../../utils/apiErrors';
+import { buildWhatsAppLink } from '../../utils/whatsapp';
 import { clearDraft, getDraft, saveDraft } from '../../offline/drafts';
 import { useOffline } from '../../offline/useOffline';
 import type { OfflineExamRecord } from '../../offline/types';
@@ -26,6 +28,7 @@ import {
   deleteExamById,
   duplicateExam,
   exportExam,
+  shareExam,
   generateExam,
   getAllClasses,
   getAllSubjects,
@@ -130,6 +133,7 @@ export default function Quizzes() {
   const [isTitleTouched, setIsTitleTouched] = useState(false);
   const [totalQuestions, setTotalQuestions] = useState<number>(10);
   const [totalMarks, setTotalMarks] = useState<number>(20);
+  const [durationMinutes, setDurationMinutes] = useState<number>(45);
 
   const [filterSubjectId, setFilterSubjectId] = useState<SelectValue>('');
   const [filterClassId, setFilterClassId] = useState<SelectValue>('');
@@ -449,6 +453,10 @@ export default function Quizzes() {
       setError({ message: 'يجب توفير 0.25 درجة على الأقل لكل سؤال.' });
       return;
     }
+    if (!Number.isInteger(durationMinutes) || durationMinutes < 1) {
+      setError({ message: 'زمن الاختبار يجب أن يكون رقماً صحيحاً موجباً (دقيقة).' });
+      return;
+    }
 
     setIsGenerating(true);
     setError(null);
@@ -460,6 +468,7 @@ export default function Quizzes() {
         lesson_ids: lessonIdsArray,
         total_questions: totalQuestions,
         total_marks: totalMarks,
+        duration_minutes: durationMinutes,
         title: examTitle.trim() || undefined,
       });
 
@@ -545,6 +554,15 @@ export default function Quizzes() {
     setIsExporting(true);
     exportExam(selectedExam.server_id, 'docx')
       .catch(() => setExportError('فشل تصدير Word.'))
+      .finally(() => setIsExporting(false));
+  };
+
+  const handleSharePdf = () => {
+    if (!selectedExam?.server_id || isExporting) return;
+    setExportError(null);
+    setIsExporting(true);
+    shareExam(selectedExam.server_id, 'pdf', selectedExam.title)
+      .catch(() => setExportError('فشل مشاركة PDF.'))
       .finally(() => setIsExporting(false));
   };
 
@@ -790,6 +808,17 @@ export default function Quizzes() {
                   />
                   <small>تُوزَّع الدرجات على الأسئلة بمضاعفات 0.25.</small>
                 </div>
+                <div className="qz__field">
+                  <label htmlFor="qz-duration-minutes">زمن الاختبار (دقيقة)</label>
+                  <input
+                    id="qz-duration-minutes"
+                    type="number"
+                    min={1}
+                    value={durationMinutes}
+                    onChange={(event) => setDurationMinutes(Number(event.target.value))}
+                    disabled={isGenerating || isEditingExam}
+                  />
+                </div>
               </div>
 
               <section className="qz__lesson-picker">
@@ -950,6 +979,9 @@ export default function Quizzes() {
                           </p>
                           <small>
                             {exam.total_questions} سؤال | {exam.total_marks} درجة
+                            {exam.duration_minutes != null
+                              ? ` | ${exam.duration_minutes} دقيقة`
+                              : ''}
                           </small>
                           <small>{formatDateTimeAr(exam.created_at)}</small>
                           <SyncStatusBadge status={exam.sync_status} />
@@ -1008,6 +1040,9 @@ export default function Quizzes() {
                       <p>
                         المعرّف: {selectedExam.public_id} | {selectedExam.total_questions}{' '}
                         سؤال | {selectedExam.total_marks} درجة
+                        {selectedExam.duration_minutes != null
+                          ? ` | مدة: ${selectedExam.duration_minutes} دقيقة`
+                          : ''}
                       </p>
                     </div>
                     <div className="qz__details-actions">
@@ -1060,6 +1095,33 @@ export default function Quizzes() {
                             )}
                             {!isExporting && <MdOutlineTextSnippet aria-hidden />}
                             تصدير Word
+                          </button>
+                          <button
+                            type="button"
+                            className="qz__refresh-btn"
+                            onClick={() => {
+                              if (!selectedExam) return;
+                              const text = `اختبار: ${selectedExam.title}\nالمعرف: ${selectedExam.public_id}`;
+                              window.open(buildWhatsAppLink(text), '_blank', 'noopener,noreferrer');
+                            }}
+                            disabled={!selectedExam}
+                            title="مشاركة عبر واتساب"
+                          >
+                            <MdWhatsapp aria-hidden />
+                            واتساب
+                          </button>
+                          <button
+                            type="button"
+                            className="qz__refresh-btn"
+                            onClick={handleSharePdf}
+                            disabled={isExporting || !selectedExam.server_id}
+                            aria-busy={isExporting}
+                            title="مشاركة PDF عبر الجهاز"
+                          >
+                            {isExporting && (
+                              <span className="ui-button-spinner" aria-hidden />
+                            )}
+                            {!isExporting && 'مشاركة PDF'}
                           </button>
                           <button
                             type="button"

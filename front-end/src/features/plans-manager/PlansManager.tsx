@@ -8,11 +8,13 @@ import {
   MdOutlineTextSnippet,
   MdRefresh,
   MdSave,
+  MdWhatsapp,
 } from 'react-icons/md';
 import { SyncStatusBadge } from '../../components/common/SyncStatusBadge';
 import { useAuth } from '../../context/AuthContext';
 import type { LessonPlanRecord, TeacherManagementRow } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
+import { buildWhatsAppLink } from '../../utils/whatsapp';
 import { clearDraft, getDraft, saveDraft } from '../../offline/drafts';
 import { useOffline } from '../../offline/useOffline';
 import type { OfflineLessonPlanRecord } from '../../offline/types';
@@ -30,6 +32,7 @@ import {
   listPlans,
   duplicatePlan,
   updatePlan,
+  sharePlan,
   type ListPlansFilters,
 } from './plans-manager.services';
 import './plans-manager.css';
@@ -319,6 +322,20 @@ export default function PlansManager() {
       .catch(() => {
         setError('فشل تصدير الخطة.');
         toast.error('فشل تصدير الخطة.');
+      })
+      .finally(() => setIsExporting(false));
+  };
+
+  const handleShare = (format: 'pdf' | 'docx') => {
+    if (!selectedPlan?.server_id || isExporting) {
+      return;
+    }
+    setIsExporting(true);
+    setError(null);
+    sharePlan(selectedPlan.server_id, format, selectedPlan.lesson_title ?? undefined)
+      .catch(() => {
+        setError('فشل مشاركة الخطة.');
+        toast.error('فشل مشاركة الخطة.');
       })
       .finally(() => setIsExporting(false));
   };
@@ -620,6 +637,31 @@ export default function PlansManager() {
                       {isExporting && <span className="ui-button-spinner" aria-hidden />}
                       {!isExporting && <MdOutlineTextSnippet aria-hidden />}
                       Word
+                    </button>
+                    <button
+                      type="button"
+                      className="pm__btn pm__btn--subtle"
+                      disabled={!selectedPlan?.server_id || isExporting}
+                      onClick={() => handleShare('pdf')}
+                      aria-busy={isExporting}
+                      title="مشاركة PDF عبر الجهاز"
+                    >
+                      {isExporting && <span className="ui-button-spinner" aria-hidden />}
+                      {!isExporting && 'مشاركة PDF'}
+                    </button>
+                    <button
+                      type="button"
+                      className="pm__btn pm__btn--subtle"
+                      disabled={!selectedPlan}
+                      onClick={() => {
+                        if (!selectedPlan) return;
+                        const text = `خطة درس: ${selectedPlan.lesson_title ?? selectedPlan.public_id}\nالمعرف: ${selectedPlan.public_id}`;
+                        window.open(buildWhatsAppLink(text), '_blank', 'noopener,noreferrer');
+                      }}
+                      title="مشاركة عبر واتساب"
+                    >
+                      <MdWhatsapp aria-hidden />
+                      واتساب
                     </button>
                     <button
                       type="button"

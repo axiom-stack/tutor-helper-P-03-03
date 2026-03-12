@@ -278,6 +278,28 @@ export function createUsersRepository(dbClient = turso) {
       return this.getUserById(parsedUserId);
     },
 
+    async updatePasswordByUserId(userId, hashedPassword) {
+      const parsedUserId = Number(userId);
+      if (!Number.isInteger(parsedUserId) || parsedUserId <= 0) {
+        return null;
+      }
+
+      if (typeof hashedPassword !== "string" || hashedPassword.length === 0) {
+        return null;
+      }
+
+      await dbClient.execute({
+        sql: `
+          UPDATE Users
+          SET password = ?
+          WHERE id = ?
+        `,
+        args: [hashedPassword, parsedUserId],
+      });
+
+      return this.getUserById(parsedUserId);
+    },
+
     async listTeachersWithUsage() {
       const result = await dbClient.execute({
         sql: `

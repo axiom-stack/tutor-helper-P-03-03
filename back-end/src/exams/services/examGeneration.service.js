@@ -466,6 +466,7 @@ export function createExamGenerationService(dependencies = {}) {
         title: examTitle,
         totalQuestions: request.total_questions,
         totalMarks: request.total_marks,
+        durationMinutes: request.duration_minutes ?? 45,
         blueprint,
         questions: finalQuestions,
         lessonIds: request.lesson_ids,

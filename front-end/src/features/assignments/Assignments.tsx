@@ -11,6 +11,7 @@ import {
   MdOutlineTextSnippet,
   MdRefresh,
   MdSave,
+  MdWhatsapp,
 } from 'react-icons/md';
 import { SyncStatusBadge } from '../../components/common/SyncStatusBadge';
 import { useAuth } from '../../context/AuthContext';
@@ -22,6 +23,7 @@ import type { OfflineAssignmentRecord } from '../../offline/types';
 import {
   duplicateAssignment,
   exportAssignment,
+  shareAssignment,
   generateAssignments,
   getMyClasses,
   getAssignmentById,
@@ -30,6 +32,7 @@ import {
 } from './assignments.services';
 import type { NormalizedApiError } from '../../utils/apiErrors';
 import { normalizeApiError } from '../../utils/apiErrors';
+import { buildWhatsAppLink, buildHomeworkMessage } from '../../utils/whatsapp';
 import AssignmentCard from './components/AssignmentCard';
 import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel';
 import { getRefinementTargetOptions } from '../refinements/refinementTargets';
@@ -62,6 +65,8 @@ interface AssignmentDraft {
   description: string;
   type: Assignment['type'];
   content: string;
+  due_date?: string | null;
+  whatsapp_message_text?: string | null;
 }
 
 type SelectValue = number | '';
@@ -529,6 +534,8 @@ export default function Assignments() {
     description: assignment.description ?? '',
     type: assignment.type,
     content: assignment.content,
+    due_date: assignment.due_date ?? null,
+    whatsapp_message_text: assignment.whatsapp_message_text ?? null,
   });
 
   const syncAssignmentInList = (updatedAssignment: OfflineAssignmentRecord) => {
@@ -628,6 +635,15 @@ export default function Assignments() {
     setIsExporting(true);
     exportAssignment(selectedAssignment.server_id, 'docx')
       .catch(() => setExportError('فشل تصدير Word.'))
+      .finally(() => setIsExporting(false));
+  };
+
+  const handleSharePdf = () => {
+    if (!selectedAssignment?.server_id || isExporting) return;
+    setExportError(null);
+    setIsExporting(true);
+    shareAssignment(selectedAssignment.server_id, 'pdf', selectedAssignment.name)
+      .catch(() => setExportError('فشل مشاركة PDF.'))
       .finally(() => setIsExporting(false));
   };
 
@@ -916,6 +932,36 @@ export default function Assignments() {
                   <button
                     type="button"
                     className="asn-btn asn-btn--ghost"
+                    onClick={handleSharePdf}
+                    disabled={isExporting || !selectedAssignment?.server_id}
+                    aria-busy={isExporting}
+                    title="مشاركة PDF عبر الجهاز"
+                  >
+                    {isExporting && <span className="ui-button-spinner" aria-hidden />}
+                    {!isExporting && 'مشاركة PDF'}
+                  </button>
+                  <button
+                    type="button"
+                    className="asn-btn asn-btn--ghost"
+                    onClick={() => {
+                      if (!selectedAssignment) return;
+                      const message = buildHomeworkMessage({
+                        lessonTitle: selectedAssignment.name,
+                        content: selectedAssignment.content,
+                        dueDate: selectedAssignment.due_date ?? null,
+                        customMessageText: selectedAssignment.whatsapp_message_text ?? null,
+                      });
+                      window.open(buildWhatsAppLink(message), '_blank', 'noopener,noreferrer');
+                    }}
+                    disabled={!selectedAssignment}
+                    title="إرسال الواجب لولي الأمر عبر واتساب"
+                  >
+                    <MdWhatsapp aria-hidden />
+                    إرسال بالواتساب
+                  </button>
+                  <button
+                    type="button"
+                    className="asn-btn asn-btn--ghost"
                     onClick={handleStartEditing}
                     disabled={isDetailLoading}
                   >
@@ -1009,6 +1055,31 @@ export default function Assignments() {
                 <div>
                   <dt>معرّف الواجب</dt>
                   <dd>{selectedAssignment.public_id}</dd>
+                </div>
+                <div>
+                  <dt>موعد التسليم</dt>
+                  <dd>
+                    {isEditingAssignment && assignmentDraft ? (
+                      <input
+                        type="date"
+                        className="asn__edit-input"
+                        value={assignmentDraft.due_date ?? ''}
+                        onChange={(event) =>
+                          setAssignmentDraft((current) =>
+                            current
+                              ? {
+                                  ...current,
+                                  due_date: event.target.value || null,
+                                }
+                              : current
+                          )}
+                      />
+                    ) : selectedAssignment.due_date ? (
+                      selectedAssignment.due_date
+                    ) : (
+                      'غير محدد'
+                    )}
+                  </dd>
                 </div>
                 <div>
                   <dt>آخر تعديل</dt>

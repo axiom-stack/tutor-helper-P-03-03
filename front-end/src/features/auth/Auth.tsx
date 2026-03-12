@@ -1,11 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { MdMenuBook } from 'react-icons/md';
+import { MdMenuBook, MdRefresh } from 'react-icons/md';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
 import './auth.css';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router';
 import { normalizeApiError } from '../../utils/apiErrors';
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+const HEALTH_URL = `${BACKEND_URL.replace(/\/$/, '')}/health`;
+const HEALTH_TIMEOUT_MS = 5000;
+const WAKE_UP_WAIT_MS = 40000;
 
 export type LoginCredentials = {
   username: string;
@@ -18,9 +23,40 @@ function Auth() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [serverWakingUp, setServerWakingUp] = useState(false);
+  const [refreshReady, setRefreshReady] = useState(false);
 
   const navigate = useNavigate();
   const { login, isAuthenticated, user } = useAuth();
+
+  // Ping backend health on mount; if > 5s, show "server waking up" and allow refresh after 40s
+  useEffect(() => {
+    const ac = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      ac.abort();
+    }, HEALTH_TIMEOUT_MS);
+
+    fetch(HEALTH_URL, { signal: ac.signal })
+      .then(() => {
+        clearTimeout(timeoutId);
+      })
+      .catch(() => {
+        clearTimeout(timeoutId);
+        setServerWakingUp(true);
+      });
+
+    return () => {
+      clearTimeout(timeoutId);
+      ac.abort();
+    };
+  }, []);
+
+  // When showing "waking up", start 40s countdown for refresh
+  useEffect(() => {
+    if (!serverWakingUp) return;
+    const id = window.setTimeout(() => setRefreshReady(true), WAKE_UP_WAIT_MS);
+    return () => clearTimeout(id);
+  }, [serverWakingUp]);
 
   // Redirect if already authenticated
   React.useEffect(() => {
@@ -67,7 +103,27 @@ function Auth() {
   }
 
   return (
-    <div className="auth">
+    <div className={`auth${serverWakingUp ? ' auth--wake-notice-visible' : ''}`}>
+      {serverWakingUp && (
+        <div className="auth__wake-notice" role="status">
+          <p className="auth__wake-notice-text">
+            الخادم المجاني قيد التشغيل. يرجى تحديث الصفحة بعد 40 ثانية ثم البدء باستخدام التطبيق.
+          </p>
+          <p className="auth__wake-notice-en">
+            The free server is waking up. Please refresh the page after 40 seconds, then you can start using the app.
+          </p>
+          {refreshReady && (
+            <button
+              type="button"
+              className="auth__wake-refresh-btn"
+              onClick={() => window.location.reload()}
+            >
+              <MdRefresh aria-hidden />
+              تحديث الصفحة الآن / Refresh now
+            </button>
+          )}
+        </div>
+      )}
       <div className="auth__container">
         <section className="auth__brand" aria-hidden>
           <div className="auth__brand-inner">
