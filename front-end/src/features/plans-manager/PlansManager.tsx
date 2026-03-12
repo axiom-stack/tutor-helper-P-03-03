@@ -12,6 +12,7 @@ import {
   MdWhatsapp,
 } from 'react-icons/md';
 import { SyncStatusBadge } from '../../components/common/SyncStatusBadge';
+import WhatsAppExportModal from '../../components/common/WhatsAppExportModal';
 import { useAuth } from '../../context/AuthContext';
 import type { LessonPlanRecord, TeacherManagementRow } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
@@ -92,6 +93,7 @@ export default function PlansManager() {
   const [draftRecoveredNotice, setDraftRecoveredNotice] = useState<
     string | null
   >(null);
+  const [whatsAppExportOpen, setWhatsAppExportOpen] = useState(false);
 
   const plansRequestIdRef = useRef(0);
   const detailRequestIdRef = useRef(0);
@@ -321,14 +323,14 @@ export default function PlansManager() {
   };
 
   const handleExport = (format: 'pdf' | 'docx') => {
-    if (!selectedPlan?.server_id || isExporting) {
+    if (!selectedPlan?.public_id || isExporting) {
       return;
     }
 
     setIsExporting(true);
     setError(null);
 
-    exportPlan(selectedPlan.server_id, format)
+    exportPlan(selectedPlan.public_id, format)
       .catch(() => {
         setError('فشل تصدير الخطة.');
         toast.error('فشل تصدير الخطة.');
@@ -337,13 +339,13 @@ export default function PlansManager() {
   };
 
   const handleShare = (format: 'pdf' | 'docx') => {
-    if (!selectedPlan?.server_id || isExporting) {
+    if (!selectedPlan?.public_id || isExporting) {
       return;
     }
     setIsExporting(true);
     setError(null);
     sharePlan(
-      selectedPlan.server_id,
+      selectedPlan.public_id,
       format,
       selectedPlan.lesson_title ?? undefined
     )
@@ -427,12 +429,12 @@ export default function PlansManager() {
   };
 
   const handleRefinementCommitted = async () => {
-    if (!selectedPlan?.server_id) {
+    if (!selectedPlan?.public_id) {
       return;
     }
 
     const [detailResponse] = await Promise.all([
-      getPlanById(selectedPlan.server_id),
+      getPlanById(selectedPlan.public_id),
       loadPlans(),
     ]);
     setSelectedPlan(detailResponse.plan as OfflineLessonPlanRecord);
@@ -687,7 +689,7 @@ export default function PlansManager() {
                     <button
                       type="button"
                       className="pm__btn pm__btn--subtle"
-                      disabled={!selectedPlan?.server_id || isExporting}
+                      disabled={!selectedPlan?.public_id || isExporting}
                       onClick={() => handleExport('pdf')}
                       aria-busy={isExporting}
                     >
@@ -700,7 +702,7 @@ export default function PlansManager() {
                     <button
                       type="button"
                       className="pm__btn pm__btn--subtle"
-                      disabled={!selectedPlan?.server_id || isExporting}
+                      disabled={!selectedPlan?.public_id || isExporting}
                       onClick={() => handleExport('docx')}
                       aria-busy={isExporting}
                     >
@@ -713,7 +715,7 @@ export default function PlansManager() {
                     <button
                       type="button"
                       className="pm__btn pm__btn--subtle"
-                      disabled={!selectedPlan?.server_id || isExporting}
+                      disabled={!selectedPlan?.public_id || isExporting}
                       onClick={() => handleShare('pdf')}
                       aria-busy={isExporting}
                       title="مشاركة PDF عبر الجهاز"
@@ -726,16 +728,8 @@ export default function PlansManager() {
                     <button
                       type="button"
                       className="pm__btn pm__btn--subtle"
-                      disabled={!selectedPlan}
-                      onClick={() => {
-                        if (!selectedPlan) return;
-                        const text = `خطة درس: ${selectedPlan.lesson_title ?? selectedPlan.public_id}\nالمعرف: ${selectedPlan.public_id}`;
-                        window.open(
-                          buildWhatsAppLink(text),
-                          '_blank',
-                          'noopener,noreferrer'
-                        );
-                      }}
+                      disabled={!selectedPlan?.public_id}
+                      onClick={() => setWhatsAppExportOpen(true)}
                       title="مشاركة عبر واتساب"
                     >
                       <MdWhatsapp aria-hidden />
@@ -874,6 +868,32 @@ export default function PlansManager() {
           </div>
         </article>
       </section>
+
+      <WhatsAppExportModal
+        isOpen={whatsAppExportOpen}
+        title="مشاركة الخطة عبر واتساب"
+        defaultMessage={
+          selectedPlan
+            ? `خطة درس: ${selectedPlan.lesson_title ?? selectedPlan.public_id}\nالمعرف: ${selectedPlan.public_id}`
+            : ''
+        }
+        onClose={() => setWhatsAppExportOpen(false)}
+        isExporting={isExporting}
+        onConfirm={async ({ format, message }) => {
+          if (!selectedPlan?.public_id) return;
+          setIsExporting(true);
+          try {
+            await exportPlan(selectedPlan.public_id, format);
+            const text = message.trim() || `خطة درس: ${selectedPlan.lesson_title ?? selectedPlan.public_id}\nالمعرف: ${selectedPlan.public_id}`;
+            window.open(buildWhatsAppLink(text), '_blank', 'noopener,noreferrer');
+            setWhatsAppExportOpen(false);
+          } catch {
+            toast.error('فشل تصدير الخطة.');
+          } finally {
+            setIsExporting(false);
+          }
+        }}
+      />
     </div>
   );
 }

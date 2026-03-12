@@ -43,6 +43,7 @@ import {
 import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel';
 import { getRefinementTargetOptions } from '../refinements/refinementTargets';
 import ConfirmActionModal from '../../components/common/ConfirmActionModal';
+import WhatsAppExportModal from '../../components/common/WhatsAppExportModal';
 import './quizzes.css';
 
 type SelectValue = number | '';
@@ -160,6 +161,7 @@ export default function Quizzes() {
   const [error, setError] = useState<NormalizedApiError | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [whatsAppExportOpen, setWhatsAppExportOpen] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [examDraft, setExamDraft] = useState<ExamDraft | null>(null);
   const [draftRecoveredNotice, setDraftRecoveredNotice] = useState<string | null>(null);
@@ -545,28 +547,28 @@ export default function Quizzes() {
   };
 
   const handleExportPdf = () => {
-    if (!selectedExam?.server_id || isExporting) return;
+    if (!selectedExam?.public_id || isExporting) return;
     setExportError(null);
     setIsExporting(true);
-    exportExam(selectedExam.server_id, 'pdf')
+    exportExam(selectedExam.public_id, 'pdf')
       .catch(() => setExportError('فشل تصدير PDF.'))
       .finally(() => setIsExporting(false));
   };
 
   const handleExportWord = () => {
-    if (!selectedExam?.server_id || isExporting) return;
+    if (!selectedExam?.public_id || isExporting) return;
     setExportError(null);
     setIsExporting(true);
-    exportExam(selectedExam.server_id, 'docx')
+    exportExam(selectedExam.public_id, 'docx')
       .catch(() => setExportError('فشل تصدير Word.'))
       .finally(() => setIsExporting(false));
   };
 
   const handleSharePdf = () => {
-    if (!selectedExam?.server_id || isExporting) return;
+    if (!selectedExam?.public_id || isExporting) return;
     setExportError(null);
     setIsExporting(true);
-    shareExam(selectedExam.server_id, 'pdf', selectedExam.title)
+    shareExam(selectedExam.public_id, 'pdf', selectedExam.title)
       .catch(() => setExportError('فشل مشاركة PDF.'))
       .finally(() => setIsExporting(false));
   };
@@ -1098,7 +1100,7 @@ export default function Quizzes() {
                             type="button"
                             className="qz__refresh-btn"
                             onClick={handleExportPdf}
-                            disabled={isExporting || !selectedExam.server_id}
+                            disabled={isExporting || !selectedExam.public_id}
                             aria-busy={isExporting}
                           >
                             {isExporting && (
@@ -1111,7 +1113,7 @@ export default function Quizzes() {
                             type="button"
                             className="qz__refresh-btn"
                             onClick={handleExportWord}
-                            disabled={isExporting || !selectedExam.server_id}
+                            disabled={isExporting || !selectedExam.public_id}
                             aria-busy={isExporting}
                           >
                             {isExporting && (
@@ -1123,12 +1125,8 @@ export default function Quizzes() {
                           <button
                             type="button"
                             className="qz__refresh-btn"
-                            onClick={() => {
-                              if (!selectedExam) return;
-                              const text = `اختبار: ${selectedExam.title}\nالمعرف: ${selectedExam.public_id}`;
-                              window.open(buildWhatsAppLink(text), '_blank', 'noopener,noreferrer');
-                            }}
-                            disabled={!selectedExam}
+                            onClick={() => setWhatsAppExportOpen(true)}
+                            disabled={!selectedExam?.public_id}
                             title="مشاركة عبر واتساب"
                           >
                             <MdWhatsapp aria-hidden />
@@ -1138,7 +1136,7 @@ export default function Quizzes() {
                             type="button"
                             className="qz__refresh-btn"
                             onClick={handleSharePdf}
-                            disabled={isExporting || !selectedExam.server_id}
+                            disabled={isExporting || !selectedExam.public_id}
                             aria-busy={isExporting}
                             title="مشاركة PDF عبر الجهاز"
                           >
@@ -1444,6 +1442,34 @@ export default function Quizzes() {
           }
           await handleDeleteExam(deleteExamRequest.examId);
           setDeleteExamRequest(null);
+        }}
+      />
+
+      <WhatsAppExportModal
+        isOpen={whatsAppExportOpen}
+        title="مشاركة الاختبار عبر واتساب"
+        defaultMessage={
+          selectedExam
+            ? `اختبار: ${selectedExam.title}\nالمعرف: ${selectedExam.public_id}`
+            : ''
+        }
+        onClose={() => setWhatsAppExportOpen(false)}
+        isExporting={isExporting}
+        onConfirm={async ({ format, message }) => {
+          if (!selectedExam?.public_id) return;
+          setIsExporting(true);
+          try {
+            await exportExam(selectedExam.public_id, format);
+            const text =
+              message.trim() ||
+              `اختبار: ${selectedExam.title}\nالمعرف: ${selectedExam.public_id}`;
+            window.open(buildWhatsAppLink(text), '_blank', 'noopener,noreferrer');
+            setWhatsAppExportOpen(false);
+          } catch {
+            setExportError('فشل تصدير الاختبار.');
+          } finally {
+            setIsExporting(false);
+          }
         }}
       />
 

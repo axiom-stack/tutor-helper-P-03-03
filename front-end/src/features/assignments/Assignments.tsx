@@ -14,6 +14,7 @@ import {
   MdWhatsapp,
 } from 'react-icons/md';
 import { SyncStatusBadge } from '../../components/common/SyncStatusBadge';
+import WhatsAppExportModal from '../../components/common/WhatsAppExportModal';
 import { useAuth } from '../../context/AuthContext';
 import type { Assignment, Class, LessonPlanRecord } from '../../types';
 import { ASSIGNMENT_TYPE_LABELS } from '../../types';
@@ -256,6 +257,7 @@ export default function Assignments() {
   const [draftRecoveredNotice, setDraftRecoveredNotice] = useState<string | null>(
     null
   );
+  const [whatsAppExportOpen, setWhatsAppExportOpen] = useState(false);
 
   const selectedClassName = useMemo(() => {
     if (selectedClassId === '') {
@@ -677,7 +679,7 @@ export default function Assignments() {
   };
 
   const handleRefinementCommitted = async () => {
-    if (!selectedAssignment?.server_id) {
+    if (!selectedAssignment?.public_id) {
       return;
     }
 
@@ -691,28 +693,28 @@ export default function Assignments() {
   };
 
   const handleExportPdf = () => {
-    if (!selectedAssignment?.server_id || isExporting) return;
+    if (!selectedAssignment?.public_id || isExporting) return;
     setExportError(null);
     setIsExporting(true);
-    exportAssignment(selectedAssignment.server_id, 'pdf')
+    exportAssignment(selectedAssignment.public_id, 'pdf')
       .catch(() => setExportError('فشل تصدير PDF.'))
       .finally(() => setIsExporting(false));
   };
 
   const handleExportWord = () => {
-    if (!selectedAssignment?.server_id || isExporting) return;
+    if (!selectedAssignment?.public_id || isExporting) return;
     setExportError(null);
     setIsExporting(true);
-    exportAssignment(selectedAssignment.server_id, 'docx')
+    exportAssignment(selectedAssignment.public_id, 'docx')
       .catch(() => setExportError('فشل تصدير Word.'))
       .finally(() => setIsExporting(false));
   };
 
   const handleSharePdf = () => {
-    if (!selectedAssignment?.server_id || isExporting) return;
+    if (!selectedAssignment?.public_id || isExporting) return;
     setExportError(null);
     setIsExporting(true);
-    shareAssignment(selectedAssignment.server_id, 'pdf', selectedAssignment.name)
+    shareAssignment(selectedAssignment.public_id, 'pdf', selectedAssignment.name)
       .catch(() => setExportError('فشل مشاركة PDF.'))
       .finally(() => setIsExporting(false));
   };
@@ -1022,7 +1024,7 @@ export default function Assignments() {
                     type="button"
                     className="asn-btn asn-btn--ghost"
                     onClick={handleExportPdf}
-                    disabled={isExporting || !selectedAssignment?.server_id}
+                    disabled={isExporting || !selectedAssignment?.public_id}
                     aria-busy={isExporting}
                   >
                     {isExporting && <span className="ui-button-spinner" aria-hidden />}
@@ -1033,7 +1035,7 @@ export default function Assignments() {
                     type="button"
                     className="asn-btn asn-btn--ghost"
                     onClick={handleExportWord}
-                    disabled={isExporting || !selectedAssignment?.server_id}
+                    disabled={isExporting || !selectedAssignment?.public_id}
                     aria-busy={isExporting}
                   >
                     {isExporting && <span className="ui-button-spinner" aria-hidden />}
@@ -1044,7 +1046,7 @@ export default function Assignments() {
                     type="button"
                     className="asn-btn asn-btn--ghost"
                     onClick={handleSharePdf}
-                    disabled={isExporting || !selectedAssignment?.server_id}
+                    disabled={isExporting || !selectedAssignment?.public_id}
                     aria-busy={isExporting}
                     title="مشاركة PDF عبر الجهاز"
                   >
@@ -1054,17 +1056,8 @@ export default function Assignments() {
                   <button
                     type="button"
                     className="asn-btn asn-btn--ghost"
-                    onClick={() => {
-                      if (!selectedAssignment) return;
-                      const message = buildHomeworkMessage({
-                        lessonTitle: selectedAssignment.name,
-                        content: selectedAssignment.content,
-                        dueDate: selectedAssignment.due_date ?? null,
-                        customMessageText: selectedAssignment.whatsapp_message_text ?? null,
-                      });
-                      window.open(buildWhatsAppLink(message), '_blank', 'noopener,noreferrer');
-                    }}
-                    disabled={!selectedAssignment}
+                    onClick={() => setWhatsAppExportOpen(true)}
+                    disabled={!selectedAssignment?.public_id}
                     title="إرسال الواجب لولي الأمر عبر واتساب"
                   >
                     <MdWhatsapp aria-hidden />
@@ -1286,6 +1279,46 @@ export default function Assignments() {
           )}
         </aside>
       </div>
+
+      <WhatsAppExportModal
+        isOpen={whatsAppExportOpen}
+        title="إرسال الواجب عبر واتساب"
+        defaultMessage={
+          selectedAssignment
+            ? buildHomeworkMessage({
+                lessonTitle: selectedAssignment.name,
+                content: selectedAssignment.content,
+                dueDate: selectedAssignment.due_date ?? null,
+                customMessageText: selectedAssignment.whatsapp_message_text ?? null,
+              })
+            : ''
+        }
+        onClose={() => setWhatsAppExportOpen(false)}
+        isExporting={isExporting}
+        confirmLabel="تصدير وفتح واتساب"
+        onConfirm={async ({ format, message }) => {
+          if (!selectedAssignment?.public_id) return;
+          setIsExporting(true);
+          setExportError(null);
+          try {
+            await exportAssignment(selectedAssignment.public_id, format);
+            const text =
+              message.trim() ||
+              buildHomeworkMessage({
+                lessonTitle: selectedAssignment.name,
+                content: selectedAssignment.content,
+                dueDate: selectedAssignment.due_date ?? null,
+                customMessageText: selectedAssignment.whatsapp_message_text ?? null,
+              });
+            window.open(buildWhatsAppLink(text), '_blank', 'noopener,noreferrer');
+            setWhatsAppExportOpen(false);
+          } catch {
+            setExportError('فشل تصدير الواجب.');
+          } finally {
+            setIsExporting(false);
+          }
+        }}
+      />
     </div>
   );
 }
