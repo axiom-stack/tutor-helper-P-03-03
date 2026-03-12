@@ -9,13 +9,24 @@ import type {
   CreateSubjectData,
   CreateUnitData,
 } from '../../types';
+import { isOfflineError } from '../../offline/network';
+import { getReference, putReference } from '../../offline/references';
 
 const api = () => authAxios();
 
 // ——— Classes ———
 export async function getMyClasses(): Promise<{ classes: Class[] }> {
-  const response = await api().get<{ classes: Class[] }>('/api/classes/mine');
-  return response.data;
+  try {
+    const response = await api().get<{ classes: Class[] }>('/api/classes/mine');
+    await putReference('classes:mine', 'classes', response.data.classes ?? []);
+    return response.data;
+  } catch (error: unknown) {
+    if (isOfflineError(error)) {
+      const cached = await getReference<Class[]>('classes:mine');
+      return { classes: cached ?? [] };
+    }
+    throw error;
+  }
 }
 
 export async function createClass(
@@ -47,10 +58,19 @@ export async function deleteClass(classId: number): Promise<{ class: Class }> {
 
 // ——— Subjects ———
 export async function getMySubjects(): Promise<{ subjects: Subject[] }> {
-  const response = await api().get<{ subjects: Subject[] }>(
-    '/api/subjects/mine'
-  );
-  return response.data;
+  try {
+    const response = await api().get<{ subjects: Subject[] }>(
+      '/api/subjects/mine'
+    );
+    await putReference('subjects:mine', 'subjects', response.data.subjects ?? []);
+    return response.data;
+  } catch (error: unknown) {
+    if (isOfflineError(error)) {
+      const cached = await getReference<Subject[]>('subjects:mine');
+      return { subjects: cached ?? [] };
+    }
+    throw error;
+  }
 }
 
 export async function getSubjectsByClass(
@@ -86,10 +106,20 @@ export async function deleteSubject(subjectId: number): Promise<{ subject: Subje
 export async function getUnitsBySubject(
   subjectId: number
 ): Promise<{ units: Unit[] }> {
-  const response = await api().get<{ units: Unit[] }>(
-    `/api/units/subject/${subjectId}`
-  );
-  return response.data;
+  const cacheKey = `units:subject:${subjectId}`;
+  try {
+    const response = await api().get<{ units: Unit[] }>(
+      `/api/units/subject/${subjectId}`
+    );
+    await putReference(cacheKey, 'units', response.data.units ?? [], subjectId);
+    return response.data;
+  } catch (error: unknown) {
+    if (isOfflineError(error)) {
+      const cached = await getReference<Unit[]>(cacheKey);
+      return { units: cached ?? [] };
+    }
+    throw error;
+  }
 }
 
 export async function createUnit(
@@ -116,10 +146,20 @@ export async function deleteUnit(unitId: number): Promise<{ unit: Unit }> {
 export async function getLessonsByUnit(
   unitId: number
 ): Promise<{ lessons: Lesson[] }> {
-  const response = await api().get<{ lessons: Lesson[] }>(
-    `/api/lessons/unit/${unitId}`
-  );
-  return response.data;
+  const cacheKey = `lessons:unit:${unitId}`;
+  try {
+    const response = await api().get<{ lessons: Lesson[] }>(
+      `/api/lessons/unit/${unitId}`
+    );
+    await putReference(cacheKey, 'lessons', response.data.lessons ?? [], unitId);
+    return response.data;
+  } catch (error: unknown) {
+    if (isOfflineError(error)) {
+      const cached = await getReference<Lesson[]>(cacheKey);
+      return { lessons: cached ?? [] };
+    }
+    throw error;
+  }
 }
 
 interface CreateLessonPayloadBase {

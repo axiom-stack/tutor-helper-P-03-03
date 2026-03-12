@@ -5,16 +5,22 @@ import {
   MdAssignment,
   MdAutoAwesome,
   MdClose,
+  MdContentCopy,
   MdEdit,
   MdOutlinePictureAsPdf,
   MdOutlineTextSnippet,
   MdRefresh,
   MdSave,
 } from 'react-icons/md';
+import { SyncStatusBadge } from '../../components/common/SyncStatusBadge';
 import { useAuth } from '../../context/AuthContext';
 import type { Assignment, Class } from '../../types';
 import { ASSIGNMENT_TYPE_LABELS } from '../../types';
+import { clearDraft, getDraft, saveDraft } from '../../offline/drafts';
+import { useOffline } from '../../offline/useOffline';
+import type { OfflineAssignmentRecord } from '../../offline/types';
 import {
+  duplicateAssignment,
   exportAssignment,
   generateAssignments,
   getMyClasses,
@@ -178,6 +184,7 @@ function resolveContext(
 
 export default function Assignments() {
   const { user } = useAuth();
+  const { lastSyncAt } = useOffline();
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
@@ -212,8 +219,8 @@ export default function Assignments() {
 
   const [classes, setClasses] = useState<Class[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<SelectValue>('');
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(
+  const [assignments, setAssignments] = useState<OfflineAssignmentRecord[]>([]);
+  const [selectedAssignment, setSelectedAssignment] = useState<OfflineAssignmentRecord | null>(
     null
   );
   const [activeAssignmentId, setActiveAssignmentId] = useState<string | null>(
@@ -234,6 +241,9 @@ export default function Assignments() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [assignmentDraft, setAssignmentDraft] = useState<AssignmentDraft | null>(
+    null
+  );
+  const [draftRecoveredNotice, setDraftRecoveredNotice] = useState<string | null>(
     null
   );
 
@@ -337,7 +347,7 @@ export default function Assignments() {
           : await listAssignments({
               classId: selectedClassId === '' ? undefined : selectedClassId,
             });
-        const nextAssignments = response.assignments ?? [];
+        const nextAssignments = (response.assignments ?? []) as OfflineAssignmentRecord[];
         setAssignments(nextAssignments);
         setLastRefreshedAt(new Date());
         setError(null);
@@ -376,6 +386,14 @@ export default function Assignments() {
     },
     [context, isScopedView, selectedClassId]
   );
+
+  useEffect(() => {
+    if (!lastSyncAt || isEditingAssignment) {
+      return;
+    }
+
+    void loadAssignments(true);
+  }, [isEditingAssignment, lastSyncAt, loadAssignments]);
 
   useEffect(() => {
     if (user?.userRole !== 'teacher') {
@@ -444,7 +462,67 @@ export default function Assignments() {
     setIsEditingAssignment(false);
     setIsSavingAssignment(false);
     setAssignmentDraft(null);
-  }, [selectedAssignment?.public_id]);
+    setDraftRecoveredNotice(null);
+  }, [selectedAssignment?.local_id]);
+
+  useEffect(() => {
+    if (!selectedAssignment) {
+      return;
+    }
+
+    let cancelled = false;
+
+    getDraft<AssignmentDraft>('assignments', selectedAssignment.local_id)
+      .then((draft) => {
+        if (!draft || cancelled) {
+          return;
+        }
+
+        if (draft.updated_at > selectedAssignment.updated_at) {
+          setAssignmentDraft(draft.payload);
+          setIsEditingAssignment(true);
+          setDraftRecoveredNotice('تمت استعادة مسودة الواجب المحلية.');
+        }
+      })
+      .catch(() => {
+        // no-op
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedAssignment]);
+
+  useEffect(() => {
+    if (!isEditingAssignment || !assignmentDraft || !selectedAssignment) {
+      return;
+    }
+
+    const persistDraft = () =>
+      saveDraft({
+        entityType: 'assignment',
+        recordLocalId: selectedAssignment.local_id,
+        routeKey: 'assignments',
+        payload: assignmentDraft,
+      });
+
+    const timer = window.setTimeout(() => {
+      void persistDraft();
+    }, 1200);
+
+    const flushDraft = () => {
+      void persistDraft();
+    };
+
+    window.addEventListener('pagehide', flushDraft);
+    document.addEventListener('visibilitychange', flushDraft);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('pagehide', flushDraft);
+      document.removeEventListener('visibilitychange', flushDraft);
+    };
+  }, [assignmentDraft, isEditingAssignment, selectedAssignment]);
 
   const buildAssignmentDraft = (assignment: Assignment): AssignmentDraft => ({
     name: assignment.name,
@@ -453,10 +531,10 @@ export default function Assignments() {
     content: assignment.content,
   });
 
-  const syncAssignmentInList = (updatedAssignment: Assignment) => {
+  const syncAssignmentInList = (updatedAssignment: OfflineAssignmentRecord) => {
     setAssignments((current) =>
       current.map((assignment) =>
-        assignment.public_id === updatedAssignment.public_id
+        assignment.local_id === updatedAssignment.local_id
           ? updatedAssignment
           : assignment
       )
@@ -477,8 +555,12 @@ export default function Assignments() {
         context.lessonPlanPublicId,
         context.lessonId
       );
+      if ('queued' in response && response.queued) {
+        setSuccessMessage(response.message);
+        return;
+      }
       await loadAssignments(true);
-      const generatedAssignments = response.assignments ?? [];
+      const generatedAssignments = (response as { assignments: Assignment[] }).assignments ?? [];
       if (generatedAssignments.length > 0) {
         setActiveAssignmentId(generatedAssignments[0].public_id);
       }
@@ -496,20 +578,20 @@ export default function Assignments() {
     }
   };
 
-  const handleViewAssignment = async (assignment: Assignment) => {
+  const handleViewAssignment = async (assignment: Assignment | OfflineAssignmentRecord) => {
     if (isEditingAssignment) {
       toast.error('احفظ تعديلات الواجب الحالية أو ألغها قبل فتح واجب آخر.');
       return;
     }
 
     setActiveAssignmentId(assignment.public_id);
-    setSelectedAssignment(assignment);
+    setSelectedAssignment(assignment as OfflineAssignmentRecord);
     setIsDetailLoading(true);
     setError(null);
 
     try {
       const response = await getAssignmentById(assignment.public_id);
-      setSelectedAssignment(response.assignment);
+      setSelectedAssignment(response.assignment as OfflineAssignmentRecord);
     } catch (viewError: unknown) {
       setError(normalizeApiError(viewError, 'تعذر تحميل تفاصيل الواجب.'));
     } finally {
@@ -518,29 +600,33 @@ export default function Assignments() {
   };
 
   const handleRefinementCommitted = async () => {
+    if (!selectedAssignment?.server_id) {
+      return;
+    }
+
     await loadAssignments(true);
     if (selectedAssignment?.public_id) {
       const response = await getAssignmentById(selectedAssignment.public_id);
-      setSelectedAssignment(response.assignment);
+      setSelectedAssignment(response.assignment as OfflineAssignmentRecord);
       setActiveAssignmentId(response.assignment.public_id);
     }
     setSuccessMessage('تم حفظ التعديل المعتمد بنجاح.');
   };
 
   const handleExportPdf = () => {
-    if (!selectedAssignment?.public_id || isExporting) return;
+    if (!selectedAssignment?.server_id || isExporting) return;
     setExportError(null);
     setIsExporting(true);
-    exportAssignment(selectedAssignment.public_id, 'pdf')
+    exportAssignment(selectedAssignment.server_id, 'pdf')
       .catch(() => setExportError('فشل تصدير PDF.'))
       .finally(() => setIsExporting(false));
   };
 
   const handleExportWord = () => {
-    if (!selectedAssignment?.public_id || isExporting) return;
+    if (!selectedAssignment?.server_id || isExporting) return;
     setExportError(null);
     setIsExporting(true);
-    exportAssignment(selectedAssignment.public_id, 'docx')
+    exportAssignment(selectedAssignment.server_id, 'docx')
       .catch(() => setExportError('فشل تصدير Word.'))
       .finally(() => setIsExporting(false));
   };
@@ -557,6 +643,9 @@ export default function Assignments() {
   const handleCancelEditing = () => {
     setIsEditingAssignment(false);
     setAssignmentDraft(null);
+    if (selectedAssignment) {
+      void clearDraft('assignments', selectedAssignment.local_id);
+    }
   };
 
   const handleSaveAssignment = async () => {
@@ -570,16 +659,39 @@ export default function Assignments() {
 
     try {
       const response = await updateAssignment(selectedAssignment.public_id, assignmentDraft);
-      setSelectedAssignment(response.assignment);
+      const nextAssignment = response.assignment as OfflineAssignmentRecord;
+      setSelectedAssignment(nextAssignment);
       setActiveAssignmentId(response.assignment.public_id);
-      syncAssignmentInList(response.assignment);
+      syncAssignmentInList(nextAssignment);
       setIsEditingAssignment(false);
       setAssignmentDraft(null);
-      setSuccessMessage('تم حفظ تعديلات الواجب بنجاح.');
+      await clearDraft('assignments', selectedAssignment.local_id);
+      setSuccessMessage(
+        nextAssignment.sync_status === 'synced'
+          ? 'تم حفظ تعديلات الواجب بنجاح.'
+          : 'تم حفظ تعديلات الواجب محليًا وستتم مزامنتها عند عودة الاتصال.'
+      );
     } catch (saveError: unknown) {
       setError(normalizeApiError(saveError, 'فشل حفظ تعديلات الواجب.'));
     } finally {
       setIsSavingAssignment(false);
+    }
+  };
+
+  const handleDuplicateAssignment = async () => {
+    if (!selectedAssignment) {
+      return;
+    }
+
+    try {
+      const response = await duplicateAssignment(selectedAssignment.public_id);
+      const nextAssignment = response.assignment as OfflineAssignmentRecord;
+      setAssignments((current) => [nextAssignment, ...current]);
+      setSelectedAssignment(nextAssignment);
+      setActiveAssignmentId(nextAssignment.public_id);
+      setSuccessMessage('تم إنشاء نسخة محلية من الواجب.');
+    } catch (error: unknown) {
+      setError(normalizeApiError(error, 'تعذر إنشاء نسخة محلية من الواجب.'));
     }
   };
 
@@ -625,6 +737,10 @@ export default function Assignments() {
           {isGenerating ? 'جارٍ التوليد...' : 'اقتراح واجبات جديدة'}
         </button>
       </header>
+
+      {draftRecoveredNotice ? (
+        <p className="ui-inline-notice ui-inline-notice--info">{draftRecoveredNotice}</p>
+      ) : null}
 
       <section className="asn__context">
         {summaryCards.map((card) => (
@@ -779,7 +895,7 @@ export default function Assignments() {
                     type="button"
                     className="asn-btn asn-btn--ghost"
                     onClick={handleExportPdf}
-                    disabled={isExporting}
+                    disabled={isExporting || !selectedAssignment?.server_id}
                     aria-busy={isExporting}
                   >
                     {isExporting && <span className="ui-button-spinner" aria-hidden />}
@@ -790,7 +906,7 @@ export default function Assignments() {
                     type="button"
                     className="asn-btn asn-btn--ghost"
                     onClick={handleExportWord}
-                    disabled={isExporting}
+                    disabled={isExporting || !selectedAssignment?.server_id}
                     aria-busy={isExporting}
                   >
                     {isExporting && <span className="ui-button-spinner" aria-hidden />}
@@ -805,6 +921,15 @@ export default function Assignments() {
                   >
                     <MdEdit aria-hidden />
                     تعديل
+                  </button>
+                  <button
+                    type="button"
+                    className="asn-btn asn-btn--ghost"
+                    onClick={() => void handleDuplicateAssignment()}
+                    disabled={isDetailLoading}
+                  >
+                    <MdContentCopy aria-hidden />
+                    نسخة محلية
                   </button>
                 </div>
               )
@@ -861,7 +986,10 @@ export default function Assignments() {
                   </>
                 ) : (
                   <>
-                    <h3>{selectedAssignment.name}</h3>
+                    <div className="asn__details-title-text">
+                      <h3>{selectedAssignment.name}</h3>
+                      <SyncStatusBadge status={selectedAssignment.sync_status} />
+                    </div>
                     <span
                       className={`asn-card__type asn-card__type--${selectedAssignment.type}`}
                     >
@@ -870,6 +998,12 @@ export default function Assignments() {
                   </>
                 )}
               </div>
+
+              {selectedAssignment.last_sync_error ? (
+                <p className="ui-inline-notice ui-inline-notice--warning">
+                  {selectedAssignment.last_sync_error}
+                </p>
+              ) : null}
 
               <dl className="asn__meta-list">
                 <div>
@@ -948,7 +1082,7 @@ export default function Assignments() {
                 )}
               </section>
 
-              {!isEditingAssignment ? (
+              {!isEditingAssignment && selectedAssignment.server_id ? (
                 <SmartRefinementPanel
                   artifactType="assignment"
                   artifactId={selectedAssignment.public_id}

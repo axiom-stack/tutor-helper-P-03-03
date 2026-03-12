@@ -284,6 +284,14 @@
   gap: var(--space-sm);
 }
 
+.asn-card__header-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-xs);
+  align-items: center;
+}
+
 .asn-card__title {
   margin: 0;
   font-size: var(--text-md);
@@ -424,6 +432,11 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: var(--space-sm);
+}
+
+.asn__details-title-text {
+  display: grid;
+  gap: var(--space-xs);
 }
 
 .asn__details-title-row h3 {

@@ -2,15 +2,20 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
   MdClose,
+  MdContentCopy,
   MdEdit,
   MdOutlinePictureAsPdf,
   MdOutlineTextSnippet,
   MdRefresh,
   MdSave,
 } from 'react-icons/md';
+import { SyncStatusBadge } from '../../components/common/SyncStatusBadge';
 import { useAuth } from '../../context/AuthContext';
 import type { LessonPlanRecord, TeacherManagementRow } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
+import { clearDraft, getDraft, saveDraft } from '../../offline/drafts';
+import { useOffline } from '../../offline/useOffline';
+import type { OfflineLessonPlanRecord } from '../../offline/types';
 import LessonPlanDocumentView from '../lesson-plans/components/LessonPlanDocumentView';
 import {
   toPlanTypeLabel,
@@ -23,6 +28,7 @@ import {
   exportPlan,
   getPlanById,
   listPlans,
+  duplicatePlan,
   updatePlan,
   type ListPlansFilters,
 } from './plans-manager.services';
@@ -55,10 +61,11 @@ function cloneValue<T>(value: T): T {
 
 export default function PlansManager() {
   const { user } = useAuth();
+  const { lastSyncAt } = useOffline();
   const isAdmin = user?.userRole === 'admin';
 
-  const [plans, setPlans] = useState<LessonPlanRecord[]>([]);
-  const [selectedPlan, setSelectedPlan] = useState<LessonPlanRecord | null>(null);
+  const [plans, setPlans] = useState<OfflineLessonPlanRecord[]>([]);
+  const [selectedPlan, setSelectedPlan] = useState<OfflineLessonPlanRecord | null>(null);
   const [teachers, setTeachers] = useState<TeacherManagementRow[]>([]);
 
   const [planType, setPlanType] = useState<PlanTypeFilter>('');
@@ -72,6 +79,7 @@ export default function PlansManager() {
   const [isEditingPlan, setIsEditingPlan] = useState(false);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
   const [planDraft, setPlanDraft] = useState<PlanDraft | null>(null);
+  const [draftRecoveredNotice, setDraftRecoveredNotice] = useState<string | null>(null);
 
   const plansRequestIdRef = useRef(0);
   const detailRequestIdRef = useRef(0);
@@ -107,7 +115,7 @@ export default function PlansManager() {
         return;
       }
 
-      const nextPlans = response.plans ?? [];
+      const nextPlans = (response.plans ?? []) as OfflineLessonPlanRecord[];
       setPlans(nextPlans);
 
       setSelectedPlan((current) => {
@@ -157,6 +165,15 @@ export default function PlansManager() {
   }, [subject, grade]);
 
   useEffect(() => {
+    if (!lastSyncAt || isEditingPlan) {
+      return;
+    }
+
+    void loadPlans();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastSyncAt]);
+
+  useEffect(() => {
     if (!isAdmin) {
       return;
     }
@@ -183,22 +200,82 @@ export default function PlansManager() {
     setIsEditingPlan(false);
     setIsSavingPlan(false);
     setPlanDraft(null);
-  }, [selectedPlan?.public_id]);
+    setDraftRecoveredNotice(null);
+  }, [selectedPlan?.local_id]);
+
+  useEffect(() => {
+    if (!selectedPlan) {
+      return;
+    }
+
+    let cancelled = false;
+
+    getDraft<PlanDraft>('plans-manager', selectedPlan.local_id)
+      .then((draft) => {
+        if (!draft || cancelled) {
+          return;
+        }
+
+        if (draft.updated_at > selectedPlan.updated_at) {
+          setPlanDraft(draft.payload);
+          setIsEditingPlan(true);
+          setDraftRecoveredNotice('تمت استعادة مسودة الخطة المحلية بعد إعادة فتح الصفحة.');
+        }
+      })
+      .catch(() => {
+        // no-op
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPlan]);
+
+  useEffect(() => {
+    if (!isEditingPlan || !planDraft || !selectedPlan) {
+      return;
+    }
+
+    const persistDraft = () =>
+      saveDraft({
+        entityType: 'lesson_plan',
+        recordLocalId: selectedPlan.local_id,
+        routeKey: 'plans-manager',
+        payload: planDraft,
+      });
+
+    const timer = window.setTimeout(() => {
+      void persistDraft();
+    }, 1200);
+
+    const flushDraft = () => {
+      void persistDraft();
+    };
+
+    window.addEventListener('pagehide', flushDraft);
+    document.addEventListener('visibilitychange', flushDraft);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('pagehide', flushDraft);
+      document.removeEventListener('visibilitychange', flushDraft);
+    };
+  }, [isEditingPlan, planDraft, selectedPlan]);
 
   const buildPlanDraft = (plan: LessonPlanRecord): PlanDraft => ({
     lessonTitle: plan.lesson_title,
     planJson: cloneValue(plan.plan_json ?? {}),
   });
 
-  const syncPlanInList = (updatedPlan: LessonPlanRecord) => {
+  const syncPlanInList = (updatedPlan: OfflineLessonPlanRecord) => {
     setPlans((current) =>
       current.map((plan) =>
-        plan.public_id === updatedPlan.public_id ? updatedPlan : plan
+        plan.local_id === updatedPlan.local_id ? updatedPlan : plan
       )
     );
   };
 
-  const handleSelectPlan = async (plan: LessonPlanRecord) => {
+  const handleSelectPlan = async (plan: OfflineLessonPlanRecord) => {
     if (isEditingPlan) {
       toast.error('احفظ تعديلات الخطة الحالية أو ألغها قبل فتح خطة أخرى.');
       return;
@@ -215,7 +292,7 @@ export default function PlansManager() {
       if (requestId !== detailRequestIdRef.current) {
         return;
       }
-      setSelectedPlan(response.plan);
+      setSelectedPlan(response.plan as OfflineLessonPlanRecord);
     } catch (detailError: unknown) {
       if (requestId !== detailRequestIdRef.current) {
         return;
@@ -231,14 +308,14 @@ export default function PlansManager() {
   };
 
   const handleExport = (format: 'pdf' | 'docx') => {
-    if (!selectedPlan?.public_id || isExporting) {
+    if (!selectedPlan?.server_id || isExporting) {
       return;
     }
 
     setIsExporting(true);
     setError(null);
 
-    exportPlan(selectedPlan.public_id, format)
+    exportPlan(selectedPlan.server_id, format)
       .catch(() => {
         setError('فشل تصدير الخطة.');
         toast.error('فشل تصدير الخطة.');
@@ -264,6 +341,9 @@ export default function PlansManager() {
   const handleCancelEditing = () => {
     setIsEditingPlan(false);
     setPlanDraft(null);
+    if (selectedPlan) {
+      void clearDraft('plans-manager', selectedPlan.local_id);
+    }
   };
 
   const handleSavePlan = async () => {
@@ -290,11 +370,17 @@ export default function PlansManager() {
         lesson_title: planDraft.lessonTitle,
         plan_json: nextPlanJson,
       });
-      setSelectedPlan(response.plan);
-      syncPlanInList(response.plan);
+      const nextPlan = response.plan as OfflineLessonPlanRecord;
+      setSelectedPlan(nextPlan);
+      syncPlanInList(nextPlan);
       setIsEditingPlan(false);
       setPlanDraft(null);
-      toast.success('تم حفظ تعديلات الخطة.');
+      await clearDraft('plans-manager', selectedPlan.local_id);
+      toast.success(
+        nextPlan.sync_status === 'synced'
+          ? 'تم حفظ تعديلات الخطة.'
+          : 'تم حفظ تعديلات الخطة محليًا وستتم مزامنتها عند عودة الاتصال.'
+      );
     } catch (saveError: unknown) {
       const message = normalizeApiError(saveError, 'فشل حفظ تعديلات الخطة.').message;
       setError(message);
@@ -305,15 +391,31 @@ export default function PlansManager() {
   };
 
   const handleRefinementCommitted = async () => {
-    if (!selectedPlan?.public_id) {
+    if (!selectedPlan?.server_id) {
       return;
     }
 
     const [detailResponse] = await Promise.all([
-      getPlanById(selectedPlan.public_id),
+      getPlanById(selectedPlan.server_id),
       loadPlans(),
     ]);
-    setSelectedPlan(detailResponse.plan);
+    setSelectedPlan(detailResponse.plan as OfflineLessonPlanRecord);
+  };
+
+  const handleDuplicatePlan = async () => {
+    if (!selectedPlan) {
+      return;
+    }
+
+    try {
+      const response = await duplicatePlan(selectedPlan.public_id);
+      const duplicatedPlan = response.plan as OfflineLessonPlanRecord;
+      setPlans((current) => [duplicatedPlan, ...current]);
+      setSelectedPlan(duplicatedPlan);
+      toast.success('تم إنشاء نسخة محلية من الخطة.');
+    } catch (error: unknown) {
+      toast.error(normalizeApiError(error, 'تعذر إنشاء نسخة محلية للخطة.').message);
+    }
   };
 
   if (loading && plans.length === 0) {
@@ -337,6 +439,10 @@ export default function PlansManager() {
           </p>
         </div>
       </header>
+
+      {draftRecoveredNotice ? (
+        <p className="ui-inline-notice ui-inline-notice--info">{draftRecoveredNotice}</p>
+      ) : null}
 
       <section className="pm__filters" aria-label="مرشحات الخطط">
         <div className="pm__field">
@@ -412,10 +518,10 @@ export default function PlansManager() {
           ) : (
             <div className="pm__cards" role="list">
               {plans.map((plan) => {
-                const isActive = plan.public_id === selectedPlan?.public_id;
+                const isActive = plan.local_id === selectedPlan?.local_id;
                 return (
                   <button
-                    key={plan.public_id}
+                    key={plan.local_id}
                     type="button"
                     className={
                       isActive ? 'pm__card pm__card--active animate-fadeIn' : 'pm__card animate-fadeIn'
@@ -433,7 +539,11 @@ export default function PlansManager() {
                     </div>
                     <div className="pm__card-meta">
                       <span>{plan.subject}</span>
+                      <SyncStatusBadge status={plan.sync_status} />
+                    </div>
+                    <div className="pm__card-meta">
                       <span>{plan.grade}</span>
+                      {plan.last_sync_error ? <span>{plan.last_sync_error}</span> : <span />}
                     </div>
                     {isAdmin ? (
                       <div className="pm__card-meta">
@@ -492,7 +602,7 @@ export default function PlansManager() {
                     <button
                       type="button"
                       className="pm__btn pm__btn--subtle"
-                      disabled={!selectedPlan || isExporting}
+                      disabled={!selectedPlan?.server_id || isExporting}
                       onClick={() => handleExport('pdf')}
                       aria-busy={isExporting}
                     >
@@ -503,7 +613,7 @@ export default function PlansManager() {
                     <button
                       type="button"
                       className="pm__btn pm__btn--subtle"
-                      disabled={!selectedPlan || isExporting}
+                      disabled={!selectedPlan?.server_id || isExporting}
                       onClick={() => handleExport('docx')}
                       aria-busy={isExporting}
                     >
@@ -520,6 +630,15 @@ export default function PlansManager() {
                       <MdEdit aria-hidden />
                       تعديل
                     </button>
+                    <button
+                      type="button"
+                      className="pm__btn pm__btn--subtle"
+                      disabled={!selectedPlan || detailLoading}
+                      onClick={() => void handleDuplicatePlan()}
+                    >
+                      <MdContentCopy aria-hidden />
+                      نسخة محلية
+                    </button>
                   </>
                 )}
               </div>
@@ -531,6 +650,9 @@ export default function PlansManager() {
               <div className="pm__detail-content">
                 <div className="pm__chips">
                   <span className="pm__chip">المعرف: {selectedPlan.public_id}</span>
+                  <span className="pm__chip">
+                    <SyncStatusBadge status={selectedPlan.sync_status} />
+                  </span>
                   <span className="pm__chip">
                     النوع: {toPlanTypeLabel(selectedPlan.plan_type)}
                   </span>
@@ -551,6 +673,12 @@ export default function PlansManager() {
                     </span>
                   ) : null}
                 </div>
+
+                {selectedPlan.last_sync_error ? (
+                  <p className="ui-inline-notice ui-inline-notice--warning">
+                    {selectedPlan.last_sync_error}
+                  </p>
+                ) : null}
 
                 {detailLoading ? (
                   <p className="pm__state pm__state--inline">جاري تحديث تفاصيل الخطة...</p>
@@ -590,7 +718,7 @@ export default function PlansManager() {
                   }}
                 />
 
-                {!isEditingPlan ? (
+                {!isEditingPlan && selectedPlan.server_id ? (
                   <SmartRefinementPanel
                     artifactType="lesson_plan"
                     artifactId={selectedPlan.public_id}

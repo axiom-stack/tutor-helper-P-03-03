@@ -167,6 +167,7 @@ function LessonCreator() {
   const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlanResponse | null>(
     null
   );
+  const [queuedPlanNotice, setQueuedPlanNotice] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
@@ -435,6 +436,7 @@ function LessonCreator() {
     setPageError(null);
     setGenerationError(null);
     setGeneratedPlan(null);
+    setQueuedPlanNotice(null);
     setIsGenerating(true);
     setGenerationState('fetching_content');
     setActiveTimelineIndex(0);
@@ -490,9 +492,15 @@ function LessonCreator() {
       });
 
       clearTimelineTimers();
-      setGeneratedPlan(generated);
-      setGenerationState('success');
-      setActiveTimelineIndex(3);
+      if ('queued' in generated && generated.queued) {
+        setQueuedPlanNotice(generated.message);
+        setGenerationState('idle');
+        setActiveTimelineIndex(0);
+      } else {
+        setGeneratedPlan(generated as GeneratedPlanResponse);
+        setGenerationState('success');
+        setActiveTimelineIndex(3);
+      }
     } catch (error: unknown) {
       clearTimelineTimers();
       setGenerationState('error');
@@ -932,6 +940,10 @@ function LessonCreator() {
             </button>
           </div>
         </aside>
+
+        {queuedPlanNotice ? (
+          <p className="ui-inline-notice ui-inline-notice--warning">{queuedPlanNotice}</p>
+        ) : null}
 
         {generatedPlan && (
           <section className="lcp__refinement-row">

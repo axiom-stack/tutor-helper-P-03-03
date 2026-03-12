@@ -328,6 +328,13 @@
   min-width: 0;
 }
 
+.qz__details-title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .qz__details-head p {
   margin: 0.35rem 0 0;
   color: #5d6d80;

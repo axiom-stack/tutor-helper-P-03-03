@@ -5,12 +5,23 @@ import type {
   RefinementRequestRecord,
 } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
+import { isOfflineError } from '../../offline/network';
+import { enqueueOfflineAction } from '../../offline/queue';
+import { getCachedAssignmentById } from '../../offline/assignments';
+import { getCachedExamById } from '../../offline/exams';
+import { getCachedPlanById } from '../../offline/plans';
 
 const api = () => authAxios();
 
 export interface RefinementResponse {
   refinement_request: RefinementRequestRecord;
   proposal: RefinementProposal | null;
+}
+
+export interface QueuedRefinementResponse {
+  queued: true;
+  queue_id: string;
+  message: string;
 }
 
 export interface ListRefinementsResponse {
@@ -50,11 +61,34 @@ export interface RevertRefinementPayload {
 
 export async function createRefinement(
   payload: CreateRefinementRequestPayload
-): Promise<RefinementResponse> {
+): Promise<RefinementResponse | QueuedRefinementResponse> {
   try {
     const response = await api().post<RefinementResponse>('/api/refinements', payload);
     return response.data;
   } catch (error: unknown) {
+    if (isOfflineError(error)) {
+      const cachedRecord =
+        (payload.artifact_id ? await getCachedPlanById(payload.artifact_id) : null) ??
+        (payload.artifact_id ? await getCachedAssignmentById(payload.artifact_id) : null) ??
+        (payload.artifact_id ? await getCachedExamById(payload.artifact_id) : null);
+
+      const queued = await enqueueOfflineAction({
+        action_type: 'create_refinement',
+        entity_type: payload.artifact_type,
+        target_local_id: cachedRecord?.local_id ?? payload.artifact_id ?? null,
+        target_server_id: payload.artifact_id ?? null,
+        request_payload: payload,
+        base_local_revision: cachedRecord?.local_revision ?? null,
+        last_error: null,
+        next_retry_at: null,
+      });
+
+      return {
+        queued: true,
+        queue_id: queued.queue_id,
+        message: 'تمت جدولة طلب التحسين وسيعاد تشغيله عند عودة الاتصال.',
+      };
+    }
     throw normalizeApiError(error, 'تعذر إنشاء طلب التحسين.');
   }
 }
@@ -73,6 +107,20 @@ export async function retryRefinement(refinementId: string): Promise<RefinementR
     const response = await api().post<RefinementResponse>(`/api/refinements/${refinementId}/retry`);
     return response.data;
   } catch (error: unknown) {
+    if (isOfflineError(error)) {
+      await enqueueOfflineAction({
+        action_type: 'retry_refinement',
+        entity_type: 'lesson_plan',
+        target_server_id: refinementId,
+        request_payload: {},
+        last_error: null,
+        next_retry_at: null,
+      });
+      throw normalizeApiError(
+        'تمت جدولة إعادة المحاولة وسيعاد تشغيلها عند عودة الاتصال.',
+        'تمت جدولة إعادة المحاولة وسيعاد تشغيلها عند عودة الاتصال.'
+      );
+    }
     throw normalizeApiError(error, 'تعذر إعادة تشغيل التحسين.');
   }
 }

@@ -274,8 +274,17 @@ export default function SmartRefinementPanel({
 
     try {
       const response = await createRefinement(payload);
-      setActiveRequest(response.refinement_request);
-      setActiveProposal(response.proposal);
+      if ('queued' in response && response.queued) {
+        setMessage(response.message);
+        setFeedbackText('');
+        return;
+      }
+      const resolved = response as {
+        refinement_request: RefinementRequestRecord;
+        proposal: RefinementProposal | null;
+      };
+      setActiveRequest(resolved.refinement_request);
+      setActiveProposal(resolved.proposal);
       setMessage('تم إنشاء مقترح التحسين.');
       await loadHistory();
       await loadRevisions();

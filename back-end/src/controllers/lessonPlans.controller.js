@@ -350,6 +350,7 @@ export function createLessonPlansController(dependencies = {}) {
 
 const lessonPlansController = createLessonPlansController();
 
+export const generatePlan = lessonPlansController.generatePlan;
 export const getPlanById = lessonPlansController.getPlanById;
 export const listPlans = lessonPlansController.listPlans;
 export const updatePlanById = lessonPlansController.updatePlanById;

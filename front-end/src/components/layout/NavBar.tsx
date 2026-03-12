@@ -1,11 +1,13 @@
 import { useAuth } from '../../context/AuthContext';
 import { MdAutoStories, MdLogout } from 'react-icons/md';
+import { useOffline } from '../../offline/useOffline';
 import './nav-bar.css';
 
 const APP_TITLE = 'المساعد الذكي للمعلم';
 
 export function NavBar() {
   const { user, logout } = useAuth();
+  const { isOnline, queueCount, isSyncing, processQueueNow } = useOffline();
 
   const displayName = user?.username ?? 'مستخدم';
   const avatarLetter = (user?.username?.trim().charAt(0) || 'م').toUpperCase();
@@ -20,6 +22,24 @@ export function NavBar() {
       </div>
 
       <div className="nav-bar__user">
+        <div className="nav-bar__status-wrap">
+          <span
+            className={`nav-bar__status ${isOnline ? 'nav-bar__status--online' : 'nav-bar__status--offline'}`}
+          >
+            {isOnline ? 'متصل' : 'غير متصل'}
+            {queueCount > 0 ? ` • ${queueCount} بانتظار المزامنة` : ''}
+          </span>
+          {isOnline && queueCount > 0 ? (
+            <button
+              type="button"
+              className="nav-bar__sync-btn"
+              onClick={() => void processQueueNow()}
+              disabled={isSyncing}
+            >
+              {isSyncing ? 'جارٍ المزامنة...' : 'مزامنة الآن'}
+            </button>
+          ) : null}
+        </div>
         <span className="nav-bar__greeting">مرحباً، {displayName}</span>
         <div className="nav-bar__user-actions">
           <div

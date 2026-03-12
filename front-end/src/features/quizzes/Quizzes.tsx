@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import {
   MdAutoAwesome,
   MdClose,
+  MdContentCopy,
   MdDelete,
   MdEdit,
   MdOutlinePictureAsPdf,
@@ -12,13 +13,18 @@ import {
   MdRefresh,
   MdSave,
 } from 'react-icons/md';
+import { SyncStatusBadge } from '../../components/common/SyncStatusBadge';
 import { useAuth } from '../../context/AuthContext';
 import type { Class, Exam, ExamQuestion, Lesson, Subject, Unit } from '../../types';
 import { QUESTION_TYPE_LABELS } from '../../types';
 import type { NormalizedApiError } from '../../utils/apiErrors';
 import { normalizeApiError } from '../../utils/apiErrors';
+import { clearDraft, getDraft, saveDraft } from '../../offline/drafts';
+import { useOffline } from '../../offline/useOffline';
+import type { OfflineExamRecord } from '../../offline/types';
 import {
   deleteExamById,
+  duplicateExam,
   exportExam,
   generateExam,
   getAllClasses,
@@ -109,6 +115,7 @@ function splitLines(value: string): string[] {
 
 export default function Quizzes() {
   const { user } = useAuth();
+  const { lastSyncAt } = useOffline();
   const isAdmin = user?.userRole === 'admin';
   const isTeacher = user?.userRole === 'teacher';
 
@@ -129,8 +136,8 @@ export default function Quizzes() {
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
 
-  const [exams, setExams] = useState<Exam[]>([]);
-  const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
+  const [exams, setExams] = useState<OfflineExamRecord[]>([]);
+  const [selectedExam, setSelectedExam] = useState<OfflineExamRecord | null>(null);
 
   const [isBootLoading, setIsBootLoading] = useState(true);
   const [isLessonsLoading, setIsLessonsLoading] = useState(false);
@@ -151,6 +158,7 @@ export default function Quizzes() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [examDraft, setExamDraft] = useState<ExamDraft | null>(null);
+  const [draftRecoveredNotice, setDraftRecoveredNotice] = useState<string | null>(null);
 
   const loadExams = useCallback(async () => {
     setIsListLoading(true);
@@ -161,13 +169,21 @@ export default function Quizzes() {
         date_from: filterDateFrom || undefined,
         date_to: filterDateTo || undefined,
       });
-      setExams(response.exams ?? []);
+      setExams((response.exams ?? []) as OfflineExamRecord[]);
     } catch (loadError: unknown) {
       setError(normalizeApiError(loadError, 'فشل تحميل قائمة الاختبارات.'));
     } finally {
       setIsListLoading(false);
     }
   }, [filterClassId, filterDateFrom, filterDateTo, filterSubjectId]);
+
+  useEffect(() => {
+    if (!lastSyncAt || isEditingExam) {
+      return;
+    }
+
+    void loadExams();
+  }, [isEditingExam, lastSyncAt, loadExams]);
 
   useEffect(() => {
     if (!isTeacher && !isAdmin) {
@@ -235,13 +251,74 @@ export default function Quizzes() {
       setIsEditingExam(false);
       setIsSavingExam(false);
       setExamDraft(null);
+      setDraftRecoveredNotice(null);
       return;
     }
 
     setIsEditingExam(false);
     setIsSavingExam(false);
     setExamDraft(createExamDraft(selectedExam));
+    setDraftRecoveredNotice(null);
   }, [selectedExam]);
+
+  useEffect(() => {
+    if (!selectedExam) {
+      return;
+    }
+
+    let cancelled = false;
+
+    getDraft<ExamDraft>('quizzes', selectedExam.local_id)
+      .then((draft) => {
+        if (!draft || cancelled) {
+          return;
+        }
+
+        if (draft.updated_at > selectedExam.updated_at) {
+          setExamDraft(draft.payload);
+          setIsEditingExam(true);
+          setDraftRecoveredNotice('تمت استعادة مسودة الاختبار المحلية.');
+        }
+      })
+      .catch(() => {
+        // no-op
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedExam]);
+
+  useEffect(() => {
+    if (!isEditingExam || !examDraft || !selectedExam) {
+      return;
+    }
+
+    const persistDraft = () =>
+      saveDraft({
+        entityType: 'exam',
+        recordLocalId: selectedExam.local_id,
+        routeKey: 'quizzes',
+        payload: examDraft,
+      });
+
+    const timer = window.setTimeout(() => {
+      void persistDraft();
+    }, 1200);
+
+    const flushDraft = () => {
+      void persistDraft();
+    };
+
+    window.addEventListener('pagehide', flushDraft);
+    document.addEventListener('visibilitychange', flushDraft);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('pagehide', flushDraft);
+      document.removeEventListener('visibilitychange', flushDraft);
+    };
+  }, [examDraft, isEditingExam, selectedExam]);
 
   const selectedSubject = useMemo(
     () => subjects.find((subject) => subject.id === selectedSubjectId) ?? null,
@@ -386,9 +463,13 @@ export default function Quizzes() {
         title: examTitle.trim() || undefined,
       });
 
-      setSelectedExam(response.exam);
-      setSuccessMessage('تم توليد الاختبار وحفظه بنجاح.');
-      await loadExams();
+      if ('queued' in response && response.queued) {
+        setSuccessMessage(response.message);
+      } else {
+        setSelectedExam((response as { exam: Exam }).exam as OfflineExamRecord);
+        setSuccessMessage('تم توليد الاختبار وحفظه بنجاح.');
+        await loadExams();
+      }
     } catch (generationError: unknown) {
       setError(normalizeApiError(generationError, 'فشل توليد الاختبار.'));
     } finally {
@@ -406,7 +487,7 @@ export default function Quizzes() {
     setError(null);
     try {
       const response = await getExamById(examId);
-      setSelectedExam(response.exam);
+      setSelectedExam(response.exam as OfflineExamRecord);
     } catch (loadError: unknown) {
       setError(normalizeApiError(loadError, 'تعذر تحميل تفاصيل الاختبار.'));
     } finally {
@@ -450,19 +531,19 @@ export default function Quizzes() {
   };
 
   const handleExportPdf = () => {
-    if (!selectedExam?.public_id || isExporting) return;
+    if (!selectedExam?.server_id || isExporting) return;
     setExportError(null);
     setIsExporting(true);
-    exportExam(selectedExam.public_id, 'pdf')
+    exportExam(selectedExam.server_id, 'pdf')
       .catch(() => setExportError('فشل تصدير PDF.'))
       .finally(() => setIsExporting(false));
   };
 
   const handleExportWord = () => {
-    if (!selectedExam?.public_id || isExporting) return;
+    if (!selectedExam?.server_id || isExporting) return;
     setExportError(null);
     setIsExporting(true);
-    exportExam(selectedExam.public_id, 'docx')
+    exportExam(selectedExam.server_id, 'docx')
       .catch(() => setExportError('فشل تصدير Word.'))
       .finally(() => setIsExporting(false));
   };
@@ -481,6 +562,7 @@ export default function Quizzes() {
   const handleCancelEditingExam = () => {
     if (selectedExam) {
       setExamDraft(createExamDraft(selectedExam));
+      void clearDraft('quizzes', selectedExam.local_id);
     } else {
       setExamDraft(null);
     }
@@ -559,15 +641,21 @@ export default function Quizzes() {
         questions: normalizedQuestions,
       });
 
-      setSelectedExam(response.exam);
+      const nextExam = response.exam as OfflineExamRecord;
+      setSelectedExam(nextExam);
       setExams((current) =>
         current.map((exam) =>
-          exam.public_id === response.exam.public_id ? response.exam : exam
+          exam.local_id === nextExam.local_id ? nextExam : exam
         )
       );
-      setExamDraft(createExamDraft(response.exam));
+      setExamDraft(createExamDraft(nextExam));
       setIsEditingExam(false);
-      setSuccessMessage('تم حفظ تعديلات الاختبار بنجاح.');
+      await clearDraft('quizzes', selectedExam.local_id);
+      setSuccessMessage(
+        nextExam.sync_status === 'synced'
+          ? 'تم حفظ تعديلات الاختبار بنجاح.'
+          : 'تم حفظ تعديلات الاختبار محليًا وستتم مزامنتها عند عودة الاتصال.'
+      );
     } catch (saveError: unknown) {
       setError(normalizeApiError(saveError, 'فشل حفظ تعديلات الاختبار.'));
     } finally {
@@ -576,12 +664,28 @@ export default function Quizzes() {
   };
 
   const handleRefinementCommitted = async () => {
-    if (!selectedExam?.public_id) {
+    if (!selectedExam?.server_id) {
       return;
     }
     const response = await getExamById(selectedExam.public_id);
-    setSelectedExam(response.exam);
+    setSelectedExam(response.exam as OfflineExamRecord);
     await loadExams();
+  };
+
+  const handleDuplicateExam = async () => {
+    if (!selectedExam) {
+      return;
+    }
+
+    try {
+      const response = await duplicateExam(selectedExam.public_id);
+      const nextExam = response.exam as OfflineExamRecord;
+      setExams((current) => [nextExam, ...current]);
+      setSelectedExam(nextExam);
+      setSuccessMessage('تم إنشاء نسخة محلية من الاختبار.');
+    } catch (error: unknown) {
+      setError(normalizeApiError(error, 'تعذر إنشاء نسخة محلية من الاختبار.'));
+    }
   };
 
   if (!user) {
@@ -619,6 +723,10 @@ export default function Quizzes() {
           </p>
         </div>
       </header>
+
+      {draftRecoveredNotice ? (
+        <p className="ui-inline-notice ui-inline-notice--info">{draftRecoveredNotice}</p>
+      ) : null}
 
       <div className={`qz__layout ${isAdmin ? 'qz__layout--admin' : ''}`}>
         {isTeacher ? (
@@ -844,6 +952,7 @@ export default function Quizzes() {
                             {exam.total_questions} سؤال | {exam.total_marks} درجة
                           </small>
                           <small>{formatDateTimeAr(exam.created_at)}</small>
+                          <SyncStatusBadge status={exam.sync_status} />
                         </div>
                       </button>
 
@@ -852,7 +961,7 @@ export default function Quizzes() {
                           type="button"
                           className="qz__delete-btn"
                           onClick={() => requestDeleteExam(exam.public_id)}
-                          disabled={isDeleting || isEditingExam}
+                          disabled={isDeleting || isEditingExam || !exam.server_id}
                         >
                           <MdDelete aria-hidden />
                           حذف
@@ -891,7 +1000,10 @@ export default function Quizzes() {
                           }
                         />
                       ) : (
-                        <h4>{selectedExam.title}</h4>
+                        <div className="qz__details-title">
+                          <h4>{selectedExam.title}</h4>
+                          <SyncStatusBadge status={selectedExam.sync_status} />
+                        </div>
                       )}
                       <p>
                         المعرّف: {selectedExam.public_id} | {selectedExam.total_questions}{' '}
@@ -927,7 +1039,7 @@ export default function Quizzes() {
                             type="button"
                             className="qz__refresh-btn"
                             onClick={handleExportPdf}
-                            disabled={isExporting}
+                            disabled={isExporting || !selectedExam.server_id}
                             aria-busy={isExporting}
                           >
                             {isExporting && (
@@ -940,7 +1052,7 @@ export default function Quizzes() {
                             type="button"
                             className="qz__refresh-btn"
                             onClick={handleExportWord}
-                            disabled={isExporting}
+                            disabled={isExporting || !selectedExam.server_id}
                             aria-busy={isExporting}
                           >
                             {isExporting && (
@@ -958,10 +1070,25 @@ export default function Quizzes() {
                             <MdEdit aria-hidden />
                             تعديل
                           </button>
+                          <button
+                            type="button"
+                            className="qz__details-action-btn qz__details-action-btn--secondary"
+                            onClick={() => void handleDuplicateExam()}
+                            disabled={isExamLoading}
+                          >
+                            <MdContentCopy aria-hidden />
+                            نسخة محلية
+                          </button>
                         </>
                       )}
                     </div>
                   </header>
+
+                  {selectedExam.last_sync_error ? (
+                    <p className="ui-inline-notice ui-inline-notice--warning">
+                      {selectedExam.last_sync_error}
+                    </p>
+                  ) : null}
 
                   {selectedExam.blueprint?.cells && (
                     <section className="qz__blueprint">
@@ -1193,7 +1320,7 @@ export default function Quizzes() {
                     )}
                   </section>
 
-                  {!isEditingExam ? (
+                  {!isEditingExam && selectedExam.server_id ? (
                     <SmartRefinementPanel
                       artifactType="exam"
                       artifactId={selectedExam.public_id}
