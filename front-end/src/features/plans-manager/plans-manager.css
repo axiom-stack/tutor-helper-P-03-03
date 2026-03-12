@@ -194,6 +194,9 @@
 /* ——— Plan list cards (قائمة الخطط) ——— */
 .pm__card {
   position: relative;
+  display: block;
+  width: 100%;
+  margin: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   background: var(--surface);
@@ -202,6 +205,9 @@
   font-family: inherit;
   cursor: pointer;
   min-width: 0;
+  overflow: hidden;
+  appearance: none;
+  -webkit-appearance: none;
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease,
@@ -250,8 +256,8 @@
 }
 
 .pm__card-inner {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-sm);
   padding: var(--space-md);
   min-width: 0;
@@ -556,7 +562,10 @@
   }
 
   .pm__card-head {
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
+    align-items: start;
     gap: 0.35rem;
   }
 
@@ -574,12 +583,22 @@
 
   .pm__card-title {
     font-size: var(--text-sm);
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    display: block;
+    overflow: visible;
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
   }
 
   .pm__card-chips {
     gap: 0.25rem;
+  }
+
+  .pm__card-chips,
+  .pm__card-id,
+  .pm__card-error,
+  .pm__card-teacher,
+  .pm__card-loading {
+    width: 100%;
   }
 
   .pm__card-chip {
