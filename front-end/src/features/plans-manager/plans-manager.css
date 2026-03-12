@@ -189,6 +189,7 @@
 }
 
 .pm__card {
+  position: relative;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: linear-gradient(140deg, #ffffff 0%, #f9fbff 100%);
@@ -211,9 +212,23 @@
 }
 
 .pm__card--active {
-  border-color: rgba(37, 99, 235, 0.55);
-  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.28);
-  background: linear-gradient(145deg, #eff6ff 0%, #ffffff 100%);
+  border-color: var(--primary, #2563eb);
+  border-width: 2px;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+  background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 100%);
+}
+
+.pm__card-selected-badge {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #1d4ed8;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
 }
 
 .pm__card-top {

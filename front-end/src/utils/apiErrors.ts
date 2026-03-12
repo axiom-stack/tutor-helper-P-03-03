@@ -131,8 +131,13 @@ export function normalizeApiError(
       return { message: localizedAiLimitMessage };
     }
 
-    if (typeof error.message === 'string' && error.message.trim().length > 0) {
-      return { message: error.message.trim() };
+    const rawMessage = typeof error.message === 'string' ? error.message.trim() : '';
+    const isGenericStatusMessage = /^request failed with status code \d+$/i.test(rawMessage);
+    if (isGenericStatusMessage && error.response?.status === 422) {
+      return { message: fallback };
+    }
+    if (rawMessage.length > 0 && !isGenericStatusMessage) {
+      return { message: rawMessage };
     }
 
     return { message: fallback };

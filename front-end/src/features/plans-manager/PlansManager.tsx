@@ -546,7 +546,13 @@ export default function PlansManager() {
                     }
                     onClick={() => void handleSelectPlan(plan)}
                     aria-pressed={isActive}
+                    aria-current={isActive ? 'true' : undefined}
                   >
+                    {isActive ? (
+                      <span className="pm__card-selected-badge" aria-hidden>
+                        الخطة المحددة
+                      </span>
+                    ) : null}
                     <div className="pm__card-top">
                       <strong>{plan.lesson_title}</strong>
                       <span>{formatDateAr(plan.created_at)}</span>

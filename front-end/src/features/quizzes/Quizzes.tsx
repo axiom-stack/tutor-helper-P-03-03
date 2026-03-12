@@ -480,7 +480,12 @@ export default function Quizzes() {
         await loadExams();
       }
     } catch (generationError: unknown) {
-      setError(normalizeApiError(generationError, 'فشل توليد الاختبار.'));
+      setError(
+        normalizeApiError(
+          generationError,
+          'تعذر توليد الاختبار. تأكد أن الدروس المختارة تحتوي على خطط درس مولدة وأهداف تعلم.'
+        )
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -750,6 +755,9 @@ export default function Quizzes() {
         {isTeacher ? (
           <aside className="qz__panel">
           <h2>إعداد الاختبار</h2>
+          <div className="qz__requirement-note ui-inline-notice ui-inline-notice--info" role="note">
+            <strong>متطلبات توليد الاختبار:</strong> اختر مادة ودروساً تحتوي على <strong>خطط درس مولدة</strong> و<strong>أهداف تعلم</strong>. إن لم تكن الدروس تحتوي على خطط أو أهداف، سيظهر خطأ عند التوليد.
+          </div>
           <>
               {error ? (
                 <div className="qz__error-block ui-inline-notice ui-inline-notice--error" role="alert">
@@ -867,7 +875,7 @@ export default function Quizzes() {
               </section>
 
               <p className="qz__form-hint">
-                تأكد أن الدروس المختارة تحتوي على خطط مولدة وأهداف.
+                الدروس المختارة يجب أن تحتوي على خطط مولدة وأهداف.
               </p>
 
               <button
