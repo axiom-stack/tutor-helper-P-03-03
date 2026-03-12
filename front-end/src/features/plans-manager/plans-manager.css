@@ -201,7 +201,7 @@
   display: grid;
   gap: var(--space-xs);
   min-width: 0;
-  overflow: hidden;
+  overflow-x: hidden;
   transition:
     border-color var(--transition-fast),
     box-shadow var(--transition-fast),
@@ -246,15 +246,13 @@
   font-size: var(--text-sm);
   color: var(--text-primary);
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .pm__card-top span {
   font-size: var(--text-xs);
   color: var(--text-secondary);
-  white-space: nowrap;
   flex-shrink: 0;
 }
 
@@ -267,11 +265,10 @@
   min-width: 0;
 }
 
-.pm__card-meta span:first-child {
+.pm__card-meta span {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .pm__state {
