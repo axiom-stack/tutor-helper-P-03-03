@@ -223,17 +223,27 @@ export async function duplicateAssignment(
 }
 
 /**
+ * Fetch assignment export as blob (for sharing / WhatsApp with attachment).
+ */
+export async function getAssignmentExportBlob(
+  assignmentId: string,
+  format: 'pdf' | 'docx'
+): Promise<Blob> {
+  const response = await api().get(`/api/assignments/${assignmentId}/export`, {
+    params: { format },
+    responseType: 'blob',
+  });
+  return response.data as Blob;
+}
+
+/**
  * Download assignment export (PDF or DOCX) and trigger browser save.
  */
 export async function exportAssignment(
   assignmentId: string,
   format: 'pdf' | 'docx'
 ): Promise<void> {
-  const response = await api().get(`/api/assignments/${assignmentId}/export`, {
-    params: { format },
-    responseType: 'blob',
-  });
-  const blob = response.data as Blob;
+  const blob = await getAssignmentExportBlob(assignmentId, format);
   const ext = format === 'pdf' ? 'pdf' : 'docx';
   const filename = `assignment_${assignmentId}.${ext}`;
   const url = URL.createObjectURL(blob);

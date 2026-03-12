@@ -25,6 +25,7 @@ import type { OfflineAssignmentRecord } from '../../offline/types';
 import {
   duplicateAssignment,
   exportAssignment,
+  getAssignmentExportBlob,
   shareAssignment,
   generateAssignments,
   getMyClasses,
@@ -35,7 +36,7 @@ import {
 import { listPlans } from '../plans-manager/plans-manager.services';
 import type { NormalizedApiError } from '../../utils/apiErrors';
 import { normalizeApiError } from '../../utils/apiErrors';
-import { buildWhatsAppLink, buildHomeworkMessage } from '../../utils/whatsapp';
+import { buildHomeworkMessage, shareDocumentWithWhatsApp } from '../../utils/whatsapp';
 import AssignmentCard from './components/AssignmentCard';
 import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel';
 import { getRefinementTargetOptions } from '../refinements/refinementTargets';
@@ -1309,7 +1310,7 @@ export default function Assignments() {
           setIsExporting(true);
           setExportError(null);
           try {
-            await exportAssignment(selectedAssignment!.public_id, format);
+            const blob = await getAssignmentExportBlob(selectedAssignment!.public_id, format);
             const text =
               message.trim() ||
               buildHomeworkMessage({
@@ -1318,7 +1319,9 @@ export default function Assignments() {
                 dueDate: selectedAssignment.due_date ?? null,
                 customMessageText: selectedAssignment.whatsapp_message_text ?? null,
               });
-            window.open(buildWhatsAppLink(text), '_blank', 'noopener,noreferrer');
+            const ext = format === 'pdf' ? 'pdf' : 'docx';
+            const filename = `assignment_${selectedAssignment!.public_id}.${ext}`;
+            await shareDocumentWithWhatsApp(blob, filename, text);
             setWhatsAppExportOpen(false);
           } catch {
             setExportError('فشل تصدير الواجب.');

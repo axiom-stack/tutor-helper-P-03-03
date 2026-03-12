@@ -197,7 +197,7 @@ function TeacherCirriculumManager(props: {
   const [selectedClassId, setSelectedClassId] = useState<SelectValue>('');
   const [selectedSubjectId, setSelectedSubjectId] = useState<SelectValue>('');
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [hierarchyLoading, setHierarchyLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -280,16 +280,6 @@ function TeacherCirriculumManager(props: {
       toast.success(success);
     }
   }, [success]);
-
-  if (loading) {
-    return (
-      <div className="ui-loading-screen">
-        <div className="ui-loading-shell">
-          <span className="ui-spinner" aria-hidden />
-        </div>
-      </div>
-    );
-  }
 
   const isCreatorValid = (() => {
     if (creatorClassMode === 'existing') {
@@ -632,8 +622,30 @@ function TeacherCirriculumManager(props: {
       });
   }, [creatorSubjectMode, creatorExistingSubjectId]);
 
-  if (!scope && user?.userRole !== 'teacher') {
-    return null;
+  // When not in admin scope: show loading until user is known; hide view only for non-teachers.
+  if (!scope) {
+    if (user == null) {
+      return (
+        <div className="ui-loading-screen">
+          <div className="ui-loading-shell">
+            <span className="ui-spinner" aria-hidden />
+          </div>
+        </div>
+      );
+    }
+    if (user.userRole !== 'teacher') {
+      return null;
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="ui-loading-screen">
+        <div className="ui-loading-shell">
+          <span className="ui-spinner" aria-hidden />
+        </div>
+      </div>
+    );
   }
 
   const handleClassChange = (nextValue: SelectValue) => {

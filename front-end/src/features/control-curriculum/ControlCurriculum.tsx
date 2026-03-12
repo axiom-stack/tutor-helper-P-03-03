@@ -20,14 +20,25 @@ export interface AdminCurriculumScope {
 }
 
 export default function ControlCurriculum() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const [manageTeacherId, setManageTeacherId] = useState<SelectValue>('');
 
-  if (user?.userRole === 'teacher') {
+  // Wait for auth so we don't render admin explorer for a teacher (which would 403).
+  if (isLoading || user == null) {
+    return (
+      <div className="ui-loading-screen">
+        <div className="ui-loading-shell">
+          <span className="ui-spinner" aria-hidden />
+        </div>
+      </div>
+    );
+  }
+
+  if (user.userRole === 'teacher') {
     return <TeacherCirriculumManager />;
   }
 
-  if (user?.userRole === 'admin' && manageTeacherId !== '') {
+  if (user.userRole === 'admin' && manageTeacherId !== '') {
     return (
       <AdminCurriculumManagerView
         selectedTeacherId={manageTeacherId}

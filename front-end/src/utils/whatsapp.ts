@@ -8,6 +8,42 @@ export function buildWhatsAppLink(text: string): string {
 }
 
 /**
+ * Share a document (PDF/Word) with optional text via the system share sheet when possible
+ * (so user can pick WhatsApp and get the file attached), then open WhatsApp with the text.
+ * If sharing with file is not supported, triggers download and opens wa.me so user can attach manually.
+ */
+export async function shareDocumentWithWhatsApp(
+  blob: Blob,
+  filename: string,
+  text: string
+): Promise<void> {
+  const file = new File([blob], filename, {
+    type: blob.type || 'application/octet-stream',
+  });
+  if (
+    typeof navigator.share === 'function' &&
+    navigator.canShare?.({ files: [file], text })
+  ) {
+    try {
+      await navigator.share({ files: [file], text });
+      return;
+    } catch {
+      // User cancelled or share failed; fall back to download + wa.me
+    }
+  }
+  // Fallback: download file and open WhatsApp with pre-filled text
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  window.open(buildWhatsAppLink(text), '_blank', 'noopener,noreferrer');
+}
+
+/**
  * Build homework message for guardian: lesson title + homework content + due date.
  */
 export function buildHomeworkMessage(options: {

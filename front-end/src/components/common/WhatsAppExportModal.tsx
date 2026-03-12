@@ -62,7 +62,7 @@ export default function WhatsAppExportModal({
           {title}
         </h3>
         <p className="wa-export__hint">
-          سيتم تصدير الملف (PDF أو Word) ثم فتح واتساب مع رسالة اختيارية يمكنك تعديلها.
+          سيتم تصدير الملف (PDF أو Word) وإرفاقه مع الرسالة في واتساب عند الإمكان، أو تحميله وفتح واتساب ليمكنك إرفاقه يدوياً.
         </p>
 
         <div className="wa-export__field">

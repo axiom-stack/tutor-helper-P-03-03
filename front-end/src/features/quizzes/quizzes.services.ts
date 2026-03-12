@@ -297,17 +297,27 @@ export async function duplicateExam(id: string): Promise<{ exam: Exam }> {
 }
 
 /**
+ * Fetch exam export as blob (for sharing / WhatsApp with attachment).
+ */
+export async function getExamExportBlob(
+  examId: string,
+  format: 'pdf' | 'docx'
+): Promise<Blob> {
+  const response = await api().get(`/api/exams/${examId}/export`, {
+    params: { format },
+    responseType: 'blob',
+  });
+  return response.data as Blob;
+}
+
+/**
  * Download exam export (PDF or DOCX) and trigger browser save.
  */
 export async function exportExam(
   examId: string,
   format: 'pdf' | 'docx'
 ): Promise<void> {
-  const response = await api().get(`/api/exams/${examId}/export`, {
-    params: { format },
-    responseType: 'blob',
-  });
-  const blob = response.data as Blob;
+  const blob = await getExamExportBlob(examId, format);
   const ext = format === 'pdf' ? 'pdf' : 'docx';
   const filename = `exam_${examId}.${ext}`;
   const url = URL.createObjectURL(blob);

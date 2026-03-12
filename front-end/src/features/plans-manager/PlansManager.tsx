@@ -16,7 +16,7 @@ import WhatsAppExportModal from '../../components/common/WhatsAppExportModal';
 import { useAuth } from '../../context/AuthContext';
 import type { LessonPlanRecord, TeacherManagementRow } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
-import { buildWhatsAppLink } from '../../utils/whatsapp';
+import { shareDocumentWithWhatsApp } from '../../utils/whatsapp';
 import { clearDraft, getDraft, saveDraft } from '../../offline/drafts';
 import { useOffline } from '../../offline/useOffline';
 import { isLocalOnlyId } from '../../offline/utils';
@@ -32,6 +32,7 @@ import { listTeachers } from '../users/users.services';
 import {
   exportPlan,
   getPlanById,
+  getPlanExportBlob,
   listPlans,
   duplicatePlan,
   updatePlan,
@@ -891,9 +892,11 @@ export default function PlansManager() {
           if (!canExportPlan) return;
           setIsExporting(true);
           try {
-            await exportPlan(selectedPlan!.public_id, format);
-            const text = message.trim() || `خطة درس: ${selectedPlan.lesson_title ?? selectedPlan.public_id}\nالمعرف: ${selectedPlan.public_id}`;
-            window.open(buildWhatsAppLink(text), '_blank', 'noopener,noreferrer');
+            const blob = await getPlanExportBlob(selectedPlan!.public_id, format);
+            const text = message.trim() || `خطة درس: ${selectedPlan!.lesson_title ?? selectedPlan!.public_id}\nالمعرف: ${selectedPlan!.public_id}`;
+            const ext = format === 'pdf' ? 'pdf' : 'docx';
+            const filename = `plan_${selectedPlan!.public_id}.${ext}`;
+            await shareDocumentWithWhatsApp(blob, filename, text);
             setWhatsAppExportOpen(false);
           } catch {
             toast.error('فشل تصدير الخطة.');

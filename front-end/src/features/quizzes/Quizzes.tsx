@@ -20,7 +20,7 @@ import type { Class, Exam, ExamQuestion, Lesson, Subject, Unit } from '../../typ
 import { QUESTION_TYPE_LABELS } from '../../types';
 import type { NormalizedApiError } from '../../utils/apiErrors';
 import { normalizeApiError } from '../../utils/apiErrors';
-import { buildWhatsAppLink } from '../../utils/whatsapp';
+import { shareDocumentWithWhatsApp } from '../../utils/whatsapp';
 import { clearDraft, getDraft, saveDraft } from '../../offline/drafts';
 import { useOffline } from '../../offline/useOffline';
 import { isLocalOnlyId } from '../../offline/utils';
@@ -29,6 +29,7 @@ import {
   deleteExamById,
   duplicateExam,
   exportExam,
+  getExamExportBlob,
   shareExam,
   generateExam,
   getAllClasses,
@@ -1467,11 +1468,13 @@ export default function Quizzes() {
           if (!canExportExam) return;
           setIsExporting(true);
           try {
-            await exportExam(selectedExam!.public_id, format);
+            const blob = await getExamExportBlob(selectedExam!.public_id, format);
             const text =
               message.trim() ||
-              `اختبار: ${selectedExam.title}\nالمعرف: ${selectedExam.public_id}`;
-            window.open(buildWhatsAppLink(text), '_blank', 'noopener,noreferrer');
+              `اختبار: ${selectedExam!.title}\nالمعرف: ${selectedExam!.public_id}`;
+            const ext = format === 'pdf' ? 'pdf' : 'docx';
+            const filename = `exam_${selectedExam!.public_id}.${ext}`;
+            await shareDocumentWithWhatsApp(blob, filename, text);
             setWhatsAppExportOpen(false);
           } catch {
             setExportError('فشل تصدير الاختبار.');

@@ -128,12 +128,16 @@ export async function duplicatePlan(planId: string): Promise<{ plan: LessonPlanR
   return { plan };
 }
 
-export async function exportPlan(planId: string, format: 'pdf' | 'docx'): Promise<void> {
+export async function getPlanExportBlob(planId: string, format: 'pdf' | 'docx'): Promise<Blob> {
   const response = await api().get(`/api/plans/${planId}/export`, {
     params: { format },
     responseType: 'blob',
   });
-  const blob = response.data as Blob;
+  return response.data as Blob;
+}
+
+export async function exportPlan(planId: string, format: 'pdf' | 'docx'): Promise<void> {
+  const blob = await getPlanExportBlob(planId, format);
   const ext = format === 'pdf' ? 'pdf' : 'docx';
   const filename = `plan_${planId}.${ext}`;
   const url = URL.createObjectURL(blob);
