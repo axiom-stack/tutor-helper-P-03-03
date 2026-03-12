@@ -38,7 +38,7 @@ export async function login(req, res) {
     req.log.info({ username }, "Attempting login");
 
     const result = await turso.execute({
-      sql: "SELECT * FROM users WHERE username = ?",
+      sql: "SELECT * FROM Users WHERE username = ?",
       args: [username],
     });
 

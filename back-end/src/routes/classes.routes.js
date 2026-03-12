@@ -16,8 +16,8 @@ router.use(authenticateToken);
 
 router.post("/", createClass);
 router.get("/mine", getClassesByTeacherId);
-router.get("/:classId", getClassByClassId);
 router.get("/", getAllClassesInTheSystem);
+router.get("/:classId", getClassByClassId);
 router.put("/:classId", updateClassByClassId);
 router.delete("/:classId", deleteClassByClassId);
 

@@ -69,7 +69,7 @@ export async function createLesson(req, res) {
 
     // Verify the unit belongs to the teacher
     const unitCheck = await turso.execute({
-      sql: "SELECT teacher_id FROM units WHERE id = ?",
+      sql: "SELECT teacher_id FROM Units WHERE id = ?",
       args: [parsedUnitId],
     });
 
@@ -170,7 +170,7 @@ export async function createLesson(req, res) {
     }
 
     const createdLesson = await turso.execute({
-      sql: "INSERT INTO lessons (name, description, unit_id, teacher_id, content, number_of_periods) VALUES (?, ?, ?, ?, ?, ?)",
+      sql: "INSERT INTO Lessons (name, description, unit_id, teacher_id, content, number_of_periods) VALUES (?, ?, ?, ?, ?, ?)",
       args: [
         name.trim(),
         description.trim(),
@@ -183,7 +183,7 @@ export async function createLesson(req, res) {
 
     // Get the inserted lesson data
     const insertedLesson = await turso.execute({
-      sql: "SELECT * FROM lessons WHERE id = ?",
+      sql: "SELECT * FROM Lessons WHERE id = ?",
       args: [createdLesson.lastInsertRowid],
     });
 
@@ -220,7 +220,7 @@ export async function getLessonsByTeacherId(req, res) {
     const { id: userId } = req.user;
 
     const lessons = await turso.execute({
-      sql: "SELECT * FROM lessons WHERE teacher_id = ?",
+      sql: "SELECT * FROM Lessons WHERE teacher_id = ?",
       args: [userId],
     });
 
@@ -236,7 +236,7 @@ export async function getLessonByLessonId(req, res) {
     const { id: userId, role: userRole } = req.user;
 
     const lesson = await turso.execute({
-      sql: "SELECT * FROM lessons WHERE id = ?",
+      sql: "SELECT * FROM Lessons WHERE id = ?",
       args: [lessonId],
     });
 
@@ -264,7 +264,7 @@ export async function getLessonsByUnitId(req, res) {
     if (userRole !== "admin") {
       // First check if the user has access to this unit
       const unitCheck = await turso.execute({
-        sql: "SELECT teacher_id FROM units WHERE id = ?",
+        sql: "SELECT teacher_id FROM Units WHERE id = ?",
         args: [unitId],
       });
 
@@ -279,7 +279,7 @@ export async function getLessonsByUnitId(req, res) {
     }
 
     const lessons = await turso.execute({
-      sql: "SELECT * FROM lessons WHERE unit_id = ?",
+      sql: "SELECT * FROM Lessons WHERE unit_id = ?",
       args: [unitId],
     });
 
@@ -299,7 +299,7 @@ export async function getAllLessonsInTheSystem(req, res) {
     }
 
     const lessons = await turso.execute({
-      sql: "SELECT * FROM lessons",
+      sql: "SELECT * FROM Lessons",
     });
 
     return res.status(200).json({ lessons: lessons.rows });
@@ -335,7 +335,7 @@ export async function updateLessonByLessonId(req, res) {
 
     // Fetch the lesson to check ownership
     const lesson = await turso.execute({
-      sql: "SELECT * FROM lessons WHERE id = ?",
+      sql: "SELECT * FROM Lessons WHERE id = ?",
       args: [lessonId],
     });
 
@@ -359,7 +359,7 @@ export async function updateLessonByLessonId(req, res) {
       }
 
       const unitCheck = await turso.execute({
-        sql: "SELECT teacher_id FROM units WHERE id = ?",
+        sql: "SELECT teacher_id FROM Units WHERE id = ?",
         args: [parsedUnitId],
       });
 
@@ -487,7 +487,7 @@ export async function updateLessonByLessonId(req, res) {
     }
 
     await turso.execute({
-      sql: "UPDATE lessons SET name = ?, description = ?, content = ?, unit_id = ?, number_of_periods = ? WHERE id = ?",
+      sql: "UPDATE Lessons SET name = ?, description = ?, content = ?, unit_id = ?, number_of_periods = ? WHERE id = ?",
       args: [
         name.trim(),
         description.trim(),
@@ -500,7 +500,7 @@ export async function updateLessonByLessonId(req, res) {
 
     // Get the updated lesson data
     const updatedLessonData = await turso.execute({
-      sql: "SELECT * FROM lessons WHERE id = ?",
+      sql: "SELECT * FROM Lessons WHERE id = ?",
       args: [lessonId],
     });
 
@@ -535,7 +535,7 @@ export async function deleteLessonByLessonId(req, res) {
 
     // Fetch the lesson to delete and check ownership
     const lesson = await turso.execute({
-      sql: "SELECT * FROM lessons WHERE id = ?",
+      sql: "SELECT * FROM Lessons WHERE id = ?",
       args: [lessonId],
     });
 
@@ -548,7 +548,7 @@ export async function deleteLessonByLessonId(req, res) {
     }
 
     const deletedLesson = await turso.execute({
-      sql: "DELETE FROM lessons WHERE id = ?",
+      sql: "DELETE FROM Lessons WHERE id = ?",
       args: [lessonId],
     });
 

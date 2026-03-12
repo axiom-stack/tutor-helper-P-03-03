@@ -297,7 +297,9 @@ export default function ControlDashboard() {
             </div>
             <div className="cd__stat-content">
               <span className="cd__stat-label">{label}</span>
-              <strong className="cd__stat-value">{stats[key]}</strong>
+              <strong className="cd__stat-value" aria-busy={loading}>
+                {loading ? '\u00A0' : stats[key]}
+              </strong>
             </div>
           </article>
         ))}

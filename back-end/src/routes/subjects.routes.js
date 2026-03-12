@@ -18,8 +18,8 @@ router.use(authenticateToken);
 router.post("/", createSubject);
 router.get("/mine", getSubjectsByTeacherId);
 router.get("/class/:classId", getSubjectByClassId);
-router.get("/:subjectId", getSubjectBySubjectId);
 router.get("/", getAllSubjectsInTheSystem);
+router.get("/:subjectId", getSubjectBySubjectId);
 router.put("/:subjectId", updateSubjectBySubjectId);
 router.delete("/:subjectId", deleteSubjectBySubjectId);
 

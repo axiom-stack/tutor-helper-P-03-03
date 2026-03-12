@@ -12,6 +12,10 @@ import { validateLessonPlan } from "../lesson-plans/validators/lessonPlanValidat
 import { createArtifactRevisionsRepository } from "../refinements/repositories/artifactRevisions.repository.js";
 import { REVISION_SOURCES } from "../refinements/types.js";
 import { insertAuditLog } from "../audit/auditLog.js";
+import {
+  createLessonPlanGenerationService,
+  LessonPlanPipelineError,
+} from "../lesson-plans/services/lessonPlanGeneration.service.js";
 
 function isValidPlanId(planPublicId) {
   return Boolean(planPublicId) && /^(trd|act)_\d+$/.test(planPublicId);
@@ -111,13 +115,31 @@ export function createLessonPlansController(dependencies = {}) {
           });
         }
 
-        return res.status(501).json({
-          error: {
-            code: "not_supported",
-            message: "generatePlan is handled by generatePlan controller",
-          },
+        const generationService = createLessonPlanGenerationService();
+        const result = await generationService.generate(validation.value, {
+          logger: req.log,
+          teacherId: req.user.id,
+        });
+
+        return res.status(201).json({
+          id: result.id,
+          plan_type: result.plan_type,
+          plan_json: result.plan_json,
+          validation_status: result.validation_status,
+          retry_occurred: result.retry_occurred,
+          created_at: result.created_at,
+          updated_at: result.updated_at,
         });
       } catch (error) {
+        if (error instanceof LessonPlanPipelineError) {
+          return res.status(error.status || 422).json({
+            error: {
+              code: error.code || "plan_generation_failed",
+              message: error.message,
+              details: error.details,
+            },
+          });
+        }
         req.log?.error?.({ error }, "Unexpected generate-plan failure");
         return res.status(500).json({
           error: {

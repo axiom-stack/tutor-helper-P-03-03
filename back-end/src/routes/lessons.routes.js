@@ -51,8 +51,8 @@ router.use(authenticateToken);
 router.post("/", handleSingleFileUpload, createLesson);
 router.get("/mine", getLessonsByTeacherId);
 router.get("/unit/:unitId", getLessonsByUnitId);
-router.get("/:lessonId", getLessonByLessonId);
 router.get("/", getAllLessonsInTheSystem);
+router.get("/:lessonId", getLessonByLessonId);
 router.put("/:lessonId", handleSingleFileUpload, updateLessonByLessonId);
 router.delete("/:lessonId", deleteLessonByLessonId);
 
