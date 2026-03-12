@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "dev": "nodemon --watch src --watch .env --env-file=.env src/server.js",
-    "start": "nodemon --watch src --watch .env --env-file=.env src/server.js",
+    "start": "node src/server.js",
     "seed": "node --env-file=.env src/scripts/seed.js",
     "test": "TURSO_DATABASE_URL=http://localhost TURSO_AUTH_TOKEN=test-token node --test"
   },
