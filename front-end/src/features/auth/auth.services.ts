@@ -5,6 +5,8 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
 const AUTH_TOKEN_KEY = 'auth_token';
 const AUTH_USER_KEY = 'auth_user';
+const STAGE_STORAGE_KEY = 'tutor-helper-active-stage';
+const GOOGTRANS_COOKIE = 'googtrans';
 
 export function getStoredToken(): string | null {
   return localStorage.getItem(AUTH_TOKEN_KEY);
@@ -28,14 +30,57 @@ function clearAuth() {
   localStorage.removeItem(AUTH_TOKEN_KEY);
   localStorage.removeItem(AUTH_USER_KEY);
 }
+function clearClientAuthArtifacts() {
+  // Core auth state in localStorage
+  clearAuth();
+
+  // Any derived preferences tied to the logged-in user
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.removeItem(STAGE_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+  }
+
+  // Display language cookie used for Google Translate integration
+  if (typeof document !== 'undefined') {
+    try {
+      document.cookie = `${GOOGTRANS_COOKIE}=; path=/; max-age=0`;
+    } catch {
+      // ignore
+    }
+  }
+}
 
 /** Use for API calls that require the JWT (sends Bearer token from storage). */
 export function authAxios() {
   const token = getStoredToken();
-  return axios.create({
+  const instance = axios.create({
     baseURL: BACKEND_URL,
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
+
+  instance.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      const status = error?.response?.status;
+      if (status === 401) {
+        clearClientAuthArtifacts();
+
+        if (typeof window !== 'undefined') {
+          const currentPath = window.location.pathname || '';
+          if (!currentPath.startsWith('/authentication')) {
+            window.location.href = '/authentication';
+          }
+        }
+      }
+
+      return Promise.reject(error);
+    }
+  );
+
+  return instance;
 }
 
 export async function login(username: string, password: string) {
@@ -51,6 +96,9 @@ export async function login(username: string, password: string) {
 
 export async function logout() {
   const api = authAxios();
-  await api.post('/api/auth/logout');
-  clearAuth();
+  try {
+    await api.post('/api/auth/logout');
+  } finally {
+    clearClientAuthArtifacts();
+  }
 }

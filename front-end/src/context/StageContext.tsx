@@ -15,8 +15,23 @@ const StageContext = createContext<StageContextValue | undefined>(undefined);
 
 function normalizeStage(value: unknown): StageId | null {
   if (typeof value !== 'string') return null;
-  const trimmed = value.trim() as StageId;
-  return ALLOWED_STAGES.includes(trimmed) ? trimmed : null;
+  const raw = value.trim();
+  if (!raw) return null;
+
+  // Exact match first
+  if (ALLOWED_STAGES.includes(raw as StageId)) {
+    return raw as StageId;
+  }
+
+  // Support profiles that store multiple stages in a single string
+  // e.g. "ابتدائي، اعدادي" or "ابتدائي,اعدادي"
+  for (const stage of ALLOWED_STAGES) {
+    if (raw.includes(stage)) {
+      return stage;
+    }
+  }
+
+  return null;
 }
 
 function getInitialStage(preferredFromProfile: string | null | undefined): StageId {

@@ -74,21 +74,28 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
           {isTeacher && (
             <div className="mobile-drawer__stage">
               <span className="mobile-drawer__stage-label">المرحلة الحالية</span>
-              <select
-                className="mobile-drawer__stage-select"
-                value={activeStage}
-                onChange={(event) =>
-                  setActiveStage(
-                    event.target.value as ReturnType<typeof getAllowedStages>[number]
-                  )
-                }
+              <div
+                className="mobile-drawer__stage-toggle"
+                role="radiogroup"
+                aria-label="اختيار المرحلة التعليمية"
               >
                 {stages.map((stage) => (
-                  <option key={stage} value={stage}>
+                  <button
+                    key={stage}
+                    type="button"
+                    role="radio"
+                    aria-checked={activeStage === stage}
+                    className={
+                      activeStage === stage
+                        ? 'mobile-drawer__stage-pill mobile-drawer__stage-pill--active'
+                        : 'mobile-drawer__stage-pill'
+                    }
+                    onClick={() => setActiveStage(stage)}
+                  >
                     {stage}
-                  </option>
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
           )}
           <ul className="mobile-drawer__list">

@@ -29,19 +29,28 @@ export function Sidebar() {
         {isTeacher && (
           <div className="sidebar__stage">
             <span className="sidebar__stage-label">المرحلة الحالية</span>
-            <select
-              className="sidebar__stage-select"
-              value={activeStage}
-              onChange={(event) =>
-                setActiveStage(event.target.value as ReturnType<typeof getAllowedStages>[number])
-              }
+            <div
+              className="sidebar__stage-toggle"
+              role="radiogroup"
+              aria-label="اختيار المرحلة التعليمية"
             >
               {stages.map((stage) => (
-                <option key={stage} value={stage}>
+                <button
+                  key={stage}
+                  type="button"
+                  role="radio"
+                  aria-checked={activeStage === stage}
+                  className={
+                    activeStage === stage
+                      ? 'sidebar__stage-pill sidebar__stage-pill--active'
+                      : 'sidebar__stage-pill'
+                  }
+                  onClick={() => setActiveStage(stage)}
+                >
                   {stage}
-                </option>
+                </button>
               ))}
-            </select>
+            </div>
           </div>
         )}
         <ul className="sidebar__list">

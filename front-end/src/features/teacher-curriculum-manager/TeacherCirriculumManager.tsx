@@ -110,6 +110,21 @@ interface DeleteRequestDraft {
 
 const MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024;
 
+const GRADE_LABEL_OPTIONS: string[] = [
+  'الصف الأول',
+  'الصف الثاني',
+  'الصف الثالث',
+  'الصف الرابع',
+  'الصف الخامس',
+  'الصف السادس',
+  'الصف السابع',
+  'الصف الثامن',
+  'الصف التاسع',
+  'الصف العاشر',
+  'الصف الحادي عشر',
+  'الصف الثاني عشر',
+];
+
 function getErrorMessage(
   error: unknown,
   fallback = 'حدث خطأ غير متوقع. حاول مرة أخرى.'
@@ -1698,14 +1713,20 @@ function TeacherCirriculumManager(props: {
                       <label htmlFor="creator-new-class-grade-label">
                         المرحلة / الصف *
                       </label>
-                      <input
+                      <select
                         id="creator-new-class-grade-label"
-                        type="text"
                         value={creatorNewClassGradeLabel}
                         onChange={(event) =>
                           setCreatorNewClassGradeLabel(event.target.value)
                         }
-                      />
+                      >
+                        <option value="">اختر الصف</option>
+                        {GRADE_LABEL_OPTIONS.map((label) => (
+                          <option key={label} value={label}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div className="tcm2__field">
                       <label htmlFor="creator-new-class-section-label">الشعبة *</label>
@@ -2118,9 +2139,8 @@ function TeacherCirriculumManager(props: {
               <div className="tcm2__inline-grid">
                 <div className="tcm2__field">
                   <label htmlFor="quick-add-class-grade">المرحلة / الصف *</label>
-                  <input
+                  <select
                     id="quick-add-class-grade"
-                    type="text"
                     value={quickAddDraft.gradeLabel ?? ''}
                     onChange={(event) =>
                       setQuickAddDraft((previous) =>
@@ -2132,7 +2152,14 @@ function TeacherCirriculumManager(props: {
                           : previous
                       )
                     }
-                  />
+                  >
+                    <option value="">اختر الصف</option>
+                    {GRADE_LABEL_OPTIONS.map((label) => (
+                      <option key={label} value={label}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="tcm2__field">
                   <label htmlFor="quick-add-class-section">الشعبة *</label>
@@ -2366,9 +2393,8 @@ function TeacherCirriculumManager(props: {
                 <div className="tcm2__inline-grid">
                   <div className="tcm2__field">
                     <label htmlFor="edit-class-grade-label">المرحلة / الصف</label>
-                    <input
+                    <select
                       id="edit-class-grade-label"
-                      type="text"
                       value={editDraft.gradeLabel ?? ''}
                       onChange={(event) =>
                         setEditDraft((previous) =>
@@ -2380,7 +2406,14 @@ function TeacherCirriculumManager(props: {
                             : previous
                         )
                       }
-                    />
+                    >
+                      <option value="">اختر الصف</option>
+                      {GRADE_LABEL_OPTIONS.map((label) => (
+                        <option key={label} value={label}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="tcm2__field">
                     <label htmlFor="edit-class-section-label">الشعبة</label>

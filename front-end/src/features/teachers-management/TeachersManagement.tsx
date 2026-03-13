@@ -23,6 +23,7 @@ import {
   resetTeacherPassword,
   updateTeacherProfile,
 } from '../users/users.services';
+import { getAllowedStages, type StageId } from '../../context/StageContext';
 import './teachers-management.css';
 
 interface EditDraft {
@@ -59,6 +60,31 @@ function formatDateAr(value: string): string {
   } catch {
     return value;
   }
+}
+
+function parseStages(value: string): StageId[] {
+  if (!value) return [];
+  const raw = value
+    .split(/[,،]/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const allowed = new Set<StageId>(getAllowedStages());
+  const result: StageId[] = [];
+
+  for (const part of raw) {
+    if (allowed.has(part as StageId) && !result.includes(part as StageId)) {
+      result.push(part as StageId);
+    }
+  }
+
+  return result;
+}
+
+function formatStagesForStorage(stages: StageId[]): string {
+  if (!stages.length) return '';
+  // Use Arabic comma for nicer display
+  return stages.join('، ');
 }
 
 function toEditDraft(teacher: TeacherManagementRow): EditDraft {
@@ -99,6 +125,8 @@ export default function TeachersManagement() {
   const [resetNewPassword, setResetNewPassword] = useState('');
   const [resetConfirmPassword, setResetConfirmPassword] = useState('');
   const [resetSubmitting, setResetSubmitting] = useState(false);
+
+  const stageOptions = getAllowedStages();
 
   const teacherById = useMemo(
     () => new Map(teachers.map((teacher) => [teacher.id, teacher])),
@@ -498,17 +526,44 @@ export default function TeachersManagement() {
 
               <label className="tm__field" htmlFor="tm-stage">
                 <span>المرحلة التعليمية</span>
-                <input
-                  id="tm-stage"
-                  value={editDraft.educational_stage}
-                  onChange={(event) =>
-                    setEditDraft((current) =>
-                      current
-                        ? { ...current, educational_stage: event.target.value }
-                        : current
-                    )
-                  }
-                />
+                <div className="tm__stage-toggle" aria-label="المراحل التعليمية المتاحة">
+                  {stageOptions.map((stage) => {
+                    const currentStages = parseStages(editDraft.educational_stage);
+                    const isActive = currentStages.includes(stage);
+                    return (
+                      <button
+                        key={stage}
+                        type="button"
+                        className={
+                          isActive
+                            ? 'tm__stage-pill tm__stage-pill--active'
+                            : 'tm__stage-pill'
+                        }
+                        onClick={() =>
+                          setEditDraft((current) => {
+                            if (!current) return current;
+                            const existing = parseStages(current.educational_stage);
+                            let next: StageId[];
+                            if (existing.includes(stage)) {
+                              next = existing.filter((s) => s !== stage);
+                            } else {
+                              next = [...existing, stage];
+                            }
+                            return {
+                              ...current,
+                              educational_stage: formatStagesForStorage(next),
+                            };
+                          })
+                        }
+                      >
+                        {stage}
+                      </button>
+                    );
+                  })}
+                </div>
+                <small className="tm__field-hint">
+                  يمكن ربط المعلم بأكثر من مرحلة (ابتدائي، إعدادي، ثانوي).
+                </small>
               </label>
 
               <label className="tm__field" htmlFor="tm-subject">

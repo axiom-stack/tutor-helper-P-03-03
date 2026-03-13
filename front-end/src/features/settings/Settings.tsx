@@ -7,11 +7,36 @@ import { PREPARATION_TYPE_OPTIONS } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
 import { getMyProfile, updateMyProfile } from '../users/users.services';
 import { applyDisplayLanguageAndReload } from '../../utils/displayLanguage';
+import { getAllowedStages, type StageId } from '../../context/StageContext';
 import './settings.css';
 
 type LanguageValue = 'ar' | 'en';
 type DefaultPlanTypeValue = 'traditional' | 'active_learning';
 type PreparationTypeValue = PreparationType;
+
+function parseStages(value: string): StageId[] {
+  if (!value) return [];
+  const raw = value
+    .split(/[,،]/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const allowed = new Set<StageId>(getAllowedStages());
+  const result: StageId[] = [];
+
+  for (const part of raw) {
+    if (allowed.has(part as StageId) && !result.includes(part as StageId)) {
+      result.push(part as StageId);
+    }
+  }
+
+  return result;
+}
+
+function formatStagesForStorage(stages: StageId[]): string {
+  if (!stages.length) return '';
+  return stages.join('، ');
+}
 
 export default function Settings() {
   const { user, updateUserProfile } = useAuth();
@@ -40,6 +65,8 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [, setError] = useState<string | null>(null);
   const [, setSuccess] = useState<string | null>(null);
+
+  const stageOptions = getAllowedStages();
 
   useEffect(() => {
     const win = window as Window & { googleTranslateElementInit?: () => void };
@@ -167,12 +194,38 @@ export default function Settings() {
 
           <label className="st__field" htmlFor="settings-stage">
             <span>المرحلة التعليمية الافتراضية</span>
-            <input
-              id="settings-stage"
-              value={educationalStage}
-              onChange={(event) => setEducationalStage(event.target.value)}
-              placeholder="مثال: المرحلة الإعدادية"
-            />
+            <div className="st__stage-toggle" aria-label="المراحل التعليمية التي تعمل عليها">
+              {stageOptions.map((stage) => {
+                const currentStages = parseStages(educationalStage);
+                const isActive = currentStages.includes(stage);
+                return (
+                  <button
+                    key={stage}
+                    type="button"
+                    className={
+                      isActive
+                        ? 'st__stage-pill st__stage-pill--active'
+                        : 'st__stage-pill'
+                    }
+                    onClick={() => {
+                      const existing = parseStages(educationalStage);
+                      let next: StageId[];
+                      if (existing.includes(stage)) {
+                        next = existing.filter((s) => s !== stage);
+                      } else {
+                        next = [...existing, stage];
+                      }
+                      setEducationalStage(formatStagesForStorage(next));
+                    }}
+                  >
+                    {stage}
+                  </button>
+                );
+              })}
+            </div>
+            <small className="st__field-hint">
+              يمكنك اختيار أكثر من مرحلة، وسيتم اعتبار الأولى كإعداد افتراضي في الواجهة.
+            </small>
           </label>
 
           <label className="st__field" htmlFor="settings-subject">
