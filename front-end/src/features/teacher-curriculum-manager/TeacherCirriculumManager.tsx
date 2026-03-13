@@ -559,8 +559,8 @@ function TeacherCirriculumManager(props: {
       try {
         if (scope?.role === 'admin' && scope?.selectedTeacherId) {
           const [classesResponse, subjectsResponse] = await Promise.all([
-            getScopedClasses('admin'),
-            getScopedSubjects('admin'),
+            getScopedClasses('admin', activeStage),
+            getScopedSubjects('admin', activeStage),
           ]);
           if (cancelled) return;
           const tid = scope.selectedTeacherId;

@@ -206,8 +206,12 @@ export default function Quizzes() {
       setIsBootLoading(true);
       setError(null);
       try {
-        const classesLoader = isAdmin ? getAllClasses : () => getMyClasses(activeStage);
-        const subjectsLoader = isAdmin ? getAllSubjects : () => getMySubjects(activeStage);
+        const classesLoader = isAdmin
+          ? () => getAllClasses(activeStage)
+          : () => getMyClasses(activeStage);
+        const subjectsLoader = isAdmin
+          ? () => getAllSubjects(activeStage)
+          : () => getMySubjects(activeStage);
         const [classesResponse, subjectsResponse] = await Promise.all([
           classesLoader(),
           subjectsLoader(),

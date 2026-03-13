@@ -54,6 +54,9 @@ export async function listPlans(
       if (filters.grade && !plan.grade.toLowerCase().includes(filters.grade.toLowerCase())) {
         return false;
       }
+      if (filters.stage && filters.stage !== 'all' && plan.stage !== filters.stage) {
+        return false;
+      }
       return true;
     });
     return { plans };

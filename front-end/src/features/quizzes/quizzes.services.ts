@@ -80,9 +80,17 @@ export async function getMyClasses(
   }
 }
 
-export async function getAllClasses(): Promise<{ classes: Class[] }> {
+export async function getAllClasses(
+  stage?: string
+): Promise<{ classes: Class[] }> {
   try {
-    const response = await api().get<{ classes: Class[] }>('/api/classes');
+    const params: Record<string, string> = {};
+    if (stage && stage !== 'all') {
+      params.stage = stage;
+    }
+    const response = await api().get<{ classes: Class[] }>('/api/classes', {
+      params,
+    });
     await putReference('classes:all', 'classes', response.data.classes ?? []);
     return response.data;
   } catch (error: unknown) {
@@ -235,6 +243,9 @@ export async function listExams(
           return false;
         }
         if (filters.class_id != null && exam.class_id !== filters.class_id) {
+          return false;
+        }
+        if (filters.stage && filters.stage !== 'all' && exam.stage !== filters.stage) {
           return false;
         }
         if (filters.date_from && exam.created_at.slice(0, 10) < filters.date_from) {

@@ -86,6 +86,7 @@ function AdminCurriculumExplorer({
 }: {
   onSelectTeacherToManage: (teacherId: number | '') => void;
 }) {
+  const { activeStage } = useStage();
   const [teachers, setTeachers] = useState<TeacherManagementRow[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -114,10 +115,10 @@ function AdminCurriculumExplorer({
 
     Promise.all([
       listTeacherScopes(),
-      getScopedClasses('admin'),
-      getScopedSubjects('admin'),
-      getScopedUnits('admin'),
-      getScopedLessons('admin'),
+      getScopedClasses('admin', activeStage),
+      getScopedSubjects('admin', activeStage),
+      getScopedUnits('admin', activeStage),
+      getScopedLessons('admin', activeStage),
     ])
       .then(([teachersResponse, classesResponse, subjectsResponse, unitsResponse, lessonsResponse]) => {
         if (cancelled) {
@@ -147,7 +148,7 @@ function AdminCurriculumExplorer({
       cancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, []);
+  }, [activeStage]);
 
   const classesMap = useMemo(() => {
     return new Map(classes.map((classItem) => [classItem.id, classItem]));

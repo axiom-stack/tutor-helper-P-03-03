@@ -477,39 +477,6 @@ export default function Assignments() {
   }, [isScopedView, user?.userRole, activeStage]);
 
   useEffect(() => {
-    if (user?.userRole !== 'teacher' || isScopedView) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadClasses = async () => {
-      setIsClassesLoading(true);
-      try {
-        const response = await getMyClasses();
-        if (cancelled) {
-          return;
-        }
-        setClasses(response.classes ?? []);
-      } catch (classesError: unknown) {
-        if (!cancelled) {
-          setError(normalizeApiError(classesError, 'تعذر تحميل قائمة الصفوف.'));
-        }
-      } finally {
-        if (!cancelled) {
-          setIsClassesLoading(false);
-        }
-      }
-    };
-
-    void loadClasses();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isScopedView, user?.userRole, activeStage]);
-
-  useEffect(() => {
     if (error) {
       toast.error(error.message);
     }
