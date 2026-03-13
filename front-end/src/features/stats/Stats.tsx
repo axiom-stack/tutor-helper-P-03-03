@@ -8,6 +8,7 @@ import {
   MdTrendingUp,
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
+import { QuickAccess } from '../../components/layout';
 import type {
   StatsMonthlyTrendRow,
   StatsPeriod,
@@ -463,6 +464,8 @@ export default function Stats() {
           )}
         </div>
       </header>
+
+      <QuickAccess />
 
       <section className="st__filters" aria-label="فلاتر الإحصائيات">
         <div className="st__chips">

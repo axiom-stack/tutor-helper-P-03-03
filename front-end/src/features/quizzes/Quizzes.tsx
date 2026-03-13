@@ -16,6 +16,7 @@ import {
 } from 'react-icons/md';
 import { SyncStatusBadge } from '../../components/common/SyncStatusBadge';
 import { useAuth } from '../../context/AuthContext';
+import { QuickAccess } from '../../components/layout';
 import type { Class, Exam, ExamQuestion, Lesson, Subject, Unit } from '../../types';
 import { QUESTION_TYPE_LABELS } from '../../types';
 import type { NormalizedApiError } from '../../utils/apiErrors';
@@ -761,6 +762,10 @@ export default function Quizzes() {
       {draftRecoveredNotice ? (
         <p className="ui-inline-notice ui-inline-notice--info">{draftRecoveredNotice}</p>
       ) : null}
+
+      <section className="qz__quick-access-row">
+        <QuickAccess />
+      </section>
 
       <div className={`qz__layout ${isAdmin ? 'qz__layout--admin' : ''}`}>
         {isTeacher ? (

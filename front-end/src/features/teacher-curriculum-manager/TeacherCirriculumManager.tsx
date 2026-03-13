@@ -14,6 +14,7 @@ import {
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
 import { useStage } from '../../context/StageContext';
+import { QuickAccess } from '../../components/layout';
 import ConfirmActionModal from '../../components/common/ConfirmActionModal';
 import type {
   Class,
@@ -1286,6 +1287,8 @@ function TeacherCirriculumManager(props: {
         <h1>إدارة المنهج الدراسي</h1>
         <p>إدارة الصفوف والمواد والوحدات والدروس من صفحة واحدة.</p>
       </header>
+
+      <QuickAccess />
 
       <div className="tcm2__grid">
           <section className="tcm2__panel">

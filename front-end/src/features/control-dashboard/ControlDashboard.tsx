@@ -1,15 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router';
-import {
-  MdAssignment,
-  MdInsights,
-  MdPeople,
-  MdQuiz,
-  MdSchool,
-  MdMenuBook,
-} from 'react-icons/md';
+import { MdMenuBook, MdQuiz } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
+import { QuickAccess } from '../../components/layout';
 import type { Class, Exam, LessonPlanRecord, Subject } from '../../types';
 import {
   getScopedClasses,
@@ -34,70 +28,6 @@ function formatDateAr(value: string): string {
     return value;
   }
 }
-
-const TEACHER_QUICK_ACTIONS: Array<{
-  path: string;
-  icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
-  title: string;
-  description: string;
-}> = [
-  {
-    path: '/lessons',
-    icon: MdMenuBook,
-    title: 'إنشاء خطة درس',
-    description: 'أنشئ خطة درس جديدة بمساعدة الذكاء الاصطناعي',
-  },
-  {
-    path: '/assignments',
-    icon: MdAssignment,
-    title: 'إدارة الواجبات',
-    description: 'أنشئ واجباً منزلياً مرتبطاً بدرس محدد',
-  },
-  {
-    path: '/quizzes',
-    icon: MdQuiz,
-    title: 'إنشاء/إدارة الاختبارات',
-    description: 'أنشئ اختباراً من دروس متعددة بأسئلة متنوعة',
-  },
-  {
-    path: '/curriculum',
-    icon: MdSchool,
-    title: 'إدارة المنهج',
-    description: 'استعرض وحرّر وحداتك ودروسك',
-  },
-];
-
-const ADMIN_QUICK_ACTIONS: Array<{
-  path: string;
-  icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
-  title: string;
-  description: string;
-}> = [
-  {
-    path: '/teachers',
-    icon: MdPeople,
-    title: 'إدارة المعلمين',
-    description: 'إضافة ومعاينة وإدارة حسابات المعلمين',
-  },
-  {
-    path: '/stats',
-    icon: MdInsights,
-    title: 'التقارير والإحصائيات',
-    description: 'نظرة شاملة على أداء النظام وجودة المخرجات',
-  },
-  {
-    path: '/plans',
-    icon: MdMenuBook,
-    title: 'إدارة الخطط المولدة',
-    description: 'استعراض وتصدير كل الخطط في النظام',
-  },
-  {
-    path: '/curriculum',
-    icon: MdSchool,
-    title: 'استعراض المنهج',
-    description: 'استعراض المنهج الدراسي والصفوف والمواد',
-  },
-];
 
 export default function ControlDashboard() {
   const { user } = useAuth();
@@ -189,8 +119,6 @@ export default function ControlDashboard() {
     return new Map(classes.map((classItem) => [classItem.id, classItem]));
   }, [classes]);
 
-  const quickActions = isAdmin ? ADMIN_QUICK_ACTIONS : TEACHER_QUICK_ACTIONS;
-
   if (!user) {
     return null;
   }
@@ -222,27 +150,7 @@ export default function ControlDashboard() {
       </header>
 
       {/* Quick actions */}
-      <section className="cd__quick-actions" aria-label="إجراءات سريعة">
-        <h2 className="cd__section-title">إجراءات سريعة</h2>
-        <div className="cd__quick-grid">
-          {quickActions.map(({ path, icon: Icon, title, description }) => (
-            <button
-              key={path}
-              type="button"
-              className="cd__quick-card"
-              onClick={() => navigate(path)}
-            >
-              <div className="cd__quick-card-icon">
-                <Icon aria-hidden />
-              </div>
-              <div className="cd__quick-card-content">
-                <h3 className="cd__quick-card-title">{title}</h3>
-                <p className="cd__quick-card-desc">{description}</p>
-              </div>
-            </button>
-          ))}
-        </div>
-      </section>
+      <QuickAccess />
 
       {/* Recent activity */}
       {!error && (

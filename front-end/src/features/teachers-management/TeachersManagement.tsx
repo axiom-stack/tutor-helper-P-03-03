@@ -9,6 +9,7 @@ import {
   MdRefresh,
   MdSave,
 } from 'react-icons/md';
+import { QuickAccess } from '../../components/layout';
 import { normalizeApiError } from '../../utils/apiErrors';
 import type {
   AdminTeacherProfileUpdatePayload,
@@ -324,6 +325,8 @@ export default function TeachersManagement() {
         <h1>إدارة المعلمين</h1>
         <p>عرض سياق المعلمين التعليمي وسجل الاستخدام مع إمكانية تحديث الملف.</p>
       </header>
+
+      <QuickAccess />
 
       <div className="tm__top-actions">
         <button type="button" onClick={() => setShowCreateModal(true)}>

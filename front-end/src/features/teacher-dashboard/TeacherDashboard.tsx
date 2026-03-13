@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router';
-import { MdMenuBook, MdAssignment, MdQuiz } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
+import { QuickAccess } from '../../components/layout';
 import { useStage } from '../../context/StageContext';
 import {
   getMyLessons,
@@ -133,58 +133,7 @@ function TeacherDashboard() {
         <p className="td__subtitle">ماذا تريد أن تفعل اليوم؟</p>
       </header>
 
-      <section className="td__quick" aria-labelledby="quick-access-heading">
-        <h2 id="quick-access-heading" className="td__section-title">
-          إجراءات سريعة
-        </h2>
-        <div className="td__quick-grid">
-          <button
-            type="button"
-            className="td__quick-card"
-            onClick={() => navigate('/lessons')}
-          >
-            <div className="td__quick-card-icon">
-              <MdMenuBook aria-hidden />
-            </div>
-            <div>
-              <h3 className="td__quick-card-title">إنشاء خطة درس</h3>
-              <p className="td__quick-card-desc">
-                أنشئ خطة درس جديدة بمساعدة الذكاء الاصطناعي
-              </p>
-            </div>
-          </button>
-          <button
-            type="button"
-            className="td__quick-card"
-            onClick={() => navigate('/assignments')}
-          >
-            <div className="td__quick-card-icon">
-              <MdAssignment aria-hidden />
-            </div>
-            <div>
-              <h3 className="td__quick-card-title">إنشاء واجب</h3>
-              <p className="td__quick-card-desc">
-                أنشئ واجباً منزلياً مرتبطاً بدرس محدد
-              </p>
-            </div>
-          </button>
-          <button
-            type="button"
-            className="td__quick-card"
-            onClick={() => navigate('/quizzes')}
-          >
-            <div className="td__quick-card-icon">
-              <MdQuiz aria-hidden />
-            </div>
-            <div>
-              <h3 className="td__quick-card-title">إنشاء اختبار</h3>
-              <p className="td__quick-card-desc">
-                أنشئ اختباراً من دروس متعددة بأسئلة متنوعة
-              </p>
-            </div>
-          </button>
-        </div>
-      </section>
+      <QuickAccess />
 
       <section className="td__section" aria-labelledby="recent-lessons-heading">
         <div className="td__section-head">

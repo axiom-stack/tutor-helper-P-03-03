@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { MdSave } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
+import { QuickAccess } from '../../components/layout';
 import type { UserProfileUpdatePayload, PreparationType } from '../../types';
 import { PREPARATION_TYPE_OPTIONS } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
@@ -149,6 +150,8 @@ export default function Settings() {
             : 'تحديث تفضيلاتك التعليمية الافتراضية المستخدمة ضمن لوحة التحكم.'}
         </p>
       </header>
+
+      <QuickAccess />
 
       <section className="st__panel">
         <div className="st__form-grid">
