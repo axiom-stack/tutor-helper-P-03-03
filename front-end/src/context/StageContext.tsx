@@ -1,10 +1,9 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
+import { type StageId, normalizeStage } from '../constants/education';
 
-export type StageId = 'ابتدائي' | 'اعدادي' | 'ثانوي';
-
-const ALLOWED_STAGES: StageId[] = ['ابتدائي', 'اعدادي', 'ثانوي'];
-const STORAGE_KEY = 'tutor-helper-active-stage';
+const BASE_STORAGE_KEY = 'tutor-helper-active-stage';
 
 interface StageContextValue {
   activeStage: StageId;
@@ -13,70 +12,64 @@ interface StageContextValue {
 
 const StageContext = createContext<StageContextValue | undefined>(undefined);
 
-function normalizeStage(value: unknown): StageId | null {
-  if (typeof value !== 'string') return null;
-  const raw = value.trim();
-  if (!raw) return null;
-
-  // Exact match first
-  if (ALLOWED_STAGES.includes(raw as StageId)) {
-    return raw as StageId;
-  }
-
-  // Support profiles that store multiple stages in a single string
-  // e.g. "ابتدائي، اعدادي" or "ابتدائي,اعدادي"
-  for (const stage of ALLOWED_STAGES) {
-    if (raw.includes(stage)) {
-      return stage;
-    }
-  }
-
-  return null;
-}
-
-function getInitialStage(preferredFromProfile: string | null | undefined): StageId {
-  if (typeof window !== 'undefined') {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    const fromStorage = normalizeStage(stored);
-    if (fromStorage) {
-      return fromStorage;
-    }
-  }
-
-  const fromProfile = normalizeStage(preferredFromProfile ?? undefined);
-  if (fromProfile) {
-    return fromProfile;
-  }
-
-  // Sensible default if nothing else is available.
-  return 'ابتدائي';
-}
-
 export function StageProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const userId = user?.id;
+
+  const getStorageKey = (uid: number | undefined) => {
+    return uid ? `${BASE_STORAGE_KEY}:${uid}` : BASE_STORAGE_KEY;
+  };
+
+  const getInitialStage = (uid: number | undefined, preferredFromProfile: string | null | undefined): StageId => {
+    if (typeof window !== 'undefined') {
+      const key = getStorageKey(uid);
+      const stored = window.localStorage.getItem(key);
+      const fromStorage = normalizeStage(stored);
+      if (fromStorage) {
+        return fromStorage;
+      }
+    }
+
+    const fromProfile = normalizeStage(preferredFromProfile ?? undefined);
+    if (fromProfile) {
+      return fromProfile;
+    }
+
+    // Sensible default if nothing else is available.
+    return 'ابتدائي';
+  };
+
   const preferredStage = user?.profile?.educational_stage ?? null;
   const [activeStage, setActiveStageState] = useState<StageId>(() =>
-    getInitialStage(preferredStage)
+    getInitialStage(userId, preferredStage)
   );
 
   useEffect(() => {
-    // When profile changes (e.g., login), only update stage if there is no stored preference.
+    // When user or profile changes, re-evaluate stage preference.
     if (typeof window === 'undefined') return;
-    const stored = window.localStorage.getItem(STORAGE_KEY);
+    const key = getStorageKey(userId);
+    const stored = window.localStorage.getItem(key);
+    
     if (stored) {
+      const fromStorage = normalizeStage(stored);
+      if (fromStorage && fromStorage !== activeStage) {
+        setActiveStageState(fromStorage);
+      }
       return;
     }
+
     const fromProfile = normalizeStage(preferredStage ?? undefined);
     if (fromProfile && fromProfile !== activeStage) {
       setActiveStageState(fromProfile);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preferredStage]);
+  }, [userId, preferredStage]);
 
   const setActiveStage = (next: StageId) => {
     setActiveStageState(next);
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(STORAGE_KEY, next);
+      const key = getStorageKey(userId);
+      window.localStorage.setItem(key, next);
     }
   };
 
@@ -93,9 +86,5 @@ export function useStage() {
     throw new Error('useStage must be used within a StageProvider');
   }
   return ctx;
-}
-
-export function getAllowedStages(): StageId[] {
-  return [...ALLOWED_STAGES];
 }
 

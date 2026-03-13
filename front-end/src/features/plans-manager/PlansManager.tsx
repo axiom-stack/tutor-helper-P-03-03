@@ -14,6 +14,7 @@ import {
 import { SyncStatusBadge } from '../../components/common/SyncStatusBadge';
 import WhatsAppExportModal from '../../components/common/WhatsAppExportModal';
 import { useAuth } from '../../context/AuthContext';
+import { useStage } from '../../context/StageContext';
 import type { LessonPlanRecord, TeacherManagementRow } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
 import { shareDocumentWithWhatsApp } from '../../utils/whatsapp';
@@ -41,6 +42,8 @@ import {
 import './plans-manager.css';
 
 type PlanTypeFilter = '' | 'traditional' | 'active_learning';
+
+type ExportAction = 'pdf' | 'word' | 'share_pdf' | 'whatsapp' | null;
 
 interface PlanDraft {
   lessonTitle: string;
@@ -88,7 +91,7 @@ export default function PlansManager() {
   /** Which plan is currently loading details (by public_id). Only this card shows loading. */
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const [, setError] = useState<string | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
+  const [exportingAction, setExportingAction] = useState<ExportAction>(null);
   const [isEditingPlan, setIsEditingPlan] = useState(false);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
   const [planDraft, setPlanDraft] = useState<PlanDraft | null>(null);
@@ -129,13 +132,15 @@ export default function PlansManager() {
     });
   }, [allPlans, planType, subject, grade]);
 
+  const { activeStage } = useStage();
+
   const loadPlans = async () => {
     const requestId = ++plansRequestIdRef.current;
     setLoading(true);
     setError(null);
 
     try {
-      const response = await listPlans({});
+      const response = await listPlans({ stage: activeStage });
 
       if (requestId !== plansRequestIdRef.current) {
         return;
@@ -328,11 +333,11 @@ export default function PlansManager() {
     selectedPlan?.public_id && !isLocalOnlyId(selectedPlan.public_id);
 
   const handleExport = (format: 'pdf' | 'docx') => {
-    if (!canExportPlan || isExporting) {
+    if (!canExportPlan || exportingAction !== null) {
       return;
     }
 
-    setIsExporting(true);
+    setExportingAction(format === 'pdf' ? 'pdf' : 'word');
     setError(null);
 
     exportPlan(selectedPlan!.public_id, format)
@@ -340,14 +345,14 @@ export default function PlansManager() {
         setError('فشل تصدير الخطة.');
         toast.error('فشل تصدير الخطة.');
       })
-      .finally(() => setIsExporting(false));
+      .finally(() => setExportingAction(null));
   };
 
   const handleShare = (format: 'pdf' | 'docx') => {
-    if (!canExportPlan || isExporting) {
+    if (!canExportPlan || exportingAction !== null) {
       return;
     }
-    setIsExporting(true);
+    setExportingAction('share_pdf');
     setError(null);
     sharePlan(
       selectedPlan!.public_id,
@@ -358,7 +363,7 @@ export default function PlansManager() {
         setError('فشل مشاركة الخطة.');
         toast.error('فشل مشاركة الخطة.');
       })
-      .finally(() => setIsExporting(false));
+      .finally(() => setExportingAction(null));
   };
 
   const clearFilters = () => {
@@ -697,41 +702,41 @@ export default function PlansManager() {
                     <button
                       type="button"
                       className="pm__btn pm__btn--subtle"
-                      disabled={!canExportPlan || isExporting}
+                      disabled={!canExportPlan || exportingAction !== null}
                       onClick={() => handleExport('pdf')}
-                      aria-busy={isExporting}
+                      aria-busy={exportingAction === 'pdf'}
                     >
-                      {isExporting && (
+                      {exportingAction === 'pdf' && (
                         <span className="ui-button-spinner" aria-hidden />
                       )}
-                      {!isExporting && <MdOutlinePictureAsPdf aria-hidden />}
+                      {exportingAction !== 'pdf' && <MdOutlinePictureAsPdf aria-hidden />}
                       PDF
                     </button>
                     <button
                       type="button"
                       className="pm__btn pm__btn--subtle"
-                      disabled={!canExportPlan || isExporting}
+                      disabled={!canExportPlan || exportingAction !== null}
                       onClick={() => handleExport('docx')}
-                      aria-busy={isExporting}
+                      aria-busy={exportingAction === 'word'}
                     >
-                      {isExporting && (
+                      {exportingAction === 'word' && (
                         <span className="ui-button-spinner" aria-hidden />
                       )}
-                      {!isExporting && <MdOutlineTextSnippet aria-hidden />}
+                      {exportingAction !== 'word' && <MdOutlineTextSnippet aria-hidden />}
                       Word
                     </button>
                     <button
                       type="button"
                       className="pm__btn pm__btn--subtle"
-                      disabled={!canExportPlan || isExporting}
+                      disabled={!canExportPlan || exportingAction !== null}
                       onClick={() => handleShare('pdf')}
-                      aria-busy={isExporting}
+                      aria-busy={exportingAction === 'share_pdf'}
                       title="مشاركة PDF عبر الجهاز"
                     >
-                      {isExporting && (
+                      {exportingAction === 'share_pdf' && (
                         <span className="ui-button-spinner" aria-hidden />
                       )}
-                      {!isExporting && 'مشاركة PDF'}
+                      {exportingAction !== 'share_pdf' && 'مشاركة PDF'}
                     </button>
                     <button
                       type="button"
@@ -887,10 +892,10 @@ export default function PlansManager() {
             : ''
         }
         onClose={() => setWhatsAppExportOpen(false)}
-        isExporting={isExporting}
+        isExporting={exportingAction === 'whatsapp'}
         onConfirm={async ({ format, message }) => {
           if (!canExportPlan) return;
-          setIsExporting(true);
+          setExportingAction('whatsapp');
           try {
             const blob = await getPlanExportBlob(selectedPlan!.public_id, format);
             const text =
@@ -903,7 +908,7 @@ export default function PlansManager() {
           } catch {
             toast.error('فشل تصدير الخطة.');
           } finally {
-            setIsExporting(false);
+            setExportingAction(null);
           }
         }}
       />

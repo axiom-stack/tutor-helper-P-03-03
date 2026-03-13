@@ -17,6 +17,7 @@ import {
 import { enqueueOfflineAction, upsertPendingEntityAction } from '../../offline/queue';
 import { getReference, putReference } from '../../offline/references';
 import { isLocalOnlyId } from '../../offline/utils';
+import { GRADE_TO_STAGE_MAP } from '../../constants/education';
 
 const api = () => authAxios();
 
@@ -139,21 +140,7 @@ export async function listAssignments(
         if (filters.stage != null) {
           // Approximate stage locally using grade label when available.
           const label = assignment.class_grade_label ?? '';
-          const map: Record<string, string> = {
-            'الصف الأول': 'ابتدائي',
-            'الصف الثاني': 'ابتدائي',
-            'الصف الثالث': 'ابتدائي',
-            'الصف الرابع': 'ابتدائي',
-            'الصف الخامس': 'اعدادي',
-            'الصف السادس': 'اعدادي',
-            'الصف السابع': 'اعدادي',
-            'الصف الثامن': 'اعدادي',
-            'الصف التاسع': 'اعدادي',
-            'الصف العاشر': 'ثانوي',
-            'الصف الحادي عشر': 'ثانوي',
-            'الصف الثاني عشر': 'ثانوي',
-          };
-          const derivedStage = map[label] ?? null;
+          const derivedStage = GRADE_TO_STAGE_MAP[label] ?? null;
           if (!derivedStage || derivedStage !== filters.stage) {
             return false;
           }

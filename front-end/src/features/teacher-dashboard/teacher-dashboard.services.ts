@@ -3,8 +3,10 @@ import type { Class, Lesson, Subject, Unit } from '../../types';
 
 const api = () => authAxios();
 
-export async function getMyLessons(): Promise<{ lessons: Lesson[] }> {
-  const response = await api().get<{ lessons: Lesson[] }>('/api/lessons/mine');
+export async function getMyLessons(stage?: string): Promise<{ lessons: Lesson[] }> {
+  const response = await api().get<{ lessons: Lesson[] }>('/api/lessons/mine', {
+    params: stage ? { stage } : undefined,
+  });
   return response.data;
 }
 
@@ -17,12 +19,16 @@ export async function getMyClasses(
   return response.data;
 }
 
-export async function getMySubjects(): Promise<{ subjects: Subject[] }> {
-  const response = await api().get<{ subjects: Subject[] }>('/api/subjects/mine');
+export async function getMySubjects(stage?: string): Promise<{ subjects: Subject[] }> {
+  const response = await api().get<{ subjects: Subject[] }>('/api/subjects/mine', {
+    params: stage ? { stage } : undefined,
+  });
   return response.data;
 }
 
-export async function getMyUnits(): Promise<{ units: Unit[] }> {
-  const response = await api().get<{ units: Unit[] }>('/api/units/mine');
+export async function getMyUnits(stage?: string): Promise<{ units: Unit[] }> {
+  const response = await api().get<{ units: Unit[] }>('/api/units/mine', {
+    params: stage ? { stage } : undefined,
+  });
   return response.data;
 }

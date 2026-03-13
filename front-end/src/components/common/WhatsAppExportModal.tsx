@@ -35,7 +35,9 @@ export default function WhatsAppExportModal({
       setMessage(defaultMessage);
       setFormat('pdf');
     }
-  }, [isOpen, defaultMessage]);
+    // Only reset when modal opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   if (!isOpen) {
     return null;

@@ -45,6 +45,7 @@ export async function updateClass(
   data: {
     name: string;
     description: string;
+    stage?: string;
     grade_label: string;
     section_label: string;
     academic_year: string;
@@ -61,10 +62,13 @@ export async function deleteClass(classId: number): Promise<{ class: Class }> {
 }
 
 // ——— Subjects ———
-export async function getMySubjects(): Promise<{ subjects: Subject[] }> {
+export async function getMySubjects(
+  stage?: string
+): Promise<{ subjects: Subject[] }> {
   try {
     const response = await api().get<{ subjects: Subject[] }>(
-      '/api/subjects/mine'
+      '/api/subjects/mine',
+      { params: stage ? { stage } : undefined }
     );
     await putReference('subjects:mine', 'subjects', response.data.subjects ?? []);
     return response.data;

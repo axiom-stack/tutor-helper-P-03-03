@@ -53,6 +53,7 @@ interface DeleteExamResponse {
 export interface ListExamsFilters {
   subject_id?: number;
   class_id?: number;
+  stage?: string;
   date_from?: string;
   date_to?: string;
 }
@@ -89,9 +90,11 @@ export async function getAllClasses(): Promise<{ classes: Class[] }> {
   }
 }
 
-export async function getMySubjects(): Promise<{ subjects: Subject[] }> {
+export async function getMySubjects(stage?: string): Promise<{ subjects: Subject[] }> {
   try {
-    const response = await api().get<{ subjects: Subject[] }>('/api/subjects/mine');
+    const response = await api().get<{ subjects: Subject[] }>('/api/subjects/mine', {
+      params: stage ? { stage } : undefined,
+    });
     await putReference('subjects:mine', 'subjects', response.data.subjects ?? []);
     return response.data;
   } catch (error: unknown) {
@@ -103,9 +106,11 @@ export async function getMySubjects(): Promise<{ subjects: Subject[] }> {
   }
 }
 
-export async function getAllSubjects(): Promise<{ subjects: Subject[] }> {
+export async function getAllSubjects(stage?: string): Promise<{ subjects: Subject[] }> {
   try {
-    const response = await api().get<{ subjects: Subject[] }>('/api/subjects');
+    const response = await api().get<{ subjects: Subject[] }>('/api/subjects', {
+      params: stage ? { stage } : undefined,
+    });
     await putReference('subjects:all', 'subjects', response.data.subjects ?? []);
     return response.data;
   } catch (error: unknown) {
@@ -195,6 +200,9 @@ export async function listExams(
   }
   if (filters.class_id != null) {
     params.class_id = filters.class_id;
+  }
+  if (filters.stage != null) {
+    params.stage = filters.stage;
   }
   if (filters.date_from) {
     params.date_from = filters.date_from;

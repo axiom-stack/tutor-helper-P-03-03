@@ -45,6 +45,7 @@ import {
   updateUnit,
   type CreateLessonResponse,
 } from './teacher-curriculum-manager.services';
+import { ALLOWED_STAGES, getGradesForStage, getStageForGrade, type StageId } from '../../constants/education';
 import './teacher-cirriculum-manager.css';
 
 export interface TeacherCirriculumManagerScope {
@@ -72,6 +73,7 @@ interface EditDraft {
   id: number;
   name: string;
   description: string;
+  stage?: StageId;
   gradeLabel?: string;
   sectionLabel?: string;
   academicYear?: string;
@@ -90,6 +92,7 @@ interface QuickAddDraft {
   classId?: number;
   subjectId?: number;
   unitId?: number;
+  stage?: StageId;
   gradeLabel?: string;
   sectionLabel?: string;
   academicYear?: string;
@@ -109,21 +112,6 @@ interface DeleteRequestDraft {
 }
 
 const MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024;
-
-const GRADE_LABEL_OPTIONS: string[] = [
-  'الصف الأول',
-  'الصف الثاني',
-  'الصف الثالث',
-  'الصف الرابع',
-  'الصف الخامس',
-  'الصف السادس',
-  'الصف السابع',
-  'الصف الثامن',
-  'الصف التاسع',
-  'الصف العاشر',
-  'الصف الحادي عشر',
-  'الصف الثاني عشر',
-];
 
 function getErrorMessage(
   error: unknown,
@@ -229,6 +217,7 @@ function TeacherCirriculumManager(props: {
     useState<SelectValue>('');
   const [creatorNewClassName, setCreatorNewClassName] = useState('');
   const [creatorNewClassDescription, setCreatorNewClassDescription] = useState('');
+  const [creatorNewClassStage, setCreatorNewClassStage] = useState<StageId>(activeStage);
   const [creatorNewClassGradeLabel, setCreatorNewClassGradeLabel] = useState('');
   const [creatorNewClassSectionLabel, setCreatorNewClassSectionLabel] = useState('');
   const [creatorNewClassAcademicYear, setCreatorNewClassAcademicYear] = useState('');
@@ -305,6 +294,7 @@ function TeacherCirriculumManager(props: {
     } else if (
       !creatorNewClassName.trim() ||
       !creatorNewClassDescription.trim() ||
+      !creatorNewClassStage ||
       !creatorNewClassGradeLabel.trim() ||
       !creatorNewClassSectionLabel.trim() ||
       !creatorNewClassAcademicYear.trim() ||
@@ -379,7 +369,8 @@ function TeacherCirriculumManager(props: {
 
     if (quickAddDraft.kind === 'class') {
       return Boolean(
-        quickAddDraft.gradeLabel?.trim() &&
+        quickAddDraft.stage &&
+          quickAddDraft.gradeLabel?.trim() &&
           quickAddDraft.sectionLabel?.trim() &&
           quickAddDraft.academicYear?.trim() &&
           Number.isInteger(quickAddDraft.defaultDurationMinutes) &&
@@ -446,7 +437,7 @@ function TeacherCirriculumManager(props: {
     } else {
       const [classesResponse, subjectsResponse] = await Promise.all([
         getMyClasses(activeStage),
-        getMySubjects(),
+        getMySubjects(activeStage),
       ]);
       setClasses(classesResponse.classes ?? []);
       setSubjects(subjectsResponse.subjects ?? []);
@@ -503,6 +494,7 @@ function TeacherCirriculumManager(props: {
     setCreatorExistingClassId('');
     setCreatorNewClassName('');
     setCreatorNewClassDescription('');
+    setCreatorNewClassStage(activeStage);
     setCreatorNewClassGradeLabel('');
     setCreatorNewClassSectionLabel('');
     setCreatorNewClassAcademicYear('');
@@ -575,7 +567,7 @@ function TeacherCirriculumManager(props: {
         } else {
           const [classesResponse, subjectsResponse] = await Promise.all([
             getMyClasses(activeStage),
-            getMySubjects(),
+            getMySubjects(activeStage),
           ]);
           if (cancelled) return;
           setClasses(classesResponse.classes ?? []);
@@ -695,6 +687,7 @@ function TeacherCirriculumManager(props: {
       kind: 'class',
       name: '',
       description: '',
+      stage: activeStage,
       gradeLabel: '',
       sectionLabel: '',
       academicYear: '',
@@ -751,6 +744,7 @@ function TeacherCirriculumManager(props: {
         await createClass({
           name: quickAddDraft.name.trim(),
           description: quickAddDraft.description.trim(),
+          stage: quickAddDraft.stage,
           grade_label: quickAddDraft.gradeLabel?.trim() ?? '',
           section_label: quickAddDraft.sectionLabel?.trim() ?? '',
           academic_year: quickAddDraft.academicYear?.trim() ?? '',
@@ -847,6 +841,7 @@ function TeacherCirriculumManager(props: {
       id: selectedClass.id,
       name: selectedClass.name,
       description: selectedClass.description,
+      stage: (selectedClass.stage as StageId) || getStageForGrade(selectedClass.grade_label) || activeStage,
       gradeLabel: selectedClass.grade_label,
       sectionLabel: selectedClass.section_label,
       academicYear: selectedClass.academic_year,
@@ -929,6 +924,7 @@ function TeacherCirriculumManager(props: {
         const response = await updateClass(editDraft.id, {
           name: editDraft.name.trim(),
           description: editDraft.description.trim(),
+          stage: editDraft.stage,
           grade_label: editDraft.gradeLabel?.trim() ?? '',
           section_label: editDraft.sectionLabel?.trim() ?? '',
           academic_year: editDraft.academicYear?.trim() ?? '',
@@ -1130,6 +1126,7 @@ function TeacherCirriculumManager(props: {
         const classResponse = await createClass({
           name: creatorNewClassName.trim(),
           description: creatorNewClassDescription.trim(),
+          stage: creatorNewClassStage,
           grade_label: creatorNewClassGradeLabel.trim(),
           section_label: creatorNewClassSectionLabel.trim(),
           academic_year: creatorNewClassAcademicYear.trim(),
@@ -1355,7 +1352,7 @@ function TeacherCirriculumManager(props: {
                   <option value="">اختر الصف</option>
                   {classes.map((classItem) => (
                     <option key={classItem.id} value={classItem.id}>
-                      {classItem.name}
+                      {classItem.grade_label} - {classItem.section_label} ({classItem.name})
                     </option>
                   ))}
                 </select>
@@ -1410,7 +1407,7 @@ function TeacherCirriculumManager(props: {
                   </h3>
                   <p>{selectedClass.description}</p>
                   <p>
-                    الصف/المرحلة: {selectedClass.grade_label} | الشعبة:{' '}
+                    المرحلة: {selectedClass.stage} | الصف: {selectedClass.grade_label} | الشعبة:{' '}
                     {selectedClass.section_label}
                   </p>
                   <p>
@@ -1710,8 +1707,31 @@ function TeacherCirriculumManager(props: {
                       />
                     </div>
                     <div className="tcm2__field">
+                      <label htmlFor="creator-new-class-stage">
+                        المرحلة *
+                      </label>
+                      <select
+                        id="creator-new-class-stage"
+                        value={creatorNewClassStage}
+                        onChange={(event) => {
+                          const nextStage = event.target.value as StageId;
+                          setCreatorNewClassStage(nextStage);
+                          // Reset grade if not in the new stage
+                          if (creatorNewClassGradeLabel && getStageForGrade(creatorNewClassGradeLabel) !== nextStage) {
+                            setCreatorNewClassGradeLabel('');
+                          }
+                        }}
+                      >
+                        {ALLOWED_STAGES.map((stage) => (
+                          <option key={stage} value={stage}>
+                            {stage}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="tcm2__field">
                       <label htmlFor="creator-new-class-grade-label">
-                        المرحلة / الصف *
+                        الصف *
                       </label>
                       <select
                         id="creator-new-class-grade-label"
@@ -1721,7 +1741,7 @@ function TeacherCirriculumManager(props: {
                         }
                       >
                         <option value="">اختر الصف</option>
-                        {GRADE_LABEL_OPTIONS.map((label) => (
+                        {getGradesForStage(creatorNewClassStage).map((label) => (
                           <option key={label} value={label}>
                             {label}
                           </option>
@@ -2138,7 +2158,32 @@ function TeacherCirriculumManager(props: {
             {quickAddDraft.kind === 'class' && (
               <div className="tcm2__inline-grid">
                 <div className="tcm2__field">
-                  <label htmlFor="quick-add-class-grade">المرحلة / الصف *</label>
+                  <label htmlFor="quick-add-class-stage">المرحلة *</label>
+                  <select
+                    id="quick-add-class-stage"
+                    value={quickAddDraft.stage ?? ''}
+                    onChange={(event) => {
+                      const nextStage = event.target.value as StageId;
+                      setQuickAddDraft((previous) => {
+                        if (!previous) return previous;
+                        const next = { ...previous, stage: nextStage };
+                        if (previous.gradeLabel && getStageForGrade(previous.gradeLabel) !== nextStage) {
+                          next.gradeLabel = '';
+                        }
+                        return next;
+                      });
+                    }}
+                  >
+                    <option value="">اختر المرحلة</option>
+                    {ALLOWED_STAGES.map((stage) => (
+                      <option key={stage} value={stage}>
+                        {stage}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="tcm2__field">
+                  <label htmlFor="quick-add-class-grade">الصف *</label>
                   <select
                     id="quick-add-class-grade"
                     value={quickAddDraft.gradeLabel ?? ''}
@@ -2152,9 +2197,10 @@ function TeacherCirriculumManager(props: {
                           : previous
                       )
                     }
+                    disabled={!quickAddDraft.stage}
                   >
                     <option value="">اختر الصف</option>
-                    {GRADE_LABEL_OPTIONS.map((label) => (
+                    {quickAddDraft.stage && getGradesForStage(quickAddDraft.stage).map((label) => (
                       <option key={label} value={label}>
                         {label}
                       </option>
@@ -2392,7 +2438,32 @@ function TeacherCirriculumManager(props: {
               <>
                 <div className="tcm2__inline-grid">
                   <div className="tcm2__field">
-                    <label htmlFor="edit-class-grade-label">المرحلة / الصف</label>
+                    <label htmlFor="edit-class-stage">المرحلة</label>
+                    <select
+                      id="edit-class-stage"
+                      value={editDraft.stage ?? ''}
+                      onChange={(event) => {
+                        const nextStage = event.target.value as StageId;
+                        setEditDraft((previous) => {
+                          if (!previous) return previous;
+                          const next = { ...previous, stage: nextStage };
+                          if (previous.gradeLabel && getStageForGrade(previous.gradeLabel) !== nextStage) {
+                            next.gradeLabel = '';
+                          }
+                          return next;
+                        });
+                      }}
+                    >
+                      <option value="">اختر المرحلة</option>
+                      {ALLOWED_STAGES.map((stage) => (
+                        <option key={stage} value={stage}>
+                          {stage}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="tcm2__field">
+                    <label htmlFor="edit-class-grade-label">الصف</label>
                     <select
                       id="edit-class-grade-label"
                       value={editDraft.gradeLabel ?? ''}
@@ -2406,9 +2477,10 @@ function TeacherCirriculumManager(props: {
                             : previous
                         )
                       }
+                      disabled={!editDraft.stage}
                     >
                       <option value="">اختر الصف</option>
-                      {GRADE_LABEL_OPTIONS.map((label) => (
+                      {editDraft.stage && getGradesForStage(editDraft.stage).map((label) => (
                         <option key={label} value={label}>
                           {label}
                         </option>

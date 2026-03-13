@@ -7,7 +7,7 @@ import { PREPARATION_TYPE_OPTIONS } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
 import { getMyProfile, updateMyProfile } from '../users/users.services';
 import { applyDisplayLanguageAndReload } from '../../utils/displayLanguage';
-import { getAllowedStages, type StageId } from '../../context/StageContext';
+import { getAllowedStages, type StageId } from '../../constants/education';
 import './settings.css';
 
 type LanguageValue = 'ar' | 'en';

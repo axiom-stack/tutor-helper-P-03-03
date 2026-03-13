@@ -496,6 +496,7 @@ export interface CreateUserData {
 export interface CreateClassData {
   name: string;
   description: string;
+  stage?: string | null;
   grade_label: string;
   section_label: string;
   section?: string;

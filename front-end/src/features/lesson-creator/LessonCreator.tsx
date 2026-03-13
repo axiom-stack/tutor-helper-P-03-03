@@ -42,6 +42,8 @@ import './lesson-creator.css';
 
 type SelectValue = number | '';
 
+type ExportAction = 'pdf' | 'word' | null;
+
 interface PlanDraft {
   lessonTitle: string;
   planJson: Record<string, unknown>;
@@ -179,7 +181,7 @@ function LessonCreator() {
     null
   );
   const [queuedPlanNotice, setQueuedPlanNotice] = useState<string | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
+  const [exportingAction, setExportingAction] = useState<ExportAction>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [isEditingPlan, setIsEditingPlan] = useState(false);
   const [planDraft, setPlanDraft] = useState<PlanDraft | null>(null);
@@ -615,24 +617,24 @@ function LessonCreator() {
   };
 
   const handleExportPdf = () => {
-    if (!generatedPlan?.id || isExporting) return;
+    if (!generatedPlan?.id || exportingAction !== null) return;
     setExportError(null);
-    setIsExporting(true);
+    setExportingAction('pdf');
     exportPlan(generatedPlan.id, 'pdf').catch((err: unknown) => {
       setExportError(getErrorMessage(err, 'فشل تصدير PDF.'));
     }).finally(() => {
-      setIsExporting(false);
+      setExportingAction(null);
     });
   };
 
   const handleExportWord = () => {
-    if (!generatedPlan?.id || isExporting) return;
+    if (!generatedPlan?.id || exportingAction !== null) return;
     setExportError(null);
-    setIsExporting(true);
+    setExportingAction('word');
     exportPlan(generatedPlan.id, 'docx').catch((err: unknown) => {
       setExportError(getErrorMessage(err, 'فشل تصدير Word.'));
     }).finally(() => {
-      setIsExporting(false);
+      setExportingAction(null);
     });
   };
 
@@ -767,22 +769,22 @@ function LessonCreator() {
           <button
             type="button"
             onClick={handleExportPdf}
-            disabled={!generatedPlan || isExporting}
-            aria-busy={isExporting}
+            disabled={!generatedPlan || exportingAction !== null}
+            aria-busy={exportingAction === 'pdf'}
           >
-            {isExporting && <span className="ui-button-spinner" aria-hidden />}
-            {!isExporting && <MdOutlinePictureAsPdf aria-hidden />}
-            {isExporting ? 'جاري التصدير...' : 'تصدير PDF'}
+            {exportingAction === 'pdf' && <span className="ui-button-spinner" aria-hidden />}
+            {exportingAction !== 'pdf' && <MdOutlinePictureAsPdf aria-hidden />}
+            {exportingAction === 'pdf' ? 'جاري التصدير...' : 'تصدير PDF'}
           </button>
           <button
             type="button"
             onClick={handleExportWord}
-            disabled={!generatedPlan || isExporting}
-            aria-busy={isExporting}
+            disabled={!generatedPlan || exportingAction !== null}
+            aria-busy={exportingAction === 'word'}
           >
-            {isExporting && <span className="ui-button-spinner" aria-hidden />}
-            {!isExporting && <MdOutlineTextSnippet aria-hidden />}
-            {isExporting ? 'جاري التصدير...' : 'تصدير Word'}
+            {exportingAction === 'word' && <span className="ui-button-spinner" aria-hidden />}
+            {exportingAction !== 'word' && <MdOutlineTextSnippet aria-hidden />}
+            {exportingAction === 'word' ? 'جاري التصدير...' : 'تصدير Word'}
           </button>
         </div>
       </header>
@@ -937,7 +939,7 @@ function LessonCreator() {
                   <option value="">اختر الصف...</option>
                   {classes.map((classItem) => (
                     <option key={classItem.id} value={classItem.id}>
-                      {classItem.name}
+                      {classItem.grade_label} - {classItem.section_label} ({classItem.name})
                     </option>
                   ))}
                 </select>

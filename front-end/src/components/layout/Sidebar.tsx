@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router';
 import { useAuth } from '../../context/AuthContext';
-import { useStage, getAllowedStages } from '../../context/StageContext';
+import { useStage } from '../../context/StageContext';
+import { getAllowedStages } from '../../constants/education';
 import {
   ADMIN_MAIN_LINKS,
   ADMIN_SECONDARY_LINKS,

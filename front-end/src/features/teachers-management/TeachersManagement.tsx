@@ -23,7 +23,7 @@ import {
   resetTeacherPassword,
   updateTeacherProfile,
 } from '../users/users.services';
-import { getAllowedStages, type StageId } from '../../context/StageContext';
+import { getAllowedStages, type StageId } from '../../constants/education';
 import './teachers-management.css';
 
 interface EditDraft {

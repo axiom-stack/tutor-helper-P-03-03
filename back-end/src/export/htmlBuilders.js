@@ -700,12 +700,16 @@ export function buildStatsHtml(summary = {}) {
   const filters = summary.filters_applied || {};
   const admin = summary.admin || null;
 
-  const scopeLabel =
-    filters.scope === "teacher"
-      ? "تقرير المعلم"
-      : filters.scope === "admin_teacher"
-        ? \`تقرير إداري - معلم محدد (\${filters.teacher_id ?? "—"})\`
-        : "تقرير إداري - جميع المعلمين";
+  let scopeLabel = "تقرير إداري - جميع المعلمين";
+  if (filters.scope === "teacher") {
+    scopeLabel = "تقرير المعلم";
+  } else if (filters.scope === "admin_teacher") {
+    const teacherId =
+      typeof filters.teacher_id === "number" || typeof filters.teacher_id === "string"
+        ? String(filters.teacher_id)
+        : "—";
+    scopeLabel = "تقرير إداري - معلم محدد (" + teacherId + ")";
+  }
 
   const periodLabelMap = {
     all: "كل الفترات",
@@ -718,7 +722,7 @@ export function buildStatsHtml(summary = {}) {
   const generatedAt = formatDateTimeAr(filters.generated_at);
   const dateRangeLabel =
     filters.date_from && filters.date_to
-      ? \`\${escapeHtml(filters.date_from)} ← \${escapeHtml(filters.date_to)}\`
+      ? `${escapeHtml(filters.date_from)} ← ${escapeHtml(filters.date_to)}`
       : "غير محدد";
 
   const kpiCards = [
@@ -737,25 +741,25 @@ export function buildStatsHtml(summary = {}) {
     ],
   ]
     .map(
-      ([label, value]) => \`
+      ([label, value]) => `
         <article style="border:1px solid rgba(226, 238, 255, 0.2);border-radius:10px;padding:12px;background:rgba(15, 23, 42, 0.2);">
-          <div style="font-size:11px;color:rgba(228, 240, 255, 0.7);font-weight:700;">\${escapeHtml(label)}</div>
-          <strong style="font-size:18px;color:#f8fbff;">\${escapeHtml(String(value))}</strong>
+          <div style="font-size:11px;color:rgba(228, 240, 255, 0.7);font-weight:700;">${escapeHtml(label)}</div>
+          <strong style="font-size:18px;color:#f8fbff;">${escapeHtml(String(value))}</strong>
         </article>
-      \`,
+      `,
     )
     .join("");
 
   const trendRows = trends
     .map(
-      (row) => \`
+      (row) => `
         <tr>
-          <td>\${escapeHtml(row.month_label ?? row.month ?? "—")}</td>
-          <td>\${formatNumberAr(row.plans)}</td>
-          <td>\${formatNumberAr(row.exams)}</td>
-          <td>\${formatNumberAr(row.assignments)}</td>
+          <td>${escapeHtml(row.month_label ?? row.month ?? "—")}</td>
+          <td>${formatNumberAr(row.plans)}</td>
+          <td>${formatNumberAr(row.exams)}</td>
+          <td>${formatNumberAr(row.assignments)}</td>
         </tr>
-      \`,
+      `,
     )
     .join("");
 
@@ -765,18 +769,18 @@ export function buildStatsHtml(summary = {}) {
   const teacherRows = Array.isArray(admin?.teacher_performance)
     ? admin.teacher_performance
         .map(
-          (row) => \`
+          (row) => `
       <tr>
-        <td>\${escapeHtml(row.username ?? \`#\${row.teacher_id}\`)}</td>
-        <td>\${formatNumberAr(row.plans_generated)}</td>
-        <td>\${formatNumberAr(row.avg_plan_quality)}</td>
-        <td>\${formatPercentAr(row.first_pass_rate)}</td>
-        <td>\${formatNumberAr(row.exams_generated)}</td>
-        <td>\${formatNumberAr(row.assignments_generated)}</td>
-        <td>\${formatNumberAr(row.edited_assignments)}</td>
-        <td>\${formatDateTimeAr(row.last_activity_at)}</td>
+        <td>${escapeHtml(row.username ?? `#${row.teacher_id}`)}</td>
+        <td>${formatNumberAr(row.plans_generated)}</td>
+        <td>${formatNumberAr(row.avg_plan_quality)}</td>
+        <td>${formatPercentAr(row.first_pass_rate)}</td>
+        <td>${formatNumberAr(row.exams_generated)}</td>
+        <td>${formatNumberAr(row.assignments_generated)}</td>
+        <td>${formatNumberAr(row.edited_assignments)}</td>
+        <td>${formatDateTimeAr(row.last_activity_at)}</td>
       </tr>
-    \`,
+    `,
         )
         .join("")
     : "";
@@ -784,23 +788,23 @@ export function buildStatsHtml(summary = {}) {
   const atRiskRows = Array.isArray(admin?.at_risk_teachers)
     ? admin.at_risk_teachers
         .map(
-          (row) => \`
+          (row) => `
       <tr>
-        <td>\${escapeHtml(row.username ?? \`#\${row.teacher_id}\`)}</td>
-        <td>\${escapeHtml((row.risk_flags || []).map(riskLabel).join("، ") || "—")}</td>
+        <td>${escapeHtml(row.username ?? `#${row.teacher_id}`)}</td>
+        <td>${escapeHtml((row.risk_flags || []).map(riskLabel).join("، ") || "—")}</td>
       </tr>
-    \`,
+    `,
         )
         .join("")
     : "";
 
-  return \`<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <title>تقرير الإحصائيات</title>
   <style>
-    \${BASE_STYLES}
+    ${BASE_STYLES}
     .kpi-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; }
     .split-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
     @media print {
@@ -815,16 +819,16 @@ export function buildStatsHtml(summary = {}) {
         <h1 style="margin: 0; font-size: 20px;">التقارير والإحصائيات</h1>
       </div>
       <div class="lpdv__active-header-grid">
-        <div class="header-item"><label>النطاق</label><p>\${escapeHtml(scopeLabel)}</p></div>
-        <div class="header-item"><label>الفترة</label><p>\${escapeHtml(periodLabel)}</p></div>
-        <div class="header-item"><label>المدى الزمني</label><p>\${dateRangeLabel}</p></div>
-        <div class="header-item"><label>تاريخ الإنشاء</label><p>\${generatedAt}</p></div>
+        <div class="header-item"><label>النطاق</label><p>${escapeHtml(scopeLabel)}</p></div>
+        <div class="header-item"><label>الفترة</label><p>${escapeHtml(periodLabel)}</p></div>
+        <div class="header-item"><label>المدى الزمني</label><p>${dateRangeLabel}</p></div>
+        <div class="header-item"><label>تاريخ الإنشاء</label><p>${generatedAt}</p></div>
       </div>
 
       <div style="padding: 12px; border-bottom: 1px solid rgba(226, 238, 255, 0.22);">
         <h3>ملخص المؤشرات الرئيسية</h3>
         <div class="kpi-grid" style="margin-top: 10px;">
-          \${kpiCards}
+          ${kpiCards}
         </div>
       </div>
 
@@ -838,11 +842,11 @@ export function buildStatsHtml(summary = {}) {
             </tr>
           </thead>
           <tbody>
-            <tr><td>متوسط الجودة</td><td>\${formatNumberAr(quality.average_score)}</td></tr>
-            <tr><td>التصنيف العام</td><td>\${escapeHtml(quality.quality_band ?? "—")}</td></tr>
-            <tr><td>الاعتمادية من أول محاولة</td><td>\${formatNumberAr(quality.criteria?.first_pass_reliability)}</td></tr>
-            <tr><td>الاكتمال البنيوي</td><td>\${formatNumberAr(quality.criteria?.structural_completeness)}</td></tr>
-            <tr><td>عمق المحتوى</td><td>\${formatNumberAr(quality.criteria?.content_depth)}</td></tr>
+            <tr><td>متوسط الجودة</td><td>${formatNumberAr(quality.average_score)}</td></tr>
+            <tr><td>التصنيف العام</td><td>${escapeHtml(quality.quality_band ?? "—")}</td></tr>
+            <tr><td>الاعتمادية من أول محاولة</td><td>${formatNumberAr(quality.criteria?.first_pass_reliability)}</td></tr>
+            <tr><td>الاكتمال البنيوي</td><td>${formatNumberAr(quality.criteria?.structural_completeness)}</td></tr>
+            <tr><td>عمق المحتوى</td><td>${formatNumberAr(quality.criteria?.content_depth)}</td></tr>
           </tbody>
         </table>
       </div>
@@ -859,7 +863,7 @@ export function buildStatsHtml(summary = {}) {
             </tr>
           </thead>
           <tbody>
-            \${trendRows || "<tr><td colspan=\"4\">لا توجد بيانات.</td></tr>"}
+            ${trendRows || "<tr><td colspan=\"4\">لا توجد بيانات.</td></tr>"}
           </tbody>
         </table>
       </div>
@@ -875,8 +879,8 @@ export function buildStatsHtml(summary = {}) {
               </tr>
             </thead>
             <tbody>
-              <tr><td>تقليدية</td><td>\${formatNumberAr(planBreakdown.traditional)}</td></tr>
-              <tr><td>تعلم نشط</td><td>\${formatNumberAr(planBreakdown.active_learning)}</td></tr>
+              <tr><td>تقليدية</td><td>${formatNumberAr(planBreakdown.traditional)}</td></tr>
+              <tr><td>تعلم نشط</td><td>${formatNumberAr(planBreakdown.active_learning)}</td></tr>
             </tbody>
           </table>
         </div>
@@ -890,17 +894,17 @@ export function buildStatsHtml(summary = {}) {
               </tr>
             </thead>
             <tbody>
-              <tr><td>تحريري</td><td>\${formatNumberAr(assignmentBreakdown.written)}</td></tr>
-              <tr><td>متنوع</td><td>\${formatNumberAr(assignmentBreakdown.varied)}</td></tr>
-              <tr><td>عملي</td><td>\${formatNumberAr(assignmentBreakdown.practical)}</td></tr>
+              <tr><td>تحريري</td><td>${formatNumberAr(assignmentBreakdown.written)}</td></tr>
+              <tr><td>متنوع</td><td>${formatNumberAr(assignmentBreakdown.varied)}</td></tr>
+              <tr><td>عملي</td><td>${formatNumberAr(assignmentBreakdown.practical)}</td></tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      \${
+      ${
         admin
-          ? \`
+          ? `
           <div style="padding: 12px; border-bottom: 1px solid rgba(226, 238, 255, 0.22);">
             <h3>أداء المعلمين</h3>
             <table>
@@ -917,7 +921,7 @@ export function buildStatsHtml(summary = {}) {
                 </tr>
               </thead>
               <tbody>
-                \${teacherRows || "<tr><td colspan=\"8\">لا توجد بيانات معلمين.</td></tr>"}
+                ${teacherRows || "<tr><td colspan=\"8\">لا توجد بيانات معلمين.</td></tr>"}
               </tbody>
             </table>
           </div>
@@ -932,15 +936,15 @@ export function buildStatsHtml(summary = {}) {
                 </tr>
               </thead>
               <tbody>
-                \${atRiskRows || "<tr><td colspan=\"2\">لا توجد مخاطر مرتفعة.</td></tr>"}
+                ${atRiskRows || "<tr><td colspan=\"2\">لا توجد مخاطر مرتفعة.</td></tr>"}
               </tbody>
             </table>
           </div>
-        \`
+        `
           : ""
       }
     </div>
   </div>
 </body>
-</html>\`;
+</html>`;
 }

@@ -1,4 +1,5 @@
 import { EXAM_PUBLIC_ID_PREFIX } from "./types.js";
+import { normalizeStage } from "../utils/education.js";
 
 function normalizeString(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -160,6 +161,18 @@ export function validateListExamsQuery(query) {
       });
     } else {
       value.class_id = classId;
+    }
+  }
+
+  if (request.stage != null && request.stage !== "") {
+    const normalized = normalizeStage(request.stage);
+    if (!normalized) {
+      errors.push({
+        field: "stage",
+        message: "Invalid stage. Allowed values: ابتدائي، اعدادي، ثانوي.",
+      });
+    } else {
+      value.stage = normalized;
     }
   }
 

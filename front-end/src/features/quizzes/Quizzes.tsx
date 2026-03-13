@@ -51,6 +51,8 @@ import './quizzes.css';
 
 type SelectValue = number | '';
 
+type ExportAction = 'pdf' | 'word' | 'share_pdf' | 'whatsapp' | null;
+
 interface LessonOption extends Lesson {
   unit_name: string;
 }
@@ -143,6 +145,7 @@ export default function Quizzes() {
   const [filterClassId, setFilterClassId] = useState<SelectValue>('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
+  const { activeStage } = useStage();
 
   const [exams, setExams] = useState<OfflineExamRecord[]>([]);
   const [selectedExam, setSelectedExam] = useState<OfflineExamRecord | null>(null);
@@ -164,8 +167,9 @@ export default function Quizzes() {
 
   const [error, setError] = useState<NormalizedApiError | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
+  const [exportingAction, setExportingAction] = useState<ExportAction>(null);
   const [whatsAppExportOpen, setWhatsAppExportOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [examDraft, setExamDraft] = useState<ExamDraft | null>(null);
   const [draftRecoveredNotice, setDraftRecoveredNotice] = useState<string | null>(null);
@@ -176,6 +180,7 @@ export default function Quizzes() {
       const response = await listExams({
         subject_id: filterSubjectId === '' ? undefined : filterSubjectId,
         class_id: filterClassId === '' ? undefined : filterClassId,
+        stage: activeStage,
         date_from: filterDateFrom || undefined,
         date_to: filterDateTo || undefined,
       });
@@ -185,9 +190,7 @@ export default function Quizzes() {
     } finally {
       setIsListLoading(false);
     }
-  }, [filterClassId, filterDateFrom, filterDateTo, filterSubjectId]);
-
-  const { activeStage } = useStage();
+  }, [filterClassId, filterDateFrom, filterDateTo, filterSubjectId, activeStage]);
 
   useEffect(() => {
     if (!lastSyncAt || isEditingExam) {
@@ -208,10 +211,10 @@ export default function Quizzes() {
       setIsBootLoading(true);
       setError(null);
       try {
-        const classesLoader = isAdmin ? getAllClasses : getMyClasses;
-        const subjectsLoader = isAdmin ? getAllSubjects : getMySubjects;
+        const classesLoader = isAdmin ? getAllClasses : () => getMyClasses(activeStage);
+        const subjectsLoader = isAdmin ? getAllSubjects : () => getMySubjects(activeStage);
         const [classesResponse, subjectsResponse] = await Promise.all([
-          isAdmin ? classesLoader() : classesLoader(activeStage),
+          classesLoader(),
           subjectsLoader(),
         ]);
 
@@ -556,30 +559,30 @@ export default function Quizzes() {
     selectedExam?.public_id && !isLocalOnlyId(selectedExam.public_id);
 
   const handleExportPdf = () => {
-    if (!canExportExam || isExporting) return;
+    if (!canExportExam || exportingAction !== null) return;
     setExportError(null);
-    setIsExporting(true);
+    setExportingAction('pdf');
     exportExam(selectedExam!.public_id, 'pdf', exportType)
       .catch(() => setExportError('فشل تصدير PDF.'))
-      .finally(() => setIsExporting(false));
+      .finally(() => setExportingAction(null));
   };
 
   const handleExportWord = () => {
-    if (!canExportExam || isExporting) return;
+    if (!canExportExam || exportingAction !== null) return;
     setExportError(null);
-    setIsExporting(true);
+    setExportingAction('word');
     exportExam(selectedExam!.public_id, 'docx', exportType)
       .catch(() => setExportError('فشل تصدير Word.'))
-      .finally(() => setIsExporting(false));
+      .finally(() => setExportingAction(null));
   };
 
   const handleSharePdf = () => {
-    if (!canExportExam || isExporting) return;
+    if (!canExportExam || exportingAction !== null) return;
     setExportError(null);
-    setIsExporting(true);
+    setExportingAction('share_pdf');
     shareExam(selectedExam!.public_id, 'pdf', selectedExam!.title, exportType)
       .catch(() => setExportError('فشل مشاركة PDF.'))
-      .finally(() => setIsExporting(false));
+      .finally(() => setExportingAction(null));
   };
 
   const handleStartEditingExam = () => {
@@ -942,7 +945,7 @@ export default function Quizzes() {
                   <option value="">الكل</option>
                   {classes.map((classItem) => (
                     <option key={classItem.id} value={classItem.id}>
-                      {classItem.name}
+                      {classItem.grade_label} - {classItem.section_label} ({classItem.name})
                     </option>
                   ))}
                 </select>
@@ -1124,26 +1127,26 @@ export default function Quizzes() {
                             type="button"
                             className="qz__refresh-btn"
                             onClick={handleExportPdf}
-                            disabled={isExporting || !canExportExam}
-                            aria-busy={isExporting}
+                            disabled={exportingAction !== null || !canExportExam}
+                            aria-busy={exportingAction === 'pdf'}
                           >
-                            {isExporting && (
+                            {exportingAction === 'pdf' && (
                               <span className="ui-button-spinner" aria-hidden />
                             )}
-                            {!isExporting && <MdOutlinePictureAsPdf aria-hidden />}
+                            {exportingAction !== 'pdf' && <MdOutlinePictureAsPdf aria-hidden />}
                             تصدير PDF
                           </button>
                           <button
                             type="button"
                             className="qz__refresh-btn"
                             onClick={handleExportWord}
-                            disabled={isExporting || !canExportExam}
-                            aria-busy={isExporting}
+                            disabled={exportingAction !== null || !canExportExam}
+                            aria-busy={exportingAction === 'word'}
                           >
-                            {isExporting && (
+                            {exportingAction === 'word' && (
                               <span className="ui-button-spinner" aria-hidden />
                             )}
-                            {!isExporting && <MdOutlineTextSnippet aria-hidden />}
+                            {exportingAction !== 'word' && <MdOutlineTextSnippet aria-hidden />}
                             تصدير Word
                           </button>
                           <button
@@ -1164,14 +1167,14 @@ export default function Quizzes() {
                             type="button"
                             className="qz__refresh-btn"
                             onClick={handleSharePdf}
-                            disabled={isExporting || !canExportExam}
-                            aria-busy={isExporting}
+                            disabled={exportingAction !== null || !canExportExam}
+                            aria-busy={exportingAction === 'share_pdf'}
                             title="مشاركة PDF عبر الجهاز"
                           >
-                            {isExporting && (
+                            {exportingAction === 'share_pdf' && (
                               <span className="ui-button-spinner" aria-hidden />
                             )}
-                            {!isExporting && 'مشاركة PDF'}
+                            {exportingAction !== 'share_pdf' && 'مشاركة PDF'}
                           </button>
                           <button
                             type="button"

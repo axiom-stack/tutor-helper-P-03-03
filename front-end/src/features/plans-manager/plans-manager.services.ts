@@ -11,6 +11,7 @@ export interface ListPlansFilters {
   plan_type?: PlanType;
   subject?: string;
   grade?: string;
+  stage?: string;
 }
 
 export async function listPlans(
@@ -26,6 +27,9 @@ export async function listPlans(
   }
   if (filters.grade) {
     params.grade = filters.grade;
+  }
+  if (filters.stage) {
+    params.stage = filters.stage;
   }
 
   try {

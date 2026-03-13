@@ -61,9 +61,9 @@ function TeacherDashboard() {
     let cancelled = false;
 
     Promise.all([
-      getMyLessons(),
-      getMyUnits(),
-      getMySubjects(),
+      getMyLessons(activeStage),
+      getMyUnits(activeStage),
+      getMySubjects(activeStage),
       getMyClasses(activeStage),
     ])
       .then(([lessonsRes, unitsRes, subjectsRes, classesRes]) => {
@@ -99,7 +99,7 @@ function TeacherDashboard() {
         return {
           ...lesson,
           subjectName: subject?.name ?? '—',
-          className: cls?.name ?? '—',
+          className: cls ? `${cls.grade_label} - ${cls.section_label}` : '—',
         };
       })
       // Only keep lessons whose class exists in the current-stage class list

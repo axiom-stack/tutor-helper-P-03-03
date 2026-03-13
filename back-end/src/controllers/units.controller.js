@@ -65,10 +65,27 @@ export async function createUnit(req, res) {
 export async function getUnitsByTeacherId(req, res) {
   try {
     const { id: userId } = req.user;
+    const rawStage =
+      typeof req.query?.stage === "string" ? req.query.stage.trim() : "";
+
+    let sql = "SELECT u.* FROM Units u WHERE u.teacher_id = ?";
+    const args = [userId];
+
+    if (rawStage) {
+      sql = `
+        SELECT u.*
+        FROM Units u
+        INNER JOIN Subjects s ON s.id = u.subject_id
+        INNER JOIN Classes c ON c.id = s.class_id
+        WHERE u.teacher_id = ?
+          AND c.stage = ?
+      `;
+      args.push(rawStage);
+    }
 
     const units = await turso.execute({
-      sql: "SELECT * FROM Units WHERE teacher_id = ?",
-      args: [userId],
+      sql,
+      args,
     });
 
     return res.status(200).json({ units: units.rows });

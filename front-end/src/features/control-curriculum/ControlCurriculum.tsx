@@ -284,7 +284,7 @@ function AdminCurriculumExplorer({
             <option value="">الكل</option>
             {filteredClasses.map((classItem) => (
               <option key={classItem.id} value={classItem.id}>
-                {classItem.name}
+                {classItem.grade_label} - {classItem.section_label} ({classItem.name})
               </option>
             ))}
           </select>
@@ -364,7 +364,13 @@ function AdminCurriculumExplorer({
                         <td>{lessonItem.name}</td>
                         <td>{unit?.name ?? '—'}</td>
                         <td>{subject?.name ?? '—'}</td>
-                        <td>{classItem?.grade_label ?? classItem?.name ?? '—'}</td>
+                        <td>
+                          {classItem ? (
+                            `${classItem.grade_label} - ${classItem.section_label}`
+                          ) : (
+                            '—'
+                          )}
+                        </td>
                         <td>
                           {teacherNameMap.get(lessonItem.teacher_id) ||
                             `#${lessonItem.teacher_id}`}

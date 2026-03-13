@@ -52,7 +52,7 @@ export async function shareOrDownload(
       });
       return;
     }
-  } catch (_) {
+  } catch {
     // User cancelled or share not supported for files
   }
   triggerDownload(blob, filename);

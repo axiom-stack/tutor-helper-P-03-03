@@ -67,6 +67,7 @@ test("validateListExamsQuery parses and validates filters", () => {
   const result = validateListExamsQuery({
     subject_id: "3",
     class_id: "4",
+    stage: "ابتدائي",
     date_from: "2026-03-01",
     date_to: "2026-03-31",
   });
@@ -74,8 +75,18 @@ test("validateListExamsQuery parses and validates filters", () => {
   assert.equal(result.ok, true);
   assert.equal(result.value.subject_id, 3);
   assert.equal(result.value.class_id, 4);
+  assert.equal(result.value.stage, "ابتدائي");
   assert.equal(result.value.date_from, "2026-03-01");
   assert.equal(result.value.date_to, "2026-03-31");
+});
+
+test("validateListExamsQuery rejects invalid stage", () => {
+  const result = validateListExamsQuery({
+    stage: "جامعي",
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.field === "stage"));
 });
 
 test("isValidExamPublicId validates exm_ pattern", () => {

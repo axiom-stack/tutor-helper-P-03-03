@@ -76,6 +76,8 @@ interface AssignmentDraft {
 
 type SelectValue = number | '';
 
+type ExportAction = 'pdf' | 'word' | 'share_pdf' | 'whatsapp' | null;
+
 const LESSON_PLAN_ID_PATTERN = /^(trd|act)_\d+$/;
 
 function pickByPriority(values: Array<string | undefined | null>): string | null {
@@ -252,7 +254,7 @@ export default function Assignments() {
   const [error, setError] = useState<NormalizedApiError | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
+  const [exportingAction, setExportingAction] = useState<ExportAction>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [assignmentDraft, setAssignmentDraft] = useState<AssignmentDraft | null>(
     null
@@ -725,30 +727,30 @@ export default function Assignments() {
   };
 
   const handleExportPdf = () => {
-    if (!canExportAssignment || isExporting) return;
+    if (!canExportAssignment || exportingAction !== null) return;
     setExportError(null);
-    setIsExporting(true);
+    setExportingAction('pdf');
     exportAssignment(selectedAssignment!.public_id, 'pdf')
       .catch(() => setExportError('فشل تصدير PDF.'))
-      .finally(() => setIsExporting(false));
+      .finally(() => setExportingAction(null));
   };
 
   const handleExportWord = () => {
-    if (!canExportAssignment || isExporting) return;
+    if (!canExportAssignment || exportingAction !== null) return;
     setExportError(null);
-    setIsExporting(true);
+    setExportingAction('word');
     exportAssignment(selectedAssignment!.public_id, 'docx')
       .catch(() => setExportError('فشل تصدير Word.'))
-      .finally(() => setIsExporting(false));
+      .finally(() => setExportingAction(null));
   };
 
   const handleSharePdf = () => {
-    if (!canExportAssignment || isExporting) return;
+    if (!canExportAssignment || exportingAction !== null) return;
     setExportError(null);
-    setIsExporting(true);
+    setExportingAction('share_pdf');
     shareAssignment(selectedAssignment!.public_id, 'pdf', selectedAssignment!.name)
       .catch(() => setExportError('فشل مشاركة PDF.'))
-      .finally(() => setIsExporting(false));
+      .finally(() => setExportingAction(null));
   };
 
   const handleStartEditing = () => {
@@ -890,7 +892,7 @@ export default function Assignments() {
                 <option value="">كل الصفوف</option>
                 {classes.map((classItem) => (
                   <option key={classItem.id} value={classItem.id}>
-                    {classItem.name}
+                    {classItem.grade_label} - {classItem.section_label} ({classItem.name})
                   </option>
                 ))}
               </select>
@@ -1056,34 +1058,40 @@ export default function Assignments() {
                     type="button"
                     className="asn-btn asn-btn--ghost"
                     onClick={handleExportPdf}
-                    disabled={isExporting || !canExportAssignment}
-                    aria-busy={isExporting}
+                    disabled={exportingAction !== null || !canExportAssignment}
+                    aria-busy={exportingAction === 'pdf'}
                   >
-                    {isExporting && <span className="ui-button-spinner" aria-hidden />}
-                    {!isExporting && <MdOutlinePictureAsPdf aria-hidden />}
+                    {exportingAction === 'pdf' && (
+                      <span className="ui-button-spinner" aria-hidden />
+                    )}
+                    {exportingAction !== 'pdf' && <MdOutlinePictureAsPdf aria-hidden />}
                     تصدير PDF
                   </button>
                   <button
                     type="button"
                     className="asn-btn asn-btn--ghost"
                     onClick={handleExportWord}
-                    disabled={isExporting || !canExportAssignment}
-                    aria-busy={isExporting}
+                    disabled={exportingAction !== null || !canExportAssignment}
+                    aria-busy={exportingAction === 'word'}
                   >
-                    {isExporting && <span className="ui-button-spinner" aria-hidden />}
-                    {!isExporting && <MdOutlineTextSnippet aria-hidden />}
+                    {exportingAction === 'word' && (
+                      <span className="ui-button-spinner" aria-hidden />
+                    )}
+                    {exportingAction !== 'word' && <MdOutlineTextSnippet aria-hidden />}
                     تصدير Word
                   </button>
                   <button
                     type="button"
                     className="asn-btn asn-btn--ghost"
                     onClick={handleSharePdf}
-                    disabled={isExporting || !canExportAssignment}
-                    aria-busy={isExporting}
+                    disabled={exportingAction !== null || !canExportAssignment}
+                    aria-busy={exportingAction === 'share_pdf'}
                     title="مشاركة PDF عبر الجهاز"
                   >
-                    {isExporting && <span className="ui-button-spinner" aria-hidden />}
-                    {!isExporting && 'مشاركة PDF'}
+                    {exportingAction === 'share_pdf' && (
+                      <span className="ui-button-spinner" aria-hidden />
+                    )}
+                    {exportingAction !== 'share_pdf' && 'مشاركة PDF'}
                   </button>
                   <button
                     type="button"
@@ -1318,11 +1326,11 @@ export default function Assignments() {
             : ''
         }
         onClose={() => setWhatsAppExportOpen(false)}
-        isExporting={isExporting}
+        isExporting={exportingAction === 'whatsapp'}
         confirmLabel="تصدير وفتح واتساب"
         onConfirm={async ({ format, message }) => {
           if (!canExportAssignment) return;
-          setIsExporting(true);
+          setExportingAction('whatsapp');
           setExportError(null);
           try {
             const blob = await getAssignmentExportBlob(selectedAssignment!.public_id, format);
@@ -1341,7 +1349,7 @@ export default function Assignments() {
           } catch {
             setExportError('فشل تصدير الواجب.');
           } finally {
-            setIsExporting(false);
+            setExportingAction(null);
           }
         }}
       />

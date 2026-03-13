@@ -170,38 +170,46 @@ export function createExamsRepository(dbClient = turso) {
       const whereClauses = [];
       const args = [];
 
+      let joinSql = "";
+      if (filters.stage != null) {
+        joinSql = `INNER JOIN Classes c ON c.id = ${EXAMS_TABLE}.class_id`;
+        whereClauses.push("c.stage = ?");
+        args.push(filters.stage);
+      }
+
       if (accessContext?.role !== "admin") {
-        whereClauses.push("teacher_id = ?");
+        whereClauses.push(`${EXAMS_TABLE}.teacher_id = ?`);
         args.push(accessContext?.userId);
       }
 
       if (filters.subject_id != null) {
-        whereClauses.push("subject_id = ?");
+        whereClauses.push(`${EXAMS_TABLE}.subject_id = ?`);
         args.push(filters.subject_id);
       }
 
       if (filters.class_id != null) {
-        whereClauses.push("class_id = ?");
+        whereClauses.push(`${EXAMS_TABLE}.class_id = ?`);
         args.push(filters.class_id);
       }
 
       if (filters.date_from) {
-        whereClauses.push("date(created_at) >= date(?)");
+        whereClauses.push(`date(${EXAMS_TABLE}.created_at) >= date(?)`);
         args.push(filters.date_from);
       }
 
       if (filters.date_to) {
-        whereClauses.push("date(created_at) <= date(?)");
+        whereClauses.push(`date(${EXAMS_TABLE}.created_at) <= date(?)`);
         args.push(filters.date_to);
       }
 
       const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
       const result = await dbClient.execute({
         sql: `
-          SELECT *
+          SELECT ${EXAMS_TABLE}.*
           FROM ${EXAMS_TABLE}
+          ${joinSql}
           ${whereSql}
-          ORDER BY created_at DESC, id DESC
+          ORDER BY ${EXAMS_TABLE}.created_at DESC, ${EXAMS_TABLE}.id DESC
         `,
         args,
       });

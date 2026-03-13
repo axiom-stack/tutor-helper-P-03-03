@@ -75,3 +75,7 @@ export function getPrimaryStages() {
   return [...PRIMARY_STAGES];
 }
 
+export function getAllGrades() {
+  return Object.keys(GRADE_TO_STAGE_MAP);
+}
+

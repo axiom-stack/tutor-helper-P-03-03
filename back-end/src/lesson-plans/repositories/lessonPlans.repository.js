@@ -58,18 +58,30 @@ async function listFromSingleTable(dbClient, planType, filters, accessContext) {
   const whereClauses = [];
   const args = [];
 
+  let joinSql = "";
+  if (filters.stage) {
+    joinSql = `
+      LEFT JOIN Lessons l ON l.id = ${tableName}.lesson_id
+      LEFT JOIN Units u ON u.id = l.unit_id
+      LEFT JOIN Subjects s ON s.id = u.subject_id
+      LEFT JOIN Classes c ON c.id = s.class_id
+    `;
+    whereClauses.push("c.stage = ?");
+    args.push(filters.stage);
+  }
+
   if (accessContext?.role !== "admin") {
-    whereClauses.push("teacher_id = ?");
+    whereClauses.push(`${tableName}.teacher_id = ?`);
     args.push(accessContext?.userId);
   }
 
   if (filters.subject) {
-    whereClauses.push("subject = ?");
+    whereClauses.push(`${tableName}.subject = ?`);
     args.push(filters.subject);
   }
 
   if (filters.grade) {
-    whereClauses.push("grade = ?");
+    whereClauses.push(`${tableName}.grade = ?`);
     args.push(filters.grade);
   }
 
@@ -77,10 +89,11 @@ async function listFromSingleTable(dbClient, planType, filters, accessContext) {
 
   const result = await dbClient.execute({
     sql: `
-      SELECT *
+      SELECT ${tableName}.*
       FROM ${tableName}
+      ${joinSql}
       ${whereSql}
-      ORDER BY created_at DESC, id DESC
+      ORDER BY ${tableName}.created_at DESC, ${tableName}.id DESC
     `,
     args,
   });

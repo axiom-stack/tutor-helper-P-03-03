@@ -393,9 +393,9 @@ export function createStatsService({
           : { userId: effectiveTeacherId, role: "teacher" };
 
       const [allPlans, allExams, allAssignments, teachers] = await Promise.all([
-        lessonPlansRepository.list({}, accessContext),
-        examsRepository.list({}, accessContext),
-        assignmentsRepository.list({}, accessContext),
+        lessonPlansRepository.list({ stage: filters.stage }, accessContext),
+        examsRepository.list({ stage: filters.stage }, accessContext),
+        assignmentsRepository.list({ stage: filters.stage }, accessContext),
         role === "admin" ? usersRepository.listTeachersWithUsage() : Promise.resolve([]),
       ]);
 

@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router';
 import { MdMenuBook, MdQuiz, MdRefresh } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
+import { useStage } from '../../context/StageContext';
 import { QuickAccess } from '../../components/layout';
 import type { Class, Exam, LessonPlanRecord, Subject } from '../../types';
 import {
@@ -80,6 +81,8 @@ export default function ControlDashboard() {
     return () => clearTimeout(id);
   }, [serverWakingUp]);
 
+  const { activeStage } = useStage();
+
   useEffect(() => {
     if (!user?.userRole) {
       return;
@@ -87,13 +90,16 @@ export default function ControlDashboard() {
 
     let cancelled = false;
 
+    const role = user.userRole;
+    const stage = role === 'teacher' ? activeStage : undefined;
+
     Promise.all([
-      getScopedClasses(user.userRole),
-      getScopedSubjects(user.userRole),
-      getScopedLessons(user.userRole),
-      listScopedPlans(),
-      listScopedExams(),
-      listScopedAssignments(),
+      getScopedClasses(role, stage),
+      getScopedSubjects(role, stage),
+      getScopedLessons(role, stage),
+      listScopedPlans(stage),
+      listScopedExams(stage),
+      listScopedAssignments(stage),
     ])
       .then(
         ([classesResponse, subjectsResponse, , plansResponse, examsResponse]) => {
@@ -128,7 +134,7 @@ export default function ControlDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [user?.userRole]);
+  }, [user?.userRole, activeStage]);
 
   const recentPlans = useMemo(() => {
     return [...plans]
@@ -347,7 +353,13 @@ export default function ControlDashboard() {
                         <tr key={exam.public_id}>
                           <td>{exam.title}</td>
                           <td>{subject?.name ?? exam.subject_id}</td>
-                          <td>{classItem?.grade_label ?? classItem?.name ?? '—'}</td>
+                          <td>
+                            {classItem ? (
+                              `${classItem.grade_label} - ${classItem.section_label}`
+                            ) : (
+                              '—'
+                            )}
+                          </td>
                           <td>{exam.total_questions}</td>
                           <td>{formatDateAr(exam.created_at)}</td>
                         </tr>
