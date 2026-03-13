@@ -14,7 +14,6 @@ import {
   MdViewTimeline,
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
-import { QuickAccess } from '../../components/layout';
 import type { Class, Lesson, Subject, Unit } from '../../types';
 import {
   exportPlan,
@@ -1069,10 +1068,6 @@ function LessonCreator() {
             </button>
           </div>
         </aside>
-
-        <section className="lcp__quick-access-row">
-          <QuickAccess />
-        </section>
 
         {queuedPlanNotice ? (
           <p className="ui-inline-notice ui-inline-notice--warning">{queuedPlanNotice}</p>

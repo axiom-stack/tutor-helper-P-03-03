@@ -6,6 +6,7 @@ import {
   logout as authLogout,
   getStoredToken,
   getStoredUser,
+  setStoredUser,
 } from '../features/auth/auth.services';
 import { getMyProfile } from '../features/users/users.services';
 import { syncDisplayLanguageCookie } from '../utils/displayLanguage';
@@ -51,28 +52,28 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(storedUser);
-        if (!storedUser.profile) {
-          try {
-            const { profile } = await getMyProfile();
-            if (!cancelled) {
-              setUser((prev) =>
-                prev ? { ...prev, profile } : null
-              );
-              const lang = profile?.language === 'en' ? 'en' : 'ar';
-              if (syncDisplayLanguageCookie(lang)) {
-                // Small delay to ensure state is flushed if needed, though reload is immediate
-                setTimeout(() => window.location.reload(), 100);
-                return;
-              }
+
+        try {
+          const { profile } = await getMyProfile();
+          if (!cancelled) {
+            const nextUser: AuthUser = { ...storedUser, profile };
+            setUser(nextUser);
+            setStoredUser(nextUser);
+
+            const lang = profile?.language === 'en' ? 'en' : 'ar';
+            if (syncDisplayLanguageCookie(lang)) {
+              // Small delay to ensure state is flushed if needed, though reload is immediate
+              setTimeout(() => window.location.reload(), 100);
+              return;
             }
-          } catch {
-            // keep storedUser without profile
           }
-        } else if (storedUser.profile?.language) {
-          const lang = storedUser.profile.language === 'en' ? 'en' : 'ar';
-          if (syncDisplayLanguageCookie(lang)) {
-            setTimeout(() => window.location.reload(), 100);
-            return;
+        } catch {
+          if (!cancelled && storedUser.profile?.language) {
+            const fallbackLang = storedUser.profile.language === 'en' ? 'en' : 'ar';
+            if (syncDisplayLanguageCookie(fallbackLang)) {
+              setTimeout(() => window.location.reload(), 100);
+              return;
+            }
           }
         }
       }
@@ -118,9 +119,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const updateUserProfile = (profile: NonNullable<AuthUser['profile']>) => {
-    setUser((prev) =>
-      prev ? { ...prev, profile: { ...prev.profile, ...profile } as NonNullable<AuthUser['profile']> } : null
-    );
+    setUser((prev) => {
+      if (!prev) return null;
+      const mergedProfile = { ...prev.profile, ...profile } as NonNullable<AuthUser['profile']>;
+      const nextUser: AuthUser = { ...prev, profile: mergedProfile };
+      setStoredUser(nextUser);
+      return nextUser;
+    });
   };
 
   const value: AuthContextType = {

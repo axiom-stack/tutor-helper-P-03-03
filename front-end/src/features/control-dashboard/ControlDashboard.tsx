@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router';
-import { MdMenuBook, MdQuiz } from 'react-icons/md';
+import { MdMenuBook, MdQuiz, MdRefresh } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
 import { QuickAccess } from '../../components/layout';
 import type { Class, Exam, LessonPlanRecord, Subject } from '../../types';
@@ -14,6 +14,12 @@ import {
   listScopedPlans,
 } from './control-dashboard.services';
 import './control-dashboard.css';
+import '../auth/auth.css';
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+const HEALTH_URL = `${BACKEND_URL.replace(/\/$/, '')}/health`;
+const HEALTH_TIMEOUT_MS = 5000;
+const WAKE_UP_WAIT_MS = 40000;
 
 function formatDateAr(value: string): string {
   try {
@@ -40,8 +46,39 @@ export default function ControlDashboard() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [serverWakingUp, setServerWakingUp] = useState(false);
+  const [refreshReady, setRefreshReady] = useState(false);
 
   const isAdmin = user?.userRole === 'admin';
+
+  // Ping backend health on mount; if > 5s, show "server waking up" and allow refresh after 40s
+  useEffect(() => {
+    const ac = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      ac.abort();
+    }, HEALTH_TIMEOUT_MS);
+
+    fetch(HEALTH_URL, { signal: ac.signal })
+      .then(() => {
+        clearTimeout(timeoutId);
+      })
+      .catch(() => {
+        clearTimeout(timeoutId);
+        setServerWakingUp(true);
+      });
+
+    return () => {
+      clearTimeout(timeoutId);
+      ac.abort();
+    };
+  }, []);
+
+  // When showing "waking up", start 40s countdown for refresh
+  useEffect(() => {
+    if (!serverWakingUp) return;
+    const id = window.setTimeout(() => setRefreshReady(true), WAKE_UP_WAIT_MS);
+    return () => clearTimeout(id);
+  }, [serverWakingUp]);
 
   useEffect(() => {
     if (!user?.userRole) {
@@ -124,7 +161,27 @@ export default function ControlDashboard() {
   }
 
   return (
-    <div className={`cd ui-loaded ${loading ? 'cd--loading' : ''}`}>
+    <div className={`cd ui-loaded ${loading ? 'cd--loading' : ''}${serverWakingUp ? ' auth--wake-notice-visible' : ''}`}>
+      {serverWakingUp && (
+        <div className="auth__wake-notice" role="status">
+          <p className="auth__wake-notice-text">
+            الخادم المجاني قيد التشغيل. يرجى تحديث الصفحة بعد 40 ثانية ثم البدء باستخدام التطبيق.
+          </p>
+          <p className="auth__wake-notice-en">
+            The free server is waking up. Please refresh the page after 40 seconds, then you can start using the app.
+          </p>
+          {refreshReady && (
+            <button
+              type="button"
+              className="auth__wake-refresh-btn"
+              onClick={() => window.location.reload()}
+            >
+              <MdRefresh aria-hidden />
+              تحديث الصفحة الآن / Refresh now
+            </button>
+          )}
+        </div>
+      )}
       {/* Hero / Welcome */}
       <header className="cd__hero" aria-label="ترحيب">
         <div className="cd__hero-inner">

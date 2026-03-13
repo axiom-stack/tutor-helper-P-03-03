@@ -16,7 +16,6 @@ import {
 import { SyncStatusBadge } from '../../components/common/SyncStatusBadge';
 import WhatsAppExportModal from '../../components/common/WhatsAppExportModal';
 import { useAuth } from '../../context/AuthContext';
-import { QuickAccess } from '../../components/layout';
 import type { Assignment, Class, LessonPlanRecord } from '../../types';
 import { ASSIGNMENT_TYPE_LABELS } from '../../types';
 import { clearDraft, getDraft, saveDraft } from '../../offline/drafts';
@@ -943,10 +942,6 @@ export default function Assignments() {
           </section>
         </>
       )}
-
-      <section className="asn__quick-access-row">
-        <QuickAccess />
-      </section>
 
       <div className="asn__layout">
         <section className="asn__list" aria-live="polite">

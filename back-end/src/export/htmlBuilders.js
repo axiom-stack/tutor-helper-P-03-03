@@ -6,46 +6,53 @@ import {
 
 const BASE_STYLES = `
   * { box-sizing: border-box; }
-  body { 
-    font-family: 'Traditional Arabic', 'Amiri', 'Arial', sans-serif; 
-    font-size: 14px; 
-    line-height: 1.6; 
-    color: #ecf4ff; 
-    padding: 0; 
+  body {
+    font-family: 'Traditional Arabic', 'Amiri', 'Arial', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #ecf4ff;
+    padding: 0;
     margin: 0;
     background: #173868;
   }
-  
-  .lpdv__traditional-card, .lpdv__active-card {
+
+  .lpdv__traditional-card,
+  .lpdv__active-card {
+    border-radius: 22px;
     background: radial-gradient(circle at 15% 12%, #2e4f83 0%, #1f3f75 55%, #173868 100%);
-    padding: 20px;
-    min-height: 100vh;
+    padding: 18px;
   }
 
-  .lpdv__traditional-shell, .lpdv__active-shell {
+  .lpdv__traditional-shell,
+  .lpdv__active-shell {
     border: 1px solid rgba(226, 238, 255, 0.45);
-    border-radius: 12px;
+    border-radius: 18px;
     color: #ecf4ff;
     overflow: hidden;
+    min-width: 0;
   }
 
-  .lpdv__traditional-header-grid, .lpdv__active-header-grid {
+  .lpdv__traditional-header-grid,
+  .lpdv__active-header-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     border-bottom: 1px solid rgba(226, 238, 255, 0.3);
   }
 
-  .header-item {
+  .lpdv__traditional-header-grid > div,
+  .lpdv__active-header-grid > div {
     border-left: 1px solid rgba(226, 238, 255, 0.22);
     border-bottom: 1px solid rgba(226, 238, 255, 0.22);
     padding: 10px 12px;
   }
 
-  .header-item:nth-child(4n) {
+  .lpdv__traditional-header-grid > div:nth-child(4n),
+  .lpdv__active-header-grid > div:nth-child(4n) {
     border-left: none;
   }
 
-  .header-item label {
+  .lpdv__traditional-header-grid label,
+  .lpdv__active-header-grid label {
     display: block;
     font-size: 11px;
     color: rgba(228, 240, 255, 0.86);
@@ -53,35 +60,46 @@ const BASE_STYLES = `
     font-weight: 700;
   }
 
-  .header-item p {
+  .lpdv__traditional-header-grid p,
+  .lpdv__active-header-grid p {
     margin: 0;
     font-size: 13px;
     line-height: 1.55;
     font-weight: 600;
+    overflow-wrap: anywhere;
   }
 
-  .lpdv__traditional-intro, .lpdv__active-objectives, .lpdv__active-flow {
+  .lpdv__traditional-intro,
+  .lpdv__active-objectives,
+  .lpdv__active-flow {
     padding: 12px;
     border-bottom: 1px solid rgba(226, 238, 255, 0.28);
   }
 
-  h3, h4 {
+  .lpdv__traditional-intro h3,
+  .lpdv__traditional-intro h4,
+  .lpdv__active-objectives h3,
+  .lpdv__active-flow h3 {
     margin: 0;
     font-size: 14px;
     color: #f7fbff;
   }
 
-  h4 {
+  .lpdv__traditional-intro h4 {
     margin-top: 8px;
   }
 
-  p {
+  .lpdv__traditional-intro p,
+  .lpdv__active-footer p {
     margin: 6px 0 0;
     line-height: 1.75;
     color: rgba(236, 244, 255, 0.96);
+    overflow-wrap: anywhere;
   }
 
-  ul {
+  .lpdv__traditional-intro ul,
+  .lpdv__traditional-grid ul,
+  .lpdv__active-objectives ul {
     margin: 6px 0 0;
     padding: 0 18px 0 0;
     display: flex;
@@ -96,51 +114,69 @@ const BASE_STYLES = `
     border-bottom: 1px solid rgba(226, 238, 255, 0.28);
   }
 
-  .grid-section {
+  .lpdv__traditional-grid section {
     border-left: 1px solid rgba(226, 238, 255, 0.22);
     padding: 12px;
     min-height: 200px;
   }
 
-  .grid-section:last-child {
+  .lpdv__traditional-grid section:last-child {
     border-left: none;
   }
 
-  .lpdv__traditional-footer, .lpdv__active-footer {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 12px;
+  .lpdv__traditional-grid h4 {
+    margin: 0 0 6px;
+    font-size: 14px;
+    color: #f7fbff;
   }
 
-  .footer-item {
-    padding: 0 12px;
+  .lpdv__traditional-footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .lpdv__traditional-footer > div {
+    padding: 10px 12px;
     border-left: 1px solid rgba(226, 238, 255, 0.22);
   }
 
-  .footer-item:last-child {
+  .lpdv__traditional-footer > div:last-child {
     border-left: none;
   }
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 10px;
-    border: 1px solid rgba(226, 238, 255, 0.28);
-    border-radius: 8px;
-    overflow: hidden;
+  .lpdv__active-footer {
+    padding: 10px 12px;
   }
 
-  th, td {
+  .lpdv__active-footer h4 {
+    margin: 0 0 4px;
+    font-size: 14px;
+    color: #f7fbff;
+  }
+
+  .lpdv__table-wrap {
+    overflow-x: auto;
+    border: 1px solid rgba(226, 238, 255, 0.28);
+    border-radius: 10px;
+  }
+
+  .lpdv__flow-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 640px;
+  }
+
+  .lpdv__flow-table th,
+  .lpdv__flow-table td {
     border: 1px solid rgba(226, 238, 255, 0.2);
     padding: 8px;
     font-size: 13px;
     text-align: right;
     vertical-align: top;
-    color: rgba(236, 244, 255, 0.96);
-    background: rgba(15, 23, 42, 0.15);
+    overflow-wrap: anywhere;
   }
 
-  th {
+  .lpdv__flow-table thead th {
     background: rgba(147, 197, 253, 0.2);
     color: #f8fbff;
     font-weight: bold;
@@ -276,56 +312,57 @@ export function buildPlanHtml(enrichedPlan) {
     const source = toDisplayText(plan.source);
 
     content = `
-      <div class="lpdv__traditional-card">
-        <div class="lpdv__traditional-shell">
-          <div class="lpdv__traditional-header-grid">
-            <div class="header-item"><label>التاريخ</label><p>${date}</p></div>
-            <div class="header-item"><label>اليوم</label><p>${day}</p></div>
-            <div class="header-item"><label>الساعة</label><p>${time}</p></div>
-            <div class="header-item"><label>الصف</label><p>${grade}</p></div>
-            <div class="header-item"><label>الشعبة</label><p>${section}</p></div>
-            <div class="header-item"><label>الحصة / العنوان</label><p>${lessonTitle}</p></div>
-            <div class="header-item"><label>الوحدة</label><p>${unit}</p></div>
-            <div class="header-item"><label>الوقت</label><p>${duration}</p></div>
-            <div class="header-item"><label>المعلم</label><p>${teacherName}</p></div>
-            <div class="header-item"><label>نوع الخطة</label><p>${planTypeLabel}</p></div>
-          </div>
-          <div class="lpdv__traditional-intro">
-            <h3>التمهيد</h3>
-            <p>${escapeHtml(intro)}</p>
-            <h4>المفاهيم</h4>
-            <ul>${renderList(concepts, "لا توجد مفاهيم مدخلة.")}</ul>
-          </div>
-          <div class="lpdv__traditional-grid">
-            <div class="grid-section">
-              <h4>الأهداف / المخرجات</h4>
-              <ul>${renderList(outcomes, "لا توجد أهداف مدخلة.")}</ul>
+      <div class="lpdv">
+        <div class="lpdv__traditional-card">
+          <div class="lpdv__traditional-shell">
+            <div class="lpdv__traditional-header-grid">
+              <div><label>التاريخ</label><p>${date}</p></div>
+              <div><label>اليوم</label><p>${day}</p></div>
+              <div><label>الساعة</label><p>${time}</p></div>
+              <div><label>الصف</label><p>${grade}</p></div>
+              <div><label>الشعبة</label><p>${section}</p></div>
+              <div><label>الحصة</label><p>${lessonTitle}</p></div>
+              <div><label>العنوان</label><p>${lessonTitle}</p></div>
+              <div><label>الوحدة</label><p>${unit}</p></div>
+              <div><label>الوقت</label><p>${duration}</p></div>
             </div>
-            <div class="grid-section">
-              <h4>الاستراتيجيات</h4>
-              <ul>${renderList(strategies, "لا توجد استراتيجيات مدخلة.")}</ul>
+            <div class="lpdv__traditional-intro">
+              <h3>التمهيد</h3>
+              <p>${escapeHtml(intro)}</p>
+              <h4>المفاهيم</h4>
+              <ul>${renderList(concepts, "لا توجد مفاهيم مدخلة.")}</ul>
             </div>
-            <div class="grid-section">
-              <h4>الأنشطة</h4>
-              <ul>${renderList(activities, "لا توجد أنشطة مدخلة.")}</ul>
+            <div class="lpdv__traditional-grid">
+              <section>
+                <h4>الأهداف / المخرجات التعليمية</h4>
+                <ul>${renderList(outcomes, "لا توجد أهداف مدخلة.")}</ul>
+              </section>
+              <section>
+                <h4>الاستراتيجيات / طرق التدريس</h4>
+                <ul>${renderList(strategies, "لا توجد استراتيجيات مدخلة.")}</ul>
+              </section>
+              <section>
+                <h4>الأنشطة</h4>
+                <ul>${renderList(activities, "لا توجد أنشطة مدخلة.")}</ul>
+              </section>
+              <section>
+                <h4>الوسائل / مصادر التعلم</h4>
+                <ul>${renderList(resources, "لا توجد وسائل مدخلة.")}</ul>
+              </section>
+              <section>
+                <h4>التقويم</h4>
+                <ul>${renderList(assessment, "لا توجد أدوات تقويم مدخلة.")}</ul>
+              </section>
             </div>
-            <div class="grid-section">
-              <h4>الوسائل</h4>
-              <ul>${renderList(resources, "لا توجد وسائل مدخلة.")}</ul>
-            </div>
-            <div class="grid-section">
-              <h4>التقويم</h4>
-              <ul>${renderList(assessment, "لا توجد أدوات تقويم مدخلة.")}</ul>
-            </div>
-          </div>
-          <div class="lpdv__traditional-footer">
-            <div class="footer-item">
-              <h4>الواجب</h4>
-              <p>${escapeHtml(homework)}</p>
-            </div>
-            <div class="footer-item">
-              <h4>المصدر</h4>
-              <p>${escapeHtml(source)}</p>
+            <div class="lpdv__traditional-footer">
+              <div>
+                <h4>الواجب</h4>
+                <p>${escapeHtml(homework)}</p>
+              </div>
+              <div>
+                <h4>المصدر</h4>
+                <p>${escapeHtml(source)}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -339,51 +376,71 @@ export function buildPlanHtml(enrichedPlan) {
         <tr>
           <td>${escapeHtml(toDisplayText(row.time))}</td>
           <td>${escapeHtml(toDisplayText(row.content))}</td>
-          <td>${escapeHtml(toDisplayText(row.activity_type === 'intro' ? 'تمهيد' : row.activity_type === 'presentation' ? 'عرض' : row.activity_type === 'activity' ? 'نشاط' : row.activity_type === 'assessment' ? 'تقويم' : row.activity_type))}</td>
+          <td>${escapeHtml(
+            toDisplayText(
+              row.activity_type === "intro"
+                ? "تمهيد"
+                : row.activity_type === "presentation"
+                  ? "عرض"
+                  : row.activity_type === "activity"
+                    ? "نشاط"
+                    : row.activity_type === "assessment"
+                      ? "تقويم"
+                      : row.activity_type,
+            ),
+          )}</td>
           <td>${escapeHtml(toDisplayText(row.teacher_activity))}</td>
           <td>${escapeHtml(toDisplayText(row.student_activity))}</td>
-          <td>${escapeHtml(Array.isArray(row.learning_resources) ? row.learning_resources.map(toDisplayText).join("، ") : "—")}</td>
+          <td>${escapeHtml(
+            Array.isArray(row.learning_resources)
+              ? row.learning_resources.map(toDisplayText).join("، ")
+              : "—",
+          )}</td>
         </tr>
-      `).join("");
+      `)
+      .join("");
 
     content = `
-      <div class="lpdv__active-card">
-        <div class="lpdv__active-shell">
-          <div class="lpdv__active-header-grid">
-            <div class="header-item"><label>التاريخ</label><p>${date}</p></div>
-            <div class="header-item"><label>اليوم</label><p>${day}</p></div>
-            <div class="header-item"><label>الساعة</label><p>${time}</p></div>
-            <div class="header-item"><label>المادة</label><p>${subject}</p></div>
-            <div class="header-item"><label>الصف</label><p>${grade}</p></div>
-            <div class="header-item"><label>الشعبة</label><p>${section}</p></div>
-            <div class="header-item"><label>العنوان</label><p>${lessonTitle}</p></div>
-            <div class="header-item"><label>الوحدة</label><p>${unit}</p></div>
-            <div class="header-item"><label>المدة</label><p>${duration}</p></div>
-            <div class="header-item"><label>المعلم</label><p>${teacherName}</p></div>
-          </div>
-          <div class="lpdv__active-objectives">
-            <h3>الأهداف التعليمية</h3>
-            <ul>${renderList(objectives)}</ul>
-          </div>
-          <div class="lpdv__active-flow">
-            <h3>تدفق الدرس</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>الزمن</th>
-                  <th>المحتوى</th>
-                  <th>نوع النشاط</th>
-                  <th>دور المعلم</th>
-                  <th>دور الطالب</th>
-                  <th>الوسائل</th>
-                </tr>
-              </thead>
-              <tbody>${flowRows || "<tr><td colspan=\"6\">لا توجد بيانات تدفق.</td></tr>"}</tbody>
-            </table>
-          </div>
-          <div class="lpdv__active-footer">
-            <h4>الواجب</h4>
-            <p>${escapeHtml(toDisplayText(plan.homework))}</p>
+      <div class="lpdv">
+        <div class="lpdv__active-card">
+          <div class="lpdv__active-shell">
+            <div class="lpdv__active-header-grid">
+              <div><label>التاريخ</label><p>${date}</p></div>
+              <div><label>اليوم</label><p>${day}</p></div>
+              <div><label>الساعة</label><p>${time}</p></div>
+              <div><label>المادة</label><p>${subject}</p></div>
+              <div><label>الصف</label><p>${grade}</p></div>
+              <div><label>الشعبة</label><p>${section}</p></div>
+              <div><label>العنوان</label><p>${lessonTitle}</p></div>
+              <div><label>الوحدة</label><p>${unit}</p></div>
+              <div><label>المدة</label><p>${duration}</p></div>
+            </div>
+            <div class="lpdv__active-objectives">
+              <h3>الأهداف التعليمية</h3>
+              <ul>${renderList(objectives)}</ul>
+            </div>
+            <div class="lpdv__active-flow">
+              <h3>تدفق الدرس</h3>
+              <div class="lpdv__table-wrap lpdv__table-wrap--active">
+                <table class="lpdv__flow-table lpdv__flow-table--active">
+                  <thead>
+                    <tr>
+                      <th>الزمن</th>
+                      <th>المحتوى</th>
+                      <th>نوع النشاط</th>
+                      <th>دور المعلم</th>
+                      <th>دور الطالب</th>
+                      <th>الوسائل</th>
+                    </tr>
+                  </thead>
+                  <tbody>${flowRows || '<tr><td colspan="6">لا توجد بيانات تدفق.</td></tr>'}</tbody>
+                </table>
+              </div>
+            </div>
+            <div class="lpdv__active-footer">
+              <h4>الواجب</h4>
+              <p>${escapeHtml(toDisplayText(plan.homework))}</p>
+            </div>
           </div>
         </div>
       </div>

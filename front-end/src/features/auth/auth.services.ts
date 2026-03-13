@@ -15,9 +15,13 @@ export function getStoredUser(): AuthUser | null {
   return raw ? JSON.parse(raw) : null;
 }
 
+export function setStoredUser(user: AuthUser): void {
+  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+}
+
 function setAuth(token: string, user: AuthUser) {
   localStorage.setItem(AUTH_TOKEN_KEY, token);
-  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+  setStoredUser(user);
 }
 
 function clearAuth() {

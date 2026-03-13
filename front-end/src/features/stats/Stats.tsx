@@ -8,7 +8,6 @@ import {
   MdTrendingUp,
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
-import { QuickAccess } from '../../components/layout';
 import type {
   StatsMonthlyTrendRow,
   StatsPeriod,
@@ -77,12 +76,9 @@ function getRiskLabel(flag: StatsTeacherRiskFlag): string {
   return 'تعديلات واجبات مرتفعة';
 }
 
-function getQualityBandTone(band: string):
-  | 'excellent'
-  | 'good'
-  | 'acceptable'
-  | 'risk'
-  | 'neutral' {
+function getQualityBandTone(
+  band: string
+): 'excellent' | 'good' | 'acceptable' | 'risk' | 'neutral' {
   if (band === 'ممتاز') return 'excellent';
   if (band === 'جيد جداً') return 'good';
   if (band === 'مقبول') return 'acceptable';
@@ -95,19 +91,27 @@ function buildTeacherInsights(summary: StatsSummaryResponse): string[] {
   const kpis = summary.kpis;
 
   if (kpis.plans_generated === 0) {
-    return ['لا توجد خطط في هذا النطاق الزمني. أنشئ خطة جديدة لبدء تتبع الجودة.'];
+    return [
+      'لا توجد خطط في هذا النطاق الزمني. أنشئ خطة جديدة لبدء تتبع الجودة.',
+    ];
   }
 
   if (kpis.avg_plan_quality < 70) {
-    insights.push('متوسط جودة الخطط منخفض. راجع عناصر Rubric خصوصاً الاكتمال البنيوي وعمق المحتوى.');
+    insights.push(
+      'متوسط جودة الخطط منخفض. راجع عناصر Rubric خصوصاً الاكتمال البنيوي وعمق المحتوى.'
+    );
   }
 
   if (kpis.retry_rate > 30) {
-    insights.push('معدل إعادة التوليد مرتفع. حسّن وضوح مدخلات الدرس وأهداف التعلم قبل التوليد.');
+    insights.push(
+      'معدل إعادة التوليد مرتفع. حسّن وضوح مدخلات الدرس وأهداف التعلم قبل التوليد.'
+    );
   }
 
   if (kpis.assignment_edit_rate > 60) {
-    insights.push('معدل تعديل الواجبات مرتفع. حاول تحسين صياغة الطلب الأولي لتقليل التعديلات اللاحقة.');
+    insights.push(
+      'معدل تعديل الواجبات مرتفع. حاول تحسين صياغة الطلب الأولي لتقليل التعديلات اللاحقة.'
+    );
   }
 
   if (kpis.first_pass_rate >= 80) {
@@ -115,7 +119,9 @@ function buildTeacherInsights(summary: StatsSummaryResponse): string[] {
   }
 
   if (insights.length === 0) {
-    insights.push('الأداء مستقر ضمن هذا النطاق. استمر في تحسين الاتساق بين الأهداف والأنشطة والتقويم.');
+    insights.push(
+      'الأداء مستقر ضمن هذا النطاق. استمر في تحسين الاتساق بين الأهداف والأنشطة والتقويم.'
+    );
   }
 
   return insights;
@@ -349,16 +355,50 @@ export default function Stats() {
       return [];
     }
 
-    const cards: Array<{ label: string; value: string; tone?: 'neutral' | 'positive' | 'warn' }> = [
-      { label: 'عدد الخطط المولدة', value: formatNumber(summary.kpis.plans_generated) },
-      { label: 'متوسط جودة الخطط', value: formatNumber(summary.kpis.avg_plan_quality), tone: 'positive' },
-      { label: 'عدد الاختبارات المولدة', value: formatNumber(summary.kpis.exams_generated) },
-      { label: 'عدد الواجبات المولدة', value: formatNumber(summary.kpis.assignments_generated) },
-      { label: 'نسبة النجاح من أول محاولة', value: formatPercent(summary.kpis.first_pass_rate), tone: 'positive' },
-      { label: 'معدل إعادة التوليد', value: formatPercent(summary.kpis.retry_rate), tone: 'warn' },
-      { label: 'معدل تعديل الواجبات', value: formatPercent(summary.kpis.assignment_edit_rate) },
-      { label: 'متوسط عدد أسئلة الاختبار', value: formatNumber(summary.kpis.avg_exam_questions) },
-      { label: 'عدد الأيام النشطة', value: formatNumber(summary.kpis.active_days) },
+    const cards: Array<{
+      label: string;
+      value: string;
+      tone?: 'neutral' | 'positive' | 'warn';
+    }> = [
+      {
+        label: 'عدد الخطط المولدة',
+        value: formatNumber(summary.kpis.plans_generated),
+      },
+      {
+        label: 'متوسط جودة الخطط',
+        value: formatNumber(summary.kpis.avg_plan_quality),
+        tone: 'positive',
+      },
+      {
+        label: 'عدد الاختبارات المولدة',
+        value: formatNumber(summary.kpis.exams_generated),
+      },
+      {
+        label: 'عدد الواجبات المولدة',
+        value: formatNumber(summary.kpis.assignments_generated),
+      },
+      {
+        label: 'نسبة النجاح من أول محاولة',
+        value: formatPercent(summary.kpis.first_pass_rate),
+        tone: 'positive',
+      },
+      {
+        label: 'معدل إعادة التوليد',
+        value: formatPercent(summary.kpis.retry_rate),
+        tone: 'warn',
+      },
+      {
+        label: 'معدل تعديل الواجبات',
+        value: formatPercent(summary.kpis.assignment_edit_rate),
+      },
+      {
+        label: 'متوسط عدد أسئلة الاختبار',
+        value: formatNumber(summary.kpis.avg_exam_questions),
+      },
+      {
+        label: 'عدد الأيام النشطة',
+        value: formatNumber(summary.kpis.active_days),
+      },
     ];
 
     if (isAdmin && summary.kpis.active_teachers != null) {
@@ -381,9 +421,9 @@ export default function Stats() {
 
   const hasData = Boolean(
     summary &&
-      (summary.kpis.plans_generated > 0 ||
-        summary.kpis.exams_generated > 0 ||
-        summary.kpis.assignments_generated > 0)
+    (summary.kpis.plans_generated > 0 ||
+      summary.kpis.exams_generated > 0 ||
+      summary.kpis.assignments_generated > 0)
   );
 
   const handleExport = () => {
@@ -455,17 +495,17 @@ export default function Stats() {
             <MdCalendarMonth aria-hidden />
             آخر تحديث: {formatDateTime(summary?.filters_applied.generated_at)}
           </span>
-          {summary?.filters_applied.date_from && summary?.filters_applied.date_to ? (
+          {summary?.filters_applied.date_from &&
+          summary?.filters_applied.date_to ? (
             <span>
-              الفترة: {summary.filters_applied.date_from} - {summary.filters_applied.date_to}
+              الفترة: {summary.filters_applied.date_from} -{' '}
+              {summary.filters_applied.date_to}
             </span>
           ) : (
             <span>الفترة: كل الفترات</span>
           )}
         </div>
       </header>
-
-      <QuickAccess />
 
       <section className="st__filters" aria-label="فلاتر الإحصائيات">
         <div className="st__chips">
@@ -526,7 +566,9 @@ export default function Stats() {
             onClick={() => setReloadSeed((prev) => prev + 1)}
             disabled={effectiveLoading}
           >
-            {effectiveLoading && <span className="ui-button-spinner" aria-hidden />}
+            {effectiveLoading && (
+              <span className="ui-button-spinner" aria-hidden />
+            )}
             {!effectiveLoading && <MdRefresh aria-hidden />}
             تحديث
           </button>
@@ -546,9 +588,15 @@ export default function Stats() {
 
       {effectiveLoading ? (
         <>
-          <section className="st__kpis st__kpis--loading" aria-label="تحميل الإحصائيات">
+          <section
+            className="st__kpis st__kpis--loading"
+            aria-label="تحميل الإحصائيات"
+          >
             {Array.from({ length: 8 }).map((_, index) => (
-              <div key={`kpi-skeleton-${index}`} className="st__kpi-card st__kpi-card--skeleton" />
+              <div
+                key={`kpi-skeleton-${index}`}
+                className="st__kpi-card st__kpi-card--skeleton"
+              />
             ))}
           </section>
           <section className="st__grid-two">
@@ -562,7 +610,10 @@ export default function Stats() {
         <>
           <section className="st__kpis" aria-label="المؤشرات الرئيسية">
             {kpiCards.map((card) => (
-              <article key={card.label} className={`st__kpi-card st__kpi-card--${card.tone || 'neutral'}`}>
+              <article
+                key={card.label}
+                className={`st__kpi-card st__kpi-card--${card.tone || 'neutral'}`}
+              >
                 <span>{card.label}</span>
                 <strong>{card.value}</strong>
               </article>
@@ -572,7 +623,9 @@ export default function Stats() {
           {!hasData ? (
             <section className="st__panel st__empty-state">
               <h2>لا توجد بيانات في النطاق الحالي</h2>
-              <p>جرّب توسيع الفترة الزمنية أو إزالة الفلاتر لعرض بيانات أكثر.</p>
+              <p>
+                جرّب توسيع الفترة الزمنية أو إزالة الفلاتر لعرض بيانات أكثر.
+              </p>
             </section>
           ) : (
             <>
@@ -590,7 +643,9 @@ export default function Stats() {
                   </header>
 
                   <div className="st__quality-score">
-                    <strong>{formatNumber(summary.quality_rubric.average_score)}</strong>
+                    <strong>
+                      {formatNumber(summary.quality_rubric.average_score)}
+                    </strong>
                     <small>من 100</small>
                   </div>
 
@@ -598,12 +653,16 @@ export default function Stats() {
                     {[
                       {
                         label: 'الاعتمادية من أول محاولة',
-                        value: summary.quality_rubric.criteria.first_pass_reliability,
+                        value:
+                          summary.quality_rubric.criteria
+                            .first_pass_reliability,
                         max: 40,
                       },
                       {
                         label: 'الاكتمال البنيوي',
-                        value: summary.quality_rubric.criteria.structural_completeness,
+                        value:
+                          summary.quality_rubric.criteria
+                            .structural_completeness,
                         max: 35,
                       },
                       {
@@ -612,7 +671,10 @@ export default function Stats() {
                         max: 25,
                       },
                     ].map((item) => {
-                      const width = item.max > 0 ? Math.min(100, (item.value / item.max) * 100) : 0;
+                      const width =
+                        item.max > 0
+                          ? Math.min(100, (item.value / item.max) * 100)
+                          : 0;
 
                       return (
                         <div key={item.label} className="st__criterion-item">
@@ -631,19 +693,35 @@ export default function Stats() {
                   <div className="st__distribution-grid">
                     <div>
                       <label>ممتاز</label>
-                      <strong>{formatNumber(summary.quality_rubric.distribution.excellent)}</strong>
+                      <strong>
+                        {formatNumber(
+                          summary.quality_rubric.distribution.excellent
+                        )}
+                      </strong>
                     </div>
                     <div>
                       <label>جيد جداً</label>
-                      <strong>{formatNumber(summary.quality_rubric.distribution.very_good)}</strong>
+                      <strong>
+                        {formatNumber(
+                          summary.quality_rubric.distribution.very_good
+                        )}
+                      </strong>
                     </div>
                     <div>
                       <label>مقبول</label>
-                      <strong>{formatNumber(summary.quality_rubric.distribution.acceptable)}</strong>
+                      <strong>
+                        {formatNumber(
+                          summary.quality_rubric.distribution.acceptable
+                        )}
+                      </strong>
                     </div>
                     <div>
                       <label>يحتاج تحسين</label>
-                      <strong>{formatNumber(summary.quality_rubric.distribution.needs_improvement)}</strong>
+                      <strong>
+                        {formatNumber(
+                          summary.quality_rubric.distribution.needs_improvement
+                        )}
+                      </strong>
                     </div>
                   </div>
                 </article>
@@ -769,7 +847,9 @@ export default function Stats() {
                                   ? 'st__row--active'
                                   : ''
                               }
-                              onClick={() => setSelectedTeacherId(String(row.teacher_id))}
+                              onClick={() =>
+                                setSelectedTeacherId(String(row.teacher_id))
+                              }
                             >
                               <td>{row.display_name || row.username}</td>
                               <td>{formatNumber(row.plans_generated)}</td>
@@ -781,7 +861,9 @@ export default function Stats() {
                               <td>{formatDateTime(row.last_activity_at)}</td>
                               <td>
                                 {row.risk_flags.length === 0 ? (
-                                  <span className="st__risk-badge st__risk-badge--safe">مستقر</span>
+                                  <span className="st__risk-badge st__risk-badge--safe">
+                                    مستقر
+                                  </span>
                                 ) : (
                                   row.risk_flags.map((flag) => (
                                     <span

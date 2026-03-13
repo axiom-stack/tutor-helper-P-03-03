@@ -14,7 +14,6 @@ import {
 import { SyncStatusBadge } from '../../components/common/SyncStatusBadge';
 import WhatsAppExportModal from '../../components/common/WhatsAppExportModal';
 import { useAuth } from '../../context/AuthContext';
-import { QuickAccess } from '../../components/layout';
 import type { LessonPlanRecord, TeacherManagementRow } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
 import { shareDocumentWithWhatsApp } from '../../utils/whatsapp';
@@ -488,8 +487,6 @@ export default function PlansManager() {
           </p>
         </div>
       </header>
-
-      <QuickAccess />
 
       {draftRecoveredNotice ? (
         <p className="ui-inline-notice ui-inline-notice--info">

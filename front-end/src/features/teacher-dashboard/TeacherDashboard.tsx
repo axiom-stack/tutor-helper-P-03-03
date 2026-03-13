@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../../context/AuthContext';
-import { QuickAccess } from '../../components/layout';
 import { useStage } from '../../context/StageContext';
 import {
   getMyLessons,
@@ -132,8 +131,6 @@ function TeacherDashboard() {
         <h1 className="td__title">مرحباً، {displayName} 👋</h1>
         <p className="td__subtitle">ماذا تريد أن تفعل اليوم؟</p>
       </header>
-
-      <QuickAccess />
 
       <section className="td__section" aria-labelledby="recent-lessons-heading">
         <div className="td__section-head">
