@@ -9,11 +9,11 @@ export async function getTeacherName(teacherId) {
   if (teacherId == null) return null;
   try {
     const result = await turso.execute({
-      sql: "SELECT username FROM Users WHERE id = ? LIMIT 1",
+      sql: "SELECT display_name, username FROM Users WHERE id = ? LIMIT 1",
       args: [Number(teacherId)],
     });
     const row = result.rows[0];
-    return row?.username ?? null;
+    return row?.display_name || row?.username || null;
   } catch {
     return null;
   }

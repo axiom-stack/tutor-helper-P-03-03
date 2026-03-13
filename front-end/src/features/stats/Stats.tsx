@@ -510,7 +510,7 @@ export default function Stats() {
                 <option value="">كل المعلمين</option>
                 {(summary?.admin?.teacher_options ?? []).map((teacher) => (
                   <option key={teacher.id} value={teacher.id}>
-                    {teacher.username}
+                    {teacher.display_name || teacher.username}
                   </option>
                 ))}
               </select>
@@ -768,7 +768,7 @@ export default function Stats() {
                               }
                               onClick={() => setSelectedTeacherId(String(row.teacher_id))}
                             >
-                              <td>{row.username}</td>
+                              <td>{row.display_name || row.username}</td>
                               <td>{formatNumber(row.plans_generated)}</td>
                               <td>{formatNumber(row.avg_plan_quality)}</td>
                               <td>{formatPercent(row.first_pass_rate)}</td>

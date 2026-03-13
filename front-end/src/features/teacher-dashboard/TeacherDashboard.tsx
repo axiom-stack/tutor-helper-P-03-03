@@ -124,7 +124,7 @@ function TeacherDashboard() {
     );
   }
 
-  const displayName = user?.username ?? 'المعلم';
+  const displayName = user?.display_name || user?.username || 'المعلم';
 
   return (
     <div className="td ui-loaded">

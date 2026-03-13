@@ -11,6 +11,7 @@ function toProfileRecord(row) {
   return {
     user_id: toNumber(row.user_id),
     username: row.username,
+    display_name: row.display_name,
     role: row.role,
     user_created_at: row.user_created_at,
     language: row.language || "ar",
@@ -32,6 +33,7 @@ function toTeacherRecord(row) {
   return {
     id: toNumber(row.id),
     username: row.username,
+    display_name: row.display_name,
     role: row.role,
     created_at: row.created_at,
     profile: {
@@ -95,7 +97,7 @@ export function createUsersRepository(dbClient = turso) {
 
       const result = await dbClient.execute({
         sql: `
-          SELECT id, username, role, created_at
+          SELECT id, username, display_name, role, created_at
           FROM Users
           WHERE id = ?
           LIMIT 1
@@ -111,6 +113,7 @@ export function createUsersRepository(dbClient = turso) {
       return {
         id: toNumber(row.id),
         username: row.username,
+        display_name: row.display_name,
         role: row.role,
         created_at: row.created_at,
       };
@@ -123,7 +126,7 @@ export function createUsersRepository(dbClient = turso) {
 
       const result = await dbClient.execute({
         sql: `
-          SELECT id, username, role, created_at
+          SELECT id, username, display_name, role, created_at
           FROM Users
           WHERE username = ?
           LIMIT 1
@@ -139,13 +142,14 @@ export function createUsersRepository(dbClient = turso) {
       return {
         id: toNumber(row.id),
         username: row.username,
+        display_name: row.display_name,
         role: row.role,
         created_at: row.created_at,
       };
     },
 
     async createUser(userData) {
-      const { username, password, role } = userData;
+      const { username, display_name, password, role } = userData;
 
       if (typeof password !== "string" || password.length === 0) {
         throw new Error("Password must be a non-empty string (use hashed password)");
@@ -153,10 +157,10 @@ export function createUsersRepository(dbClient = turso) {
 
       await dbClient.execute({
         sql: `
-          INSERT INTO Users (username, password, role)
-          VALUES (?, ?, ?)
+          INSERT INTO Users (username, display_name, password, role)
+          VALUES (?, ?, ?, ?)
         `,
-        args: [username, password, role],
+        args: [username, display_name || username, password, role],
       });
 
       const selectResult = await dbClient.execute({
@@ -185,6 +189,7 @@ export function createUsersRepository(dbClient = turso) {
           SELECT
             u.id AS user_id,
             u.username,
+            u.display_name,
             u.role,
             u.created_at AS user_created_at,
             up.language,
@@ -292,6 +297,28 @@ export function createUsersRepository(dbClient = turso) {
       return this.getUserById(parsedUserId);
     },
 
+    async updateDisplayNameByUserId(userId, displayName) {
+      const parsedUserId = Number(userId);
+      if (!Number.isInteger(parsedUserId) || parsedUserId <= 0) {
+        return null;
+      }
+
+      if (typeof displayName !== "string" || displayName.trim().length === 0) {
+        return null;
+      }
+
+      await dbClient.execute({
+        sql: `
+          UPDATE Users
+          SET display_name = ?
+          WHERE id = ?
+        `,
+        args: [displayName.trim(), parsedUserId],
+      });
+
+      return this.getUserById(parsedUserId);
+    },
+
     async updatePasswordByUserId(userId, hashedPassword) {
       const parsedUserId = Number(userId);
       if (!Number.isInteger(parsedUserId) || parsedUserId <= 0) {
@@ -320,6 +347,7 @@ export function createUsersRepository(dbClient = turso) {
           SELECT
             u.id,
             u.username,
+            u.display_name,
             u.role,
             u.created_at,
             COALESCE(up.language, 'ar') AS language,

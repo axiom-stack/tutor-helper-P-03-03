@@ -2,6 +2,7 @@ CREATE TABLE Users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   role TEXT CHECK(role IN ('teacher', 'admin')) NOT NULL,
   username TEXT NOT NULL,
+  display_name TEXT,
   password TEXT NOT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

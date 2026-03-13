@@ -34,10 +34,11 @@ export async function listTeachers(): Promise<{
 
 export async function createTeacher(payload: {
   username: string;
+  display_name?: string;
   password: string;
-}): Promise<{ teacher: { id: number; username: string; role: string } }> {
+}): Promise<{ teacher: { id: number; username: string; display_name: string; role: string } }> {
   const response = await api().post<{
-    teacher: { id: number; username: string; role: string };
+    teacher: { id: number; username: string; display_name: string; role: string };
   }>('/api/users/teachers', payload);
   return response.data;
 }

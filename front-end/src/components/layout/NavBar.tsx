@@ -13,8 +13,8 @@ export function NavBar({ onMenuClick }: NavBarProps) {
   const { user, logout } = useAuth();
   const { isOnline, queueCount, isSyncing, processQueueNow } = useOffline();
 
-  const displayName = user?.username ?? 'مستخدم';
-  const avatarLetter = (user?.username?.trim().charAt(0) || 'م').toUpperCase();
+  const displayName = user?.display_name || user?.username || 'مستخدم';
+  const avatarLetter = ((user?.display_name || user?.username || 'م').trim().charAt(0)).toUpperCase();
 
   return (
     <header className="nav-bar" role="banner">

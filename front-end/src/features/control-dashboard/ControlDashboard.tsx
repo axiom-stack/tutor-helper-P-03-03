@@ -206,7 +206,7 @@ export default function ControlDashboard() {
             ) : isAdmin ? (
               'لوحة تحكم النظام'
             ) : (
-              `مرحباً، ${user.username}`
+              `مرحباً، ${user.display_name || user.username}`
             )}
           </h1>
           <p>

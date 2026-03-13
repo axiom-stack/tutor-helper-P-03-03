@@ -28,6 +28,7 @@ import './teachers-management.css';
 interface EditDraft {
   teacherId: number;
   username: string;
+  display_name: string;
   language: 'ar' | 'en';
   educational_stage: string;
   subject: string;
@@ -39,11 +40,13 @@ interface EditDraft {
 interface DeleteDraft {
   teacherId: number;
   username: string;
+  display_name: string;
 }
 
 interface ResetPasswordDraft {
   teacherId: number;
   username: string;
+  display_name: string;
 }
 
 function formatDateAr(value: string): string {
@@ -63,6 +66,7 @@ function toEditDraft(teacher: TeacherManagementRow): EditDraft {
   return {
     teacherId: teacher.id,
     username: teacher.username,
+    display_name: teacher.display_name,
     language: teacher.profile.language,
     educational_stage: teacher.profile.educational_stage ?? '',
     subject: teacher.profile.subject ?? '',
@@ -87,6 +91,7 @@ export default function TeachersManagement() {
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [newTeacherUsername, setNewTeacherUsername] = useState('');
+  const [newTeacherDisplayName, setNewTeacherDisplayName] = useState('');
   const [newTeacherPassword, setNewTeacherPassword] = useState('');
   const [, setCreateError] = useState<string | null>(null);
   const [deleteDraft, setDeleteDraft] = useState<DeleteDraft | null>(null);
@@ -128,6 +133,12 @@ export default function TeachersManagement() {
       return;
     }
 
+    if (newTeacherDisplayName.trim().length === 0) {
+      setCreateError('الاسم الظاهر مطلوب');
+      toast.error('الاسم الظاهر مطلوب');
+      return;
+    }
+
     if (newTeacherPassword.length < 6) {
       setCreateError('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
       toast.error('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
@@ -140,6 +151,7 @@ export default function TeachersManagement() {
     try {
       await createTeacher({
         username: newTeacherUsername.trim(),
+        display_name: newTeacherDisplayName.trim(),
         password: newTeacherPassword,
       });
 
@@ -147,6 +159,7 @@ export default function TeachersManagement() {
       toast.success('تم إضافة المعلم بنجاح.');
       setShowCreateModal(false);
       setNewTeacherUsername('');
+      setNewTeacherDisplayName('');
       setNewTeacherPassword('');
       // Reload teachers list
       await loadTeachers();
@@ -171,6 +184,13 @@ export default function TeachersManagement() {
       return;
     }
 
+    const display_name = editDraft.display_name.trim();
+    if (display_name.length === 0) {
+      setError('الاسم الظاهر مطلوب.');
+      toast.error('الاسم الظاهر مطلوب.');
+      return;
+    }
+
     if (editDraft.default_lesson_duration_minutes < 1) {
       setError('المدة الافتراضية يجب أن تكون دقيقة واحدة على الأقل.');
       toast.error('المدة الافتراضية يجب أن تكون دقيقة واحدة على الأقل.');
@@ -183,6 +203,7 @@ export default function TeachersManagement() {
 
     const payload: AdminTeacherProfileUpdatePayload = {
       username,
+      display_name,
       language: editDraft.language,
       educational_stage: editDraft.educational_stage.trim() || null,
       subject: editDraft.subject.trim() || null,
@@ -200,6 +221,7 @@ export default function TeachersManagement() {
             ? {
                 ...teacher,
                 username: response.profile.username,
+                display_name: response.profile.display_name,
                 profile: {
                   language: response.profile.language,
                   educational_stage: response.profile.educational_stage,
@@ -352,7 +374,8 @@ export default function TeachersManagement() {
                     >
                       <td>
                         <div className="tm__teacher-cell">
-                          <strong>{teacher.username}</strong>
+                          <strong>{teacher.display_name}</strong>
+                          <small>{teacher.username}</small>
                           <small>منذ {formatDateAr(teacher.created_at)}</small>
                         </div>
                       </td>
@@ -379,6 +402,7 @@ export default function TeachersManagement() {
                               setResetDraft({
                                 teacherId: teacher.id,
                                 username: teacher.username,
+                                display_name: teacher.display_name,
                               });
                               setResetNewPassword('');
                               setResetConfirmPassword('');
@@ -395,6 +419,7 @@ export default function TeachersManagement() {
                               setDeleteDraft({
                                 teacherId: teacher.id,
                                 username: teacher.username,
+                                display_name: teacher.display_name,
                               })
                             }
                           >
@@ -418,11 +443,26 @@ export default function TeachersManagement() {
           ) : (
             <div className="tm__editor-grid">
               <div className="tm__editor-selected">
-                <strong>{selectedTeacher.username}</strong>
+                <strong>{selectedTeacher.display_name}</strong>
+                <small>{selectedTeacher.username}</small>
               </div>
 
+              <label className="tm__field" htmlFor="tm-display-name">
+                <span>الاسم الظاهر</span>
+                <input
+                  id="tm-display-name"
+                  value={editDraft.display_name}
+                  onChange={(event) =>
+                    setEditDraft((current) =>
+                      current ? { ...current, display_name: event.target.value } : current
+                    )
+                  }
+                  placeholder="الاسم الفعلي للمعلم"
+                />
+              </label>
+
               <label className="tm__field" htmlFor="tm-username">
-                <span>اسم المعلم (اسم المستخدم)</span>
+                <span>اسم المستخدم (للدخول)</span>
                 <input
                   id="tm-username"
                   value={editDraft.username}
@@ -590,8 +630,21 @@ export default function TeachersManagement() {
                 void handleCreateTeacher();
               }}
             >
+              <label className="tm-modal__field" htmlFor="new-teacher-display-name">
+                <span>الاسم الظاهر (الاسم الفعلي)</span>
+                <input
+                  id="new-teacher-display-name"
+                  type="text"
+                  value={newTeacherDisplayName}
+                  onChange={(e) => setNewTeacherDisplayName(e.target.value)}
+                  placeholder="أدخل الاسم الفعلي للمعلم"
+                  disabled={creating}
+                  required
+                />
+              </label>
+
               <label className="tm-modal__field" htmlFor="new-teacher-username">
-                <span>اسم المستخدم</span>
+                <span>اسم المستخدم (للدخول)</span>
                 <input
                   id="new-teacher-username"
                   type="text"
@@ -664,7 +717,7 @@ export default function TeachersManagement() {
             </header>
             <div className="tm-modal__form">
               <p className="tm-modal__delete-message">
-                سيتم حذف المعلم <strong>{deleteDraft.username}</strong> مع جميع البيانات المرتبطة
+                سيتم حذف المعلم <strong>{deleteDraft.display_name}</strong> ({deleteDraft.username}) مع جميع البيانات المرتبطة
                 به. لا يمكن التراجع عن هذه العملية.
               </p>
 
@@ -710,7 +763,7 @@ export default function TeachersManagement() {
             </header>
             <div className="tm-modal__form">
               <p className="tm-modal__delete-message">
-                تعيين كلمة مرور جديدة للمعلم <strong>{resetDraft.username}</strong>. سيتمكن المعلم من تسجيل الدخول بهذه الكلمة.
+                تعيين كلمة مرور جديدة للمعلم <strong>{resetDraft.display_name}</strong> ({resetDraft.username}). سيتمكن المعلم من تسجيل الدخول بهذه الكلمة.
               </p>
               <label className="tm-modal__field" htmlFor="reset-new-password">
                 كلمة المرور الجديدة (6 أحرف على الأقل)

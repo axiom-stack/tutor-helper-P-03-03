@@ -153,7 +153,7 @@ function AdminCurriculumExplorer({
   }, [classes]);
 
   const teacherNameMap = useMemo(() => {
-    return new Map(teachers.map((teacher) => [teacher.id, teacher.username]));
+    return new Map(teachers.map((teacher) => [teacher.id, teacher.display_name || teacher.username]));
   }, [teachers]);
 
   const filteredClasses = useMemo(() => {
@@ -241,7 +241,7 @@ function AdminCurriculumExplorer({
             <option value="">— اختر معلمًا لإدارة منهجه —</option>
             {teachers.map((teacher) => (
               <option key={teacher.id} value={teacher.id}>
-                {teacher.username}
+                {teacher.display_name || teacher.username}
               </option>
             ))}
           </select>
@@ -264,7 +264,7 @@ function AdminCurriculumExplorer({
             <option value="">الكل</option>
             {teachers.map((teacher) => (
               <option key={teacher.id} value={teacher.id}>
-                {teacher.username}
+                {teacher.display_name || teacher.username}
               </option>
             ))}
           </select>

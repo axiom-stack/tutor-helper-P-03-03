@@ -101,7 +101,7 @@ export default function PlansManager() {
   const detailRequestIdRef = useRef(0);
 
   const teacherNameMap = useMemo(() => {
-    return new Map(teachers.map((teacher) => [teacher.id, teacher.username]));
+    return new Map(teachers.map((teacher) => [teacher.id, teacher.display_name || teacher.username]));
   }, [teachers]);
 
   const subjectOptions = useMemo(() => {

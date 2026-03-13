@@ -14,6 +14,7 @@ export interface User {
   id: number;
   role: UserRole;
   username: string;
+  display_name: string;
   password: string;
   created_at: string; // ISO date string
 }
@@ -209,6 +210,7 @@ export interface LessonPlanRecord {
 export interface UserProfile {
   user_id: number;
   username: string;
+  display_name: string;
   role: UserRole;
   user_created_at: string;
   language: 'ar' | 'en';
@@ -233,6 +235,7 @@ export interface UserProfileUpdatePayload {
 export interface AdminTeacherProfileUpdatePayload
   extends UserProfileUpdatePayload {
   username?: string;
+  display_name?: string;
 }
 
 export interface TeacherUsageSummary {
@@ -250,6 +253,7 @@ export interface TeacherUsageSummary {
 export interface TeacherManagementRow {
   id: number;
   username: string;
+  display_name: string;
   role: UserRole;
   created_at: string;
   profile: {
@@ -333,6 +337,7 @@ export type StatsTeacherRiskFlag =
 export interface StatsTeacherPerformanceRow {
   teacher_id: number;
   username: string;
+  display_name: string;
   plans_generated: number;
   avg_plan_quality: number;
   quality_band: string;
@@ -358,6 +363,7 @@ export interface StatsSummaryResponse {
     teacher_options: Array<{
       id: number;
       username: string;
+      display_name: string;
     }>;
     teacher_performance: StatsTeacherPerformanceRow[];
     top_teachers: StatsTeacherPerformanceRow[];
@@ -469,6 +475,7 @@ export interface AssignmentsApiError {
 export interface AuthUser {
   id: number;
   username: string;
+  display_name: string;
   userRole: UserRole;
   createdAt: string;
   profile?: UserProfile;

@@ -1,14 +1,14 @@
 -- Seed data for Tutor Helper application
 
 -- Insert users (teachers and students)
-INSERT INTO Users (username, password, role) VALUES
-('admin', '$2a$10$rnn6QKsH7VHgJ3TKzAuyk.8P5WW7Yb4/PWA1XF6XCzErrr5ZuJ2dO', 'admin'),
-('john_doe', '$2a$10$rnn6QKsH7VHgJ3TKzAuyk.8P5WW7Yb4/PWA1XF6XCzErrr5ZuJ2dO', 'teacher'),
-('sarah_smith', '$2a$10$rnn6QKsH7VHgJ3TKzAuyk.8P5WW7Yb4/PWA1XF6XCzErrr5ZuJ2dO', 'teacher'),
-('mike_johnson', '$2a$10$rnn6QKsH7VHgJ3TKzAuyk.8P5WW7Yb4/PWA1XF6XCzErrr5ZuJ2dO', 'teacher'),
-('emily_brown', '$2a$10$rnn6QKsH7VHgJ3TKzAuyk.8P5WW7Yb4/PWA1XF6XCzErrr5ZuJ2dO', 'teacher'),
-('david_wilson', '$2a$10$rnn6QKsH7VHgJ3TKzAuyk.8P5WW7Yb4/PWA1XF6XCzErrr5ZuJ2dO', 'teacher'),
-('lisa_garcia', '$2a$10$rnn6QKsH7VHgJ3TKzAuyk.8P5WW7Yb4/PWA1XF6XCzErrr5ZuJ2dO', 'teacher');
+INSERT INTO Users (username, display_name, password, role) VALUES
+('admin', 'المسؤول', '$2a$10$rnn6QKsH7VHgJ3TKzAuyk.8P5WW7Yb4/PWA1XF6XCzErrr5ZuJ2dO', 'admin'),
+('john_doe', 'جون دو', '$2a$10$rnn6QKsH7VHgJ3TKzAuyk.8P5WW7Yb4/PWA1XF6XCzErrr5ZuJ2dO', 'teacher'),
+('sarah_smith', 'سارة سميث', '$2a$10$rnn6QKsH7VHgJ3TKzAuyk.8P5WW7Yb4/PWA1XF6XCzErrr5ZuJ2dO', 'teacher'),
+('mike_johnson', 'مايك جونسون', '$2a$10$rnn6QKsH7VHgJ3TKzAuyk.8P5WW7Yb4/PWA1XF6XCzErrr5ZuJ2dO', 'teacher'),
+('emily_brown', 'إيميلي براون', '$2a$10$rnn6QKsH7VHgJ3TKzAuyk.8P5WW7Yb4/PWA1XF6XCzErrr5ZuJ2dO', 'teacher'),
+('david_wilson', 'ديفيد ويلسون', '$2a$10$rnn6QKsH7VHgJ3TKzAuyk.8P5WW7Yb4/PWA1XF6XCzErrr5ZuJ2dO', 'teacher'),
+('lisa_garcia', 'ليزا غارسيا', '$2a$10$rnn6QKsH7VHgJ3TKzAuyk.8P5WW7Yb4/PWA1XF6XCzErrr5ZuJ2dO', 'teacher');
 
 -- Insert classes
 INSERT INTO Classes (

@@ -112,6 +112,8 @@ export function createUsersController(
 
         const rawUsername =
           typeof req.body?.username === "string" ? req.body.username.trim() : "";
+        const displayName =
+          typeof req.body?.display_name === "string" ? req.body.display_name.trim() : rawUsername;
         const password =
           typeof req.body?.password === "string" ? req.body.password : "";
 
@@ -147,6 +149,7 @@ export function createUsersController(
         // Create the teacher (repository stores only the hashed password)
         const teacherId = await usersRepository.createUser({
           username,
+          display_name: displayName,
           password: hashedPassword,
           role: "teacher",
         });
@@ -155,6 +158,7 @@ export function createUsersController(
           teacher: {
             id: teacherId,
             username,
+            display_name: displayName,
             role: "teacher",
           },
         });
@@ -272,6 +276,25 @@ export function createUsersController(
           }
         }
 
+        let normalizedDisplayName;
+        const hasDisplayNameField = Object.prototype.hasOwnProperty.call(
+          req.body || {},
+          "display_name",
+        );
+
+        if (hasDisplayNameField) {
+          if (typeof req.body.display_name !== "string") {
+            return res.status(400).json({ error: "display_name must be a string" });
+          }
+
+          normalizedDisplayName = req.body.display_name.trim();
+          if (normalizedDisplayName.length === 0) {
+            return res.status(400).json({
+              error: "display_name cannot be empty",
+            });
+          }
+        }
+
         const validation = buildProfileUpdates(req.body, {
           requireAtLeastOne: false,
         });
@@ -279,10 +302,14 @@ export function createUsersController(
           return res.status(400).json({ error: validation.errors.join(", ") });
         }
 
-        if (!hasUsernameField && Object.keys(validation.updates).length === 0) {
+        if (
+          !hasUsernameField &&
+          !hasDisplayNameField &&
+          Object.keys(validation.updates).length === 0
+        ) {
           return res.status(400).json({
             error:
-              "At least one valid field is required (username or profile fields)",
+              "At least one valid field is required (username, display_name or profile fields)",
           });
         }
 
@@ -297,6 +324,13 @@ export function createUsersController(
           await usersRepository.updateUsernameByUserId(
             teacherId,
             normalizedUsername,
+          );
+        }
+
+        if (hasDisplayNameField) {
+          await usersRepository.updateDisplayNameByUserId(
+            teacherId,
+            normalizedDisplayName,
           );
         }
 
