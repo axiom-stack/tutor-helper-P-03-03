@@ -316,8 +316,27 @@ export async function getAllLessonsInTheSystem(req, res) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
+    const rawStage =
+      typeof req.query?.stage === "string" ? req.query.stage.trim() : "";
+
+    let sql = "SELECT l.* FROM Lessons l";
+    const args = [];
+
+    if (rawStage) {
+      sql = `
+        SELECT l.*
+        FROM Lessons l
+        INNER JOIN Units u ON u.id = l.unit_id
+        INNER JOIN Subjects s ON s.id = u.subject_id
+        INNER JOIN Classes c ON c.id = s.class_id
+        WHERE c.stage = ?
+      `;
+      args.push(rawStage);
+    }
+
     const lessons = await turso.execute({
-      sql: "SELECT * FROM Lessons",
+      sql,
+      args,
     });
 
     return res.status(200).json({ lessons: lessons.rows });

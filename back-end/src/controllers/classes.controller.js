@@ -199,8 +199,23 @@ export async function getAllClassesInTheSystem(req, res) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
+    const rawStage =
+      typeof req.query?.stage === "string" ? req.query.stage.trim() : "";
+    const normalizedStage = rawStage ? normalizeStage(rawStage) : null;
+
+    if (rawStage && !normalizedStage) {
+      return res.status(400).json({
+        error:
+          "Invalid stage filter. Allowed values: ابتدائي، اعدادي، ثانوي.",
+      });
+    }
+
+    const whereSql = normalizedStage != null ? "WHERE stage = ?" : "";
+    const args = normalizedStage != null ? [normalizedStage] : [];
+
     const classes = await turso.execute({
-      sql: "SELECT * FROM Classes",
+      sql: `SELECT * FROM Classes ${whereSql}`,
+      args,
     });
     return res.status(200).json({ classes: classes.rows });
   } catch {

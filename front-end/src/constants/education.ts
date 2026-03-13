@@ -1,6 +1,7 @@
-export type StageId = 'ابتدائي' | 'اعدادي' | 'ثانوي';
+export type StageId = 'ابتدائي' | 'اعدادي' | 'ثانوي' | 'all';
 
 export const ALLOWED_STAGES: StageId[] = ['ابتدائي', 'اعدادي', 'ثانوي'];
+export const ALL_STAGES_OPTION: StageId = 'all';
 
 export const GRADE_TO_STAGE_MAP: Record<string, StageId> = {
   "الصف الأول": "ابتدائي",
@@ -62,7 +63,7 @@ export function normalizeStage(value: unknown): StageId | null {
   if (!raw) return null;
 
   // Exact match first
-  if (ALLOWED_STAGES.includes(raw as StageId)) {
+  if (ALLOWED_STAGES.includes(raw as StageId) || raw === 'all') {
     return raw as StageId;
   }
 

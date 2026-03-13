@@ -108,7 +108,7 @@ export async function listAssignments(
   if (filters.classId != null) {
     params.class_id = filters.classId;
   }
-  if (filters.stage != null) {
+  if (filters.stage != null && filters.stage !== 'all') {
     params.stage = filters.stage;
   }
 
@@ -137,7 +137,7 @@ export async function listAssignments(
         if (filters.classId != null && assignment.class_id !== filters.classId) {
           return false;
         }
-        if (filters.stage != null) {
+        if (filters.stage != null && filters.stage !== 'all') {
           // Approximate stage locally using grade label when available.
           const label = assignment.class_grade_label ?? '';
           const derivedStage = GRADE_TO_STAGE_MAP[label] ?? null;
@@ -157,8 +157,12 @@ export async function getMyClasses(
   stage?: string
 ): Promise<{ classes: Class[] }> {
   try {
+    const params: Record<string, string> = {};
+    if (stage && stage !== 'all') {
+      params.stage = stage;
+    }
     const response = await api().get<{ classes: Class[] }>('/api/classes/mine', {
-      params: stage ? { stage } : undefined,
+      params,
     });
     await putReference('classes:mine', 'classes', response.data.classes ?? []);
     return response.data;

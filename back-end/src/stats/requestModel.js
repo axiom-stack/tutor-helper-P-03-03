@@ -84,9 +84,9 @@ export function validateStatsQuery(query = {}, user = { role: "teacher" }) {
     };
   }
 
-  const stage =
-    typeof query.stage === "string" ? normalizeStage(query.stage) : null;
-  if (query.stage != null && query.stage !== "" && !stage) {
+  const stageRaw = typeof query.stage === "string" ? query.stage.trim() : "";
+  const stage = stageRaw && stageRaw !== "all" ? normalizeStage(stageRaw) : null;
+  if (stageRaw && stageRaw !== "all" && !stage) {
     return {
       ok: false,
       status: 400,

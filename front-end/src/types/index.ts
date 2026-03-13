@@ -274,6 +274,7 @@ export interface StatsSummaryFilters {
   date_from?: string;
   date_to?: string;
   teacher_id?: number | null;
+  stage?: string | null;
 }
 
 export interface StatsKpis {

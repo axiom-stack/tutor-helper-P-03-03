@@ -214,7 +214,7 @@ function LessonCreator() {
       try {
         const [classesResponse, subjectsResponse] = await Promise.all([
           getMyClasses(activeStage),
-          getMySubjects(),
+          getMySubjects(activeStage),
         ]);
 
         if (cancelled) {

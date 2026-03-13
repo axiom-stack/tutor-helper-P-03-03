@@ -23,6 +23,10 @@ function buildParams(filters: StatsSummaryFilters = {}): Record<string, string |
     params.teacher_id = filters.teacher_id;
   }
 
+  if (filters.stage != null && filters.stage !== 'all') {
+    params.stage = filters.stage;
+  }
+
   return params;
 }
 

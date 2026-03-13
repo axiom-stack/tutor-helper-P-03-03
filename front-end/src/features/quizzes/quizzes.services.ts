@@ -62,8 +62,12 @@ export async function getMyClasses(
   stage?: string
 ): Promise<{ classes: Class[] }> {
   try {
+    const params: Record<string, string> = {};
+    if (stage && stage !== 'all') {
+      params.stage = stage;
+    }
     const response = await api().get<{ classes: Class[] }>('/api/classes/mine', {
-      params: stage ? { stage } : undefined,
+      params,
     });
     await putReference('classes:mine', 'classes', response.data.classes ?? []);
     return response.data;
@@ -92,8 +96,12 @@ export async function getAllClasses(): Promise<{ classes: Class[] }> {
 
 export async function getMySubjects(stage?: string): Promise<{ subjects: Subject[] }> {
   try {
+    const params: Record<string, string> = {};
+    if (stage && stage !== 'all') {
+      params.stage = stage;
+    }
     const response = await api().get<{ subjects: Subject[] }>('/api/subjects/mine', {
-      params: stage ? { stage } : undefined,
+      params,
     });
     await putReference('subjects:mine', 'subjects', response.data.subjects ?? []);
     return response.data;
@@ -108,8 +116,12 @@ export async function getMySubjects(stage?: string): Promise<{ subjects: Subject
 
 export async function getAllSubjects(stage?: string): Promise<{ subjects: Subject[] }> {
   try {
+    const params: Record<string, string> = {};
+    if (stage && stage !== 'all') {
+      params.stage = stage;
+    }
     const response = await api().get<{ subjects: Subject[] }>('/api/subjects', {
-      params: stage ? { stage } : undefined,
+      params,
     });
     await putReference('subjects:all', 'subjects', response.data.subjects ?? []);
     return response.data;
@@ -201,7 +213,7 @@ export async function listExams(
   if (filters.class_id != null) {
     params.class_id = filters.class_id;
   }
-  if (filters.stage != null) {
+  if (filters.stage != null && filters.stage !== 'all') {
     params.stage = filters.stage;
   }
   if (filters.date_from) {

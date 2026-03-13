@@ -168,8 +168,26 @@ export async function getAllSubjectsInTheSystem(req, res) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
+    const rawStage =
+      typeof req.query?.stage === "string" ? req.query.stage.trim() : "";
+
+    // If a stage filter is provided, restrict to subjects whose classes belong to that stage.
+    let sql = "SELECT s.* FROM Subjects s";
+    const args = [];
+
+    if (rawStage) {
+      sql = `
+        SELECT s.*
+        FROM Subjects s
+        INNER JOIN Classes c ON c.id = s.class_id
+        WHERE c.stage = ?
+      `;
+      args.push(rawStage);
+    }
+
     const subjects = await turso.execute({
-      sql: "SELECT * FROM Subjects",
+      sql,
+      args,
     });
 
     return res.status(200).json({ subjects: subjects.rows });

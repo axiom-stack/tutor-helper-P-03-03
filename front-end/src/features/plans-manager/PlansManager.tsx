@@ -173,7 +173,7 @@ export default function PlansManager() {
   useEffect(() => {
     void loadPlans();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeStage]);
 
   useEffect(() => {
     if (!lastSyncAt || isEditingPlan) {

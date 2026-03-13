@@ -59,8 +59,12 @@ export async function getMyClasses(
   stage?: string
 ): Promise<{ classes: Class[] }> {
   try {
+    const params: Record<string, string> = {};
+    if (stage && stage !== 'all') {
+      params.stage = stage;
+    }
     const response = await api().get<{ classes: Class[] }>('/api/classes/mine', {
-      params: stage ? { stage } : undefined,
+      params,
     });
     await putReference('classes:mine', 'classes', response.data.classes ?? []);
     return response.data;
@@ -74,9 +78,15 @@ export async function getMyClasses(
   }
 }
 
-export async function getMySubjects(): Promise<{ subjects: Subject[] }> {
+export async function getMySubjects(stage?: string): Promise<{ subjects: Subject[] }> {
   try {
-    const response = await api().get<{ subjects: Subject[] }>('/api/subjects/mine');
+    const params: Record<string, string> = {};
+    if (stage && stage !== 'all') {
+      params.stage = stage;
+    }
+    const response = await api().get<{ subjects: Subject[] }>('/api/subjects/mine', {
+      params,
+    });
     await putReference('subjects:mine', 'subjects', response.data.subjects ?? []);
     return response.data;
   } catch (error: unknown) {

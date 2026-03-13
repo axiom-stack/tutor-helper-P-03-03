@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import { useStage } from '../../context/StageContext';
 import type { Class, Lesson, Subject, TeacherManagementRow, Unit } from '../../types';
 import TeacherCirriculumManager from '../teacher-curriculum-manager/TeacherCirriculumManager';
 import {

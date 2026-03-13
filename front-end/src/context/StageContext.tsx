@@ -35,6 +35,10 @@ export function StageProvider({ children }: { children: React.ReactNode }) {
       return fromProfile;
     }
 
+    if (user?.userRole === 'admin') {
+      return 'all';
+    }
+
     // Sensible default if nothing else is available.
     return 'ابتدائي';
   };

@@ -28,7 +28,9 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
       : TEACHER_SECONDARY_LINKS;
 
   const isTeacher = user?.userRole === 'teacher';
-  const stages = getAllowedStages();
+  const isAdmin = user?.userRole === 'admin';
+  const baseStages = getAllowedStages();
+  const stages = isAdmin ? [...baseStages, 'all' as const] : baseStages;
 
   useEffect(() => {
     if (!open) return;
@@ -72,7 +74,7 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
           </button>
         </div>
         <nav className="mobile-drawer__nav">
-          {isTeacher && (
+          {(isTeacher || isAdmin) && (
             <div className="mobile-drawer__stage">
               <span className="mobile-drawer__stage-label">المرحلة الحالية</span>
               <div
@@ -91,9 +93,9 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
                         ? 'mobile-drawer__stage-pill mobile-drawer__stage-pill--active'
                         : 'mobile-drawer__stage-pill'
                     }
-                    onClick={() => setActiveStage(stage)}
+                    onClick={() => setActiveStage(stage as any)}
                   >
-                    {stage}
+                    {stage === 'all' ? 'كل المراحل' : stage}
                   </button>
                 ))}
               </div>

@@ -217,7 +217,9 @@ function TeacherCirriculumManager(props: {
     useState<SelectValue>('');
   const [creatorNewClassName, setCreatorNewClassName] = useState('');
   const [creatorNewClassDescription, setCreatorNewClassDescription] = useState('');
-  const [creatorNewClassStage, setCreatorNewClassStage] = useState<StageId>(activeStage);
+  const [creatorNewClassStage, setCreatorNewClassStage] = useState<StageId>(
+    activeStage === 'all' ? 'ابتدائي' : activeStage
+  );
   const [creatorNewClassGradeLabel, setCreatorNewClassGradeLabel] = useState('');
   const [creatorNewClassSectionLabel, setCreatorNewClassSectionLabel] = useState('');
   const [creatorNewClassAcademicYear, setCreatorNewClassAcademicYear] = useState('');
@@ -494,7 +496,7 @@ function TeacherCirriculumManager(props: {
     setCreatorExistingClassId('');
     setCreatorNewClassName('');
     setCreatorNewClassDescription('');
-    setCreatorNewClassStage(activeStage);
+    setCreatorNewClassStage(activeStage === 'all' ? 'ابتدائي' : activeStage);
     setCreatorNewClassGradeLabel('');
     setCreatorNewClassSectionLabel('');
     setCreatorNewClassAcademicYear('');
@@ -687,7 +689,7 @@ function TeacherCirriculumManager(props: {
       kind: 'class',
       name: '',
       description: '',
-      stage: activeStage,
+      stage: activeStage === 'all' ? 'ابتدائي' : activeStage,
       gradeLabel: '',
       sectionLabel: '',
       academicYear: '',
@@ -841,7 +843,7 @@ function TeacherCirriculumManager(props: {
       id: selectedClass.id,
       name: selectedClass.name,
       description: selectedClass.description,
-      stage: (selectedClass.stage as StageId) || getStageForGrade(selectedClass.grade_label) || activeStage,
+      stage: (selectedClass.stage as StageId) || getStageForGrade(selectedClass.grade_label) || (activeStage === 'all' ? 'ابتدائي' : activeStage),
       gradeLabel: selectedClass.grade_label,
       sectionLabel: selectedClass.section_label,
       academicYear: selectedClass.academic_year,

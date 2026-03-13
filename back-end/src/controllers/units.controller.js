@@ -163,8 +163,26 @@ export async function getAllUnitsInTheSystem(req, res) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
+    const rawStage =
+      typeof req.query?.stage === "string" ? req.query.stage.trim() : "";
+
+    let sql = "SELECT u.* FROM Units u";
+    const args = [];
+
+    if (rawStage) {
+      sql = `
+        SELECT u.*
+        FROM Units u
+        INNER JOIN Subjects s ON s.id = u.subject_id
+        INNER JOIN Classes c ON c.id = s.class_id
+        WHERE c.stage = ?
+      `;
+      args.push(rawStage);
+    }
+
     const units = await turso.execute({
-      sql: "SELECT * FROM Units",
+      sql,
+      args,
     });
 
     return res.status(200).json({ units: units.rows });

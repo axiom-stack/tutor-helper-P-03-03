@@ -28,7 +28,7 @@ export async function listPlans(
   if (filters.grade) {
     params.grade = filters.grade;
   }
-  if (filters.stage) {
+  if (filters.stage && filters.stage !== 'all') {
     params.stage = filters.stage;
   }
 

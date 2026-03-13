@@ -246,6 +246,8 @@ export default function Stats() {
   const { user } = useAuth();
   const isAdmin = user?.userRole === 'admin';
 
+  const { activeStage } = useStage();
+
   const [period, setPeriod] = useState<StatsPeriod>('all');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
@@ -260,6 +262,7 @@ export default function Stats() {
   const filters = useMemo<StatsSummaryFilters>(() => {
     const next: StatsSummaryFilters = {
       period,
+      stage: activeStage === 'all' ? null : activeStage,
     };
 
     if (period === 'custom') {
@@ -276,7 +279,7 @@ export default function Stats() {
     }
 
     return next;
-  }, [period, customFrom, customTo, isAdmin, selectedTeacherId]);
+  }, [period, customFrom, customTo, isAdmin, selectedTeacherId, activeStage]);
 
   const customRangeError = useMemo(() => {
     if (period !== 'custom') {

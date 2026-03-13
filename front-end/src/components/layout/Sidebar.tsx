@@ -22,14 +22,18 @@ export function Sidebar() {
       : TEACHER_SECONDARY_LINKS;
 
   const isTeacher = user?.userRole === 'teacher';
+  const isAdmin = user?.userRole === 'admin';
 
   const profileStages = parseStages(user?.profile?.educational_stage ?? '');
-  const stages = profileStages.length > 0 ? profileStages : getAllowedStages();
+  const stages =
+    profileStages.length > 0 ? profileStages : getAllowedStages();
+
+  const stageOptions = isAdmin ? [...stages, 'all' as const] : stages;
 
   return (
     <aside className="sidebar" role="navigation" aria-label="القائمة الجانبية">
       <nav className="sidebar__nav">
-        {isTeacher && (
+        {(isTeacher || isAdmin) && (
           <div className="sidebar__stage">
             <span className="sidebar__stage-label">المرحلة الحالية</span>
             <div
@@ -37,7 +41,7 @@ export function Sidebar() {
               role="radiogroup"
               aria-label="اختيار المرحلة التعليمية"
             >
-              {stages.map((stage) => (
+              {stageOptions.map((stage) => (
                 <button
                   key={stage}
                   type="button"
@@ -48,9 +52,9 @@ export function Sidebar() {
                       ? 'sidebar__stage-pill sidebar__stage-pill--active'
                       : 'sidebar__stage-pill'
                   }
-                  onClick={() => setActiveStage(stage)}
+                  onClick={() => setActiveStage(stage as any)}
                 >
-                  {stage}
+                  {stage === 'all' ? 'كل المراحل' : stage}
                 </button>
               ))}
             </div>

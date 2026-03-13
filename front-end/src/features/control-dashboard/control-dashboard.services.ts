@@ -24,9 +24,13 @@ export async function getScopedClasses(
   role: UserRole,
   stage?: string
 ): Promise<{ classes: Class[] }> {
+  const params: Record<string, string> = {};
+  if (stage && stage !== 'all') {
+    params.stage = stage;
+  }
   const response = await api().get<{ classes: Class[] }>(
     scopePath(role, '/api/classes'),
-    { params: stage ? { stage } : undefined }
+    { params }
   );
   return response.data;
 }
@@ -35,9 +39,13 @@ export async function getScopedSubjects(
   role: UserRole,
   stage?: string
 ): Promise<{ subjects: Subject[] }> {
+  const params: Record<string, string> = {};
+  if (stage && stage !== 'all') {
+    params.stage = stage;
+  }
   const response = await api().get<{ subjects: Subject[] }>(
     scopePath(role, '/api/subjects'),
-    { params: stage ? { stage } : undefined }
+    { params }
   );
   return response.data;
 }
@@ -46,9 +54,13 @@ export async function getScopedLessons(
   role: UserRole,
   stage?: string
 ): Promise<{ lessons: Lesson[] }> {
+  const params: Record<string, string> = {};
+  if (stage && stage !== 'all') {
+    params.stage = stage;
+  }
   const response = await api().get<{ lessons: Lesson[] }>(
     scopePath(role, '/api/lessons'),
-    { params: stage ? { stage } : undefined }
+    { params }
   );
   return response.data;
 }
@@ -57,33 +69,49 @@ export async function getScopedUnits(
   role: UserRole,
   stage?: string
 ): Promise<{ units: Unit[] }> {
+  const params: Record<string, string> = {};
+  if (stage && stage !== 'all') {
+    params.stage = stage;
+  }
   const response = await api().get<{ units: Unit[] }>(
     scopePath(role, '/api/units'),
-    { params: stage ? { stage } : undefined }
+    { params }
   );
   return response.data;
 }
 
 export async function listScopedPlans(stage?: string): Promise<{ plans: LessonPlanRecord[] }> {
+  const params: Record<string, string> = {};
+  if (stage && stage !== 'all') {
+    params.stage = stage;
+  }
   const response = await api().get<{ plans: LessonPlanRecord[] }>(
     '/api/plans',
-    { params: stage ? { stage } : undefined }
+    { params }
   );
   return response.data;
 }
 
 export async function listScopedExams(stage?: string): Promise<{ exams: Exam[] }> {
+  const params: Record<string, string> = {};
+  if (stage && stage !== 'all') {
+    params.stage = stage;
+  }
   const response = await api().get<{ exams: Exam[] }>(
     '/api/exams',
-    { params: stage ? { stage } : undefined }
+    { params }
   );
   return response.data;
 }
 
 export async function listScopedAssignments(stage?: string): Promise<{ assignments: Assignment[] }> {
+  const params: Record<string, string> = {};
+  if (stage && stage !== 'all') {
+    params.stage = stage;
+  }
   const response = await api().get<{ assignments: Assignment[] }>(
     '/api/assignments',
-    { params: stage ? { stage } : undefined }
+    { params }
   );
   return response.data;
 }

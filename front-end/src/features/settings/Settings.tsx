@@ -95,8 +95,10 @@ export default function Settings() {
   }, []);
 
   const handleSave = async () => {
+    const isTeacher = user?.userRole === 'teacher';
     const parsedStages = parseStages(educationalStage);
-    if (parsedStages.length === 0) {
+
+    if (isTeacher && parsedStages.length === 0) {
       const message = 'يجب اختيار مرحلة تعليمية واحدة على الأقل.';
       setStageError(message);
       toast.error(message);
@@ -109,9 +111,9 @@ export default function Settings() {
 
     const payload: UserProfileUpdatePayload = {
       language,
-      educational_stage: educationalStage.trim() || null,
-      subject: subject.trim() || null,
-      preparation_type: preparationType || null,
+      educational_stage: isTeacher ? (educationalStage.trim() || null) : null,
+      subject: isTeacher ? (subject.trim() || null) : null,
+      preparation_type: isTeacher ? (preparationType || null) : null,
       default_plan_type: defaultPlanType,
       default_lesson_duration_minutes: defaultLessonDuration,
     };
@@ -176,83 +178,96 @@ export default function Settings() {
             </select>
           </label>
 
-          <label className="st__field" htmlFor="settings-stage">
-            <span>المرحلة التعليمية الافتراضية</span>
-            <div className="st__stage-toggle" aria-label="المراحل التعليمية التي تعمل عليها">
-              {stageOptions.map((stage) => {
-                const currentStages = parseStages(educationalStage);
-                const isActive = currentStages.includes(stage);
-                return (
-                  <button
-                    key={stage}
-                    type="button"
-                    className={
-                      isActive
-                        ? 'st__stage-pill st__stage-pill--active'
-                        : 'st__stage-pill'
-                    }
-                    onClick={() => {
-                      const existing = parseStages(educationalStage);
-                      let next: StageId[];
-                      if (existing.includes(stage)) {
-                        // Prevent removing the last remaining stage – at least one is required.
-                        if (existing.length === 1) {
-                          const message = 'يجب أن تبقى مرحلة واحدة على الأقل محددة.';
-                          setStageError(message);
-                          toast.error(message);
-                          return;
+          {user.userRole === 'teacher' && (
+            <>
+              <label className="st__field" htmlFor="settings-stage">
+                <span>المرحلة التعليمية الافتراضية</span>
+                <div
+                  className="st__stage-toggle"
+                  aria-label="المراحل التعليمية التي تعمل عليها"
+                >
+                  {stageOptions.map((stage) => {
+                    const currentStages = parseStages(educationalStage);
+                    const isActive = currentStages.includes(stage);
+                    return (
+                      <button
+                        key={stage}
+                        type="button"
+                        className={
+                          isActive
+                            ? 'st__stage-pill st__stage-pill--active'
+                            : 'st__stage-pill'
                         }
-                        next = existing.filter((s) => s !== stage);
-                      } else {
-                        next = [...existing, stage];
-                        // Clear any previous stage error once selection becomes valid.
-                        if (stageError) {
-                          setStageError(null);
-                        }
-                      }
-                      setEducationalStage(formatStagesForStorage(next));
-                    }}
-                  >
-                    {stage}
-                  </button>
-                );
-              })}
-            </div>
-            <small className="st__field-hint">
-              يمكنك اختيار أكثر من مرحلة، وسيتم اعتبار الأولى كإعداد افتراضي في الواجهة.
-            </small>
-            {stageError && (
-              <small className="st__field-error" aria-live="polite">
-                {stageError}
-              </small>
-            )}
-          </label>
+                        onClick={() => {
+                          const existing = parseStages(educationalStage);
+                          let next: StageId[];
+                          if (existing.includes(stage)) {
+                            // Prevent removing the last remaining stage – at least one is required.
+                            if (existing.length === 1) {
+                              const message =
+                                'يجب أن تبقى مرحلة واحدة على الأقل محددة.';
+                              setStageError(message);
+                              toast.error(message);
+                              return;
+                            }
+                            next = existing.filter((s) => s !== stage);
+                          } else {
+                            next = [...existing, stage];
+                            // Clear any previous stage error once selection becomes valid.
+                            if (stageError) {
+                              setStageError(null);
+                            }
+                          }
+                          setEducationalStage(formatStagesForStorage(next));
+                        }}
+                      >
+                        {stage}
+                      </button>
+                    );
+                  })}
+                </div>
+                <small className="st__field-hint">
+                  يمكنك اختيار أكثر من مرحلة، وسيتم اعتبار الأولى كإعداد افتراضي
+                  في الواجهة.
+                </small>
+                {stageError && (
+                  <small className="st__field-error" aria-live="polite">
+                    {stageError}
+                  </small>
+                )}
+              </label>
 
-          <label className="st__field" htmlFor="settings-subject">
-            <span>المادة الافتراضية</span>
-            <input
-              id="settings-subject"
-              value={subject}
-              onChange={(event) => setSubject(event.target.value)}
-              placeholder="مثال: الرياضيات"
-            />
-          </label>
+              <label className="st__field" htmlFor="settings-subject">
+                <span>المادة الافتراضية</span>
+                <input
+                  id="settings-subject"
+                  value={subject}
+                  onChange={(event) => setSubject(event.target.value)}
+                  placeholder="مثال: الرياضيات"
+                />
+              </label>
 
-          <label className="st__field" htmlFor="settings-preparation-type">
-            <span>نوع التحضير</span>
-            <select
-              id="settings-preparation-type"
-              value={preparationType}
-              onChange={(event) => setPreparationType(event.target.value as PreparationTypeValue)}
-            >
-              <option value="">-- اختر نوع التحضير --</option>
-              {PREPARATION_TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+              <label className="st__field" htmlFor="settings-preparation-type">
+                <span>نوع التحضير</span>
+                <select
+                  id="settings-preparation-type"
+                  value={preparationType}
+                  onChange={(event) =>
+                    setPreparationType(
+                      event.target.value as PreparationTypeValue
+                    )
+                  }
+                >
+                  <option value="">-- اختر نوع التحضير --</option>
+                  {PREPARATION_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
 
           <label className="st__field" htmlFor="settings-default-plan-type">
             <span>نوع الخطة الافتراضي</span>

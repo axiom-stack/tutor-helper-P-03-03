@@ -90,13 +90,12 @@ export default function ControlDashboard() {
 
     let cancelled = false;
 
-    const role = user.userRole;
-    const stage = role === 'teacher' ? activeStage : undefined;
+    const stage = activeStage === 'all' ? undefined : activeStage;
 
     Promise.all([
-      getScopedClasses(role, stage),
-      getScopedSubjects(role, stage),
-      getScopedLessons(role, stage),
+      getScopedClasses(user.userRole, stage),
+      getScopedSubjects(user.userRole, stage),
+      getScopedLessons(user.userRole, stage),
       listScopedPlans(stage),
       listScopedExams(stage),
       listScopedAssignments(stage),
