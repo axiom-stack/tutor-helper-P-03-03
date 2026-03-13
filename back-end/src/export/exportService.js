@@ -71,23 +71,23 @@ export async function exportAssignment(enrichedAssignment, format) {
 /**
  * Export exam as PDF or DOCX.
  */
-export async function exportExam(enrichedExam, format) {
+export async function exportExam(enrichedExam, format, type = "answer_key") {
   const id = enrichedExam.public_id ?? "exam";
   if (format === "pdf") {
-    const html = buildExamHtml(enrichedExam);
+    const html = buildExamHtml(enrichedExam, type);
     const buffer = await htmlToPdf(html);
     return {
       buffer,
       mimeType: MIME_PDF,
-      suggestedFilename: `exam_${id}.pdf`,
+      suggestedFilename: `exam_${id}_${type}.pdf`,
     };
   }
   if (format === "docx") {
-    const buffer = await buildExamDocx(enrichedExam);
+    const buffer = await buildExamDocx(enrichedExam, type);
     return {
       buffer,
       mimeType: MIME_DOCX,
-      suggestedFilename: `exam_${id}.docx`,
+      suggestedFilename: `exam_${id}_${type}.docx`,
     };
   }
   throw new Error(`Unsupported format: ${format}`);

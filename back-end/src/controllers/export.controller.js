@@ -132,6 +132,7 @@ export async function exportExamHandler(req, res) {
   try {
     const examPublicId = String(req.params.id || "").trim();
     const format = (req.query.format || "").toLowerCase();
+    const type = (req.query.type || "answer_key").toLowerCase();
 
     if (!isValidExamId(examPublicId)) {
       return res.status(400).json({
@@ -146,6 +147,14 @@ export async function exportExamHandler(req, res) {
         error: {
           code: "invalid_format",
           message: "format must be pdf or docx",
+        },
+      });
+    }
+    if (!["answer_key", "questions_only"].includes(type)) {
+      return res.status(400).json({
+        error: {
+          code: "invalid_type",
+          message: "type must be answer_key or questions_only",
         },
       });
     }
@@ -165,7 +174,7 @@ export async function exportExamHandler(req, res) {
     }
 
     const enriched = await enrichExam(exam);
-    const { buffer, mimeType, suggestedFilename } = await exportExam(enriched, format);
+    const { buffer, mimeType, suggestedFilename } = await exportExam(enriched, format, type);
 
     res.setHeader("Content-Type", mimeType);
     res.setHeader("Content-Disposition", `attachment; filename="${suggestedFilename}"`);

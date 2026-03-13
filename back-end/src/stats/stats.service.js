@@ -340,6 +340,7 @@ function buildTeacherRows({
     teacherRows.push({
       teacher_id: teacherId,
       username: teacher?.username ?? `#${teacherId}`,
+      display_name: teacher?.display_name || teacher?.username || `#${teacherId}`,
       plans_generated: teacherPlans.length,
       avg_plan_quality: roundOne(avgPlanQuality),
       quality_band:
@@ -551,6 +552,7 @@ export function createStatsService({
           teacher_options: (teachers || []).map((teacher) => ({
             id: Number(teacher.id),
             username: teacher.username,
+            display_name: teacher.display_name,
           })),
           teacher_performance: teacherRows,
           top_teachers: [...teacherRows]

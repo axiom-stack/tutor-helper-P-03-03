@@ -263,18 +263,21 @@ export async function buildAssignmentDocx(enrichedAssignment) {
 /**
  * Build DOCX document for an exam.
  */
-export async function buildExamDocx(enrichedExam) {
+export async function buildExamDocx(enrichedExam, type = "answer_key") {
   const e = enrichedExam;
+  const date = e.created_at ? new Date(e.created_at).toLocaleDateString("ar-SA") : "—";
+  const typeLabel = type === "answer_key" ? "نموذج إجابة" : "اختبار";
+
   const children = [
-    heading(e.title ?? "—"),
+    heading(`${typeLabel}: ${e.title ?? "—"}`),
     para(`المعلم: ${e.teacher_name ?? "—"}`),
-    para(`الصف: ${e.class_name ?? "—"}`),
-    para(`المادة: ${e.subject_name ?? "—"}`),
+    para(`التاريخ: ${date}`),
+    para(`الصف: ${e.class_name ?? "—"}  |  المادة: ${e.subject_name ?? "—"}`),
     para(`عدد الأسئلة: ${e.total_questions ?? 0}  |  الدرجة الكلية: ${e.total_marks ?? 0}`),
   ];
 
   const blueprint = e.blueprint;
-  if (blueprint?.cells?.length) {
+  if (blueprint?.cells?.length && type === "answer_key") {
     children.push(subheading("مصفوفة جدول المواصفات"));
     const headerRow = new TableRow({
       children: [
@@ -337,7 +340,7 @@ export async function buildExamDocx(enrichedExam) {
     open_ended: "سؤال مفتوح",
   };
   const questions = Array.isArray(e.questions) ? e.questions : [];
-  children.push(subheading("الأسئلة والإجابات"));
+  children.push(subheading(type === "answer_key" ? "الأسئلة والإجابات" : "الأسئلة"));
   for (const q of questions) {
     const meta = [
       `س${q.question_number ?? ""}`,
@@ -350,7 +353,12 @@ export async function buildExamDocx(enrichedExam) {
       .join(" | ");
     children.push(
       para(meta),
-      para(q.question_text ?? "")
+      new Paragraph({
+        children: [new TextRun({ text: q.question_text ?? "", bold: true, size: 20 })],
+        ...RTL_OPTS,
+        ...RTL_BIDI,
+        spacing: { after: 100 },
+      })
     );
     if (q.question_type === "multiple_choice" && Array.isArray(q.options)) {
       q.options.forEach((opt, i) => {
@@ -360,21 +368,33 @@ export async function buildExamDocx(enrichedExam) {
     if (q.question_type === "open_ended" && Array.isArray(q.rubric) && q.rubric.length) {
       q.rubric.forEach((r) => children.push(para(r)));
     }
-    children.push(
-      new Paragraph({
-        children: [new TextRun({ text: "الإجابة النموذجية:", bold: true })],
-        ...RTL_OPTS,
-        ...RTL_BIDI,
-        spacing: { before: 60 },
-      }),
-      para(q.answer_text ?? ""),
-      new Paragraph({ children: [], spacing: { after: 200 } })
-    );
+
+    if (type === "answer_key") {
+      children.push(
+        new Paragraph({
+          children: [new TextRun({ text: "الإجابة النموذجية:", bold: true, color: "2e4f83" })],
+          ...RTL_OPTS,
+          ...RTL_BIDI,
+          spacing: { before: 60 },
+        }),
+        para(q.answer_text ?? "")
+      );
+    }
+    children.push(new Paragraph({ children: [], spacing: { after: 200 } }));
   }
 
   if (questions.length === 0) {
     children.push(para("لا توجد أسئلة."));
   }
+
+  children.push(
+    new Paragraph({
+      children: [new TextRun({ text: `تم التوليد بواسطة مساعد المعلم الذكي - ${date}`, size: 16 })],
+      alignment: AlignmentType.CENTER,
+      ...RTL_BIDI,
+      spacing: { before: 400 },
+    })
+  );
 
   const doc = new Document({
     sections: [{ properties: {}, children }],

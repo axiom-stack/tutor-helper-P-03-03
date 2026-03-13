@@ -67,9 +67,9 @@ export async function resetTeacherPassword(
 
 export async function deleteTeacher(
   teacherId: number
-): Promise<{ teacher: { id: number; username: string; role: string } }> {
+): Promise<{ teacher: { id: number; username: string; display_name: string; role: string } }> {
   const response = await api().delete<{
-    teacher: { id: number; username: string; role: string };
+    teacher: { id: number; username: string; display_name: string; role: string };
   }>(`/api/users/teachers/${teacherId}`);
 
   return response.data;

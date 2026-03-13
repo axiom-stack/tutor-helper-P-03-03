@@ -305,10 +305,11 @@ export async function duplicateExam(id: string): Promise<{ exam: Exam }> {
  */
 export async function getExamExportBlob(
   examId: string,
-  format: 'pdf' | 'docx'
+  format: 'pdf' | 'docx',
+  type: 'answer_key' | 'questions_only' = 'answer_key'
 ): Promise<Blob> {
   const response = await api().get(`/api/exams/${examId}/export`, {
-    params: { format },
+    params: { format, type },
     responseType: 'blob',
   });
   return response.data as Blob;
@@ -319,11 +320,12 @@ export async function getExamExportBlob(
  */
 export async function exportExam(
   examId: string,
-  format: 'pdf' | 'docx'
+  format: 'pdf' | 'docx',
+  type: 'answer_key' | 'questions_only' = 'answer_key'
 ): Promise<void> {
-  const blob = await getExamExportBlob(examId, format);
+  const blob = await getExamExportBlob(examId, format, type);
   const ext = format === 'pdf' ? 'pdf' : 'docx';
-  const filename = `exam_${examId}.${ext}`;
+  const filename = `exam_${examId}_${type}.${ext}`;
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -340,15 +342,16 @@ export async function exportExam(
 export async function shareExam(
   examId: string,
   format: 'pdf' | 'docx',
-  title?: string
+  title?: string,
+  type: 'answer_key' | 'questions_only' = 'answer_key'
 ): Promise<void> {
   const response = await api().get(`/api/exams/${examId}/export`, {
-    params: { format },
+    params: { format, type },
     responseType: 'blob',
   });
   const blob = response.data as Blob;
   const ext = format === 'pdf' ? 'pdf' : 'docx';
-  const filename = `exam_${examId}.${ext}`;
+  const filename = `exam_${examId}_${type}.${ext}`;
   const { shareOrDownload } = await import('../../utils/share');
   await shareOrDownload(blob, filename, title ?? filename);
 }

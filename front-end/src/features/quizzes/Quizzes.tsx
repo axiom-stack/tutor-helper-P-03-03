@@ -155,6 +155,7 @@ export default function Quizzes() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditingExam, setIsEditingExam] = useState(false);
   const [isSavingExam, setIsSavingExam] = useState(false);
+  const [exportType, setExportType] = useState<'answer_key' | 'questions_only'>('answer_key');
   const [deleteExamRequest, setDeleteExamRequest] = useState<{
     examId: string;
     endpoint: string;
@@ -558,7 +559,7 @@ export default function Quizzes() {
     if (!canExportExam || isExporting) return;
     setExportError(null);
     setIsExporting(true);
-    exportExam(selectedExam!.public_id, 'pdf')
+    exportExam(selectedExam!.public_id, 'pdf', exportType)
       .catch(() => setExportError('فشل تصدير PDF.'))
       .finally(() => setIsExporting(false));
   };
@@ -567,7 +568,7 @@ export default function Quizzes() {
     if (!canExportExam || isExporting) return;
     setExportError(null);
     setIsExporting(true);
-    exportExam(selectedExam!.public_id, 'docx')
+    exportExam(selectedExam!.public_id, 'docx', exportType)
       .catch(() => setExportError('فشل تصدير Word.'))
       .finally(() => setIsExporting(false));
   };
@@ -576,7 +577,7 @@ export default function Quizzes() {
     if (!canExportExam || isExporting) return;
     setExportError(null);
     setIsExporting(true);
-    shareExam(selectedExam!.public_id, 'pdf', selectedExam!.title)
+    shareExam(selectedExam!.public_id, 'pdf', selectedExam!.title, exportType)
       .catch(() => setExportError('فشل مشاركة PDF.'))
       .finally(() => setIsExporting(false));
   };
@@ -1107,6 +1108,18 @@ export default function Quizzes() {
                         </>
                       ) : (
                         <>
+                          <div className="qz__export-type-selector">
+                            <label htmlFor="qz-export-type">نوع التصدير:</label>
+                            <select
+                              id="qz-export-type"
+                              value={exportType}
+                              onChange={(e) => setExportType(e.target.value as 'answer_key' | 'questions_only')}
+                              className="qz__edit-select"
+                            >
+                              <option value="answer_key">نموذج إجابة</option>
+                              <option value="questions_only">اختبار (أسئلة فقط)</option>
+                            </select>
+                          </div>
                           <button
                             type="button"
                             className="qz__refresh-btn"
@@ -1474,10 +1487,10 @@ export default function Quizzes() {
           if (!canExportExam) return;
           setIsExporting(true);
           try {
-            const blob = await getExamExportBlob(selectedExam!.public_id, format);
+            const blob = await getExamExportBlob(selectedExam!.public_id, format, exportType);
             const text = message.trim() || `اختبار: ${selectedExam!.title}`;
             const ext = format === 'pdf' ? 'pdf' : 'docx';
-            const filename = `exam_${selectedExam!.public_id}.${ext}`;
+            const filename = `exam_${selectedExam!.public_id}_${exportType}.${ext}`;
             await shareDocumentWithWhatsApp(blob, filename, text);
             setWhatsAppExportOpen(false);
           } catch {

@@ -596,6 +596,39 @@
   font-size: 0.9rem;
 }
 
+.qz__export-type-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f4f8fc;
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.7rem;
+  border: 1px solid #d5e3f1;
+}
+
+.qz__export-type-selector label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #2d4d6c;
+  white-space: nowrap;
+}
+
+.qz__export-type-selector select {
+  border: none;
+  background: transparent;
+  font-size: 0.9rem;
+  color: #1f4f82;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  height: auto;
+  min-height: 0;
+}
+
+.qz__export-type-selector select:focus {
+  outline: none;
+}
+
 @media (max-width: 1180px) {
   .qz__layout,
   .qz__archive-and-details {

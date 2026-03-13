@@ -165,6 +165,62 @@ const BASE_STYLES = `
     padding-top: 10px;
     border-top: 1px solid rgba(226, 238, 255, 0.1);
   }
+
+  @page {
+    margin: 20mm;
+    @bottom-center {
+      content: counter(page);
+    }
+  }
+
+  .print-footer {
+    display: none;
+  }
+
+  @media print {
+    .print-footer {
+      display: block;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 10px;
+      color: rgba(228, 240, 255, 0.6);
+      border-top: 1px solid rgba(226, 238, 255, 0.2);
+      padding-top: 5px;
+    }
+    
+    body {
+      background: white !important;
+      color: black !important;
+    }
+    
+    .lpdv__active-card, .lpdv__traditional-card {
+      background: white !important;
+      color: black !important;
+      padding: 0 !important;
+    }
+    
+    .lpdv__active-shell, .lpdv__traditional-shell {
+      border-color: #ccc !important;
+      color: black !important;
+    }
+    
+    .header-item, .grid-section, .footer-item, th, td {
+      border-color: #ddd !important;
+      color: black !important;
+      background: transparent !important;
+    }
+    
+    .header-item label, h3, h4, .qz__question-meta, .qz__answer label {
+      color: #333 !important;
+    }
+    
+    p, li, pre {
+      color: black !important;
+    }
+  }
 `;
 
 function escapeHtml(str) {
@@ -406,7 +462,7 @@ export function buildAssignmentHtml(enrichedAssignment) {
 /**
  * Build full HTML document for an exam.
  */
-export function buildExamHtml(enrichedExam) {
+export function buildExamHtml(enrichedExam, type = "answer_key") {
   const e = enrichedExam;
   const title = escapeHtml(e.title ?? "—");
   const teacherName = escapeHtml(e.teacher_name ?? "—");
@@ -416,9 +472,11 @@ export function buildExamHtml(enrichedExam) {
   const totalMarks = e.total_marks ?? 0;
   const blueprint = e.blueprint;
   const questions = Array.isArray(e.questions) ? e.questions : [];
+  const date = e.created_at ? new Date(e.created_at).toLocaleDateString("ar-SA") : "—";
+  const typeLabel = type === "answer_key" ? "نموذج إجابة" : "اختبار";
 
   let blueprintTable = "";
-  if (blueprint?.cells?.length) {
+  if (blueprint?.cells?.length && type === "answer_key") {
     const rows = blueprint.cells
       .map(
         (cell) => `
@@ -476,15 +534,20 @@ export function buildExamHtml(enrichedExam) {
       } else if (q.question_type === "open_ended" && Array.isArray(q.rubric) && q.rubric.length) {
         optionsOrRubric = `<ul>${q.rubric.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}</ul>`;
       }
+
+      const answerHtml = type === "answer_key" ? `
+          <div class="qz__answer">
+            <label style="font-weight: bold; color: #93c5fd;">الإجابة النموذجية</label>
+            <p>${escapeHtml(q.answer_text ?? "")}</p>
+          </div>
+      ` : "";
+
       return `
         <div class="qz__question-card">
           <div class="qz__question-meta">${escapeHtml(meta)}</div>
           <p style="font-weight: bold; font-size: 15px;">${escapeHtml(q.question_text ?? "")}</p>
           ${optionsOrRubric}
-          <div class="qz__answer">
-            <label style="font-weight: bold; color: #93c5fd;">الإجابة النموذجية</label>
-            <p>${escapeHtml(q.answer_text ?? "")}</p>
-          </div>
+          ${answerHtml}
         </div>
       `;
     })
@@ -494,15 +557,17 @@ export function buildExamHtml(enrichedExam) {
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>الاختبار</title>
+  <title>${typeLabel} - ${title}</title>
   <style>${BASE_STYLES}</style>
 </head>
 <body>
   <div class="lpdv__active-card">
     <div class="lpdv__active-shell">
       <div class="lpdv__active-header-grid">
+        <div class="header-item"><label>النوع</label><p>${typeLabel}</p></div>
         <div class="header-item"><label>الاختبار</label><p>${title}</p></div>
         <div class="header-item"><label>المعلم</label><p>${teacherName}</p></div>
+        <div class="header-item"><label>التاريخ</label><p>${date}</p></div>
         <div class="header-item"><label>الصف</label><p>${className}</p></div>
         <div class="header-item"><label>المادة</label><p>${subjectName}</p></div>
         <div class="header-item"><label>عدد الأسئلة</label><p>${totalQuestions}</p></div>
@@ -510,8 +575,11 @@ export function buildExamHtml(enrichedExam) {
       </div>
       ${blueprintTable}
       <div style="padding: 12px;">
-        <h3>الأسئلة والإجابات</h3>
+        <h3>${type === "answer_key" ? "الأسئلة والإجابات" : "الأسئلة"}</h3>
         ${questionsHtml || "<p>لا توجد أسئلة.</p>"}
+      </div>
+      <div class="print-footer">
+        تم التوليد بواسطة مساعد المعلم الذكي - ${date}
       </div>
     </div>
   </div>

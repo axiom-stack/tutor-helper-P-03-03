@@ -78,7 +78,10 @@ export async function login(req, res) {
     await insertAuditLog({
       action: "login",
       userId: user.id,
-      details: JSON.stringify({ username: user.username }),
+      details: JSON.stringify({ 
+        username: user.username,
+        display_name: user.display_name
+      }),
       logger: req.log,
     });
 
