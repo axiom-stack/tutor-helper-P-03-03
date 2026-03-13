@@ -66,10 +66,18 @@ export function StageProvider({ children }: { children: React.ReactNode }) {
   }, [userId, preferredStage]);
 
   const setActiveStage = (next: StageId) => {
+    if (next === activeStage) {
+      return;
+    }
+
     setActiveStageState(next);
+
     if (typeof window !== 'undefined') {
       const key = getStorageKey(userId);
       window.localStorage.setItem(key, next);
+      // Reload the current page so that all views and filters
+      // are reset to match the newly selected stage.
+      window.location.reload();
     }
   };
 

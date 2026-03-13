@@ -31,6 +31,31 @@ export function getAllowedStages(): StageId[] {
   return [...ALLOWED_STAGES];
 }
 
+export function parseStages(value: string): StageId[] {
+  if (!value) return [];
+
+  const raw = value
+    .split(/[,،]/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const allowed = new Set<StageId>(ALLOWED_STAGES);
+  const result: StageId[] = [];
+
+  for (const part of raw) {
+    if (allowed.has(part as StageId) && !result.includes(part as StageId)) {
+      result.push(part as StageId);
+    }
+  }
+
+  return result;
+}
+
+export function formatStagesForStorage(stages: StageId[]): string {
+  if (!stages.length) return '';
+  return stages.join('، ');
+}
+
 export function normalizeStage(value: unknown): StageId | null {
   if (typeof value !== 'string') return null;
   const raw = value.trim();

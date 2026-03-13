@@ -7,36 +7,17 @@ import { PREPARATION_TYPE_OPTIONS } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
 import { getMyProfile, updateMyProfile } from '../users/users.services';
 import { applyDisplayLanguageAndReload } from '../../utils/displayLanguage';
-import { getAllowedStages, type StageId } from '../../constants/education';
+import {
+  getAllowedStages,
+  parseStages,
+  formatStagesForStorage,
+  type StageId,
+} from '../../constants/education';
 import './settings.css';
 
 type LanguageValue = 'ar' | 'en';
 type DefaultPlanTypeValue = 'traditional' | 'active_learning';
 type PreparationTypeValue = PreparationType;
-
-function parseStages(value: string): StageId[] {
-  if (!value) return [];
-  const raw = value
-    .split(/[,،]/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  const allowed = new Set<StageId>(getAllowedStages());
-  const result: StageId[] = [];
-
-  for (const part of raw) {
-    if (allowed.has(part as StageId) && !result.includes(part as StageId)) {
-      result.push(part as StageId);
-    }
-  }
-
-  return result;
-}
-
-function formatStagesForStorage(stages: StageId[]): string {
-  if (!stages.length) return '';
-  return stages.join('، ');
-}
 
 export default function Settings() {
   const { user, updateUserProfile } = useAuth();
@@ -119,6 +100,14 @@ export default function Settings() {
   }, []);
 
   const handleSave = async () => {
+    const parsedStages = parseStages(educationalStage);
+    if (parsedStages.length === 0) {
+      const message = 'يجب اختيار مرحلة تعليمية واحدة على الأقل.';
+      setError(message);
+      toast.error(message);
+      return;
+    }
+
     setSaving(true);
     setError(null);
     setSuccess(null);
@@ -211,6 +200,10 @@ export default function Settings() {
                       const existing = parseStages(educationalStage);
                       let next: StageId[];
                       if (existing.includes(stage)) {
+                        // Prevent removing the last remaining stage – at least one is required.
+                        if (existing.length === 1) {
+                          return;
+                        }
                         next = existing.filter((s) => s !== stage);
                       } else {
                         next = [...existing, stage];

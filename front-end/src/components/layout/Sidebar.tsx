@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router';
 import { useAuth } from '../../context/AuthContext';
 import { useStage } from '../../context/StageContext';
-import { getAllowedStages } from '../../constants/education';
+import { getAllowedStages, parseStages } from '../../constants/education';
 import {
   ADMIN_MAIN_LINKS,
   ADMIN_SECONDARY_LINKS,
@@ -22,7 +22,9 @@ export function Sidebar() {
       : TEACHER_SECONDARY_LINKS;
 
   const isTeacher = user?.userRole === 'teacher';
-  const stages = getAllowedStages();
+
+  const profileStages = parseStages(user?.profile?.educational_stage ?? '');
+  const stages = profileStages.length > 0 ? profileStages : getAllowedStages();
 
   return (
     <aside className="sidebar" role="navigation" aria-label="القائمة الجانبية">
