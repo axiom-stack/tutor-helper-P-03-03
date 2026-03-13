@@ -1,15 +1,20 @@
 import {
   buildPlanHtml,
   buildAssignmentHtml,
-  buildExamHtml,
   buildStatsHtml,
 } from "./htmlBuilders.js";
 import { htmlToPdf } from "./pdfService.js";
+import { buildPlanDocx, buildAssignmentDocx } from "./docxBuilders.js";
 import {
-  buildPlanDocx,
-  buildAssignmentDocx,
-  buildExamDocx,
-} from "./docxBuilders.js";
+  buildExamPaperHtml,
+  buildExamAnswerFormHtml,
+  buildExamAnswerKeyHtml,
+} from "./examHtmlBuilders.js";
+import {
+  buildExamPaperDocx,
+  buildExamAnswerFormDocx,
+  buildExamAnswerKeyDocx,
+} from "./examDocxBuilders.js";
 
 const MIME_PDF = "application/pdf";
 const MIME_DOCX =
@@ -70,27 +75,72 @@ export async function exportAssignment(enrichedAssignment, format) {
 
 /**
  * Export exam as PDF or DOCX.
+ *
+ * type:
+ * - "questions_only"  → student-facing exam paper
+ * - "answer_form"     → نموذج الإجابات (answer sheet)
+ * - "answer_key"      → نموذج الإجابات للمعلم (answer key)
  */
 export async function exportExam(enrichedExam, format, type = "answer_key") {
   const id = enrichedExam.public_id ?? "exam";
-  if (format === "pdf") {
-    const html = buildExamHtml(enrichedExam, type);
-    const buffer = await htmlToPdf(html);
-    return {
-      buffer,
-      mimeType: MIME_PDF,
-      suggestedFilename: `exam_${id}_${type}.pdf`,
-    };
+
+  if (type === "answer_form") {
+    if (format === "pdf") {
+      const html = buildExamAnswerFormHtml(enrichedExam);
+      const buffer = await htmlToPdf(html, { landscape: false });
+      return {
+        buffer,
+        mimeType: MIME_PDF,
+        suggestedFilename: `exam_${id}_answer_form.pdf`,
+      };
+    }
+    if (format === "docx") {
+      const buffer = await buildExamAnswerFormDocx(enrichedExam);
+      return {
+        buffer,
+        mimeType: MIME_DOCX,
+        suggestedFilename: `exam_${id}_answer_form.docx`,
+      };
+    }
+  } else if (type === "questions_only") {
+    if (format === "pdf") {
+      const html = buildExamPaperHtml(enrichedExam);
+      const buffer = await htmlToPdf(html, { landscape: false });
+      return {
+        buffer,
+        mimeType: MIME_PDF,
+        suggestedFilename: `exam_${id}_questions_only.pdf`,
+      };
+    }
+    if (format === "docx") {
+      const buffer = await buildExamPaperDocx(enrichedExam);
+      return {
+        buffer,
+        mimeType: MIME_DOCX,
+        suggestedFilename: `exam_${id}_questions_only.docx`,
+      };
+    }
+  } else if (type === "answer_key") {
+    if (format === "pdf") {
+      const html = buildExamAnswerKeyHtml(enrichedExam);
+      const buffer = await htmlToPdf(html, { landscape: false });
+      return {
+        buffer,
+        mimeType: MIME_PDF,
+        suggestedFilename: `exam_${id}_answer_key.pdf`,
+      };
+    }
+    if (format === "docx") {
+      const buffer = await buildExamAnswerKeyDocx(enrichedExam);
+      return {
+        buffer,
+        mimeType: MIME_DOCX,
+        suggestedFilename: `exam_${id}_answer_key.docx`,
+      };
+    }
   }
-  if (format === "docx") {
-    const buffer = await buildExamDocx(enrichedExam, type);
-    return {
-      buffer,
-      mimeType: MIME_DOCX,
-      suggestedFilename: `exam_${id}_${type}.docx`,
-    };
-  }
-  throw new Error(`Unsupported format: ${format}`);
+
+  throw new Error(`Unsupported format or type: ${format} / ${type}`);
 }
 
 function buildStatsFilename(summary) {

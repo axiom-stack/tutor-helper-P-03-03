@@ -41,9 +41,11 @@ async function getLaunchOptions() {
  * Generate PDF buffer from full HTML string.
  * Uses @sparticuz/chromium on Render/serverless; optional local Chrome via PUPPETEER_EXECUTABLE_PATH.
  * @param {string} html - Full HTML document (with style, dir="rtl", etc.)
+ * @param {{ landscape?: boolean }} [options] - Optional. Default landscape: true (plan/assignment/stats). Use landscape: false for exam PDFs (portrait).
  * @returns {Promise<Buffer>}
  */
-export async function htmlToPdf(html) {
+export async function htmlToPdf(html, options = {}) {
+  const landscape = options.landscape !== false;
   let browser;
   try {
     const launchOptions = await getLaunchOptions();
@@ -55,7 +57,7 @@ export async function htmlToPdf(html) {
     });
     const buffer = await page.pdf({
       format: "A4",
-      landscape: true,
+      landscape,
       printBackground: true,
       margin: { top: "10mm", right: "10mm", bottom: "10mm", left: "10mm" },
     });

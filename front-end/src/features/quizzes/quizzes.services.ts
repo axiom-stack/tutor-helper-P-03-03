@@ -337,7 +337,7 @@ export async function duplicateExam(id: string): Promise<{ exam: Exam }> {
 export async function getExamExportBlob(
   examId: string,
   format: 'pdf' | 'docx',
-  type: 'answer_key' | 'questions_only' = 'answer_key'
+  type: 'answer_key' | 'questions_only' | 'answer_form' = 'answer_key'
 ): Promise<Blob> {
   const response = await api().get(`/api/exams/${examId}/export`, {
     params: { format, type },
@@ -352,7 +352,7 @@ export async function getExamExportBlob(
 export async function exportExam(
   examId: string,
   format: 'pdf' | 'docx',
-  type: 'answer_key' | 'questions_only' = 'answer_key'
+  type: 'answer_key' | 'questions_only' | 'answer_form' = 'answer_key'
 ): Promise<void> {
   const blob = await getExamExportBlob(examId, format, type);
   const ext = format === 'pdf' ? 'pdf' : 'docx';
@@ -374,7 +374,7 @@ export async function shareExam(
   examId: string,
   format: 'pdf' | 'docx',
   title?: string,
-  type: 'answer_key' | 'questions_only' = 'answer_key'
+  type: 'answer_key' | 'questions_only' | 'answer_form' = 'answer_key'
 ): Promise<void> {
   const response = await api().get(`/api/exams/${examId}/export`, {
     params: { format, type },

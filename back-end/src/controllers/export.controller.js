@@ -150,11 +150,11 @@ export async function exportExamHandler(req, res) {
         },
       });
     }
-    if (!["answer_key", "questions_only"].includes(type)) {
+    if (!["answer_key", "questions_only", "answer_form"].includes(type)) {
       return res.status(400).json({
         error: {
           code: "invalid_type",
-          message: "type must be answer_key or questions_only",
+          message: "type must be answer_key, questions_only, or answer_form",
         },
       });
     }
