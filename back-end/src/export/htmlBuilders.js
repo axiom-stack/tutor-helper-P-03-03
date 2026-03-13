@@ -10,7 +10,7 @@ const BASE_STYLES = `
     font-family: 'Traditional Arabic', 'Amiri', 'Arial', sans-serif;
     font-size: 14px;
     line-height: 1.6;
-    color: #1e293b;
+    color: #000000;
     padding: 0;
     margin: 0;
     background: #ffffff;
@@ -28,7 +28,7 @@ const BASE_STYLES = `
   .lpdv__active-shell {
     border: 1px solid #cbd5e1;
     border-radius: 18px;
-    color: #1e293b;
+    color: #000000;
     overflow: hidden;
     min-width: 0;
   }
@@ -56,7 +56,7 @@ const BASE_STYLES = `
   .lpdv__active-header-grid label {
     display: block;
     font-size: 11px;
-    color: #64748b;
+    color: #000000;
     margin-bottom: 4px;
     font-weight: 700;
   }
@@ -67,7 +67,7 @@ const BASE_STYLES = `
     font-size: 13px;
     line-height: 1.55;
     font-weight: 600;
-    color: #0f172a;
+    color: #000000;
     overflow-wrap: anywhere;
   }
 
@@ -84,7 +84,7 @@ const BASE_STYLES = `
   .lpdv__active-flow h3 {
     margin: 0;
     font-size: 14px;
-    color: #0f172a;
+    color: #000000;
   }
 
   .lpdv__traditional-intro h4 {
@@ -95,7 +95,7 @@ const BASE_STYLES = `
   .lpdv__active-footer p {
     margin: 6px 0 0;
     line-height: 1.75;
-    color: #334155;
+    color: #000000;
     overflow-wrap: anywhere;
   }
 
@@ -107,7 +107,7 @@ const BASE_STYLES = `
     display: flex;
     flex-direction: column;
     gap: 4px;
-    color: #334155;
+    color: #000000;
   }
 
   .lpdv__traditional-grid {
@@ -129,7 +129,7 @@ const BASE_STYLES = `
   .lpdv__traditional-grid h4 {
     margin: 0 0 6px;
     font-size: 14px;
-    color: #0f172a;
+    color: #000000;
   }
 
   .lpdv__traditional-footer {
@@ -149,13 +149,13 @@ const BASE_STYLES = `
   .lpdv__traditional-footer h4 {
     margin: 0 0 4px;
     font-size: 14px;
-    color: #0f172a;
+    color: #000000;
   }
 
   .lpdv__traditional-footer p {
     margin: 0;
     line-height: 1.7;
-    color: #334155;
+    color: #000000;
     overflow-wrap: anywhere;
   }
 
@@ -166,7 +166,7 @@ const BASE_STYLES = `
   .lpdv__active-footer h4 {
     margin: 0 0 4px;
     font-size: 14px;
-    color: #0f172a;
+    color: #000000;
   }
 
   .lpdv__table-wrap {
@@ -188,13 +188,13 @@ const BASE_STYLES = `
     font-size: 13px;
     text-align: right;
     vertical-align: top;
-    color: #334155;
+    color: #000000;
     overflow-wrap: anywhere;
   }
 
   .lpdv__flow-table thead th {
     background: #f1f5f9;
-    color: #0f172a;
+    color: #000000;
     font-weight: bold;
   }
 
@@ -212,7 +212,7 @@ const BASE_STYLES = `
 
   .qz__question-meta {
     font-size: 12px;
-    color: #64748b;
+    color: #000000;
     margin-bottom: 10px;
   }
 
@@ -545,7 +545,7 @@ export function buildAssignmentHtml(enrichedAssignment) {
       </div>
       <div style="padding: 12px;">
         <h3>المحتوى</h3>
-        <pre style="white-space: pre-wrap; word-wrap: break-word; background: #f8fafc; padding: 12px; border-radius: 4px; color: #1e293b; border: 1px solid #e2e8f0;">${content}</pre>
+        <pre style="white-space: pre-wrap; word-wrap: break-word; background: #f8fafc; padding: 12px; border-radius: 4px; color: #000000; border: 1px solid #e2e8f0;">${content}</pre>
       </div>
     </div>
   </div>
@@ -631,7 +631,7 @@ export function buildExamHtml(enrichedExam, type = "answer_key") {
 
       const answerHtml = type === "answer_key" ? `
           <div class="qz__answer">
-            <label style="font-weight: bold; color: #2563eb;">الإجابة النموذجية</label>
+            <label style="font-weight: bold; color: #000000;">الإجابة النموذجية</label>
             <p>${escapeHtml(q.answer_text ?? "")}</p>
           </div>
       ` : "";
@@ -780,8 +780,8 @@ export function buildStatsHtml(summary = {}) {
     .map(
       ([label, value]) => `
         <article style="border:1px solid #e2e8f0;border-radius:10px;padding:12px;background:#f8fafc;">
-          <div style="font-size:11px;color:#64748b;font-weight:700;">${escapeHtml(label)}</div>
-          <strong style="font-size:18px;color:#0f172a;">${escapeHtml(String(value))}</strong>
+          <div style="font-size:11px;color:#000000;font-weight:700;">${escapeHtml(label)}</div>
+          <strong style="font-size:18px;color:#000000;">${escapeHtml(String(value))}</strong>
         </article>
       `,
     )

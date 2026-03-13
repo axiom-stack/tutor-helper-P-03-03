@@ -89,13 +89,13 @@ function headerCell(label, value) {
     verticalAlign: VerticalAlign.CENTER,
     children: [
       new Paragraph({
-        children: [new TextRun({ text: label, bold: true, size: 16, color: "64748b" })],
+        children: [new TextRun({ text: label, bold: true, size: 16, color: "000000" })],
         ...RTL_OPTS,
         ...RTL_BIDI,
         spacing: { after: 40 },
       }),
       new Paragraph({
-        children: [new TextRun({ text: value || "—", bold: true, size: 18, color: "0f172a" })],
+        children: [new TextRun({ text: value || "—", bold: true, size: 18, color: "000000" })],
         ...RTL_OPTS,
         ...RTL_BIDI,
       }),
@@ -107,7 +107,7 @@ function sectionCell(title, items, emptyText) {
   const list = items && items.length ? items : [];
   const content = [
     new Paragraph({
-      children: [new TextRun({ text: title, bold: true, size: 18, color: "0f172a" })],
+      children: [new TextRun({ text: title, bold: true, size: 18, color: "000000" })],
       ...RTL_OPTS,
       ...RTL_BIDI,
       spacing: { after: 60 },
@@ -127,7 +127,7 @@ function sectionCell(title, items, emptyText) {
   } else {
     content.push(
       new Paragraph({
-        children: [new TextRun({ text: emptyText || "لا توجد بيانات.", size: 17, color: "94a3b8" })],
+        children: [new TextRun({ text: emptyText || "لا توجد بيانات.", size: 17, color: "000000" })],
         ...RTL_OPTS,
         ...RTL_BIDI,
       }),
@@ -258,7 +258,7 @@ export async function buildPlanDocx(enrichedPlan) {
               borders: CELL_BORDER,
               children: [
                 new Paragraph({
-                  children: [new TextRun({ text: "الواجب", bold: true, size: 18, color: "0f172a" })],
+                  children: [new TextRun({ text: "الواجب", bold: true, size: 18, color: "000000" })],
                   ...RTL_OPTS,
                   ...RTL_BIDI,
                   spacing: { after: 40 },
@@ -274,7 +274,7 @@ export async function buildPlanDocx(enrichedPlan) {
               borders: CELL_BORDER,
               children: [
                 new Paragraph({
-                  children: [new TextRun({ text: "المصدر", bold: true, size: 18, color: "0f172a" })],
+                  children: [new TextRun({ text: "المصدر", bold: true, size: 18, color: "000000" })],
                   ...RTL_OPTS,
                   ...RTL_BIDI,
                   spacing: { after: 40 },
@@ -588,7 +588,7 @@ export async function buildExamDocx(enrichedExam, type = "answer_key") {
     if (type === "answer_key") {
       children.push(
         new Paragraph({
-          children: [new TextRun({ text: "الإجابة النموذجية:", bold: true, color: "2e4f83" })],
+        children: [new TextRun({ text: "الإجابة النموذجية:", bold: true, color: "000000" })],
           ...RTL_OPTS,
           ...RTL_BIDI,
           spacing: { before: 60 },
@@ -605,7 +605,7 @@ export async function buildExamDocx(enrichedExam, type = "answer_key") {
 
   children.push(
     new Paragraph({
-      children: [new TextRun({ text: `تم التوليد بواسطة مساعد المعلم الذكي - ${date}`, size: 16 })],
+      children: [new TextRun({ text: `تم التوليد بواسطة مساعد المعلم الذكي - ${date}`, size: 16, color: "000000" })],
       alignment: AlignmentType.CENTER,
       ...RTL_BIDI,
       spacing: { before: 400 },
