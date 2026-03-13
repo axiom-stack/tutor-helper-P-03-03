@@ -156,6 +156,10 @@ export function createAssignmentsRepository(dbClient = turso) {
         whereClauses.push("c.id = ?");
         args.push(filters.class_id);
       }
+      if (filters.stage != null) {
+        whereClauses.push("c.stage = ?");
+        args.push(filters.stage);
+      }
 
       const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
 

@@ -353,6 +353,7 @@ export default function Assignments() {
             })
           : await listAssignments({
               classId: selectedClassId === '' ? undefined : selectedClassId,
+              stage: activeStage,
             });
         const nextAssignments = (response.assignments ?? []) as OfflineAssignmentRecord[];
         setAssignments(nextAssignments);
@@ -391,7 +392,7 @@ export default function Assignments() {
         setIsRefreshing(false);
       }
     },
-    [context, isScopedView, selectedClassId]
+    [context, isScopedView, selectedClassId, activeStage]
   );
 
   useEffect(() => {
@@ -411,7 +412,7 @@ export default function Assignments() {
     }
 
     void loadAssignments();
-  }, [context, selectedClassId, user?.userRole, loadAssignments]);
+  }, [context, selectedClassId, user?.userRole, loadAssignments, activeStage]);
 
   useEffect(() => {
     if (user?.userRole !== 'teacher') {
@@ -454,7 +455,7 @@ export default function Assignments() {
     const loadClasses = async () => {
       setIsClassesLoading(true);
       try {
-        const response = await getMyClasses();
+        const response = await getMyClasses(activeStage);
         if (cancelled) {
           return;
         }
@@ -475,7 +476,7 @@ export default function Assignments() {
     return () => {
       cancelled = true;
     };
-  }, [isScopedView, user?.userRole]);
+  }, [isScopedView, user?.userRole, activeStage]);
 
   useEffect(() => {
     if (user?.userRole !== 'teacher' || isScopedView) {

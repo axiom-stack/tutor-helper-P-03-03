@@ -102,6 +102,8 @@ function TeacherDashboard() {
           className: cls?.name ?? '—',
         };
       })
+      // Only keep lessons whose class exists in the current-stage class list
+      .filter((lesson) => lesson.className !== '—')
       .sort(
         (a, b) =>
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()

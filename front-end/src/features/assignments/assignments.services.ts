@@ -46,6 +46,7 @@ export interface ListAssignmentsFilters {
   lessonPlanPublicId?: string;
   lessonId?: number;
   classId?: number;
+  stage?: string;
 }
 
 type GenerateAssignmentsExtras = Pick<
@@ -106,6 +107,9 @@ export async function listAssignments(
   if (filters.classId != null) {
     params.class_id = filters.classId;
   }
+  if (filters.stage != null) {
+    params.stage = filters.stage;
+  }
 
   try {
     const response = await api().get<ListAssignmentsResponse>(
@@ -132,6 +136,28 @@ export async function listAssignments(
         if (filters.classId != null && assignment.class_id !== filters.classId) {
           return false;
         }
+        if (filters.stage != null) {
+          // Approximate stage locally using grade label when available.
+          const label = assignment.class_grade_label ?? '';
+          const map: Record<string, string> = {
+            'الصف الأول': 'ابتدائي',
+            'الصف الثاني': 'ابتدائي',
+            'الصف الثالث': 'ابتدائي',
+            'الصف الرابع': 'ابتدائي',
+            'الصف الخامس': 'اعدادي',
+            'الصف السادس': 'اعدادي',
+            'الصف السابع': 'اعدادي',
+            'الصف الثامن': 'اعدادي',
+            'الصف التاسع': 'اعدادي',
+            'الصف العاشر': 'ثانوي',
+            'الصف الحادي عشر': 'ثانوي',
+            'الصف الثاني عشر': 'ثانوي',
+          };
+          const derivedStage = map[label] ?? null;
+          if (!derivedStage || derivedStage !== filters.stage) {
+            return false;
+          }
+        }
         return true;
       });
       return { assignments };
@@ -140,9 +166,13 @@ export async function listAssignments(
   }
 }
 
-export async function getMyClasses(): Promise<{ classes: Class[] }> {
+export async function getMyClasses(
+  stage?: string
+): Promise<{ classes: Class[] }> {
   try {
-    const response = await api().get<{ classes: Class[] }>('/api/classes/mine');
+    const response = await api().get<{ classes: Class[] }>('/api/classes/mine', {
+      params: stage ? { stage } : undefined,
+    });
     await putReference('classes:mine', 'classes', response.data.classes ?? []);
     return response.data;
   } catch (error: unknown) {

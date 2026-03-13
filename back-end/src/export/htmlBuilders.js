@@ -657,7 +657,8 @@ function formatNumberAr(value, options = {}) {
 }
 
 function formatPercentAr(value) {
-  return \`\${formatNumberAr(value, { minimumFractionDigits: 1 })}%\`;
+  // Avoid template literal parsing issues in some environments by concatenation.
+  return formatNumberAr(value, { minimumFractionDigits: 1 }) + "%";
 }
 
 function formatDateTimeAr(value) {

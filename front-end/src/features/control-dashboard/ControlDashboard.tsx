@@ -156,6 +156,34 @@ export default function ControlDashboard() {
     return new Map(classes.map((classItem) => [classItem.id, classItem]));
   }, [classes]);
 
+  const stageStats = useMemo(() => {
+    const stages: Array<'ابتدائي' | 'اعدادي' | 'ثانوي'> = ['ابتدائي', 'اعدادي', 'ثانوي'];
+    const byStage = stages.map((stage) => {
+      const stageClasses = classes.filter((c) => c.stage === stage);
+      const classIds = new Set(stageClasses.map((c) => c.id));
+      const stageSubjects = subjects.filter((s) => classIds.has(s.class_id));
+      const subjectIds = new Set(stageSubjects.map((s) => s.id));
+      const stagePlans = plans.filter((p) => subjectIds.has((p as unknown as { subject_id?: number }).subject_id ?? 0));
+      const stageExams = exams.filter((e) => classIds.has(e.class_id));
+      return {
+        stage,
+        classesCount: stageClasses.length,
+        subjectsCount: stageSubjects.length,
+        plansCount: stagePlans.length,
+        examsCount: stageExams.length,
+      };
+    });
+
+    const totals = {
+      classesCount: classes.length,
+      subjectsCount: subjects.length,
+      plansCount: plans.length,
+      examsCount: exams.length,
+    };
+
+    return { byStage, totals };
+  }, [classes, subjects, plans, exams]);
+
   if (!user) {
     return null;
   }
@@ -329,6 +357,48 @@ export default function ControlDashboard() {
                 </table>
               </div>
             )}
+          </article>
+        </section>
+      )}
+
+      {/* Stage-based stats for teachers */}
+      {!error && !isAdmin && (
+        <section className="cd__tables" aria-label="ملخص حسب المرحلة">
+          <article className="cd__table-card">
+            <header>
+              <h2>ملخص المراحل التعليمية</h2>
+            </header>
+            <div className="cd__table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>المرحلة</th>
+                    <th>عدد الصفوف</th>
+                    <th>عدد المواد</th>
+                    <th>عدد الخطط</th>
+                    <th>عدد الاختبارات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stageStats.byStage.map((row) => (
+                    <tr key={row.stage}>
+                      <td>{row.stage}</td>
+                      <td>{row.classesCount}</td>
+                      <td>{row.subjectsCount}</td>
+                      <td>{row.plansCount}</td>
+                      <td>{row.examsCount}</td>
+                    </tr>
+                  ))}
+                  <tr>
+                    <td><strong>الإجمالي</strong></td>
+                    <td>{stageStats.totals.classesCount}</td>
+                    <td>{stageStats.totals.subjectsCount}</td>
+                    <td>{stageStats.totals.plansCount}</td>
+                    <td>{stageStats.totals.examsCount}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </article>
         </section>
       )}
