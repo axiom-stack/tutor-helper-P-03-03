@@ -70,10 +70,27 @@ export async function createSubject(req, res) {
 export async function getSubjectsByTeacherId(req, res) {
   try {
     const { id: userId } = req.user;
+    const rawStage =
+      typeof req.query?.stage === "string" ? req.query.stage.trim() : "";
+
+    // If a stage filter is provided, restrict to subjects whose classes belong to that stage.
+    let sql = "SELECT s.* FROM Subjects s WHERE s.teacher_id = ?";
+    const args = [userId];
+
+    if (rawStage) {
+      sql = `
+        SELECT s.*
+        FROM Subjects s
+        INNER JOIN Classes c ON c.id = s.class_id
+        WHERE s.teacher_id = ?
+          AND c.stage = ?
+      `;
+      args.push(rawStage);
+    }
 
     const subjects = await turso.execute({
-      sql: "SELECT * FROM Subjects WHERE teacher_id = ?",
-      args: [userId],
+      sql,
+      args,
     });
 
     return res.status(200).json({ subjects: subjects.rows });

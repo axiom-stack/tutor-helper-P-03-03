@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { NavLink } from 'react-router';
 import { useAuth } from '../../context/AuthContext';
+import { useStage, getAllowedStages } from '../../context/StageContext';
 import {
   ADMIN_MAIN_LINKS,
   ADMIN_SECONDARY_LINKS,
@@ -16,6 +17,7 @@ interface MobileNavDrawerProps {
 
 export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
   const { user } = useAuth();
+  const { activeStage, setActiveStage } = useStage();
 
   const mainLinks =
     user?.userRole === 'admin' ? ADMIN_MAIN_LINKS : TEACHER_MAIN_LINKS;
@@ -23,6 +25,9 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
     user?.userRole === 'admin'
       ? ADMIN_SECONDARY_LINKS
       : TEACHER_SECONDARY_LINKS;
+
+  const isTeacher = user?.userRole === 'teacher';
+  const stages = getAllowedStages();
 
   useEffect(() => {
     if (!open) return;
@@ -66,6 +71,26 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
           </button>
         </div>
         <nav className="mobile-drawer__nav">
+          {isTeacher && (
+            <div className="mobile-drawer__stage">
+              <span className="mobile-drawer__stage-label">المرحلة الحالية</span>
+              <select
+                className="mobile-drawer__stage-select"
+                value={activeStage}
+                onChange={(event) =>
+                  setActiveStage(
+                    event.target.value as ReturnType<typeof getAllowedStages>[number]
+                  )
+                }
+              >
+                {stages.map((stage) => (
+                  <option key={stage} value={stage}>
+                    {stage}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <ul className="mobile-drawer__list">
             {mainLinks.map(({ to, label, icon: Icon }) => (
               <li key={to} className="mobile-drawer__item">

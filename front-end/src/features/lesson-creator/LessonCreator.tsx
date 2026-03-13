@@ -28,6 +28,7 @@ import {
   type GeneratedPlanResponse,
   type PlanType,
 } from './lesson-creator.services';
+import { useStage } from '../../context/StageContext';
 import LessonPlanDocumentView from '../lesson-plans/components/LessonPlanDocumentView';
 import {
   toPlanTypeLabel,
@@ -184,6 +185,8 @@ function LessonCreator() {
   const [planDraft, setPlanDraft] = useState<PlanDraft | null>(null);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
 
+  const { activeStage } = useStage();
+
   useEffect(() => {
     if (!user) {
       navigate('/authentication');
@@ -208,7 +211,7 @@ function LessonCreator() {
 
       try {
         const [classesResponse, subjectsResponse] = await Promise.all([
-          getMyClasses(),
+          getMyClasses(activeStage),
           getMySubjects(),
         ]);
 
@@ -236,7 +239,7 @@ function LessonCreator() {
     return () => {
       cancelled = true;
     };
-  }, [user?.id, user?.userRole]);
+  }, [user?.id, user?.userRole, activeStage]);
 
   useEffect(() => {
     if (selectedSubjectId === '') {

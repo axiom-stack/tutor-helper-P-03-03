@@ -42,6 +42,7 @@ import {
   listExams,
   updateExam,
 } from './quizzes.services';
+import { useStage } from '../../context/StageContext';
 import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel';
 import { getRefinementTargetOptions } from '../refinements/refinementTargets';
 import ConfirmActionModal from '../../components/common/ConfirmActionModal';
@@ -185,6 +186,8 @@ export default function Quizzes() {
     }
   }, [filterClassId, filterDateFrom, filterDateTo, filterSubjectId]);
 
+  const { activeStage } = useStage();
+
   useEffect(() => {
     if (!lastSyncAt || isEditingExam) {
       return;
@@ -207,7 +210,7 @@ export default function Quizzes() {
         const classesLoader = isAdmin ? getAllClasses : getMyClasses;
         const subjectsLoader = isAdmin ? getAllSubjects : getMySubjects;
         const [classesResponse, subjectsResponse] = await Promise.all([
-          classesLoader(),
+          isAdmin ? classesLoader() : classesLoader(activeStage),
           subjectsLoader(),
         ]);
 
@@ -234,7 +237,7 @@ export default function Quizzes() {
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, isTeacher, loadExams]);
+  }, [isAdmin, isTeacher, loadExams, activeStage]);
 
   useEffect(() => {
     if (error) {

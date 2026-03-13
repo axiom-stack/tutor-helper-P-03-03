@@ -3,13 +3,11 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router';
 import {
   MdAssignment,
-  MdDescription,
   MdInsights,
-  MdLibraryBooks,
-  MdMenuBook,
   MdPeople,
   MdQuiz,
   MdSchool,
+  MdMenuBook,
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
 import type { Class, Exam, LessonPlanRecord, Subject } from '../../types';
@@ -22,15 +20,6 @@ import {
   listScopedPlans,
 } from './control-dashboard.services';
 import './control-dashboard.css';
-
-interface DashboardStats {
-  classes: number;
-  subjects: number;
-  lessons: number;
-  plans: number;
-  exams: number;
-  assignments: number;
-}
 
 function formatDateAr(value: string): string {
   try {
@@ -45,38 +34,6 @@ function formatDateAr(value: string): string {
     return value;
   }
 }
-
-function buildStats(args: {
-  classes: Class[];
-  subjects: Subject[];
-  lessons: { id: number }[];
-  plans: LessonPlanRecord[];
-  exams: Exam[];
-  assignments: { id: string }[];
-}): DashboardStats {
-  return {
-    classes: args.classes.length,
-    subjects: args.subjects.length,
-    lessons: args.lessons.length,
-    plans: args.plans.length,
-    exams: args.exams.length,
-    assignments: args.assignments.length,
-  };
-}
-
-const STAT_ITEMS: Array<{
-  key: keyof DashboardStats;
-  label: string;
-  icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
-  modifier: string;
-}> = [
-  { key: 'classes', label: 'الصفوف', icon: MdSchool, modifier: 'classes' },
-  { key: 'subjects', label: 'المواد', icon: MdLibraryBooks, modifier: 'subjects' },
-  { key: 'lessons', label: 'الدروس', icon: MdMenuBook, modifier: 'lessons' },
-  { key: 'plans', label: 'الخطط المولدة', icon: MdDescription, modifier: 'plans' },
-  { key: 'exams', label: 'الاختبارات المولدة', icon: MdQuiz, modifier: 'exams' },
-  { key: 'assignments', label: 'الواجبات المولدة', icon: MdAssignment, modifier: 'assignments' },
-];
 
 const TEACHER_QUICK_ACTIONS: Array<{
   path: string;
@@ -172,17 +129,15 @@ export default function ControlDashboard() {
       listScopedAssignments(),
     ])
       .then(
-        ([classesResponse, subjectsResponse, lessonsResponse, plansResponse, examsResponse, assignmentsResponse]) => {
+        ([classesResponse, subjectsResponse, , plansResponse, examsResponse]) => {
           if (cancelled) {
             return;
           }
 
           const nextClasses = classesResponse.classes ?? [];
           const nextSubjects = subjectsResponse.subjects ?? [];
-          const nextLessons = lessonsResponse.lessons ?? [];
           const nextPlans = plansResponse.plans ?? [];
           const nextExams = examsResponse.exams ?? [];
-          const nextAssignments = assignmentsResponse.assignments ?? [];
 
           setClasses(nextClasses);
           setSubjects(nextSubjects);

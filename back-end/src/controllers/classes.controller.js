@@ -1,8 +1,10 @@
 import { turso } from "../lib/turso.js";
+import { normalizeString, parsePositiveInteger } from "../utils/normalization.js";
 import {
-  normalizeString,
-  parsePositiveInteger,
-} from "../utils/normalization.js";
+  deriveStageFromGradeLabel,
+  normalizeStage,
+  validateStageAndGrade,
+} from "../utils/education.js";
 
 function validateRequiredClassFields(payload) {
   const normalized = {
@@ -56,6 +58,28 @@ export async function createClass(req, res) {
       return res.status(400).json({ error: errors.join(", ") });
     }
 
+    // Derive or validate stage based on grade_label and optional stage input.
+    const requestedStage =
+      typeof req.body?.stage === "string" ? req.body.stage.trim() : null;
+
+    let finalStage = deriveStageFromGradeLabel(normalized.grade_label);
+
+    if (requestedStage && requestedStage.length > 0) {
+      const validation = validateStageAndGrade(
+        requestedStage,
+        normalized.grade_label,
+      );
+      if (!validation.ok) {
+        return res.status(400).json({ error: validation.error });
+      }
+      finalStage = validation.stage;
+    } else if (!finalStage) {
+      return res.status(400).json({
+        error:
+          "grade_label must be one of the supported grades (من الصف الأول حتى الصف الثاني عشر) ليتم تحديد المرحلة تلقائيًا.",
+      });
+    }
+
     const defaultDurationMinutes =
       parsePositiveInteger(req.body.default_duration_minutes) ?? 45;
 
@@ -77,13 +101,14 @@ export async function createClass(req, res) {
     const createdClass = await turso.execute({
       sql: `
         INSERT INTO Classes
-          (name, description, grade_label, section_label, section, academic_year, default_duration_minutes, teacher_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          (name, description, grade_label, stage, section_label, section, academic_year, default_duration_minutes, teacher_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       args: [
         normalized.name,
         normalized.description,
         normalized.grade_label,
+        finalStage,
         normalized.section_label,
         normalized.section,
         normalized.academic_year,
@@ -110,10 +135,27 @@ export async function createClass(req, res) {
 export async function getClassesByTeacherId(req, res) {
   try {
     const { id: userId } = req.user;
+    const rawStage =
+      typeof req.query?.stage === "string" ? req.query.stage.trim() : "";
+    const normalizedStage = rawStage ? normalizeStage(rawStage) : null;
+
+    if (rawStage && !normalizedStage) {
+      return res.status(400).json({
+        error:
+          "Invalid stage filter. Allowed values: ابتدائي، اعدادي، ثانوي.",
+      });
+    }
+
+    const whereSql =
+      normalizedStage != null
+        ? "WHERE teacher_id = ? AND stage = ?"
+        : "WHERE teacher_id = ?";
+    const args =
+      normalizedStage != null ? [userId, normalizedStage] : [userId];
 
     const classes = await turso.execute({
-      sql: "SELECT * FROM Classes WHERE teacher_id = ?",
-      args: [userId],
+      sql: `SELECT * FROM Classes ${whereSql}`,
+      args,
     });
 
     return res.status(200).json({ classes: classes.rows });
@@ -213,6 +255,28 @@ export async function updateClassByClassId(req, res) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
+    // Compute stage based on updated grade_label, with optional explicit stage.
+    const requestedStage =
+      typeof req.body?.stage === "string" ? req.body.stage.trim() : null;
+
+    let finalStage = deriveStageFromGradeLabel(normalized.grade_label);
+
+    if (requestedStage && requestedStage.length > 0) {
+      const validation = validateStageAndGrade(
+        requestedStage,
+        normalized.grade_label,
+      );
+      if (!validation.ok) {
+        return res.status(400).json({ error: validation.error });
+      }
+      finalStage = validation.stage;
+    } else if (!finalStage) {
+      return res.status(400).json({
+        error:
+          "grade_label must be one of the supported grades (من الصف الأول حتى الصف الثاني عشر) ليتم تحديد المرحلة تلقائيًا.",
+      });
+    }
+
     await turso.execute({
       sql: `
         UPDATE Classes
@@ -220,6 +284,7 @@ export async function updateClassByClassId(req, res) {
           name = ?,
           description = ?,
           grade_label = ?,
+          stage = ?,
           section_label = ?,
           section = ?,
           academic_year = ?,
@@ -230,6 +295,7 @@ export async function updateClassByClassId(req, res) {
         normalized.name,
         normalized.description,
         normalized.grade_label,
+        finalStage,
         normalized.section_label,
         normalized.section,
         normalized.academic_year,

@@ -57,9 +57,13 @@ export interface ListExamsFilters {
   date_to?: string;
 }
 
-export async function getMyClasses(): Promise<{ classes: Class[] }> {
+export async function getMyClasses(
+  stage?: string
+): Promise<{ classes: Class[] }> {
   try {
-    const response = await api().get<{ classes: Class[] }>('/api/classes/mine');
+    const response = await api().get<{ classes: Class[] }>('/api/classes/mine', {
+      params: stage ? { stage } : undefined,
+    });
     await putReference('classes:mine', 'classes', response.data.classes ?? []);
     return response.data;
   } catch (error: unknown) {

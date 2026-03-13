@@ -8,8 +8,12 @@ export async function getMyLessons(): Promise<{ lessons: Lesson[] }> {
   return response.data;
 }
 
-export async function getMyClasses(): Promise<{ classes: Class[] }> {
-  const response = await api().get<{ classes: Class[] }>('/api/classes/mine');
+export async function getMyClasses(
+  stage?: string
+): Promise<{ classes: Class[] }> {
+  const response = await api().get<{ classes: Class[] }>('/api/classes/mine', {
+    params: stage ? { stage } : undefined,
+  });
   return response.data;
 }
 

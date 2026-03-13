@@ -13,6 +13,7 @@ import {
   MdViewModule,
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
+import { useStage } from '../../context/StageContext';
 import ConfirmActionModal from '../../components/common/ConfirmActionModal';
 import type {
   Class,
@@ -178,6 +179,7 @@ function TeacherCirriculumManager(props: {
 }) {
   const { scope } = props;
   const { user } = useAuth();
+  const { activeStage } = useStage();
   const navigate = useNavigate();
   const hierarchyRequestIdRef = useRef(0);
   const creatorUnitsRequestIdRef = useRef(0);
@@ -428,13 +430,13 @@ function TeacherCirriculumManager(props: {
       setSubjects((subjectsResponse.subjects ?? []).filter((s) => s.teacher_id === tid));
     } else {
       const [classesResponse, subjectsResponse] = await Promise.all([
-        getMyClasses(),
+        getMyClasses(activeStage),
         getMySubjects(),
       ]);
       setClasses(classesResponse.classes ?? []);
       setSubjects(subjectsResponse.subjects ?? []);
     }
-  }, [scope?.role, scope?.selectedTeacherId]);
+  }, [scope?.role, scope?.selectedTeacherId, activeStage]);
 
   const loadHierarchyForSubject = useCallback(async (subjectId: number) => {
     const requestId = ++hierarchyRequestIdRef.current;
@@ -557,7 +559,7 @@ function TeacherCirriculumManager(props: {
           setSubjects((subjectsResponse.subjects ?? []).filter((s) => s.teacher_id === tid));
         } else {
           const [classesResponse, subjectsResponse] = await Promise.all([
-            getMyClasses(),
+            getMyClasses(activeStage),
             getMySubjects(),
           ]);
           if (cancelled) return;
@@ -582,7 +584,7 @@ function TeacherCirriculumManager(props: {
       cancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, [scope?.role, scope?.selectedTeacherId, user?.userRole]);
+  }, [scope?.role, scope?.selectedTeacherId, user?.userRole, activeStage]);
 
   useEffect(() => {
     if (selectedSubjectId === '') {

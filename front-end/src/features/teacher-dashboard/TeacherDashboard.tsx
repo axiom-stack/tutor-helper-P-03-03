@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router';
 import { MdMenuBook, MdAssignment, MdQuiz } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
+import { useStage } from '../../context/StageContext';
 import {
   getMyLessons,
   getMyClasses,
@@ -42,6 +43,8 @@ function TeacherDashboard() {
   const [loading, setLoading] = useState(true);
   const [, setError] = useState<string | null>(null);
 
+  const { activeStage } = useStage();
+
   useEffect(() => {
     if (!user) {
       navigate('/authentication');
@@ -58,7 +61,12 @@ function TeacherDashboard() {
 
     let cancelled = false;
 
-    Promise.all([getMyLessons(), getMyUnits(), getMySubjects(), getMyClasses()])
+    Promise.all([
+      getMyLessons(),
+      getMyUnits(),
+      getMySubjects(),
+      getMyClasses(activeStage),
+    ])
       .then(([lessonsRes, unitsRes, subjectsRes, classesRes]) => {
         if (cancelled) return;
         setLessons(lessonsRes.lessons ?? []);
@@ -78,7 +86,7 @@ function TeacherDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [navigate, user]);
+  }, [navigate, user, activeStage]);
 
   const enrichedLessons = useMemo((): EnrichedLesson[] => {
     const unitsById = new Map(units.map((u) => [u.id, u]));

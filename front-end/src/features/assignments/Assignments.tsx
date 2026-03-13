@@ -33,6 +33,7 @@ import {
   listAssignments,
   updateAssignment,
 } from './assignments.services';
+import { useStage } from '../../context/StageContext';
 import { listPlans } from '../plans-manager/plans-manager.services';
 import type { NormalizedApiError } from '../../utils/apiErrors';
 import { normalizeApiError } from '../../utils/apiErrors';
@@ -261,6 +262,8 @@ export default function Assignments() {
   );
   const [whatsAppExportOpen, setWhatsAppExportOpen] = useState(false);
 
+  const { activeStage } = useStage();
+
   const selectedClassName = useMemo(() => {
     if (selectedClassId === '') {
       return 'كل الصفوف';
@@ -473,6 +476,39 @@ export default function Assignments() {
       cancelled = true;
     };
   }, [isScopedView, user?.userRole]);
+
+  useEffect(() => {
+    if (user?.userRole !== 'teacher' || isScopedView) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadClasses = async () => {
+      setIsClassesLoading(true);
+      try {
+        const response = await getMyClasses(activeStage);
+        if (cancelled) {
+          return;
+        }
+        setClasses(response.classes ?? []);
+      } catch (classesError: unknown) {
+        if (!cancelled) {
+          setError(normalizeApiError(classesError, 'تعذر تحميل قائمة الصفوف.'));
+        }
+      } finally {
+        if (!cancelled) {
+          setIsClassesLoading(false);
+        }
+      }
+    };
+
+    void loadClasses();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isScopedView, user?.userRole, activeStage]);
 
   useEffect(() => {
     if (error) {

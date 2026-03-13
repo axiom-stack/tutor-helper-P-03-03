@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router';
 import { useAuth } from '../../context/AuthContext';
+import { useStage, getAllowedStages } from '../../context/StageContext';
 import {
   ADMIN_MAIN_LINKS,
   ADMIN_SECONDARY_LINKS,
@@ -10,6 +11,7 @@ import './sidebar.css';
 
 export function Sidebar() {
   const { user } = useAuth();
+  const { activeStage, setActiveStage } = useStage();
 
   const mainLinks =
     user?.userRole === 'admin' ? ADMIN_MAIN_LINKS : TEACHER_MAIN_LINKS;
@@ -18,9 +20,30 @@ export function Sidebar() {
       ? ADMIN_SECONDARY_LINKS
       : TEACHER_SECONDARY_LINKS;
 
+  const isTeacher = user?.userRole === 'teacher';
+  const stages = getAllowedStages();
+
   return (
     <aside className="sidebar" role="navigation" aria-label="القائمة الجانبية">
       <nav className="sidebar__nav">
+        {isTeacher && (
+          <div className="sidebar__stage">
+            <span className="sidebar__stage-label">المرحلة الحالية</span>
+            <select
+              className="sidebar__stage-select"
+              value={activeStage}
+              onChange={(event) =>
+                setActiveStage(event.target.value as ReturnType<typeof getAllowedStages>[number])
+              }
+            >
+              {stages.map((stage) => (
+                <option key={stage} value={stage}>
+                  {stage}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <ul className="sidebar__list">
           {mainLinks.map(({ to, label, icon: Icon }) => (
             <li key={to} className="sidebar__item">

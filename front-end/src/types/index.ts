@@ -23,6 +23,7 @@ export interface Class {
   name: string;
   description: string;
   grade_label: string;
+  stage?: string | null;
   section_label: string;
   section: string;
   academic_year: string;
