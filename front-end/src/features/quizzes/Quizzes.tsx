@@ -1069,8 +1069,7 @@ export default function Quizzes() {
                         </div>
                       )}
                       <p>
-                        المعرّف: {selectedExam.public_id} | {selectedExam.total_questions}{' '}
-                        سؤال | {selectedExam.total_marks} درجة
+                        {selectedExam.total_questions} سؤال | {selectedExam.total_marks} درجة
                         {selectedExam.duration_minutes != null
                           ? ` | مدة: ${selectedExam.duration_minutes} دقيقة`
                           : ''}
@@ -1459,7 +1458,7 @@ export default function Quizzes() {
         title="مشاركة الاختبار عبر واتساب"
         defaultMessage={
           selectedExam
-            ? `اختبار: ${selectedExam.title}\nالمعرف: ${selectedExam.public_id}`
+            ? `اختبار: ${selectedExam.title}`
             : ''
         }
         onClose={() => setWhatsAppExportOpen(false)}
@@ -1469,9 +1468,7 @@ export default function Quizzes() {
           setIsExporting(true);
           try {
             const blob = await getExamExportBlob(selectedExam!.public_id, format);
-            const text =
-              message.trim() ||
-              `اختبار: ${selectedExam!.title}\nالمعرف: ${selectedExam!.public_id}`;
+            const text = message.trim() || `اختبار: ${selectedExam!.title}`;
             const ext = format === 'pdf' ? 'pdf' : 'docx';
             const filename = `exam_${selectedExam!.public_id}.${ext}`;
             await shareDocumentWithWhatsApp(blob, filename, text);

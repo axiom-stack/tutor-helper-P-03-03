@@ -56,7 +56,7 @@ type GroupMeta = {
 const EMPTY_TEXT = 'لا توجد قيمة';
 
 const GENERIC_FIELD_LABELS: Record<string, string> = {
-  id: 'المعرف',
+  id: 'الحقل',
   title: 'العنوان',
   name: 'الاسم',
   text: 'النص',

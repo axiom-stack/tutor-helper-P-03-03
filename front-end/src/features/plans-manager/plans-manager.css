@@ -330,21 +330,6 @@
   flex-shrink: 0;
 }
 
-.pm__card-id {
-  display: block;
-  min-width: 0;
-  max-width: 100%;
-  font-size: 0.7rem;
-  font-family: ui-monospace, monospace;
-  color: #64748b;
-  letter-spacing: 0.02em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  direction: ltr;
-  text-align: left;
-}
-
 .pm__card-error {
   margin: 0;
   font-size: 0.75rem;
@@ -521,10 +506,6 @@
   .pm__card-meta-item {
     font-size: 0.68rem;
   }
-
-  .pm__card-id {
-    font-size: 0.66rem;
-  }
 }
 
 /* ——— Mobile ——— */
@@ -586,7 +567,6 @@
   }
 
   .pm__card-foot,
-  .pm__card-id,
   .pm__card-error,
   .pm__card-teacher,
   .pm__card-loading {
@@ -595,11 +575,6 @@
 
   .pm__card-foot {
     justify-content: flex-start;
-  }
-
-  .pm__card-id {
-    font-size: 0.62rem;
-    text-align: right;
   }
 
   .pm__card-error,

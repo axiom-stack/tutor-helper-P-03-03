@@ -90,7 +90,6 @@ export async function buildPlanDocx(enrichedPlan) {
   const children = [
     heading("خطة الدرس"),
     para(`المعلم: ${teacherName}`),
-    para(`رقم الخطة: ${planId}`),
     para(`نوع الخطة: ${planTypeLabel}`),
     para(`التاريخ: ${date}  |  اليوم: ${day}`),
     para(`الصف: ${grade}  |  الشعبة: ${section}  |  الحصة: ${lessonTitle}`),
@@ -248,7 +247,6 @@ export async function buildAssignmentDocx(enrichedAssignment) {
     para(`المعلم: ${a.teacher_name ?? "—"}`),
     para(`الدرس: ${a.lesson_name ?? "—"}`),
     para(`نوع الواجب: ${typeLabel}`),
-    para(`معرّف الواجب: ${a.public_id ?? "—"}`),
     para(`آخر تعديل: ${updatedAt}`),
     subheading("الوصف"),
     para((a.description && a.description.trim()) || "لا يوجد وصف إضافي لهذا الواجب."),
@@ -272,7 +270,6 @@ export async function buildExamDocx(enrichedExam) {
     para(`المعلم: ${e.teacher_name ?? "—"}`),
     para(`الصف: ${e.class_name ?? "—"}`),
     para(`المادة: ${e.subject_name ?? "—"}`),
-    para(`معرّف الاختبار: ${e.public_id ?? "—"}`),
     para(`عدد الأسئلة: ${e.total_questions ?? 0}  |  الدرجة الكلية: ${e.total_marks ?? 0}`),
   ];
 

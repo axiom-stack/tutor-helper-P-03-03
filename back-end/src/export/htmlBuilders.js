@@ -175,14 +175,13 @@ export function buildPlanHtml(enrichedPlan) {
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>خطة الدرس - ${planId}</title>
+  <title>خطة الدرس</title>
   <style>${BASE_STYLES}</style>
 </head>
 <body>
   <h1>خطة الدرس</h1>
   <div class="meta">
     <div class="meta-item"><label>المعلم</label><p>${teacherName}</p></div>
-    <div class="meta-item"><label>رقم الخطة</label><p>${planId}</p></div>
     <div class="meta-item"><label>نوع الخطة</label><p>${planTypeLabel}</p></div>
   </div>
   ${bodySections}
@@ -220,7 +219,7 @@ export function buildAssignmentHtml(enrichedAssignment) {
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>الواجب - ${publicId}</title>
+  <title>الواجب</title>
   <style>${BASE_STYLES}</style>
 </head>
 <body>
@@ -229,7 +228,6 @@ export function buildAssignmentHtml(enrichedAssignment) {
     <div class="meta-item"><label>المعلم</label><p>${teacherName}</p></div>
     <div class="meta-item"><label>الدرس</label><p>${lessonName}</p></div>
     <div class="meta-item"><label>نوع الواجب</label><p>${typeLabel}</p></div>
-    <div class="meta-item"><label>معرّف الواجب</label><p>${publicId}</p></div>
     <div class="meta-item"><label>آخر تعديل</label><p>${updatedAt}</p></div>
   </div>
   <section>
@@ -336,7 +334,7 @@ export function buildExamHtml(enrichedExam) {
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>الاختبار - ${publicId}</title>
+  <title>الاختبار</title>
   <style>${BASE_STYLES}</style>
 </head>
 <body>
@@ -345,7 +343,6 @@ export function buildExamHtml(enrichedExam) {
     <div class="meta-item"><label>المعلم</label><p>${teacherName}</p></div>
     <div class="meta-item"><label>الصف</label><p>${className}</p></div>
     <div class="meta-item"><label>المادة</label><p>${subjectName}</p></div>
-    <div class="meta-item"><label>معرّف الاختبار</label><p>${publicId}</p></div>
     <div class="meta-item"><label>عدد الأسئلة</label><p>${totalQuestions}</p></div>
     <div class="meta-item"><label>الدرجة الكلية</label><p>${totalMarks}</p></div>
   </div>

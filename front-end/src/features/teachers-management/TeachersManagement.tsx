@@ -416,7 +416,6 @@ export default function TeachersManagement() {
             <div className="tm__editor-grid">
               <div className="tm__editor-selected">
                 <strong>{selectedTeacher.username}</strong>
-                <small>المعرف #{selectedTeacher.id}</small>
               </div>
 
               <label className="tm__field" htmlFor="tm-username">

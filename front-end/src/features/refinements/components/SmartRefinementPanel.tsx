@@ -470,7 +470,6 @@ export default function SmartRefinementPanel({
           <div className="srp__request-top">
             <div>
               <p className="srp__eyebrow">طلب التحسين</p>
-              <strong>{activeRequest.public_id}</strong>
             </div>
             <span className={`srp__status-chip srp__status-chip--${activeRequest.status}`}>
               {getStatusLabel(activeRequest.status)}
@@ -659,7 +658,6 @@ export default function SmartRefinementPanel({
               {history.map((item) => (
                 <li key={item.public_id} className="animate-fadeIn">
                   <div className="srp__history-head">
-                    <strong>{item.public_id}</strong>
                     <span className={`srp__status-chip srp__status-chip--${item.status}`}>
                       {getStatusLabel(item.status)}
                     </span>

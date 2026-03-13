@@ -274,16 +274,6 @@ export default function Assignments() {
     if (isScopedView && context) {
       return [
         {
-          label: 'معرّف الخطة',
-          value: context.lessonPlanPublicId,
-          hint: 'يتم عرض واجبات هذه الخطة فقط.',
-        },
-        {
-          label: 'معرّف الدرس',
-          value: String(context.lessonId),
-          hint: 'الفلترة الحالية مرتبطة بهذا الدرس.',
-        },
-        {
           label: 'عدد الواجبات',
           value: String(assignments.length),
           hint: 'عدد الواجبات المعروضة في هذه الصفحة الآن.',
@@ -1166,10 +1156,6 @@ export default function Assignments() {
 
               <dl className="asn__meta-list">
                 <div>
-                  <dt>معرّف الواجب</dt>
-                  <dd>{selectedAssignment.public_id}</dd>
-                </div>
-                <div>
                   <dt>موعد التسليم</dt>
                   <dd>
                     {isEditingAssignment && assignmentDraft ? (
@@ -1197,14 +1183,6 @@ export default function Assignments() {
                 <div>
                   <dt>آخر تعديل</dt>
                   <dd>{formatDateTimeAr(selectedAssignment.updated_at)}</dd>
-                </div>
-                <div>
-                  <dt>معرّف الخطة</dt>
-                  <dd>{selectedAssignment.lesson_plan_public_id}</dd>
-                </div>
-                <div>
-                  <dt>معرّف الدرس</dt>
-                  <dd>{selectedAssignment.lesson_id}</dd>
                 </div>
                 <div>
                   <dt>الصف</dt>

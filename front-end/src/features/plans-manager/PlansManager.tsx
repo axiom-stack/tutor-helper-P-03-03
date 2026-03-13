@@ -632,7 +632,6 @@ export default function PlansManager() {
                       </div>
                       <div className="pm__card-foot">
                         <SyncStatusBadge status={plan.sync_status} />
-                        <span className="pm__card-id">{plan.public_id}</span>
                       </div>
                       {plan.last_sync_error ? (
                         <p className="pm__card-error">{plan.last_sync_error}</p>
@@ -773,9 +772,6 @@ export default function PlansManager() {
               <div className="pm__detail-content">
                 <div className="pm__chips">
                   <span className="pm__chip">
-                    المعرف: {selectedPlan.public_id}
-                  </span>
-                  <span className="pm__chip">
                     <SyncStatusBadge status={selectedPlan.sync_status} />
                   </span>
                   <span className="pm__chip">
@@ -883,7 +879,7 @@ export default function PlansManager() {
         title="مشاركة الخطة عبر واتساب"
         defaultMessage={
           selectedPlan
-            ? `خطة درس: ${selectedPlan.lesson_title ?? selectedPlan.public_id}\nالمعرف: ${selectedPlan.public_id}`
+            ? `خطة درس: ${selectedPlan.lesson_title || 'خطة بدون عنوان'}`
             : ''
         }
         onClose={() => setWhatsAppExportOpen(false)}
@@ -893,7 +889,9 @@ export default function PlansManager() {
           setIsExporting(true);
           try {
             const blob = await getPlanExportBlob(selectedPlan!.public_id, format);
-            const text = message.trim() || `خطة درس: ${selectedPlan!.lesson_title ?? selectedPlan!.public_id}\nالمعرف: ${selectedPlan!.public_id}`;
+            const text =
+              message.trim() ||
+              `خطة درس: ${selectedPlan!.lesson_title || 'خطة بدون عنوان'}`;
             const ext = format === 'pdf' ? 'pdf' : 'docx';
             const filename = `plan_${selectedPlan!.public_id}.${ext}`;
             await shareDocumentWithWhatsApp(blob, filename, text);

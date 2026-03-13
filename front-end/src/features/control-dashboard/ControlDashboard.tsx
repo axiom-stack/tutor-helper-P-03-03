@@ -364,7 +364,6 @@ export default function ControlDashboard() {
                 <table>
                   <thead>
                     <tr>
-                      <th>المعرف</th>
                       <th>عنوان الدرس</th>
                       <th>المادة</th>
                       <th>النوع</th>
@@ -374,7 +373,6 @@ export default function ControlDashboard() {
                   <tbody>
                     {recentPlans.map((plan) => (
                       <tr key={plan.public_id}>
-                        <td>{plan.public_id}</td>
                         <td>{plan.lesson_title}</td>
                         <td>{plan.subject}</td>
                         <td>
