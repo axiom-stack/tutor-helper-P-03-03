@@ -1,42 +1,34 @@
 import { useState, useEffect } from 'react';
+import { MdPhoneIphone, MdComputer, MdInfoOutline } from 'react-icons/md';
+import { isMobileDevice } from '../../utils/whatsapp';
 import './whatsapp-export-modal.css';
 
-export interface WhatsAppExportOptions {
+export interface ShareExportOptions {
   format: 'pdf' | 'docx';
-  message: string;
 }
 
 interface WhatsAppExportModalProps {
   isOpen: boolean;
   title?: string;
-  defaultMessage?: string;
   onClose: () => void;
-  onConfirm: (options: WhatsAppExportOptions) => void | Promise<void>;
+  onConfirm: (options: ShareExportOptions) => void | Promise<void>;
   isExporting?: boolean;
-  confirmLabel?: string;
-  cancelLabel?: string;
 }
 
 export default function WhatsAppExportModal({
   isOpen,
-  title = 'مشاركة عبر واتساب',
-  defaultMessage = '',
+  title = 'تصدير ومشاركة',
   onClose,
   onConfirm,
   isExporting = false,
-  confirmLabel = 'تصدير وفتح واتساب',
-  cancelLabel = 'إلغاء',
 }: WhatsAppExportModalProps) {
   const [format, setFormat] = useState<'pdf' | 'docx'>('pdf');
-  const [message, setMessage] = useState(defaultMessage);
+  const mobile = isMobileDevice();
 
   useEffect(() => {
     if (isOpen) {
-      setMessage(defaultMessage);
       setFormat('pdf');
     }
-    // Only reset when modal opens.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   if (!isOpen) {
@@ -44,7 +36,7 @@ export default function WhatsAppExportModal({
   }
 
   const handleSubmit = () => {
-    void Promise.resolve(onConfirm({ format, message: message.trim() }));
+    void Promise.resolve(onConfirm({ format }));
   };
 
   return (
@@ -63,9 +55,6 @@ export default function WhatsAppExportModal({
         <h3 id="wa-export-title" className="wa-export__title">
           {title}
         </h3>
-        <p className="wa-export__hint">
-          سيتم تصدير الملف (PDF أو Word) وإرفاقه مع الرسالة في واتساب عند الإمكان، أو تحميله وفتح واتساب ليمكنك إرفاقه يدوياً.
-        </p>
 
         <div className="wa-export__field">
           <label htmlFor="wa-export-format" className="wa-export__label">
@@ -83,19 +72,52 @@ export default function WhatsAppExportModal({
           </select>
         </div>
 
-        <div className="wa-export__field">
-          <label htmlFor="wa-export-message" className="wa-export__label">
-            رسالة اختيارية (ستُضاف إلى واتساب)
-          </label>
-          <textarea
-            id="wa-export-message"
-            className="wa-export__textarea"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="مثال: مرفق خطة الدرس / الواجب / الاختبار..."
-            rows={4}
-            disabled={isExporting}
-          />
+        <div className="wa-export__instructions">
+          <div className="wa-export__instructions-header">
+            <MdInfoOutline aria-hidden />
+            <span>ماذا سيحدث؟</span>
+          </div>
+
+          {mobile ? (
+            <div className="wa-export__instruction-block wa-export__instruction-block--active">
+              <MdPhoneIphone className="wa-export__instruction-icon" aria-hidden />
+              <div>
+                <p className="wa-export__instruction-title">أنت على جهاز محمول</p>
+                <ol className="wa-export__steps">
+                  <li>سيتم تحويل الملف إلى {format === 'pdf' ? 'PDF' : 'Word'}</li>
+                  <li>ستظهر <strong>قائمة المشاركة</strong> على جهازك</li>
+                  <li>اختر <strong>واتساب</strong> أو أي تطبيق آخر لإرسال الملف</li>
+                </ol>
+              </div>
+            </div>
+          ) : (
+            <div className="wa-export__instruction-block wa-export__instruction-block--active">
+              <MdComputer className="wa-export__instruction-icon" aria-hidden />
+              <div>
+                <p className="wa-export__instruction-title">أنت على جهاز كمبيوتر</p>
+                <ol className="wa-export__steps">
+                  <li>سيتم تحميل الملف ({format === 'pdf' ? 'PDF' : 'Word'}) تلقائياً على جهازك</li>
+                  <li>
+                    افتح{' '}
+                    <a
+                      href="https://web.whatsapp.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      واتساب ويب
+                    </a>{' '}
+                    أو أي تطبيق مراسلة
+                  </li>
+                  <li>أرفق الملف المحمّل يدوياً في المحادثة</li>
+                </ol>
+              </div>
+            </div>
+          )}
+
+          <p className="wa-export__fallback-note">
+            <MdInfoOutline aria-hidden />
+            إذا لم تظهر قائمة المشاركة، سيتم تحميل الملف تلقائياً.
+          </p>
         </div>
 
         <div className="wa-export__actions">
@@ -105,7 +127,7 @@ export default function WhatsAppExportModal({
             onClick={onClose}
             disabled={isExporting}
           >
-            {cancelLabel}
+            إلغاء
           </button>
           <button
             type="button"
@@ -115,7 +137,7 @@ export default function WhatsAppExportModal({
             aria-busy={isExporting}
           >
             {isExporting && <span className="ui-button-spinner" aria-hidden />}
-            {isExporting ? 'جاري التصدير...' : confirmLabel}
+            {isExporting ? 'جاري التصدير...' : 'تصدير ومشاركة'}
           </button>
         </div>
       </div>

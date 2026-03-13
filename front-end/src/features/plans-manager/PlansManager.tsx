@@ -5,8 +5,6 @@ import {
   MdClose,
   MdContentCopy,
   MdEdit,
-  MdOutlinePictureAsPdf,
-  MdOutlineTextSnippet,
   MdRefresh,
   MdSave,
   MdWhatsapp,
@@ -17,7 +15,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useStage } from '../../context/StageContext';
 import type { LessonPlanRecord, TeacherManagementRow } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
-import { shareDocumentWithWhatsApp } from '../../utils/whatsapp';
+import { shareDocument } from '../../utils/whatsapp';
 import { clearDraft, getDraft, saveDraft } from '../../offline/drafts';
 import { useOffline } from '../../offline/useOffline';
 import { isLocalOnlyId } from '../../offline/utils';
@@ -31,19 +29,17 @@ import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel
 import { getRefinementTargetOptions } from '../refinements/refinementTargets';
 import { listTeachers } from '../users/users.services';
 import {
-  exportPlan,
   getPlanById,
   getPlanExportBlob,
   listPlans,
   duplicatePlan,
   updatePlan,
-  sharePlan,
 } from './plans-manager.services';
 import './plans-manager.css';
 
 type PlanTypeFilter = '' | 'traditional' | 'active_learning';
 
-type ExportAction = 'pdf' | 'word' | 'share_pdf' | 'whatsapp' | null;
+type ExportAction = 'whatsapp' | null;
 
 interface PlanDraft {
   lessonTitle: string;
@@ -332,39 +328,6 @@ export default function PlansManager() {
   const canExportPlan =
     selectedPlan?.public_id && !isLocalOnlyId(selectedPlan.public_id);
 
-  const handleExport = (format: 'pdf' | 'docx') => {
-    if (!canExportPlan || exportingAction !== null) {
-      return;
-    }
-
-    setExportingAction(format === 'pdf' ? 'pdf' : 'word');
-    setError(null);
-
-    exportPlan(selectedPlan!.public_id, format)
-      .catch(() => {
-        setError('فشل تصدير الخطة.');
-        toast.error('فشل تصدير الخطة.');
-      })
-      .finally(() => setExportingAction(null));
-  };
-
-  const handleShare = (format: 'pdf' | 'docx') => {
-    if (!canExportPlan || exportingAction !== null) {
-      return;
-    }
-    setExportingAction('share_pdf');
-    setError(null);
-    sharePlan(
-      selectedPlan!.public_id,
-      format,
-      selectedPlan.lesson_title ?? undefined
-    )
-      .catch(() => {
-        setError('فشل مشاركة الخطة.');
-        toast.error('فشل مشاركة الخطة.');
-      })
-      .finally(() => setExportingAction(null));
-  };
 
   const clearFilters = () => {
     setPlanType('');
@@ -703,54 +666,15 @@ export default function PlansManager() {
                       type="button"
                       className="pm__btn pm__btn--subtle"
                       disabled={!canExportPlan || exportingAction !== null}
-                      onClick={() => handleExport('pdf')}
-                      aria-busy={exportingAction === 'pdf'}
-                    >
-                      {exportingAction === 'pdf' && (
-                        <span className="ui-button-spinner" aria-hidden />
-                      )}
-                      {exportingAction !== 'pdf' && <MdOutlinePictureAsPdf aria-hidden />}
-                      PDF
-                    </button>
-                    <button
-                      type="button"
-                      className="pm__btn pm__btn--subtle"
-                      disabled={!canExportPlan || exportingAction !== null}
-                      onClick={() => handleExport('docx')}
-                      aria-busy={exportingAction === 'word'}
-                    >
-                      {exportingAction === 'word' && (
-                        <span className="ui-button-spinner" aria-hidden />
-                      )}
-                      {exportingAction !== 'word' && <MdOutlineTextSnippet aria-hidden />}
-                      Word
-                    </button>
-                    <button
-                      type="button"
-                      className="pm__btn pm__btn--subtle"
-                      disabled={!canExportPlan || exportingAction !== null}
-                      onClick={() => handleShare('pdf')}
-                      aria-busy={exportingAction === 'share_pdf'}
-                      title="مشاركة PDF عبر الجهاز"
-                    >
-                      {exportingAction === 'share_pdf' && (
-                        <span className="ui-button-spinner" aria-hidden />
-                      )}
-                      {exportingAction !== 'share_pdf' && 'مشاركة PDF'}
-                    </button>
-                    <button
-                      type="button"
-                      className="pm__btn pm__btn--subtle"
-                      disabled={!canExportPlan}
                       onClick={() => setWhatsAppExportOpen(true)}
                       title={
                         !canExportPlan && selectedPlan
                           ? 'مزامن الخطة مع الخادم أولاً لتمكين التصدير'
-                          : 'مشاركة عبر واتساب'
+                          : 'تصدير ومشاركة الخطة'
                       }
                     >
                       <MdWhatsapp aria-hidden />
-                      واتساب
+                      تصدير ومشاركة
                     </button>
                     <button
                       type="button"
@@ -885,25 +809,22 @@ export default function PlansManager() {
 
       <WhatsAppExportModal
         isOpen={whatsAppExportOpen}
-        title="مشاركة الخطة عبر واتساب"
-        defaultMessage={
-          selectedPlan
-            ? `خطة درس: ${selectedPlan.lesson_title || 'خطة بدون عنوان'}`
-            : ''
-        }
+        title="تصدير ومشاركة الخطة"
         onClose={() => setWhatsAppExportOpen(false)}
         isExporting={exportingAction === 'whatsapp'}
-        onConfirm={async ({ format, message }) => {
+        onConfirm={async ({ format }) => {
           if (!canExportPlan) return;
           setExportingAction('whatsapp');
           try {
             const blob = await getPlanExportBlob(selectedPlan!.public_id, format);
-            const text =
-              message.trim() ||
-              `خطة درس: ${selectedPlan!.lesson_title || 'خطة بدون عنوان'}`;
             const ext = format === 'pdf' ? 'pdf' : 'docx';
             const filename = `plan_${selectedPlan!.public_id}.${ext}`;
-            await shareDocumentWithWhatsApp(blob, filename, text);
+            const result = await shareDocument(blob, filename);
+            if (result === 'shared') {
+              toast.success('تمت المشاركة بنجاح.');
+            } else if (result === 'downloaded') {
+              toast.success('تم تحميل الملف. أرفقه يدوياً عبر واتساب أو أي تطبيق آخر.');
+            }
             setWhatsAppExportOpen(false);
           } catch {
             toast.error('فشل تصدير الخطة.');

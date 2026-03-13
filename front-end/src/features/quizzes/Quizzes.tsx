@@ -7,8 +7,6 @@ import {
   MdContentCopy,
   MdDelete,
   MdEdit,
-  MdOutlinePictureAsPdf,
-  MdOutlineTextSnippet,
   MdQuiz,
   MdRefresh,
   MdSave,
@@ -20,7 +18,7 @@ import type { Class, Exam, ExamQuestion, Lesson, Subject, Unit } from '../../typ
 import { QUESTION_TYPE_LABELS } from '../../types';
 import type { NormalizedApiError } from '../../utils/apiErrors';
 import { normalizeApiError } from '../../utils/apiErrors';
-import { shareDocumentWithWhatsApp } from '../../utils/whatsapp';
+import { shareDocument } from '../../utils/whatsapp';
 import { clearDraft, getDraft, saveDraft } from '../../offline/drafts';
 import { useOffline } from '../../offline/useOffline';
 import { isLocalOnlyId } from '../../offline/utils';
@@ -28,9 +26,7 @@ import type { OfflineExamRecord } from '../../offline/types';
 import {
   deleteExamById,
   duplicateExam,
-  exportExam,
   getExamExportBlob,
-  shareExam,
   generateExam,
   getAllClasses,
   getAllSubjects,
@@ -51,7 +47,7 @@ import './quizzes.css';
 
 type SelectValue = number | '';
 
-type ExportAction = 'pdf' | 'word' | 'share_pdf' | 'whatsapp' | null;
+
 
 interface LessonOption extends Lesson {
   unit_name: string;
@@ -167,7 +163,6 @@ export default function Quizzes() {
 
   const [error, setError] = useState<NormalizedApiError | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [exportingAction, setExportingAction] = useState<ExportAction>(null);
   const [whatsAppExportOpen, setWhatsAppExportOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -558,32 +553,6 @@ export default function Quizzes() {
   const canExportExam =
     selectedExam?.public_id && !isLocalOnlyId(selectedExam.public_id);
 
-  const handleExportPdf = () => {
-    if (!canExportExam || exportingAction !== null) return;
-    setExportError(null);
-    setExportingAction('pdf');
-    exportExam(selectedExam!.public_id, 'pdf', exportType)
-      .catch(() => setExportError('فشل تصدير PDF.'))
-      .finally(() => setExportingAction(null));
-  };
-
-  const handleExportWord = () => {
-    if (!canExportExam || exportingAction !== null) return;
-    setExportError(null);
-    setExportingAction('word');
-    exportExam(selectedExam!.public_id, 'docx', exportType)
-      .catch(() => setExportError('فشل تصدير Word.'))
-      .finally(() => setExportingAction(null));
-  };
-
-  const handleSharePdf = () => {
-    if (!canExportExam || exportingAction !== null) return;
-    setExportError(null);
-    setExportingAction('share_pdf');
-    shareExam(selectedExam!.public_id, 'pdf', selectedExam!.title, exportType)
-      .catch(() => setExportError('فشل مشاركة PDF.'))
-      .finally(() => setExportingAction(null));
-  };
 
   const handleStartEditingExam = () => {
     if (!selectedExam) {
@@ -1126,55 +1095,16 @@ export default function Quizzes() {
                           <button
                             type="button"
                             className="qz__refresh-btn"
-                            onClick={handleExportPdf}
-                            disabled={exportingAction !== null || !canExportExam}
-                            aria-busy={exportingAction === 'pdf'}
-                          >
-                            {exportingAction === 'pdf' && (
-                              <span className="ui-button-spinner" aria-hidden />
-                            )}
-                            {exportingAction !== 'pdf' && <MdOutlinePictureAsPdf aria-hidden />}
-                            تصدير PDF
-                          </button>
-                          <button
-                            type="button"
-                            className="qz__refresh-btn"
-                            onClick={handleExportWord}
-                            disabled={exportingAction !== null || !canExportExam}
-                            aria-busy={exportingAction === 'word'}
-                          >
-                            {exportingAction === 'word' && (
-                              <span className="ui-button-spinner" aria-hidden />
-                            )}
-                            {exportingAction !== 'word' && <MdOutlineTextSnippet aria-hidden />}
-                            تصدير Word
-                          </button>
-                          <button
-                            type="button"
-                            className="qz__refresh-btn"
                             onClick={() => setWhatsAppExportOpen(true)}
-                            disabled={!canExportExam}
+                            disabled={!canExportExam || isExporting}
                             title={
                               !canExportExam && selectedExam
                                 ? 'مزامن الاختبار مع الخادم أولاً لتمكين التصدير'
-                                : 'مشاركة عبر واتساب'
+                                : 'تصدير ومشاركة الاختبار'
                             }
                           >
                             <MdWhatsapp aria-hidden />
-                            واتساب
-                          </button>
-                          <button
-                            type="button"
-                            className="qz__refresh-btn"
-                            onClick={handleSharePdf}
-                            disabled={exportingAction !== null || !canExportExam}
-                            aria-busy={exportingAction === 'share_pdf'}
-                            title="مشاركة PDF عبر الجهاز"
-                          >
-                            {exportingAction === 'share_pdf' && (
-                              <span className="ui-button-spinner" aria-hidden />
-                            )}
-                            {exportingAction !== 'share_pdf' && 'مشاركة PDF'}
+                            تصدير ومشاركة
                           </button>
                           <button
                             type="button"
@@ -1478,23 +1408,22 @@ export default function Quizzes() {
 
       <WhatsAppExportModal
         isOpen={whatsAppExportOpen}
-        title="مشاركة الاختبار عبر واتساب"
-        defaultMessage={
-          selectedExam
-            ? `اختبار: ${selectedExam.title}`
-            : ''
-        }
+        title="تصدير ومشاركة الاختبار"
         onClose={() => setWhatsAppExportOpen(false)}
         isExporting={isExporting}
-        onConfirm={async ({ format, message }) => {
+        onConfirm={async ({ format }) => {
           if (!canExportExam) return;
           setIsExporting(true);
           try {
             const blob = await getExamExportBlob(selectedExam!.public_id, format, exportType);
-            const text = message.trim() || `اختبار: ${selectedExam!.title}`;
             const ext = format === 'pdf' ? 'pdf' : 'docx';
             const filename = `exam_${selectedExam!.public_id}_${exportType}.${ext}`;
-            await shareDocumentWithWhatsApp(blob, filename, text);
+            const result = await shareDocument(blob, filename);
+            if (result === 'shared') {
+              toast.success('تمت المشاركة بنجاح.');
+            } else if (result === 'downloaded') {
+              toast.success('تم تحميل الملف. أرفقه يدوياً عبر واتساب أو أي تطبيق آخر.');
+            }
             setWhatsAppExportOpen(false);
           } catch {
             setExportError('فشل تصدير الاختبار.');

@@ -7,8 +7,6 @@ import {
   MdClose,
   MdContentCopy,
   MdEdit,
-  MdOutlinePictureAsPdf,
-  MdOutlineTextSnippet,
   MdRefresh,
   MdSave,
   MdWhatsapp,
@@ -24,9 +22,7 @@ import { isLocalOnlyId } from '../../offline/utils';
 import type { OfflineAssignmentRecord } from '../../offline/types';
 import {
   duplicateAssignment,
-  exportAssignment,
   getAssignmentExportBlob,
-  shareAssignment,
   generateAssignments,
   getMyClasses,
   getAssignmentById,
@@ -37,7 +33,7 @@ import { useStage } from '../../context/StageContext';
 import { listPlans } from '../plans-manager/plans-manager.services';
 import type { NormalizedApiError } from '../../utils/apiErrors';
 import { normalizeApiError } from '../../utils/apiErrors';
-import { buildHomeworkMessage, shareDocumentWithWhatsApp } from '../../utils/whatsapp';
+import { shareDocument } from '../../utils/whatsapp';
 import AssignmentCard from './components/AssignmentCard';
 import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel';
 import { getRefinementTargetOptions } from '../refinements/refinementTargets';
@@ -76,7 +72,7 @@ interface AssignmentDraft {
 
 type SelectValue = number | '';
 
-type ExportAction = 'pdf' | 'word' | 'share_pdf' | 'whatsapp' | null;
+type ExportAction = 'whatsapp' | null;
 
 const LESSON_PLAN_ID_PATTERN = /^(trd|act)_\d+$/;
 
@@ -726,32 +722,6 @@ export default function Assignments() {
     setSuccessMessage('تم حفظ التعديل المعتمد بنجاح.');
   };
 
-  const handleExportPdf = () => {
-    if (!canExportAssignment || exportingAction !== null) return;
-    setExportError(null);
-    setExportingAction('pdf');
-    exportAssignment(selectedAssignment!.public_id, 'pdf')
-      .catch(() => setExportError('فشل تصدير PDF.'))
-      .finally(() => setExportingAction(null));
-  };
-
-  const handleExportWord = () => {
-    if (!canExportAssignment || exportingAction !== null) return;
-    setExportError(null);
-    setExportingAction('word');
-    exportAssignment(selectedAssignment!.public_id, 'docx')
-      .catch(() => setExportError('فشل تصدير Word.'))
-      .finally(() => setExportingAction(null));
-  };
-
-  const handleSharePdf = () => {
-    if (!canExportAssignment || exportingAction !== null) return;
-    setExportError(null);
-    setExportingAction('share_pdf');
-    shareAssignment(selectedAssignment!.public_id, 'pdf', selectedAssignment!.name)
-      .catch(() => setExportError('فشل مشاركة PDF.'))
-      .finally(() => setExportingAction(null));
-  };
 
   const handleStartEditing = () => {
     if (!selectedAssignment || isDetailLoading) {
@@ -1057,55 +1027,16 @@ export default function Assignments() {
                   <button
                     type="button"
                     className="asn-btn asn-btn--ghost"
-                    onClick={handleExportPdf}
-                    disabled={exportingAction !== null || !canExportAssignment}
-                    aria-busy={exportingAction === 'pdf'}
-                  >
-                    {exportingAction === 'pdf' && (
-                      <span className="ui-button-spinner" aria-hidden />
-                    )}
-                    {exportingAction !== 'pdf' && <MdOutlinePictureAsPdf aria-hidden />}
-                    تصدير PDF
-                  </button>
-                  <button
-                    type="button"
-                    className="asn-btn asn-btn--ghost"
-                    onClick={handleExportWord}
-                    disabled={exportingAction !== null || !canExportAssignment}
-                    aria-busy={exportingAction === 'word'}
-                  >
-                    {exportingAction === 'word' && (
-                      <span className="ui-button-spinner" aria-hidden />
-                    )}
-                    {exportingAction !== 'word' && <MdOutlineTextSnippet aria-hidden />}
-                    تصدير Word
-                  </button>
-                  <button
-                    type="button"
-                    className="asn-btn asn-btn--ghost"
-                    onClick={handleSharePdf}
-                    disabled={exportingAction !== null || !canExportAssignment}
-                    aria-busy={exportingAction === 'share_pdf'}
-                    title="مشاركة PDF عبر الجهاز"
-                  >
-                    {exportingAction === 'share_pdf' && (
-                      <span className="ui-button-spinner" aria-hidden />
-                    )}
-                    {exportingAction !== 'share_pdf' && 'مشاركة PDF'}
-                  </button>
-                  <button
-                    type="button"
-                    className="asn-btn asn-btn--ghost"
                     onClick={() => setWhatsAppExportOpen(true)}
-                    disabled={!canExportAssignment}
+                    disabled={!canExportAssignment || exportingAction !== null}
                     title={
                       !canExportAssignment && selectedAssignment
                         ? 'مزامن الواجب مع الخادم أولاً لتمكين التصدير'
-                        : 'إرسال الواجب لولي الأمر عبر واتساب'
+                        : 'تصدير ومشاركة الواجب'
                     }
                   >
                     <MdWhatsapp aria-hidden />
-                    إرسال بالواتساب
+                    تصدير ومشاركة
                   </button>
                   <button
                     type="button"
@@ -1314,37 +1245,23 @@ export default function Assignments() {
 
       <WhatsAppExportModal
         isOpen={whatsAppExportOpen}
-        title="إرسال الواجب عبر واتساب"
-        defaultMessage={
-          selectedAssignment
-            ? buildHomeworkMessage({
-                lessonTitle: selectedAssignment.name,
-                content: selectedAssignment.content,
-                dueDate: selectedAssignment.due_date ?? null,
-                customMessageText: selectedAssignment.whatsapp_message_text ?? null,
-              })
-            : ''
-        }
+        title="تصدير ومشاركة الواجب"
         onClose={() => setWhatsAppExportOpen(false)}
         isExporting={exportingAction === 'whatsapp'}
-        confirmLabel="تصدير وفتح واتساب"
-        onConfirm={async ({ format, message }) => {
+        onConfirm={async ({ format }) => {
           if (!canExportAssignment) return;
           setExportingAction('whatsapp');
           setExportError(null);
           try {
             const blob = await getAssignmentExportBlob(selectedAssignment!.public_id, format);
-            const text =
-              message.trim() ||
-              buildHomeworkMessage({
-                lessonTitle: selectedAssignment.name,
-                content: selectedAssignment.content,
-                dueDate: selectedAssignment.due_date ?? null,
-                customMessageText: selectedAssignment.whatsapp_message_text ?? null,
-              });
             const ext = format === 'pdf' ? 'pdf' : 'docx';
             const filename = `assignment_${selectedAssignment!.public_id}.${ext}`;
-            await shareDocumentWithWhatsApp(blob, filename, text);
+            const result = await shareDocument(blob, filename);
+            if (result === 'shared') {
+              toast.success('تمت المشاركة بنجاح.');
+            } else if (result === 'downloaded') {
+              toast.success('تم تحميل الملف. أرفقه يدوياً عبر واتساب أو أي تطبيق آخر.');
+            }
             setWhatsAppExportOpen(false);
           } catch {
             setExportError('فشل تصدير الواجب.');
