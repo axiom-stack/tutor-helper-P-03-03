@@ -17,6 +17,7 @@ import type {
 } from '../../types';
 import { exportStatsPdf, getStatsSummary } from './stats.services';
 import './stats.css';
+import { useStage } from '../../context/StageContext';
 
 const PERIOD_OPTIONS: Array<{ value: StatsPeriod; label: string }> = [
   { value: 'all', label: 'كل الفترات' },

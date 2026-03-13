@@ -182,6 +182,7 @@ export interface Exam {
   subject_name?: string;
   class_name?: string;
   class_grade_label?: string;
+  stage?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -203,6 +204,7 @@ export interface LessonPlanRecord {
   plan_json: Record<string, unknown> | null;
   validation_status: string;
   retry_occurred: boolean;
+  stage?: string | null;
   created_at: string;
   updated_at: string;
 }
