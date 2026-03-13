@@ -1,12 +1,11 @@
 import axios from 'axios';
 import type { AuthUser } from '../../types';
+import { clearGoogTransCookie } from '../../utils/displayLanguage';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
 const AUTH_TOKEN_KEY = 'auth_token';
 const AUTH_USER_KEY = 'auth_user';
-const STAGE_STORAGE_KEY = 'tutor-helper-active-stage';
-const GOOGTRANS_COOKIE = 'googtrans';
 
 export function getStoredToken(): string | null {
   return localStorage.getItem(AUTH_TOKEN_KEY);
@@ -26,30 +25,17 @@ function setAuth(token: string, user: AuthUser) {
   setStoredUser(user);
 }
 
-function clearAuth() {
-  localStorage.removeItem(AUTH_TOKEN_KEY);
-  localStorage.removeItem(AUTH_USER_KEY);
-}
 function clearClientAuthArtifacts() {
-  // Core auth state in localStorage
-  clearAuth();
-
-  // Any derived preferences tied to the logged-in user
   if (typeof window !== 'undefined') {
     try {
-      window.localStorage.removeItem(STAGE_STORAGE_KEY);
-    } catch {
-      // ignore
-    }
+      window.localStorage.clear();
+    } catch { /* ignore */ }
   }
 
-  // Display language cookie used for Google Translate integration
   if (typeof document !== 'undefined') {
     try {
-      document.cookie = `${GOOGTRANS_COOKIE}=; path=/; max-age=0`;
-    } catch {
-      // ignore
-    }
+      clearGoogTransCookie();
+    } catch { /* ignore */ }
   }
 }
 

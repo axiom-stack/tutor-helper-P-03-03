@@ -18,6 +18,8 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <!-- Hidden anchor for Google Translate widget; must exist before the GT script loads -->
+    <div id="google_translate_element" style="position:fixed;top:-9999px;left:-9999px;opacity:0;pointer-events:none;"></div>
     <script>
       window.googleTranslateElementInit = function () {
         var el = document.getElementById('google_translate_element');
@@ -27,6 +29,7 @@
               pageLanguage: 'ar',
               includedLanguages: 'ar,en',
               layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+              autoDisplay: true,
             },
             'google_translate_element'
           );

@@ -50,12 +50,6 @@ export default function Settings() {
 
   const stageOptions = getAllowedStages();
 
-  useEffect(() => {
-    const win = window as Window & { googleTranslateElementInit?: () => void };
-    if (typeof win.googleTranslateElementInit === 'function') {
-      win.googleTranslateElementInit();
-    }
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -303,7 +297,6 @@ export default function Settings() {
             {saving ? 'جارٍ الحفظ...' : 'حفظ الإعدادات'}
           </button>
         </div>
-        <div id="google_translate_element" className="st__translate-widget" aria-hidden="true" />
       </section>
     </div>
   );

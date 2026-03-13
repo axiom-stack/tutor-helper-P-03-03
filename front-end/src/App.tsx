@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
-import { getDisplayLanguageFromCookie } from './utils/displayLanguage';
+import { getDisplayLanguageFromCookie, ensureGoogleTranslation } from './utils/displayLanguage';
 import Auth from './features/auth/Auth';
 import LessonCreator from './features/lesson-creator/LessonCreator';
 import Assignments from './features/assignments/Assignments';
@@ -22,6 +22,10 @@ function App() {
     document.documentElement.dir = dir;
     document.documentElement.lang = lang === 'en' ? 'en' : 'ar';
     document.documentElement.style.setProperty('--app-dir', dir);
+
+    if (lang === 'en') {
+      ensureGoogleTranslation('en');
+    }
   }, []);
 
   return (

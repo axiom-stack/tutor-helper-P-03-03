@@ -59,36 +59,74 @@ function openWhatsApp(text: string): void {
   }
 }
 
+function inferMimeType(filename: string, blobType: string): string {
+  if (blobType && blobType !== 'application/octet-stream') return blobType;
+  const ext = filename.split('.').pop()?.toLowerCase();
+  if (ext === 'pdf') return 'application/pdf';
+  if (ext === 'docx')
+    return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  if (ext === 'doc') return 'application/msword';
+  return blobType || 'application/octet-stream';
+}
+
 /**
  * Share a document (PDF/Word) with optional text via the system share sheet when possible
  * (so user can pick WhatsApp and get the file attached), then open WhatsApp with the text.
- * If sharing with file is not supported, triggers download and opens WhatsApp directly
- * using device-specific deep links for iOS/Android.
+ *
+ * Attaching a file to WhatsApp is ONLY possible via the Web Share API (navigator.share).
+ * WhatsApp deep links (wa.me, whatsapp://, intent://) only support text.
+ * If the Web Share API isn't available or doesn't support files, we fall back to
+ * downloading the file and opening WhatsApp with the text message only.
  */
 export async function shareDocumentWithWhatsApp(
   blob: Blob,
   filename: string,
   text: string
 ): Promise<void> {
-  const file = new File([blob], filename, {
-    type: blob.type || 'application/octet-stream',
-  });
+  const mimeType = inferMimeType(filename, blob.type);
+  const file = new File([blob], filename, { type: mimeType });
 
-  // Primary: Use native share API (works on mobile for both iOS and Android)
-  // This allows the user to select WhatsApp from the native share sheet with file attached
   if (typeof navigator.share === 'function') {
     try {
       const shareData: ShareData = { files: [file], text };
-      if (navigator.canShare && navigator.canShare(shareData)) {
+      // Don't gate strictly on canShare — some browsers support file sharing
+      // without implementing canShare (or return false for certain MIME types).
+      const canTry = !navigator.canShare || navigator.canShare(shareData);
+      if (canTry) {
         await navigator.share(shareData);
         return;
       }
-    } catch {
-      // User cancelled or share failed; continue to fallback
+    } catch (error: unknown) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
+    }
+
+    // navigator.share exists but file sharing failed/unsupported.
+    // Try once more without files so the user at least gets the native share
+    // sheet (they can pick WhatsApp for the text and attach the file manually).
+    try {
+      const textOnly: ShareData = { text, title: filename };
+      const canTryText = !navigator.canShare || navigator.canShare(textOnly);
+      if (canTryText) {
+        triggerDownload(blob, filename);
+        await navigator.share(textOnly);
+        return;
+      }
+    } catch (error: unknown) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
     }
   }
 
-  // Fallback: Download the file first, then open WhatsApp
+  // Final fallback: download the file, then open WhatsApp with text only.
+  triggerDownload(blob, filename);
+  await new Promise((resolve) => setTimeout(resolve, 800));
+  openWhatsApp(text);
+}
+
+function triggerDownload(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -96,13 +134,7 @@ export async function shareDocumentWithWhatsApp(
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-
-  // Small delay to ensure download starts before opening WhatsApp
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  URL.revokeObjectURL(url);
-
-  // Open WhatsApp using device-specific deep links
-  openWhatsApp(text);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
 /**
