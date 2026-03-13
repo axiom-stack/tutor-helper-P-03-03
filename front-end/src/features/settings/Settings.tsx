@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { MdSave } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
-import type { UserProfileUpdatePayload } from '../../types';
+import type { UserProfileUpdatePayload, PreparationType } from '../../types';
+import { PREPARATION_TYPE_OPTIONS } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
 import { getMyProfile, updateMyProfile } from '../users/users.services';
 import { applyDisplayLanguageAndReload } from '../../utils/displayLanguage';
@@ -10,6 +11,7 @@ import './settings.css';
 
 type LanguageValue = 'ar' | 'en';
 type DefaultPlanTypeValue = 'traditional' | 'active_learning';
+type PreparationTypeValue = PreparationType;
 
 export default function Settings() {
   const { user, updateUserProfile } = useAuth();
@@ -17,7 +19,12 @@ export default function Settings() {
   const [language, setLanguage] = useState<LanguageValue>('ar');
   const [educationalStage, setEducationalStage] = useState('');
   const [subject, setSubject] = useState('');
-  const [preparationType, setPreparationType] = useState('');
+  const [preparationType, setPreparationType] = useState<PreparationTypeValue | ''>(
+    () => {
+      const pt = user?.profile?.preparation_type;
+      return pt === 'daily' || pt === 'weekly' || pt === 'other' ? pt : '';
+    }
+  );
   const [defaultPlanType, setDefaultPlanType] =
     useState<DefaultPlanTypeValue>(
       () =>
@@ -56,7 +63,8 @@ export default function Settings() {
         setLanguage(profile.language);
         setEducationalStage(profile.educational_stage ?? '');
         setSubject(profile.subject ?? '');
-        setPreparationType(profile.preparation_type ?? '');
+        const pt = profile.preparation_type;
+        setPreparationType(pt === 'daily' || pt === 'weekly' || pt === 'other' ? pt : '');
         setDefaultPlanType(
           profile.default_plan_type === 'active_learning'
             ? 'active_learning'
@@ -92,7 +100,7 @@ export default function Settings() {
       language,
       educational_stage: educationalStage.trim() || null,
       subject: subject.trim() || null,
-      preparation_type: preparationType.trim() || null,
+      preparation_type: preparationType || null,
       default_plan_type: defaultPlanType,
       default_lesson_duration_minutes: defaultLessonDuration,
     };
@@ -175,12 +183,18 @@ export default function Settings() {
 
           <label className="st__field" htmlFor="settings-preparation-type">
             <span>نوع التحضير</span>
-            <input
+            <select
               id="settings-preparation-type"
               value={preparationType}
-              onChange={(event) => setPreparationType(event.target.value)}
-              placeholder="مثال: تحضير يومي"
-            />
+              onChange={(event) => setPreparationType(event.target.value as PreparationTypeValue)}
+            >
+              <option value="">-- اختر نوع التحضير --</option>
+              {PREPARATION_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label className="st__field" htmlFor="settings-default-plan-type">
@@ -199,16 +213,19 @@ export default function Settings() {
 
           <label className="st__field" htmlFor="settings-duration">
             <span>المدة الافتراضية للحصة (دقيقة)</span>
-            <input
+            <select
               id="settings-duration"
-              type="number"
-              min={1}
-              step={1}
               value={defaultLessonDuration}
               onChange={(event) =>
                 setDefaultLessonDuration(Number(event.target.value) || 45)
               }
-            />
+            >
+              {[30, 35, 40, 45, 50, 60, 90].map((d) => (
+                <option key={d} value={d}>
+                  {d} دقيقة
+                </option>
+              ))}
+            </select>
           </label>
         </div>
 

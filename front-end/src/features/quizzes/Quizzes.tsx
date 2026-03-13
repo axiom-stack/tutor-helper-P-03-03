@@ -837,14 +837,18 @@ export default function Quizzes() {
                 </div>
                 <div className="qz__field">
                   <label htmlFor="qz-duration-minutes">زمن الاختبار (دقيقة)</label>
-                  <input
+                  <select
                     id="qz-duration-minutes"
-                    type="number"
-                    min={1}
                     value={durationMinutes}
                     onChange={(event) => setDurationMinutes(Number(event.target.value))}
                     disabled={isGenerating || isEditingExam}
-                  />
+                  >
+                    {[30, 35, 40, 45, 50, 60, 90, 120].map((d) => (
+                      <option key={d} value={d}>
+                        {d} دقيقة
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

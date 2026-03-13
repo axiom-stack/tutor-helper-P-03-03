@@ -18,6 +18,17 @@ const ARABIC_STYLE_HINTS = {
   avoid_templates: ["ستستمر المحاضرة", "سوف تستمر المحاضرة"],
 };
 
+function getPreparationTypeDescription(type) {
+  const descriptions = {
+    daily:
+      "يُعدّ هذا التحضير للدرس الواحد في اليوم الدراسي، لذا يجب أن يكون مفصلاً وواضحاً ويغطي الحصة الكاملة",
+    weekly:
+      "يُعدّ هذا التحضير للأسبوع الدراسي بأكمله، لذا يجب أن يكون أكثر إيجازاً ويغطي عدة حصص أو مواضيع متتابعة",
+    other: "نوع التحضير غير محدد، استخدم الأسلوب المناسب حسب المحتوى",
+  };
+  return descriptions[type] || descriptions.other;
+}
+
 function buildValidationErrorSummary(validationErrors = []) {
   const summary = [];
   const seen = new Set();
@@ -84,6 +95,12 @@ function buildCommonInput({
       },
       lesson_content: boundedLessonContent,
       lesson_content_truncated: lessonContent.length > maxLessonContentChars,
+      preparation_context: request.preparation_type
+        ? {
+            type: request.preparation_type,
+            description: getPreparationTypeDescription(request.preparation_type),
+          }
+        : null,
       draft_plan_json: draftPlanJson,
       phase_time_targets: buildPhaseBudgets(
         request.duration_minutes,

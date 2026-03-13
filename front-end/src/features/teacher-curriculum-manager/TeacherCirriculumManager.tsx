@@ -1733,15 +1733,19 @@ function TeacherCirriculumManager(props: {
                       <label htmlFor="creator-new-class-default-duration">
                         مدة الحصة الافتراضية (دقيقة) *
                       </label>
-                      <input
+                      <select
                         id="creator-new-class-default-duration"
-                        type="number"
-                        min={1}
                         value={creatorNewClassDefaultDuration}
                         onChange={(event) =>
                           setCreatorNewClassDefaultDuration(Number(event.target.value))
                         }
-                      />
+                      >
+                        {[30, 35, 40, 45, 50, 60, 90].map((d) => (
+                          <option key={d} value={d}>
+                            {d} دقيقة
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 )}
@@ -2168,10 +2172,8 @@ function TeacherCirriculumManager(props: {
                   <label htmlFor="quick-add-class-duration">
                     مدة الحصة الافتراضية (دقيقة) *
                   </label>
-                  <input
+                  <select
                     id="quick-add-class-duration"
-                    type="number"
-                    min={1}
                     value={quickAddDraft.defaultDurationMinutes ?? 45}
                     onChange={(event) =>
                       setQuickAddDraft((previous) =>
@@ -2183,7 +2185,13 @@ function TeacherCirriculumManager(props: {
                           : previous
                       )
                     }
-                  />
+                  >
+                    {[30, 35, 40, 45, 50, 60, 90].map((d) => (
+                      <option key={d} value={d}>
+                        {d} دقيقة
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             )}
@@ -2415,10 +2423,8 @@ function TeacherCirriculumManager(props: {
                     <label htmlFor="edit-class-default-duration">
                       المدة الافتراضية (دقيقة)
                     </label>
-                    <input
+                    <select
                       id="edit-class-default-duration"
-                      type="number"
-                      min={1}
                       value={editDraft.defaultDurationMinutes ?? 45}
                       onChange={(event) =>
                         setEditDraft((previous) =>
@@ -2430,7 +2436,13 @@ function TeacherCirriculumManager(props: {
                             : previous
                         )
                       }
-                    />
+                    >
+                      {[30, 35, 40, 45, 50, 60, 90].map((d) => (
+                        <option key={d} value={d}>
+                          {d} دقيقة
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </>

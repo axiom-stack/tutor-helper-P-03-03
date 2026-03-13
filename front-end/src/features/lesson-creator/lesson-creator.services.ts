@@ -1,5 +1,5 @@
 import { authAxios, getStoredUser } from '../auth/auth.services';
-import type { Class, Lesson, LessonPlanRecord, Subject, Unit } from '../../types';
+import type { Class, Lesson, LessonPlanRecord, Subject, Unit, PreparationType } from '../../types';
 import { isOfflineError } from '../../offline/network';
 import { enqueueOfflineAction } from '../../offline/queue';
 import { cachePlan, getCachedPlanById } from '../../offline/plans';
@@ -19,6 +19,7 @@ export interface GeneratePlanRequest {
   unit: string;
   duration_minutes: number;
   plan_type: PlanType;
+  preparation_type?: PreparationType | null;
   class_id?: number;
   class_name?: string;
   section?: string;

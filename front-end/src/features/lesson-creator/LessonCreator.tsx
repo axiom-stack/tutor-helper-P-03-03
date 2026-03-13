@@ -66,7 +66,7 @@ interface ApiErrorShape {
   message?: string;
 }
 
-const DURATION_OPTIONS = [40, 45, 50, 90];
+const DURATION_OPTIONS = [30, 35, 40, 45, 50, 60, 90];
 
 const TIMELINE_STEPS = [
   'استرجاع محتوى الدرس',
@@ -508,6 +508,7 @@ function LessonCreator() {
         unit: unitName,
         duration_minutes: safeDurationMinutes,
         plan_type: planType,
+        preparation_type: user?.profile?.preparation_type ?? null,
         class_id: selectedClass.id,
         class_name: selectedClass.name,
         section: selectedClass.section,

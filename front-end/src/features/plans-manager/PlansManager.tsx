@@ -599,6 +599,10 @@ export default function PlansManager() {
                       if (!isCardSelectKey(event)) {
                         return;
                       }
+                      // Only handle if focus is directly on the card, not on child elements
+                      if (event.target !== event.currentTarget) {
+                        return;
+                      }
                       event.preventDefault();
                       void handleSelectPlan(plan);
                     }}

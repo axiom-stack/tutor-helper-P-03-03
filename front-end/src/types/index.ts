@@ -2,6 +2,14 @@
 
 export type UserRole = 'teacher' | 'admin';
 
+export type PreparationType = 'daily' | 'weekly' | 'other';
+
+export const PREPARATION_TYPE_OPTIONS: { value: PreparationType; label: string }[] = [
+  { value: 'daily', label: 'تحضير يومي' },
+  { value: 'weekly', label: 'تحضير أسبوعي' },
+  { value: 'other', label: 'غير ذلك' },
+];
+
 export interface User {
   id: number;
   role: UserRole;
@@ -205,7 +213,7 @@ export interface UserProfile {
   language: 'ar' | 'en';
   educational_stage: string | null;
   subject: string | null;
-  preparation_type: string | null;
+  preparation_type: PreparationType | null;
   default_lesson_duration_minutes: number;
   default_plan_type: 'traditional' | 'active_learning';
   created_at: string;
@@ -216,7 +224,7 @@ export interface UserProfileUpdatePayload {
   language?: 'ar' | 'en';
   educational_stage?: string | null;
   subject?: string | null;
-  preparation_type?: string | null;
+  preparation_type?: PreparationType | null;
   default_lesson_duration_minutes?: number;
   default_plan_type?: 'traditional' | 'active_learning';
 }
@@ -247,7 +255,7 @@ export interface TeacherManagementRow {
     language: 'ar' | 'en';
     educational_stage: string | null;
     subject: string | null;
-    preparation_type: string | null;
+    preparation_type: PreparationType | null;
     default_lesson_duration_minutes: number;
     default_plan_type: 'traditional' | 'active_learning';
   };

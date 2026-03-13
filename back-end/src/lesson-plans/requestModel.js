@@ -1,5 +1,7 @@
 import { VALID_PLAN_TYPES } from "./types.js";
 
+const VALID_PREPARATION_TYPES = ["daily", "weekly", "other"];
+
 function normalizeString(value) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -31,6 +33,9 @@ export function validateGeneratePlanRequest(payload) {
     unit: normalizeString(request.unit),
     duration_minutes: parsePositiveInteger(request.duration_minutes),
     plan_type: normalizeString(request.plan_type),
+    preparation_type: VALID_PREPARATION_TYPES.includes(request.preparation_type)
+      ? request.preparation_type
+      : null,
     class_id: request.class_id != null ? parsePositiveInteger(request.class_id) : null,
     class_name: normalizeString(request.class_name) || null,
     section: normalizeString(request.section) || null,

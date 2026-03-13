@@ -13,7 +13,9 @@ import { normalizeApiError } from '../../utils/apiErrors';
 import type {
   AdminTeacherProfileUpdatePayload,
   TeacherManagementRow,
+  PreparationType,
 } from '../../types';
+import { PREPARATION_TYPE_OPTIONS } from '../../types';
 import {
   createTeacher,
   deleteTeacher,
@@ -29,7 +31,7 @@ interface EditDraft {
   language: 'ar' | 'en';
   educational_stage: string;
   subject: string;
-  preparation_type: string;
+  preparation_type: PreparationType | '';
   default_plan_type: 'traditional' | 'active_learning';
   default_lesson_duration_minutes: number;
 }
@@ -57,13 +59,14 @@ function formatDateAr(value: string): string {
 }
 
 function toEditDraft(teacher: TeacherManagementRow): EditDraft {
+  const pt = teacher.profile.preparation_type;
   return {
     teacherId: teacher.id,
     username: teacher.username,
     language: teacher.profile.language,
     educational_stage: teacher.profile.educational_stage ?? '',
     subject: teacher.profile.subject ?? '',
-    preparation_type: teacher.profile.preparation_type ?? '',
+    preparation_type: pt === 'daily' || pt === 'weekly' || pt === 'other' ? pt : '',
     default_plan_type:
       teacher.profile.default_plan_type === 'active_learning'
         ? 'active_learning'
@@ -183,7 +186,7 @@ export default function TeachersManagement() {
       language: editDraft.language,
       educational_stage: editDraft.educational_stage.trim() || null,
       subject: editDraft.subject.trim() || null,
-      preparation_type: editDraft.preparation_type.trim() || null,
+      preparation_type: editDraft.preparation_type || null,
       default_plan_type: editDraft.default_plan_type,
       default_lesson_duration_minutes: editDraft.default_lesson_duration_minutes,
     };
@@ -483,17 +486,24 @@ export default function TeachersManagement() {
 
               <label className="tm__field" htmlFor="tm-preparation-type">
                 <span>نوع التحضير</span>
-                <input
+                <select
                   id="tm-preparation-type"
                   value={editDraft.preparation_type}
                   onChange={(event) =>
                     setEditDraft((current) =>
                       current
-                        ? { ...current, preparation_type: event.target.value }
+                        ? { ...current, preparation_type: event.target.value as PreparationType }
                         : current
                     )
                   }
-                />
+                >
+                  <option value="">-- اختر نوع التحضير --</option>
+                  {PREPARATION_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label className="tm__field" htmlFor="tm-default-plan-type">
@@ -520,11 +530,8 @@ export default function TeachersManagement() {
 
               <label className="tm__field" htmlFor="tm-duration">
                 <span>المدة الافتراضية (دقيقة)</span>
-                <input
+                <select
                   id="tm-duration"
-                  type="number"
-                  min={1}
-                  step={1}
                   value={editDraft.default_lesson_duration_minutes}
                   onChange={(event) =>
                     setEditDraft((current) =>
@@ -537,7 +544,13 @@ export default function TeachersManagement() {
                         : current
                     )
                   }
-                />
+                >
+                  {[30, 35, 40, 45, 50, 60, 90].map((d) => (
+                    <option key={d} value={d}>
+                      {d} دقيقة
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <div className="tm__editor-actions">
