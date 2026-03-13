@@ -23,6 +23,7 @@ CREATE TABLE Classes (
   name TEXT NOT NULL,
   description TEXT NOT NULL,
   grade_label TEXT NOT NULL,
+  stage TEXT,
   section_label TEXT NOT NULL,
   section TEXT NOT NULL DEFAULT 'أ',
   academic_year TEXT NOT NULL,

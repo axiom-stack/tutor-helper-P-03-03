@@ -55,8 +55,9 @@ export async function htmlToPdf(html) {
     });
     const buffer = await page.pdf({
       format: "A4",
+      landscape: true,
       printBackground: true,
-      margin: { top: "20mm", right: "20mm", bottom: "20mm", left: "20mm" },
+      margin: { top: "10mm", right: "10mm", bottom: "10mm", left: "10mm" },
     });
     return Buffer.from(buffer);
   } finally {

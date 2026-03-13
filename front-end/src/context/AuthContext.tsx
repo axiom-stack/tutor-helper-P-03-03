@@ -60,7 +60,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               );
               const lang = profile?.language === 'en' ? 'en' : 'ar';
               if (syncDisplayLanguageCookie(lang)) {
-                window.location.reload();
+                // Small delay to ensure state is flushed if needed, though reload is immediate
+                setTimeout(() => window.location.reload(), 100);
                 return;
               }
             }
@@ -70,7 +71,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         } else if (storedUser.profile?.language) {
           const lang = storedUser.profile.language === 'en' ? 'en' : 'ar';
           if (syncDisplayLanguageCookie(lang)) {
-            window.location.reload();
+            setTimeout(() => window.location.reload(), 100);
             return;
           }
         }
@@ -96,7 +97,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     const lang = newUser?.profile?.language === 'en' ? 'en' : 'ar';
     if (syncDisplayLanguageCookie(lang)) {
-      window.location.reload();
+      setTimeout(() => window.location.reload(), 100);
       return response;
     }
 

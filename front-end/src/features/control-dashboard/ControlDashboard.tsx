@@ -150,14 +150,6 @@ export default function ControlDashboard() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [plans, setPlans] = useState<LessonPlanRecord[]>([]);
   const [exams, setExams] = useState<Exam[]>([]);
-  const [stats, setStats] = useState<DashboardStats>({
-    classes: 0,
-    subjects: 0,
-    lessons: 0,
-    plans: 0,
-    exams: 0,
-    assignments: 0,
-  });
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -196,16 +188,6 @@ export default function ControlDashboard() {
           setSubjects(nextSubjects);
           setPlans(nextPlans);
           setExams(nextExams);
-          setStats(
-            buildStats({
-              classes: nextClasses,
-              subjects: nextSubjects,
-              lessons: nextLessons,
-              plans: nextPlans,
-              exams: nextExams,
-              assignments: nextAssignments,
-            })
-          );
         }
       )
       .catch(() => {
@@ -283,27 +265,6 @@ export default function ControlDashboard() {
           </p>
         </div>
       </header>
-
-      {/* Stats */}
-      <section className="cd__stats-grid" aria-label="إحصائيات رئيسية">
-        {STAT_ITEMS.map(({ key, label, icon: Icon, modifier }) => (
-          <article
-            key={key}
-            className={`cd__stat-card cd__stat-card--${modifier} ${loading ? 'cd__stat-card--skeleton' : ''}`}
-            aria-busy={loading}
-          >
-            <div className="cd__stat-icon" aria-hidden>
-              <Icon />
-            </div>
-            <div className="cd__stat-content">
-              <span className="cd__stat-label">{label}</span>
-              <strong className="cd__stat-value" aria-busy={loading}>
-                {loading ? '\u00A0' : stats[key]}
-              </strong>
-            </div>
-          </article>
-        ))}
-      </section>
 
       {/* Quick actions */}
       <section className="cd__quick-actions" aria-label="إجراءات سريعة">

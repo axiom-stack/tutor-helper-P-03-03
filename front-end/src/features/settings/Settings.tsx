@@ -110,7 +110,11 @@ export default function Settings() {
       updateUserProfile(response.profile);
       setSuccess('تم حفظ الإعدادات بنجاح.');
       toast.success('تم حفظ الإعدادات بنجاح.');
-      applyDisplayLanguageAndReload(language);
+      
+      // Ensure the language is applied and page reloaded to sync with Google Translate
+      setTimeout(() => {
+        applyDisplayLanguageAndReload(language);
+      }, 500);
       return;
     } catch (saveError: unknown) {
       const message = normalizeApiError(saveError, 'فشل حفظ الإعدادات.').message;
