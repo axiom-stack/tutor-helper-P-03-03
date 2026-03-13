@@ -45,6 +45,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [, setError] = useState<string | null>(null);
+  const [stageError, setStageError] = useState<string | null>(null);
   const [, setSuccess] = useState<string | null>(null);
 
   const stageOptions = getAllowedStages();
@@ -103,7 +104,7 @@ export default function Settings() {
     const parsedStages = parseStages(educationalStage);
     if (parsedStages.length === 0) {
       const message = 'يجب اختيار مرحلة تعليمية واحدة على الأقل.';
-      setError(message);
+      setStageError(message);
       toast.error(message);
       return;
     }
@@ -202,11 +203,18 @@ export default function Settings() {
                       if (existing.includes(stage)) {
                         // Prevent removing the last remaining stage – at least one is required.
                         if (existing.length === 1) {
+                          const message = 'يجب أن تبقى مرحلة واحدة على الأقل محددة.';
+                          setStageError(message);
+                          toast.error(message);
                           return;
                         }
                         next = existing.filter((s) => s !== stage);
                       } else {
                         next = [...existing, stage];
+                        // Clear any previous stage error once selection becomes valid.
+                        if (stageError) {
+                          setStageError(null);
+                        }
                       }
                       setEducationalStage(formatStagesForStorage(next));
                     }}
@@ -219,6 +227,11 @@ export default function Settings() {
             <small className="st__field-hint">
               يمكنك اختيار أكثر من مرحلة، وسيتم اعتبار الأولى كإعداد افتراضي في الواجهة.
             </small>
+            {stageError && (
+              <small className="st__field-error" aria-live="polite">
+                {stageError}
+              </small>
+            )}
           </label>
 
           <label className="st__field" htmlFor="settings-subject">

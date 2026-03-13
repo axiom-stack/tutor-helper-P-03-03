@@ -126,6 +126,27 @@ export function normalizeApiError(
       };
     }
 
+    // Handle generic axios errors with status codes
+    if (error.response?.data && typeof error.response.data === 'object') {
+      const data = error.response.data as Record<string, unknown>;
+      if (typeof data.error === 'string' && data.error.trim().length > 0) {
+        return { message: data.error.trim() };
+      }
+      if (typeof data.message === 'string' && data.message.trim().length > 0) {
+        return { message: data.message.trim() };
+      }
+    }
+
+    if (error.response?.status === 401) {
+      return { message: 'بيانات الدخول غير صحيحة أو انتهت جلسة العمل' };
+    }
+    if (error.response?.status === 403) {
+      return { message: 'ليس لديك صلاحية للوصول إلى هذا المورد' };
+    }
+    if (error.response?.status === 500) {
+      return { message: 'حدث خطأ في الخادم، يرجى المحاولة لاحقاً' };
+    }
+
     const localizedAiLimitMessage = getLocalizedAiLimitMessage(error);
     if (localizedAiLimitMessage) {
       return { message: localizedAiLimitMessage };

@@ -9,6 +9,10 @@ import {
   TableLayoutType,
   AlignmentType,
   WidthType,
+  BorderStyle,
+  PageOrientation,
+  ShadingType,
+  VerticalAlign,
 } from "docx";
 import {
   toDisplayText,
@@ -19,11 +23,27 @@ import {
 const RTL_OPTS = { alignment: AlignmentType.RIGHT };
 const RTL_BIDI = { bidirectional: true };
 
+const CELL_BORDER = {
+  top: { style: BorderStyle.SINGLE, size: 1, color: "cbd5e1" },
+  bottom: { style: BorderStyle.SINGLE, size: 1, color: "cbd5e1" },
+  left: { style: BorderStyle.SINGLE, size: 1, color: "cbd5e1" },
+  right: { style: BorderStyle.SINGLE, size: 1, color: "cbd5e1" },
+};
+
+const LANDSCAPE_SECTION = {
+  page: {
+    size: { orientation: PageOrientation.LANDSCAPE },
+    margin: { top: 720, bottom: 720, right: 720, left: 720 },
+  },
+};
+
 function heading(text, size = 22) {
   return new Paragraph({
     children: [new TextRun({ text, bold: true, size })],
     ...RTL_OPTS,
     ...RTL_BIDI,
+    keepNext: true,
+    keepLines: true,
     spacing: { before: 200, after: 120 },
   });
 }
@@ -33,6 +53,8 @@ function subheading(text) {
     children: [new TextRun({ text, bold: true, size: 18 })],
     ...RTL_OPTS,
     ...RTL_BIDI,
+    keepNext: true,
+    keepLines: true,
     spacing: { before: 180, after: 80 },
   });
 }
@@ -61,8 +83,74 @@ function bulletList(items) {
   );
 }
 
+function headerCell(label, value) {
+  return new TableCell({
+    borders: CELL_BORDER,
+    verticalAlign: VerticalAlign.CENTER,
+    children: [
+      new Paragraph({
+        children: [new TextRun({ text: label, bold: true, size: 16, color: "64748b" })],
+        ...RTL_OPTS,
+        ...RTL_BIDI,
+        spacing: { after: 40 },
+      }),
+      new Paragraph({
+        children: [new TextRun({ text: value || "—", bold: true, size: 18, color: "0f172a" })],
+        ...RTL_OPTS,
+        ...RTL_BIDI,
+      }),
+    ],
+  });
+}
+
+function sectionCell(title, items, emptyText) {
+  const list = items && items.length ? items : [];
+  const content = [
+    new Paragraph({
+      children: [new TextRun({ text: title, bold: true, size: 18, color: "0f172a" })],
+      ...RTL_OPTS,
+      ...RTL_BIDI,
+      spacing: { after: 60 },
+    }),
+  ];
+  if (list.length > 0) {
+    list.forEach((item) => {
+      content.push(
+        new Paragraph({
+          children: [new TextRun({ text: `• ${item}`, size: 17 })],
+          ...RTL_OPTS,
+          ...RTL_BIDI,
+          spacing: { after: 30 },
+        }),
+      );
+    });
+  } else {
+    content.push(
+      new Paragraph({
+        children: [new TextRun({ text: emptyText || "لا توجد بيانات.", size: 17, color: "94a3b8" })],
+        ...RTL_OPTS,
+        ...RTL_BIDI,
+      }),
+    );
+  }
+  return new TableCell({
+    borders: CELL_BORDER,
+    verticalAlign: VerticalAlign.TOP,
+    children: content,
+  });
+}
+
+function activityTypeLabel(type) {
+  if (type === "intro") return "تمهيد";
+  if (type === "presentation") return "عرض";
+  if (type === "activity") return "نشاط";
+  if (type === "assessment") return "تقويم";
+  return toDisplayText(type);
+}
+
 /**
  * Build DOCX document for a lesson plan.
+ * Layout mirrors the UI card design with header grid, sections grid, and footer.
  * @param {object} enrichedPlan
  * @returns {Promise<Buffer>}
  */
@@ -73,9 +161,6 @@ export async function buildPlanDocx(enrichedPlan) {
   const header = plan.header && typeof plan.header === "object" ? plan.header : {};
   const isTraditional = enrichedPlan.plan_type === "traditional";
 
-  const teacherName = enrichedPlan.teacher_name ?? "—";
-  const planId = enrichedPlan.public_id ?? "";
-  const planTypeLabel = isTraditional ? "تقليدية" : "تعلم نشط";
   const duration = enrichedPlan.duration_minutes
     ? `${enrichedPlan.duration_minutes} دقيقة`
     : "—";
@@ -86,58 +171,191 @@ export async function buildPlanDocx(enrichedPlan) {
   const date = extractHeaderValue(header, "date");
   const day = extractHeaderValue(header, "day");
   const section = extractHeaderValue(header, "section");
+  const time = extractHeaderValue(header, "time");
 
-  const children = [
-    heading("خطة الدرس"),
-    para(`المعلم: ${teacherName}`),
-    para(`نوع الخطة: ${planTypeLabel}`),
-    para(`التاريخ: ${date}  |  اليوم: ${day}`),
-    para(`الصف: ${grade}  |  الشعبة: ${section}  |  الحصة: ${lessonTitle}`),
-    para(`الوحدة: ${unit}  |  الوقت: ${duration}  |  المادة: ${subject}`),
-    subheading("التمهيد"),
-    para(toDisplayText(plan.intro)),
-    subheading("المفاهيم"),
-    ...bulletList(toTextList(plan.concepts)),
-  ];
+  const children = [];
 
   if (isTraditional) {
+    const headerGrid = new Table({
+      rows: [
+        new TableRow({
+          cantSplit: true,
+          children: [
+            headerCell("التاريخ", date),
+            headerCell("اليوم", day),
+            headerCell("الساعة", time),
+            headerCell("الصف", grade),
+          ],
+        }),
+        new TableRow({
+          cantSplit: true,
+          children: [
+            headerCell("الشعبة", section),
+            headerCell("الحصة", lessonTitle),
+            headerCell("العنوان", lessonTitle),
+            headerCell("الوحدة", unit),
+          ],
+        }),
+        new TableRow({
+          cantSplit: true,
+          children: [
+            headerCell("الوقت", duration),
+            new TableCell({ borders: CELL_BORDER, children: [new Paragraph("")] }),
+            new TableCell({ borders: CELL_BORDER, children: [new Paragraph("")] }),
+            new TableCell({ borders: CELL_BORDER, children: [new Paragraph("")] }),
+          ],
+        }),
+      ],
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      layout: TableLayoutType.FIXED,
+    });
+    children.push(headerGrid);
+
+    const intro = toDisplayText(plan.intro);
+    const concepts = toTextList(plan.concepts);
     children.push(
-      subheading("الأهداف / المخرجات التعليمية"),
-      ...bulletList(toTextList(plan.learning_outcomes)),
-      subheading("الاستراتيجيات / طرق التدريس"),
-      ...bulletList(toTextList(plan.teaching_strategies)),
-      subheading("الأنشطة"),
-      ...bulletList(toTextList(plan.activities)),
-      subheading("الوسائل / مصادر التعلم"),
-      ...bulletList(toTextList(plan.learning_resources)),
-      subheading("التقويم"),
-      ...bulletList(toTextList(plan.assessment)),
-      subheading("الواجب"),
-      para(toDisplayText(plan.homework)),
-      subheading("المصدر"),
-      para(toDisplayText(plan.source))
+      subheading("التمهيد"),
+      para(intro),
+      subheading("المفاهيم"),
+      ...bulletList(concepts),
+    );
+
+    const outcomes = toTextList(plan.learning_outcomes);
+    const strategies = toTextList(plan.teaching_strategies);
+    const activities = toTextList(plan.activities);
+    const resources = toTextList(plan.learning_resources);
+    const assessment = toTextList(plan.assessment);
+
+    const gridTable = new Table({
+      rows: [
+        new TableRow({
+          cantSplit: true,
+          children: [
+            sectionCell("الأهداف / المخرجات التعليمية", outcomes, "لا توجد أهداف مدخلة."),
+            sectionCell("الاستراتيجيات / طرق التدريس", strategies, "لا توجد استراتيجيات مدخلة."),
+            sectionCell("الأنشطة", activities, "لا توجد أنشطة مدخلة."),
+            sectionCell("الوسائل / مصادر التعلم", resources, "لا توجد وسائل مدخلة."),
+            sectionCell("التقويم", assessment, "لا توجد أدوات تقويم مدخلة."),
+          ],
+        }),
+      ],
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      layout: TableLayoutType.FIXED,
+    });
+    children.push(
+      new Paragraph({ children: [], spacing: { after: 100 } }),
+      gridTable,
+    );
+
+    const homework = toDisplayText(plan.homework);
+    const source = toDisplayText(plan.source);
+    const footerTable = new Table({
+      rows: [
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({
+              borders: CELL_BORDER,
+              children: [
+                new Paragraph({
+                  children: [new TextRun({ text: "الواجب", bold: true, size: 18, color: "0f172a" })],
+                  ...RTL_OPTS,
+                  ...RTL_BIDI,
+                  spacing: { after: 40 },
+                }),
+                new Paragraph({
+                  children: [new TextRun({ text: homework || "—", size: 17 })],
+                  ...RTL_OPTS,
+                  ...RTL_BIDI,
+                }),
+              ],
+            }),
+            new TableCell({
+              borders: CELL_BORDER,
+              children: [
+                new Paragraph({
+                  children: [new TextRun({ text: "المصدر", bold: true, size: 18, color: "0f172a" })],
+                  ...RTL_OPTS,
+                  ...RTL_BIDI,
+                  spacing: { after: 40 },
+                }),
+                new Paragraph({
+                  children: [new TextRun({ text: source || "—", size: 17 })],
+                  ...RTL_OPTS,
+                  ...RTL_BIDI,
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      layout: TableLayoutType.FIXED,
+    });
+    children.push(
+      new Paragraph({ children: [], spacing: { after: 100 } }),
+      footerTable,
     );
   } else {
+    const headerGrid = new Table({
+      rows: [
+        new TableRow({
+          cantSplit: true,
+          children: [
+            headerCell("التاريخ", date),
+            headerCell("اليوم", day),
+            headerCell("الساعة", time),
+            headerCell("المادة", subject),
+          ],
+        }),
+        new TableRow({
+          cantSplit: true,
+          children: [
+            headerCell("الصف", grade),
+            headerCell("الشعبة", section),
+            headerCell("العنوان", lessonTitle),
+            headerCell("الوحدة", unit),
+          ],
+        }),
+        new TableRow({
+          cantSplit: true,
+          children: [
+            headerCell("المدة", duration),
+            new TableCell({ borders: CELL_BORDER, children: [new Paragraph("")] }),
+            new TableCell({ borders: CELL_BORDER, children: [new Paragraph("")] }),
+            new TableCell({ borders: CELL_BORDER, children: [new Paragraph("")] }),
+          ],
+        }),
+      ],
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      layout: TableLayoutType.FIXED,
+    });
+    children.push(headerGrid);
+
     const objectives = toTextList(plan.objectives);
-    children.push(subheading("الأهداف التعليمية"), ...bulletList(objectives));
+    children.push(
+      subheading("الأهداف التعليمية"),
+      ...bulletList(objectives),
+    );
+
     const lessonFlow = Array.isArray(plan.lesson_flow)
       ? plan.lesson_flow.filter((item) => item && typeof item === "object")
       : [];
-    const tableRows = [
+
+    const flowHeaderShading = { type: ShadingType.SOLID, color: "f1f5f9" };
+    const flowTableRows = [
       new TableRow({
+        cantSplit: true,
         children: [
-          "الزمن",
-          "المحتوى",
-          "نوع النشاط",
-          "دور المعلم",
-          "دور الطالب",
-          "الوسائل",
+          "الزمن", "المحتوى", "نوع النشاط", "دور المعلم", "دور الطالب", "الوسائل",
         ].map(
           (t) =>
             new TableCell({
+              borders: CELL_BORDER,
+              shading: flowHeaderShading,
               children: [
                 new Paragraph({
-                  children: [new TextRun({ text: t, bold: true })],
+                  children: [new TextRun({ text: t, bold: true, size: 17 })],
                   ...RTL_OPTS,
                   ...RTL_BIDI,
                 }),
@@ -148,10 +366,11 @@ export async function buildPlanDocx(enrichedPlan) {
       ...lessonFlow.map(
         (row) =>
           new TableRow({
+            cantSplit: true,
             children: [
               toDisplayText(row.time),
               toDisplayText(row.content),
-              toDisplayText(row.activity_type),
+              activityTypeLabel(row.activity_type),
               toDisplayText(row.teacher_activity),
               toDisplayText(row.student_activity),
               Array.isArray(row.learning_resources)
@@ -160,9 +379,10 @@ export async function buildPlanDocx(enrichedPlan) {
             ].map(
               (t) =>
                 new TableCell({
+                  borders: CELL_BORDER,
                   children: [
                     new Paragraph({
-                      children: [new TextRun({ text: String(t ?? "—") })],
+                      children: [new TextRun({ text: String(t ?? "—"), size: 17 })],
                       ...RTL_OPTS,
                       ...RTL_BIDI,
                     }),
@@ -172,52 +392,46 @@ export async function buildPlanDocx(enrichedPlan) {
           })
       ),
     ];
-    if (tableRows.length === 1) {
+
+    if (flowTableRows.length === 1) {
       const emptyCell = () =>
         new TableCell({
-          children: [
-            new Paragraph({
-              children: [new TextRun({ text: "" })],
-              ...RTL_OPTS,
-              ...RTL_BIDI,
-            }),
-          ],
+          borders: CELL_BORDER,
+          children: [new Paragraph({ children: [new TextRun({ text: "" })], ...RTL_OPTS, ...RTL_BIDI })],
         });
-      tableRows.push(
+      flowTableRows.push(
         new TableRow({
+          cantSplit: true,
           children: [
             new TableCell({
-              children: [
-                new Paragraph({
-                  children: [new TextRun({ text: "لا توجد بيانات تدفق." })],
-                  ...RTL_OPTS,
-                  ...RTL_BIDI,
-                }),
-              ],
+              borders: CELL_BORDER,
+              children: [new Paragraph({ children: [new TextRun({ text: "لا توجد بيانات تدفق." })], ...RTL_OPTS, ...RTL_BIDI })],
             }),
-            ...Array(5)
-              .fill(null)
-              .map(() => emptyCell()),
+            ...Array(5).fill(null).map(() => emptyCell()),
           ],
         })
       );
     }
+
     children.push(
       subheading("تدفق الدرس"),
       new Table({
-        rows: tableRows,
+        rows: flowTableRows,
         width: { size: 100, type: WidthType.PERCENTAGE },
         layout: TableLayoutType.AUTOFIT,
       }),
+    );
+
+    children.push(
       subheading("الواجب"),
-      para(toDisplayText(plan.homework))
+      para(toDisplayText(plan.homework)),
     );
   }
 
   const doc = new Document({
     sections: [
       {
-        properties: {},
+        properties: LANDSCAPE_SECTION,
         children,
       },
     ],
@@ -280,6 +494,7 @@ export async function buildExamDocx(enrichedExam, type = "answer_key") {
   if (blueprint?.cells?.length && type === "answer_key") {
     children.push(subheading("مصفوفة جدول المواصفات"));
     const headerRow = new TableRow({
+      cantSplit: true,
       children: [
         "الدرس",
         "المستوى",
@@ -304,6 +519,7 @@ export async function buildExamDocx(enrichedExam, type = "answer_key") {
     const dataRows = blueprint.cells.map(
       (cell) =>
         new TableRow({
+          cantSplit: true,
           children: [
             cell.lesson_name ?? "",
             cell.level_label ?? "",

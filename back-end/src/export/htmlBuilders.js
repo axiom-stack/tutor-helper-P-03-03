@@ -10,24 +10,25 @@ const BASE_STYLES = `
     font-family: 'Traditional Arabic', 'Amiri', 'Arial', sans-serif;
     font-size: 14px;
     line-height: 1.6;
-    color: #ecf4ff;
+    color: #1e293b;
     padding: 0;
     margin: 0;
-    background: #173868;
+    background: #ffffff;
   }
 
   .lpdv__traditional-card,
   .lpdv__active-card {
     border-radius: 22px;
-    background: radial-gradient(circle at 15% 12%, #2e4f83 0%, #1f3f75 55%, #173868 100%);
+    background: #ffffff;
     padding: 18px;
+    border: 2px solid #cbd5e1;
   }
 
   .lpdv__traditional-shell,
   .lpdv__active-shell {
-    border: 1px solid rgba(226, 238, 255, 0.45);
+    border: 1px solid #cbd5e1;
     border-radius: 18px;
-    color: #ecf4ff;
+    color: #1e293b;
     overflow: hidden;
     min-width: 0;
   }
@@ -36,13 +37,13 @@ const BASE_STYLES = `
   .lpdv__active-header-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    border-bottom: 1px solid rgba(226, 238, 255, 0.3);
+    border-bottom: 1px solid #cbd5e1;
   }
 
   .lpdv__traditional-header-grid > div,
   .lpdv__active-header-grid > div {
-    border-left: 1px solid rgba(226, 238, 255, 0.22);
-    border-bottom: 1px solid rgba(226, 238, 255, 0.22);
+    border-left: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
     padding: 10px 12px;
   }
 
@@ -55,7 +56,7 @@ const BASE_STYLES = `
   .lpdv__active-header-grid label {
     display: block;
     font-size: 11px;
-    color: rgba(228, 240, 255, 0.86);
+    color: #64748b;
     margin-bottom: 4px;
     font-weight: 700;
   }
@@ -66,6 +67,7 @@ const BASE_STYLES = `
     font-size: 13px;
     line-height: 1.55;
     font-weight: 600;
+    color: #0f172a;
     overflow-wrap: anywhere;
   }
 
@@ -73,7 +75,7 @@ const BASE_STYLES = `
   .lpdv__active-objectives,
   .lpdv__active-flow {
     padding: 12px;
-    border-bottom: 1px solid rgba(226, 238, 255, 0.28);
+    border-bottom: 1px solid #e2e8f0;
   }
 
   .lpdv__traditional-intro h3,
@@ -82,7 +84,7 @@ const BASE_STYLES = `
   .lpdv__active-flow h3 {
     margin: 0;
     font-size: 14px;
-    color: #f7fbff;
+    color: #0f172a;
   }
 
   .lpdv__traditional-intro h4 {
@@ -93,7 +95,7 @@ const BASE_STYLES = `
   .lpdv__active-footer p {
     margin: 6px 0 0;
     line-height: 1.75;
-    color: rgba(236, 244, 255, 0.96);
+    color: #334155;
     overflow-wrap: anywhere;
   }
 
@@ -105,17 +107,17 @@ const BASE_STYLES = `
     display: flex;
     flex-direction: column;
     gap: 4px;
-    color: rgba(236, 244, 255, 0.96);
+    color: #334155;
   }
 
   .lpdv__traditional-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
-    border-bottom: 1px solid rgba(226, 238, 255, 0.28);
+    border-bottom: 1px solid #e2e8f0;
   }
 
   .lpdv__traditional-grid section {
-    border-left: 1px solid rgba(226, 238, 255, 0.22);
+    border-left: 1px solid #e2e8f0;
     padding: 12px;
     min-height: 200px;
   }
@@ -127,7 +129,7 @@ const BASE_STYLES = `
   .lpdv__traditional-grid h4 {
     margin: 0 0 6px;
     font-size: 14px;
-    color: #f7fbff;
+    color: #0f172a;
   }
 
   .lpdv__traditional-footer {
@@ -137,11 +139,24 @@ const BASE_STYLES = `
 
   .lpdv__traditional-footer > div {
     padding: 10px 12px;
-    border-left: 1px solid rgba(226, 238, 255, 0.22);
+    border-left: 1px solid #e2e8f0;
   }
 
   .lpdv__traditional-footer > div:last-child {
     border-left: none;
+  }
+
+  .lpdv__traditional-footer h4 {
+    margin: 0 0 4px;
+    font-size: 14px;
+    color: #0f172a;
+  }
+
+  .lpdv__traditional-footer p {
+    margin: 0;
+    line-height: 1.7;
+    color: #334155;
+    overflow-wrap: anywhere;
   }
 
   .lpdv__active-footer {
@@ -151,12 +166,12 @@ const BASE_STYLES = `
   .lpdv__active-footer h4 {
     margin: 0 0 4px;
     font-size: 14px;
-    color: #f7fbff;
+    color: #0f172a;
   }
 
   .lpdv__table-wrap {
     overflow-x: auto;
-    border: 1px solid rgba(226, 238, 255, 0.28);
+    border: 1px solid #e2e8f0;
     border-radius: 10px;
   }
 
@@ -168,94 +183,116 @@ const BASE_STYLES = `
 
   .lpdv__flow-table th,
   .lpdv__flow-table td {
-    border: 1px solid rgba(226, 238, 255, 0.2);
+    border: 1px solid #e2e8f0;
     padding: 8px;
     font-size: 13px;
     text-align: right;
     vertical-align: top;
+    color: #334155;
     overflow-wrap: anywhere;
   }
 
   .lpdv__flow-table thead th {
-    background: rgba(147, 197, 253, 0.2);
-    color: #f8fbff;
+    background: #f1f5f9;
+    color: #0f172a;
     font-weight: bold;
+  }
+
+  .lpdv__flow-table tbody td {
+    background: #ffffff;
   }
 
   .qz__question-card {
     margin-bottom: 20px;
     padding: 15px;
-    border: 1px solid rgba(226, 238, 255, 0.22);
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.05);
+    background: #f8fafc;
   }
 
   .qz__question-meta {
     font-size: 12px;
-    color: rgba(228, 240, 255, 0.7);
+    color: #64748b;
     margin-bottom: 10px;
   }
 
   .qz__answer {
     margin-top: 15px;
     padding-top: 10px;
-    border-top: 1px solid rgba(226, 238, 255, 0.1);
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .lpdv__traditional-header-grid,
+  .lpdv__active-header-grid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .lpdv__traditional-intro {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .lpdv__traditional-grid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .lpdv__traditional-footer {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .lpdv__active-objectives {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .lpdv__active-footer {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .lpdv__flow-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .lpdv__flow-table thead {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .qz__question-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  h3, h4 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .kpi-grid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  table {
+    break-inside: auto;
+  }
+
+  tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  thead {
+    display: table-header-group;
   }
 
   @page {
-    margin: 20mm;
-    @bottom-center {
-      content: counter(page);
-    }
-  }
-
-  .print-footer {
-    display: none;
-  }
-
-  @media print {
-    .print-footer {
-      display: block;
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      text-align: center;
-      font-size: 10px;
-      color: rgba(228, 240, 255, 0.6);
-      border-top: 1px solid rgba(226, 238, 255, 0.2);
-      padding-top: 5px;
-    }
-    
-    body {
-      background: white !important;
-      color: black !important;
-    }
-    
-    .lpdv__active-card, .lpdv__traditional-card {
-      background: white !important;
-      color: black !important;
-      padding: 0 !important;
-    }
-    
-    .lpdv__active-shell, .lpdv__traditional-shell {
-      border-color: #ccc !important;
-      color: black !important;
-    }
-    
-    .header-item, .grid-section, .footer-item, th, td {
-      border-color: #ddd !important;
-      color: black !important;
-      background: transparent !important;
-    }
-    
-    .header-item label, h3, h4, .qz__question-meta, .qz__answer label {
-      color: #333 !important;
-    }
-    
-    p, li, pre {
-      color: black !important;
-    }
+    margin: 10mm;
   }
 `;
 
@@ -508,7 +545,7 @@ export function buildAssignmentHtml(enrichedAssignment) {
       </div>
       <div style="padding: 12px;">
         <h3>المحتوى</h3>
-        <pre style="white-space: pre-wrap; word-wrap: break-word; background: rgba(15, 23, 42, 0.15); padding: 12px; border-radius: 4px; color: #ecf4ff; border: 1px solid rgba(226, 238, 255, 0.1);">${content}</pre>
+        <pre style="white-space: pre-wrap; word-wrap: break-word; background: #f8fafc; padding: 12px; border-radius: 4px; color: #1e293b; border: 1px solid #e2e8f0;">${content}</pre>
       </div>
     </div>
   </div>
@@ -594,7 +631,7 @@ export function buildExamHtml(enrichedExam, type = "answer_key") {
 
       const answerHtml = type === "answer_key" ? `
           <div class="qz__answer">
-            <label style="font-weight: bold; color: #93c5fd;">الإجابة النموذجية</label>
+            <label style="font-weight: bold; color: #2563eb;">الإجابة النموذجية</label>
             <p>${escapeHtml(q.answer_text ?? "")}</p>
           </div>
       ` : "";
@@ -742,9 +779,9 @@ export function buildStatsHtml(summary = {}) {
   ]
     .map(
       ([label, value]) => `
-        <article style="border:1px solid rgba(226, 238, 255, 0.2);border-radius:10px;padding:12px;background:rgba(15, 23, 42, 0.2);">
-          <div style="font-size:11px;color:rgba(228, 240, 255, 0.7);font-weight:700;">${escapeHtml(label)}</div>
-          <strong style="font-size:18px;color:#f8fbff;">${escapeHtml(String(value))}</strong>
+        <article style="border:1px solid #e2e8f0;border-radius:10px;padding:12px;background:#f8fafc;">
+          <div style="font-size:11px;color:#64748b;font-weight:700;">${escapeHtml(label)}</div>
+          <strong style="font-size:18px;color:#0f172a;">${escapeHtml(String(value))}</strong>
         </article>
       `,
     )
@@ -815,7 +852,7 @@ export function buildStatsHtml(summary = {}) {
 <body>
   <div class="lpdv__active-card">
     <div class="lpdv__active-shell">
-      <div style="padding: 12px; border-bottom: 1px solid rgba(226, 238, 255, 0.28);">
+      <div style="padding: 12px; border-bottom: 1px solid #e2e8f0;">
         <h1 style="margin: 0; font-size: 20px;">التقارير والإحصائيات</h1>
       </div>
       <div class="lpdv__active-header-grid">
@@ -825,14 +862,14 @@ export function buildStatsHtml(summary = {}) {
         <div class="header-item"><label>تاريخ الإنشاء</label><p>${generatedAt}</p></div>
       </div>
 
-      <div style="padding: 12px; border-bottom: 1px solid rgba(226, 238, 255, 0.22);">
+      <div style="padding: 12px; border-bottom: 1px solid #e2e8f0;">
         <h3>ملخص المؤشرات الرئيسية</h3>
         <div class="kpi-grid" style="margin-top: 10px;">
           ${kpiCards}
         </div>
       </div>
 
-      <div style="padding: 12px; border-bottom: 1px solid rgba(226, 238, 255, 0.22);">
+      <div style="padding: 12px; border-bottom: 1px solid #e2e8f0;">
         <h3>ملخص جودة الخطط</h3>
         <table>
           <thead>
@@ -851,7 +888,7 @@ export function buildStatsHtml(summary = {}) {
         </table>
       </div>
 
-      <div style="padding: 12px; border-bottom: 1px solid rgba(226, 238, 255, 0.22);">
+      <div style="padding: 12px; border-bottom: 1px solid #e2e8f0;">
         <h3>الاتجاهات الشهرية</h3>
         <table>
           <thead>
@@ -868,7 +905,7 @@ export function buildStatsHtml(summary = {}) {
         </table>
       </div>
 
-      <div class="split-grid" style="padding: 12px; border-bottom: 1px solid rgba(226, 238, 255, 0.22);">
+      <div class="split-grid" style="padding: 12px; border-bottom: 1px solid #e2e8f0;">
         <div>
           <h3>تفصيل أنواع الخطط</h3>
           <table>
@@ -905,7 +942,7 @@ export function buildStatsHtml(summary = {}) {
       ${
         admin
           ? `
-          <div style="padding: 12px; border-bottom: 1px solid rgba(226, 238, 255, 0.22);">
+          <div style="padding: 12px; border-bottom: 1px solid #e2e8f0;">
             <h3>أداء المعلمين</h3>
             <table>
               <thead>

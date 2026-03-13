@@ -7,7 +7,7 @@ export async function authenticateToken(req, res, next) {
     const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
 
     if (!token) {
-      return res.status(401).json({ error: "Access token required" });
+      return res.status(401).json({ error: "جلسة العمل انتهت، يرجى تسجيل الدخول مرة أخرى" });
     }
 
     // Verify the JWT token
@@ -20,7 +20,7 @@ export async function authenticateToken(req, res, next) {
     });
 
     if (userResult.rows.length === 0) {
-      return res.status(401).json({ error: "User not found" });
+      return res.status(401).json({ error: "المستخدم غير موجود" });
     }
 
     // Populate req.user with user data
@@ -34,6 +34,6 @@ export async function authenticateToken(req, res, next) {
     next();
   } catch (error) {
     console.error("Auth middleware error:", error);
-    return res.status(403).json({ error: "Invalid or expired token" });
+    return res.status(403).json({ error: "جلسة العمل غير صالحة أو منتهية" });
   }
 }

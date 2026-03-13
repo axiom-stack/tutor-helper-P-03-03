@@ -2116,6 +2116,12 @@ function TeacherCirriculumManager(props: {
               {quickAddDraft.kind === 'lesson' && 'إضافة درس'}
             </h3>
             <p className="tcm2__required-note">الحقول التي عليها * مطلوبة.</p>
+            {quickAddDraft.kind === 'class' && (
+              <p className="tcm2__helper-note">
+                ملاحظة: إذا اخترت مرحلة غير مفعّلة لديك في الإعدادات أو مختلفة عن المرحلة الحالية في الشريط الجانبي،
+                فلن يظهر هذا الصف فوراً في القوائم. غيّر المرحلة من الشريط الجانبي أو فعّل المرحلة من صفحة الإعدادات لرؤية الصف.
+              </p>
+            )}
 
             <div className="tcm2__field">
               <label htmlFor="quick-add-name">الاسم *</label>

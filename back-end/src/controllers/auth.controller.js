@@ -7,7 +7,7 @@ import { insertAuditLog } from "../audit/auditLog.js";
 export async function login(req, res) {
   try {
     if (!req.body) {
-      return res.status(400).json({ error: "Request body required" });
+      return res.status(400).json({ error: "محتوى الطلب مطلوب" });
     }
 
     const { username, password } = req.body;
@@ -111,7 +111,7 @@ export async function login(req, res) {
       { err: err.message, stack: err.stack },
       "Login failed with error",
     );
-    res.status(500).json({ error: "فشل تسجيل الدخول" });
+    res.status(500).json({ error: "حدث خطأ غير متوقع أثناء تسجيل الدخول، يرجى المحاولة مرة أخرى" });
   }
 }
 
