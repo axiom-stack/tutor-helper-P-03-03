@@ -918,7 +918,10 @@ export default function Quizzes() {
                   <option value="">الكل</option>
                   {classes.map((classItem) => (
                     <option key={classItem.id} value={classItem.id}>
-                      {classItem.grade_label} - {classItem.section_label} ({classItem.name})
+                      {[classItem.grade_label, classItem.section_label]
+                        .map((value) => value?.trim() ?? '')
+                        .filter(Boolean)
+                        .join(' - ')}
                     </option>
                   ))}
                 </select>
@@ -990,7 +993,12 @@ export default function Quizzes() {
                           <h4>{exam.title}</h4>
                           <p>
                             {subject?.name ?? `مادة #${exam.subject_id}`} |{' '}
-                            {classItem?.name ?? `صف #${exam.class_id}`}
+                            {(classItem
+                              ? [classItem.grade_label, classItem.section_label]
+                                  .map((value) => value?.trim() ?? '')
+                                  .filter(Boolean)
+                                  .join(' - ')
+                              : null) ?? `صف #${exam.class_id}`}
                           </p>
                           <small>
                             {exam.total_questions} سؤال | {exam.total_marks} درجة

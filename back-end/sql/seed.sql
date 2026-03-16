@@ -12,8 +12,6 @@ INSERT INTO Users (username, display_name, password, role) VALUES
 
 -- Insert classes
 INSERT INTO Classes (
-  name,
-  description,
   grade_label,
   section_label,
   section,
@@ -21,12 +19,12 @@ INSERT INTO Classes (
   default_duration_minutes,
   teacher_id
 ) VALUES
-('Mathematics 101', 'Introduction to basic mathematics concepts', 'Grade 8', 'A', 'أ', '2025-2026', 45, 2), -- john_doe
-('English Literature', 'Study of classic and modern literature', 'Grade 9', 'B', 'ب', '2025-2026', 45, 3), -- sarah_smith
-('Physics Fundamentals', 'Basic principles of physics', 'Grade 10', 'A', 'أ', '2025-2026', 50, 4), -- mike_johnson
-('Chemistry Basics', 'Introduction to chemical principles', 'Grade 10', 'B', 'ب', '2025-2026', 50, 5), -- emily_brown
-('History of World Civilizations', 'Comprehensive world history course', 'Grade 11', 'A', 'أ', '2025-2026', 45, 6), -- david_wilson
-('Computer Science Introduction', 'Programming fundamentals and algorithms', 'Grade 11', 'C', 'ج', '2025-2026', 50, 7); -- lisa_garcia
+('Grade 8', 'A', 'أ', '2025-2026', 45, 2), -- john_doe
+('Grade 9', 'B', 'ب', '2025-2026', 45, 3), -- sarah_smith
+('Grade 10', 'A', 'أ', '2025-2026', 50, 4), -- mike_johnson
+('Grade 10', 'B', 'ب', '2025-2026', 50, 5), -- emily_brown
+('Grade 11', 'A', 'أ', '2025-2026', 45, 6), -- david_wilson
+('Grade 11', 'C', 'ج', '2025-2026', 50, 7); -- lisa_garcia
 
 -- Insert subjects for each class
 INSERT INTO Subjects (class_id, teacher_id, name, description) VALUES

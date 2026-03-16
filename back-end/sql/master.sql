@@ -21,8 +21,6 @@ CREATE TABLE UserProfiles (
 
 CREATE TABLE Classes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
-  description TEXT NOT NULL,
   grade_label TEXT NOT NULL,
   stage TEXT,
   section_label TEXT NOT NULL,
@@ -38,7 +36,7 @@ Create Table Subjects (
   class_id INTEGER NOT NULL REFERENCES Classes(id) ON DELETE CASCADE,
   teacher_id INTEGER NOT NULL REFERENCES users(id),
   name TEXT NOT NULL,
-  description TEXT NOT NULL,
+  description TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -47,7 +45,7 @@ Create Table Units (
   subject_id INTEGER NOT NULL REFERENCES Subjects(id) ON DELETE CASCADE,
   teacher_id INTEGER NOT NULL REFERENCES users(id),
   name TEXT NOT NULL,
-  description TEXT NOT NULL,
+  description TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -56,7 +54,7 @@ Create Table Lessons (
   unit_id INTEGER NOT NULL REFERENCES Units(id) ON DELETE CASCADE,
   teacher_id INTEGER NOT NULL REFERENCES users(id),
   name TEXT NOT NULL,
-  description TEXT NOT NULL,
+  description TEXT,
   content TEXT NOT NULL,
   number_of_periods INTEGER NOT NULL DEFAULT 1 CHECK(number_of_periods > 0),
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP

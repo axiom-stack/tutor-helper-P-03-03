@@ -125,8 +125,12 @@ All API endpoints except login/logout require authentication via JWT token in th
 **Request Body**:
 ```json
 {
-  "name": "string (required)",
-  "description": "string (required)",
+  "grade_label": "string (required)",
+  "stage": "string (optional)",
+  "section_label": "string (required)",
+  "section": "string (optional, defaults to 'أ')",
+  "academic_year": "string (required)",
+  "default_duration_minutes": "number (optional, positive integer)",
   "teacher_id": "number (required)"
 }
 ```
@@ -136,8 +140,12 @@ All API endpoints except login/logout require authentication via JWT token in th
 {
   "class": {
     "id": number,
-    "name": string,
-    "description": string,
+    "grade_label": string,
+    "stage": string | null,
+    "section_label": string,
+    "section": string,
+    "academic_year": string,
+    "default_duration_minutes": number,
     "teacher_id": number,
     "created_at": string
   }
@@ -146,7 +154,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 
 **Response Codes**:
 - `201`: Created successfully
-- `400`: Missing required fields or teacher_id
+- `400`: Missing/invalid required fields or teacher_id
 - `500`: Internal server error
 
 ---
@@ -162,8 +170,12 @@ All API endpoints except login/logout require authentication via JWT token in th
   "classes": [
     {
       "id": number,
-      "name": string,
-      "description": string,
+      "grade_label": string,
+      "stage": string | null,
+      "section_label": string,
+      "section": string,
+      "academic_year": string,
+      "default_duration_minutes": number,
       "teacher_id": number,
       "created_at": string
     }
@@ -187,8 +199,12 @@ All API endpoints except login/logout require authentication via JWT token in th
 {
   "class": {
     "id": number,
-    "name": string,
-    "description": string,
+    "grade_label": string,
+    "stage": string | null,
+    "section_label": string,
+    "section": string,
+    "academic_year": string,
+    "default_duration_minutes": number,
     "teacher_id": number,
     "created_at": string
   }
@@ -214,8 +230,12 @@ All API endpoints except login/logout require authentication via JWT token in th
   "classes": [
     {
       "id": number,
-      "name": string,
-      "description": string,
+      "grade_label": string,
+      "stage": string | null,
+      "section_label": string,
+      "section": string,
+      "academic_year": string,
+      "default_duration_minutes": number,
       "teacher_id": number,
       "created_at": string
     }
@@ -236,8 +256,12 @@ All API endpoints except login/logout require authentication via JWT token in th
 **Request Body**:
 ```json
 {
-  "name": "string (required)",
-  "description": "string (required)"
+  "grade_label": "string (required)",
+  "stage": "string (optional)",
+  "section_label": "string (required)",
+  "section": "string (optional, defaults to 'أ')",
+  "academic_year": "string (required)",
+  "default_duration_minutes": "number (optional, positive integer)"
 }
 ```
 
@@ -246,8 +270,12 @@ All API endpoints except login/logout require authentication via JWT token in th
 {
   "class": {
     "id": number,
-    "name": string,
-    "description": string,
+    "grade_label": string,
+    "stage": string | null,
+    "section_label": string,
+    "section": string,
+    "academic_year": string,
+    "default_duration_minutes": number,
     "teacher_id": number,
     "created_at": string
   }
@@ -256,7 +284,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 
 **Response Codes**:
 - `200`: Updated successfully
-- `400`: Missing required fields
+- `400`: Missing/invalid required fields
 - `403`: Unauthorized (not owner and not admin)
 - `404`: Class not found
 - `500`: Internal server error
@@ -273,8 +301,12 @@ All API endpoints except login/logout require authentication via JWT token in th
 {
   "class": {
     "id": number,
-    "name": string,
-    "description": string,
+    "grade_label": string,
+    "stage": string | null,
+    "section_label": string,
+    "section": string,
+    "academic_year": string,
+    "default_duration_minutes": number,
     "teacher_id": number,
     "created_at": string
   }
@@ -298,7 +330,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```json
 {
   "name": "string (required)",
-  "description": "string (required)",
+  "description": "string (optional)",
   "class_id": "number (required)",
   "teacher_id": "number (optional)"
 }
@@ -310,7 +342,7 @@ All API endpoints except login/logout require authentication via JWT token in th
   "subject": {
     "id": number,
     "name": string,
-    "description": string,
+    "description": string | null,
     "teacher_id": number,
     "class_id": number,
     "created_at": string
@@ -320,7 +352,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 
 **Response Codes**:
 - `201`: Created successfully
-- `400`: Missing required fields or class_id
+- `400`: Missing/invalid required fields or class_id
 - `500`: Internal server error
 
 ---
@@ -337,7 +369,7 @@ All API endpoints except login/logout require authentication via JWT token in th
     {
       "id": number,
       "name": string,
-      "description": string,
+      "description": string | null,
       "teacher_id": number,
       "class_id": number,
       "created_at": string
@@ -364,7 +396,7 @@ All API endpoints except login/logout require authentication via JWT token in th
     {
       "id": number,
       "name": string,
-      "description": string,
+      "description": string | null,
       "teacher_id": number,
       "class_id": number,
       "created_at": string
@@ -392,7 +424,7 @@ All API endpoints except login/logout require authentication via JWT token in th
   "subject": {
     "id": number,
     "name": string,
-    "description": string,
+    "description": string | null,
     "teacher_id": number,
     "class_id": number,
     "created_at": string
@@ -420,7 +452,7 @@ All API endpoints except login/logout require authentication via JWT token in th
     {
       "id": number,
       "name": string,
-      "description": string,
+      "description": string | null,
       "teacher_id": number,
       "class_id": number,
       "created_at": string
@@ -443,10 +475,14 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```json
 {
   "name": "string (required)",
-  "description": "string (required)",
+  "description": "string (optional)",
   "class_id": "number (optional)"
 }
 ```
+
+**Description update semantics**:
+- Omit `description` to keep the existing value.
+- Send `description: ""` (or whitespace) to clear it to `null`.
 
 **Response Body** (200):
 ```json
@@ -454,7 +490,7 @@ All API endpoints except login/logout require authentication via JWT token in th
   "subject": {
     "id": number,
     "name": string,
-    "description": string,
+    "description": string | null,
     "teacher_id": number,
     "class_id": number,
     "created_at": string
@@ -464,7 +500,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 
 **Response Codes**:
 - `200`: Updated successfully
-- `400`: Missing required fields
+- `400`: Missing/invalid required fields
 - `403`: Unauthorized (not owner and not admin)
 - `404`: Subject not found
 - `500`: Internal server error
@@ -482,7 +518,7 @@ All API endpoints except login/logout require authentication via JWT token in th
   "subject": {
     "id": number,
     "name": string,
-    "description": string,
+    "description": string | null,
     "teacher_id": number,
     "class_id": number,
     "created_at": string
@@ -507,7 +543,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```json
 {
   "name": "string (required)",
-  "description": "string (required)",
+  "description": "string (optional)",
   "subject_id": "number (required)",
   "teacher_id": "number (required)"
 }
@@ -519,7 +555,7 @@ All API endpoints except login/logout require authentication via JWT token in th
   "unit": {
     "id": number,
     "name": string,
-    "description": string,
+    "description": string | null,
     "subject_id": number,
     "teacher_id": number,
     "created_at": string
@@ -529,7 +565,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 
 **Response Codes**:
 - `201`: Created successfully
-- `400`: Missing required fields or subject_id
+- `400`: Missing/invalid required fields or subject_id
 - `403`: Unauthorized (subject not owned by teacher)
 - `404`: Subject not found
 - `500`: Internal server error
@@ -548,7 +584,7 @@ All API endpoints except login/logout require authentication via JWT token in th
     {
       "id": number,
       "name": string,
-      "description": string,
+      "description": string | null,
       "subject_id": number,
       "teacher_id": number,
       "created_at": string
@@ -575,7 +611,7 @@ All API endpoints except login/logout require authentication via JWT token in th
     {
       "id": number,
       "name": string,
-      "description": string,
+      "description": string | null,
       "subject_id": number,
       "teacher_id": number,
       "created_at": string
@@ -603,7 +639,7 @@ All API endpoints except login/logout require authentication via JWT token in th
   "unit": {
     "id": number,
     "name": string,
-    "description": string,
+    "description": string | null,
     "subject_id": number,
     "teacher_id": number,
     "created_at": string
@@ -631,7 +667,7 @@ All API endpoints except login/logout require authentication via JWT token in th
     {
       "id": number,
       "name": string,
-      "description": string,
+      "description": string | null,
       "subject_id": number,
       "teacher_id": number,
       "created_at": string
@@ -654,10 +690,14 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```json
 {
   "name": "string (required)",
-  "description": "string (required)",
+  "description": "string (optional)",
   "subject_id": "number (optional)"
 }
 ```
+
+**Description update semantics**:
+- Omit `description` to keep the existing value.
+- Send `description: ""` (or whitespace) to clear it to `null`.
 
 **Response Body** (200):
 ```json
@@ -665,7 +705,7 @@ All API endpoints except login/logout require authentication via JWT token in th
   "unit": {
     "id": number,
     "name": string,
-    "description": string,
+    "description": string | null,
     "subject_id": number,
     "teacher_id": number,
     "created_at": string
@@ -675,7 +715,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 
 **Response Codes**:
 - `200`: Updated successfully
-- `400`: Missing required fields
+- `400`: Missing/invalid required fields
 - `403`: Unauthorized (not owner and not admin, or trying to move to unowned subject)
 - `404`: Unit or subject not found
 - `500`: Internal server error
@@ -693,7 +733,7 @@ All API endpoints except login/logout require authentication via JWT token in th
   "unit": {
     "id": number,
     "name": string,
-    "description": string,
+    "description": string | null,
     "subject_id": number,
     "teacher_id": number,
     "created_at": string
@@ -718,7 +758,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```json
 {
   "name": "string (required)",
-  "description": "string (required)",
+  "description": "string (optional)",
   "unit_id": "number (required)",
   "content_type": "string (required) - 'text', 'pdf', or 'word'",
   "id": "number (required) - teacher_id",
@@ -735,7 +775,7 @@ All API endpoints except login/logout require authentication via JWT token in th
   "lesson": {
     "id": number,
     "name": string,
-    "description": string,
+    "description": string | null,
     "unit_id": number,
     "teacher_id": number,
     "content": string,
@@ -756,7 +796,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 
 **Response Codes**:
 - `201`: Created successfully
-- `400`: Missing required fields, invalid content_type, or file type mismatch
+- `400`: Missing/invalid required fields, invalid content_type, or file type mismatch
 - `403`: Unauthorized (unit not owned by teacher)
 - `404`: Unit not found
 - `500`: Internal server error
@@ -781,7 +821,7 @@ All API endpoints except login/logout require authentication via JWT token in th
     {
       "id": number,
       "name": string,
-      "description": string,
+      "description": string | null,
       "unit_id": number,
       "teacher_id": number,
       "content": string,
@@ -809,7 +849,7 @@ All API endpoints except login/logout require authentication via JWT token in th
     {
       "id": number,
       "name": string,
-      "description": string,
+      "description": string | null,
       "unit_id": number,
       "teacher_id": number,
       "content": string,
@@ -838,7 +878,7 @@ All API endpoints except login/logout require authentication via JWT token in th
   "lesson": {
     "id": number,
     "name": string,
-    "description": string,
+    "description": string | null,
     "unit_id": number,
     "teacher_id": number,
     "content": string,
@@ -867,7 +907,7 @@ All API endpoints except login/logout require authentication via JWT token in th
     {
       "id": number,
       "name": string,
-      "description": string,
+      "description": string | null,
       "unit_id": number,
       "teacher_id": number,
       "content": string,
@@ -891,11 +931,15 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```json
 {
   "name": "string (required)",
-  "description": "string (required)",
+  "description": "string (optional)",
   "content": "string (required)",
   "unit_id": "number (optional)"
 }
 ```
+
+**Description update semantics**:
+- Omit `description` to keep the existing value.
+- Send `description: ""` (or whitespace) to clear it to `null`.
 
 **Response Body** (200):
 ```json
@@ -903,7 +947,7 @@ All API endpoints except login/logout require authentication via JWT token in th
   "lesson": {
     "id": number,
     "name": string,
-    "description": string,
+    "description": string | null,
     "unit_id": number,
     "teacher_id": number,
     "content": string,
@@ -914,7 +958,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 
 **Response Codes**:
 - `200`: Updated successfully
-- `400`: Missing required fields
+- `400`: Missing/invalid required fields
 - `403`: Unauthorized (not owner and not admin, or trying to move to unowned unit)
 - `404`: Lesson or unit not found
 - `500`: Internal server error
@@ -932,7 +976,7 @@ All API endpoints except login/logout require authentication via JWT token in th
   "lesson": {
     "id": number,
     "name": string,
-    "description": string,
+    "description": string | null,
     "unit_id": number,
     "teacher_id": number,
     "content": string,

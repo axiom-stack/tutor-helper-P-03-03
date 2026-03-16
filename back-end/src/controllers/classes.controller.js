@@ -8,22 +8,14 @@ import {
 
 function validateRequiredClassFields(payload) {
   const normalized = {
-    name: normalizeString(payload?.name),
-    description: normalizeString(payload?.description),
     grade_label: normalizeString(payload?.grade_label),
     section_label: normalizeString(payload?.section_label),
-    section: normalizeString(payload?.section) || "أ",
+    section: normalizeString(payload?.section),
     academic_year: normalizeString(payload?.academic_year),
   };
 
   const errors = [];
 
-  if (!normalized.name) {
-    errors.push("name is required");
-  }
-  if (!normalized.description) {
-    errors.push("description is required");
-  }
   if (!normalized.grade_label) {
     errors.push("grade_label is required");
   }
@@ -101,16 +93,14 @@ export async function createClass(req, res) {
     const createdClass = await turso.execute({
       sql: `
         INSERT INTO Classes
-          (name, description, grade_label, stage, section_label, section, academic_year, default_duration_minutes, teacher_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          (grade_label, stage, section_label, section, academic_year, default_duration_minutes, teacher_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       `,
       args: [
-        normalized.name,
-        normalized.description,
         normalized.grade_label,
         finalStage,
         normalized.section_label,
-        normalized.section,
+        normalized.section || "أ",
         normalized.academic_year,
         defaultDurationMinutes,
         parsedTeacherId,
@@ -270,6 +260,9 @@ export async function updateClassByClassId(req, res) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
+    const finalSection =
+      normalized.section || normalizeString(returnedClass.rows[0]?.section) || "أ";
+
     // Compute stage based on updated grade_label, with optional explicit stage.
     const requestedStage =
       typeof req.body?.stage === "string" ? req.body.stage.trim() : null;
@@ -296,8 +289,6 @@ export async function updateClassByClassId(req, res) {
       sql: `
         UPDATE Classes
         SET
-          name = ?,
-          description = ?,
           grade_label = ?,
           stage = ?,
           section_label = ?,
@@ -307,12 +298,10 @@ export async function updateClassByClassId(req, res) {
         WHERE id = ?
       `,
       args: [
-        normalized.name,
-        normalized.description,
         normalized.grade_label,
         finalStage,
         normalized.section_label,
-        normalized.section,
+        finalSection,
         normalized.academic_year,
         defaultDurationMinutes,
         classId,

@@ -286,7 +286,10 @@ function AdminCurriculumExplorer({
             <option value="">الكل</option>
             {filteredClasses.map((classItem) => (
               <option key={classItem.id} value={classItem.id}>
-                {classItem.grade_label} - {classItem.section_label} ({classItem.name})
+                {[classItem.grade_label, classItem.section_label]
+                  .map((value) => value?.trim() ?? '')
+                  .filter(Boolean)
+                  .join(' - ')}
               </option>
             ))}
           </select>

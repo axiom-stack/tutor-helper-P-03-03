@@ -76,6 +76,7 @@ interface EditDraft {
   stage?: StageId;
   gradeLabel?: string;
   sectionLabel?: string;
+  section?: string;
   academicYear?: string;
   defaultDurationMinutes?: number;
   content?: string;
@@ -95,6 +96,7 @@ interface QuickAddDraft {
   stage?: StageId;
   gradeLabel?: string;
   sectionLabel?: string;
+  section?: string;
   academicYear?: string;
   defaultDurationMinutes?: number;
   contentType?: LessonContentType;
@@ -177,6 +179,15 @@ function getLessonCreationMessage(result: CreateLessonResponse): string {
   return 'تم إنشاء الدرس بنجاح.';
 }
 
+function formatClassLabel(classItem: Pick<Class, 'grade_label' | 'section_label'>): string {
+  const gradeLabel = classItem.grade_label?.trim() ?? '';
+  const sectionLabel = classItem.section_label?.trim() ?? '';
+  if (gradeLabel && sectionLabel) {
+    return `${gradeLabel} - ${sectionLabel}`;
+  }
+  return gradeLabel || sectionLabel || '—';
+}
+
 function TeacherCirriculumManager(props: {
   scope?: TeacherCirriculumManagerScope;
 }) {
@@ -215,8 +226,6 @@ function TeacherCirriculumManager(props: {
   const [creatorClassMode, setCreatorClassMode] = useState<ClassMode>('existing');
   const [creatorExistingClassId, setCreatorExistingClassId] =
     useState<SelectValue>('');
-  const [creatorNewClassName, setCreatorNewClassName] = useState('');
-  const [creatorNewClassDescription, setCreatorNewClassDescription] = useState('');
   const [creatorNewClassStage, setCreatorNewClassStage] = useState<StageId>(
     activeStage === 'all' ? 'ابتدائي' : activeStage
   );
@@ -294,8 +303,6 @@ function TeacherCirriculumManager(props: {
         return false;
       }
     } else if (
-      !creatorNewClassName.trim() ||
-      !creatorNewClassDescription.trim() ||
       !creatorNewClassStage ||
       !creatorNewClassGradeLabel.trim() ||
       !creatorNewClassSectionLabel.trim() ||
@@ -314,7 +321,7 @@ function TeacherCirriculumManager(props: {
     }
     if (
       creatorSubjectMode === 'new' &&
-      (!creatorNewSubjectName.trim() || !creatorNewSubjectDescription.trim())
+      !creatorNewSubjectName.trim()
     ) {
       return false;
     }
@@ -327,7 +334,7 @@ function TeacherCirriculumManager(props: {
     }
     if (
       creatorUnitMode === 'new' &&
-      (!creatorNewUnitName.trim() || !creatorNewUnitDescription.trim())
+      !creatorNewUnitName.trim()
     ) {
       return false;
     }
@@ -338,7 +345,6 @@ function TeacherCirriculumManager(props: {
 
     if (
       !creatorLessonName.trim() ||
-      !creatorLessonDescription.trim() ||
       !Number.isInteger(creatorLessonNumberOfPeriods) ||
       creatorLessonNumberOfPeriods <= 0
     ) {
@@ -365,9 +371,6 @@ function TeacherCirriculumManager(props: {
     if (!quickAddDraft) {
       return false;
     }
-    if (!quickAddDraft.name.trim() || !quickAddDraft.description.trim()) {
-      return false;
-    }
 
     if (quickAddDraft.kind === 'class') {
       return Boolean(
@@ -381,15 +384,16 @@ function TeacherCirriculumManager(props: {
     }
 
     if (quickAddDraft.kind === 'subject') {
-      return Boolean(quickAddDraft.classId);
+      return Boolean(quickAddDraft.classId && quickAddDraft.name.trim());
     }
 
     if (quickAddDraft.kind === 'unit') {
-      return Boolean(quickAddDraft.subjectId);
+      return Boolean(quickAddDraft.subjectId && quickAddDraft.name.trim());
     }
 
     if (quickAddDraft.kind === 'lesson') {
       if (
+        !quickAddDraft.name.trim() ||
         !quickAddDraft.unitId ||
         !Number.isInteger(quickAddDraft.numberOfPeriods) ||
         Number(quickAddDraft.numberOfPeriods) <= 0
@@ -494,8 +498,6 @@ function TeacherCirriculumManager(props: {
   const resetCreatorForm = () => {
     setCreatorClassMode('existing');
     setCreatorExistingClassId('');
-    setCreatorNewClassName('');
-    setCreatorNewClassDescription('');
     setCreatorNewClassStage(activeStage === 'all' ? 'ابتدائي' : activeStage);
     setCreatorNewClassGradeLabel('');
     setCreatorNewClassSectionLabel('');
@@ -692,6 +694,7 @@ function TeacherCirriculumManager(props: {
       stage: activeStage === 'all' ? 'ابتدائي' : activeStage,
       gradeLabel: '',
       sectionLabel: '',
+      section: 'أ',
       academicYear: '',
       defaultDurationMinutes: user?.profile?.default_lesson_duration_minutes ?? 45,
     });
@@ -744,11 +747,10 @@ function TeacherCirriculumManager(props: {
     try {
       if (quickAddDraft.kind === 'class') {
         await createClass({
-          name: quickAddDraft.name.trim(),
-          description: quickAddDraft.description.trim(),
           stage: quickAddDraft.stage,
           grade_label: quickAddDraft.gradeLabel?.trim() ?? '',
           section_label: quickAddDraft.sectionLabel?.trim() ?? '',
+          section: quickAddDraft.section?.trim() || 'أ',
           academic_year: quickAddDraft.academicYear?.trim() ?? '',
           default_duration_minutes: quickAddDraft.defaultDurationMinutes ?? 45,
           teacher_id: teacherId,
@@ -841,11 +843,12 @@ function TeacherCirriculumManager(props: {
     setEditDraft({
       kind: 'class',
       id: selectedClass.id,
-      name: selectedClass.name,
-      description: selectedClass.description,
+      name: '',
+      description: '',
       stage: (selectedClass.stage as StageId) || getStageForGrade(selectedClass.grade_label) || (activeStage === 'all' ? 'ابتدائي' : activeStage),
       gradeLabel: selectedClass.grade_label,
       sectionLabel: selectedClass.section_label,
+      section: selectedClass.section,
       academicYear: selectedClass.academic_year,
       defaultDurationMinutes: selectedClass.default_duration_minutes,
     });
@@ -859,7 +862,7 @@ function TeacherCirriculumManager(props: {
       kind: 'subject',
       id: selectedSubject.id,
       name: selectedSubject.name,
-      description: selectedSubject.description,
+      description: selectedSubject.description ?? '',
     });
   };
 
@@ -868,7 +871,7 @@ function TeacherCirriculumManager(props: {
       kind: 'unit',
       id: unitItem.id,
       name: unitItem.name,
-      description: unitItem.description,
+      description: unitItem.description ?? '',
     });
   };
 
@@ -877,7 +880,7 @@ function TeacherCirriculumManager(props: {
       kind: 'lesson',
       id: lessonItem.id,
       name: lessonItem.name,
-      description: lessonItem.description,
+      description: lessonItem.description ?? '',
       contentType: 'text',
       content: lessonItem.content,
       file: null,
@@ -896,11 +899,8 @@ function TeacherCirriculumManager(props: {
     setSuccess(null);
 
     try {
-      if (!editDraft.name.trim()) {
+      if (editDraft.kind !== 'class' && !editDraft.name.trim()) {
         throw new Error('الاسم مطلوب.');
-      }
-      if (!editDraft.description.trim()) {
-        throw new Error('الوصف مطلوب.');
       }
 
       if (editDraft.kind === 'class') {
@@ -924,11 +924,10 @@ function TeacherCirriculumManager(props: {
 
       if (editDraft.kind === 'class') {
         const response = await updateClass(editDraft.id, {
-          name: editDraft.name.trim(),
-          description: editDraft.description.trim(),
           stage: editDraft.stage,
           grade_label: editDraft.gradeLabel?.trim() ?? '',
           section_label: editDraft.sectionLabel?.trim() ?? '',
+          section: editDraft.section?.trim() || 'أ',
           academic_year: editDraft.academicYear?.trim() ?? '',
           default_duration_minutes: editDraft.defaultDurationMinutes ?? 45,
         });
@@ -1106,9 +1105,6 @@ function TeacherCirriculumManager(props: {
         }
         resolvedClassId = creatorExistingClassId;
       } else {
-        if (!creatorNewClassName.trim() || !creatorNewClassDescription.trim()) {
-          throw new Error('يرجى إدخال اسم الصف ووصفه.');
-        }
         if (!creatorNewClassGradeLabel.trim()) {
           throw new Error('يرجى إدخال المرحلة/الصف.');
         }
@@ -1126,11 +1122,10 @@ function TeacherCirriculumManager(props: {
         }
 
         const classResponse = await createClass({
-          name: creatorNewClassName.trim(),
-          description: creatorNewClassDescription.trim(),
           stage: creatorNewClassStage,
           grade_label: creatorNewClassGradeLabel.trim(),
           section_label: creatorNewClassSectionLabel.trim(),
+          section: 'أ',
           academic_year: creatorNewClassAcademicYear.trim(),
           default_duration_minutes: creatorNewClassDefaultDuration,
           teacher_id: teacherId,
@@ -1159,8 +1154,8 @@ function TeacherCirriculumManager(props: {
 
         resolvedSubjectId = creatorExistingSubjectId;
       } else {
-        if (!creatorNewSubjectName.trim() || !creatorNewSubjectDescription.trim()) {
-          throw new Error('يرجى إدخال اسم المادة ووصفها.');
+        if (!creatorNewSubjectName.trim()) {
+          throw new Error('يرجى إدخال اسم المادة.');
         }
 
         const subjectResponse = await createSubject({
@@ -1193,8 +1188,8 @@ function TeacherCirriculumManager(props: {
         if (!resolvedSubjectId) {
           throw new Error('لا يمكن إنشاء وحدة بدون مادة.');
         }
-        if (!creatorNewUnitName.trim() || !creatorNewUnitDescription.trim()) {
-          throw new Error('يرجى إدخال اسم الوحدة ووصفها.');
+        if (!creatorNewUnitName.trim()) {
+          throw new Error('يرجى إدخال اسم الوحدة.');
         }
 
         const unitResponse = await createUnit({
@@ -1210,8 +1205,8 @@ function TeacherCirriculumManager(props: {
         if (!resolvedUnitId) {
           throw new Error('لا يمكن إنشاء درس بدون وحدة.');
         }
-        if (!creatorLessonName.trim() || !creatorLessonDescription.trim()) {
-          throw new Error('يرجى إدخال اسم الدرس ووصفه.');
+        if (!creatorLessonName.trim()) {
+          throw new Error('يرجى إدخال اسم الدرس.');
         }
         if (
           !Number.isInteger(creatorLessonNumberOfPeriods) ||
@@ -1354,7 +1349,7 @@ function TeacherCirriculumManager(props: {
                   <option value="">اختر الصف</option>
                   {classes.map((classItem) => (
                     <option key={classItem.id} value={classItem.id}>
-                      {classItem.grade_label} - {classItem.section_label} ({classItem.name})
+                      {formatClassLabel(classItem)}
                     </option>
                   ))}
                 </select>
@@ -1405,9 +1400,8 @@ function TeacherCirriculumManager(props: {
                 <div>
                   <h3>
                     <MdSchool aria-hidden />
-                    {selectedClass.name}
+                    {formatClassLabel(selectedClass)}
                   </h3>
-                  <p>{selectedClass.description}</p>
                   <p>
                     المرحلة: {selectedClass.stage} | الصف: {selectedClass.grade_label} | الشعبة:{' '}
                     {selectedClass.section_label}
@@ -1444,7 +1438,7 @@ function TeacherCirriculumManager(props: {
                     <MdSubject aria-hidden />
                     {selectedSubject.name}
                   </h3>
-                  <p>{selectedSubject.description}</p>
+                  <p>{selectedSubject.description?.trim() || 'لا يوجد وصف للمادة.'}</p>
                 </div>
                 <div className="tcm2__meta-actions">
                   <button
@@ -1562,7 +1556,7 @@ function TeacherCirriculumManager(props: {
                       {isExpanded && (
                         <div className="tcm2__unit-body">
                           <p className="tcm2__unit-description">
-                            {unitItem.description}
+                            {unitItem.description?.trim() || 'لا يوجد وصف للوحدة.'}
                           </p>
                           {unitLessons.length === 0 ? (
                             <p className="tcm2__empty-small">
@@ -1576,7 +1570,7 @@ function TeacherCirriculumManager(props: {
                                     <MdMenuBook aria-hidden />
                                     <div>
                                       <strong>{lessonItem.name}</strong>
-                                      <p>{lessonItem.description}</p>
+                                      <p>{lessonItem.description?.trim() || 'لا يوجد وصف للدرس.'}</p>
                                       <small>
                                         عدد الحصص: {Number(lessonItem.number_of_periods ?? 1)}
                                       </small>
@@ -1679,35 +1673,13 @@ function TeacherCirriculumManager(props: {
                       <option value="">اختر الصف</option>
                       {classes.map((classItem) => (
                         <option key={classItem.id} value={classItem.id}>
-                          {classItem.name}
+                          {formatClassLabel(classItem)}
                         </option>
                       ))}
                     </select>
                   </div>
                 ) : (
                   <div className="tcm2__inline-grid">
-                    <div className="tcm2__field">
-                      <label htmlFor="creator-new-class-name">اسم الصف *</label>
-                      <input
-                        id="creator-new-class-name"
-                        type="text"
-                        value={creatorNewClassName}
-                        onChange={(event) =>
-                          setCreatorNewClassName(event.target.value)
-                        }
-                      />
-                    </div>
-                    <div className="tcm2__field">
-                      <label htmlFor="creator-new-class-description">وصف الصف *</label>
-                      <input
-                        id="creator-new-class-description"
-                        type="text"
-                        value={creatorNewClassDescription}
-                        onChange={(event) =>
-                          setCreatorNewClassDescription(event.target.value)
-                        }
-                      />
-                    </div>
                     <div className="tcm2__field">
                       <label htmlFor="creator-new-class-stage">
                         المرحلة *
@@ -1861,7 +1833,7 @@ function TeacherCirriculumManager(props: {
                     </div>
                     <div className="tcm2__field">
                       <label htmlFor="creator-new-subject-description">
-                        وصف المادة *
+                        وصف المادة
                       </label>
                       <input
                         id="creator-new-subject-description"
@@ -1939,7 +1911,7 @@ function TeacherCirriculumManager(props: {
                       />
                     </div>
                     <div className="tcm2__field">
-                      <label htmlFor="creator-new-unit-description">وصف الوحدة *</label>
+                      <label htmlFor="creator-new-unit-description">وصف الوحدة</label>
                       <input
                         id="creator-new-unit-description"
                         type="text"
@@ -1985,7 +1957,7 @@ function TeacherCirriculumManager(props: {
                         />
                       </div>
                       <div className="tcm2__field">
-                        <label htmlFor="creator-lesson-description">وصف الدرس *</label>
+                        <label htmlFor="creator-lesson-description">وصف الدرس</label>
                         <input
                           id="creator-lesson-description"
                           type="text"
@@ -2125,43 +2097,47 @@ function TeacherCirriculumManager(props: {
               </p>
             )}
 
-            <div className="tcm2__field">
-              <label htmlFor="quick-add-name">الاسم *</label>
-              <input
-                id="quick-add-name"
-                type="text"
-                value={quickAddDraft.name}
-                onChange={(event) =>
-                  setQuickAddDraft((previous) =>
-                    previous
-                      ? {
-                          ...previous,
-                          name: event.target.value,
-                        }
-                      : previous
-                  )
-                }
-              />
-            </div>
+            {quickAddDraft.kind !== 'class' && (
+              <>
+                <div className="tcm2__field">
+                  <label htmlFor="quick-add-name">الاسم *</label>
+                  <input
+                    id="quick-add-name"
+                    type="text"
+                    value={quickAddDraft.name}
+                    onChange={(event) =>
+                      setQuickAddDraft((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              name: event.target.value,
+                            }
+                          : previous
+                      )
+                    }
+                  />
+                </div>
 
-            <div className="tcm2__field">
-              <label htmlFor="quick-add-description">الوصف *</label>
-              <textarea
-                id="quick-add-description"
-                rows={3}
-                value={quickAddDraft.description}
-                onChange={(event) =>
-                  setQuickAddDraft((previous) =>
-                    previous
-                      ? {
-                          ...previous,
-                          description: event.target.value,
-                        }
-                      : previous
-                  )
-                }
-              />
-            </div>
+                <div className="tcm2__field">
+                  <label htmlFor="quick-add-description">الوصف</label>
+                  <textarea
+                    id="quick-add-description"
+                    rows={3}
+                    value={quickAddDraft.description}
+                    onChange={(event) =>
+                      setQuickAddDraft((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              description: event.target.value,
+                            }
+                          : previous
+                      )
+                    }
+                  />
+                </div>
+              </>
+            )}
 
             {quickAddDraft.kind === 'class' && (
               <div className="tcm2__inline-grid">
@@ -2404,43 +2380,47 @@ function TeacherCirriculumManager(props: {
               {editDraft.kind === 'lesson' && 'تعديل الدرس'}
             </h3>
 
-            <div className="tcm2__field">
-              <label htmlFor="edit-name">الاسم</label>
-              <input
-                id="edit-name"
-                type="text"
-                value={editDraft.name}
-                onChange={(event) =>
-                  setEditDraft((previous) =>
-                    previous
-                      ? {
-                          ...previous,
-                          name: event.target.value,
-                        }
-                      : previous
-                  )
-                }
-              />
-            </div>
+            {editDraft.kind !== 'class' && (
+              <>
+                <div className="tcm2__field">
+                  <label htmlFor="edit-name">الاسم</label>
+                  <input
+                    id="edit-name"
+                    type="text"
+                    value={editDraft.name}
+                    onChange={(event) =>
+                      setEditDraft((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              name: event.target.value,
+                            }
+                          : previous
+                      )
+                    }
+                  />
+                </div>
 
-            <div className="tcm2__field">
-              <label htmlFor="edit-description">الوصف</label>
-              <textarea
-                id="edit-description"
-                rows={3}
-                value={editDraft.description}
-                onChange={(event) =>
-                  setEditDraft((previous) =>
-                    previous
-                      ? {
-                          ...previous,
-                          description: event.target.value,
-                        }
-                      : previous
-                  )
-                }
-              />
-            </div>
+                <div className="tcm2__field">
+                  <label htmlFor="edit-description">الوصف</label>
+                  <textarea
+                    id="edit-description"
+                    rows={3}
+                    value={editDraft.description}
+                    onChange={(event) =>
+                      setEditDraft((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              description: event.target.value,
+                            }
+                          : previous
+                      )
+                    }
+                  />
+                </div>
+              </>
+            )}
 
             {editDraft.kind === 'class' && (
               <>

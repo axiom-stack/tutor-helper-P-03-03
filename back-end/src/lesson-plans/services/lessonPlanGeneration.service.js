@@ -630,6 +630,21 @@ async function generateStageWithFallback({
   };
 }
 
+function buildClassLabel(classRow) {
+  const gradeLabel =
+    typeof classRow?.grade_label === "string" ? classRow.grade_label.trim() : "";
+  const sectionLabel =
+    typeof classRow?.section_label === "string"
+      ? classRow.section_label.trim()
+      : "";
+
+  if (gradeLabel && sectionLabel) {
+    return `${gradeLabel} - ${sectionLabel}`;
+  }
+
+  return gradeLabel || sectionLabel || null;
+}
+
 async function resolveClassInfo(request, teacherId) {
   let className = request.class_name || null;
   let section = request.section || null;
@@ -637,13 +652,13 @@ async function resolveClassInfo(request, teacherId) {
   if (request.class_id) {
     try {
       const result = await turso.execute({
-        sql: "SELECT name, section FROM Classes WHERE id = ? AND teacher_id = ?",
+        sql: "SELECT grade_label, section_label, section FROM Classes WHERE id = ? AND teacher_id = ?",
         args: [Number(request.class_id), Number(teacherId)],
       });
 
       if (result.rows.length > 0) {
         const classRow = result.rows[0];
-        className = classRow.name;
+        className = buildClassLabel(classRow) || className;
         section = classRow.section || null;
       }
     } catch {

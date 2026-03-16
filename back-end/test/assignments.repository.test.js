@@ -123,7 +123,7 @@ test("list applies class filter and maps class metadata", async () => {
             lesson_plan_public_id: "trd_1",
             lesson_id: 6,
             class_id: 9,
-            class_name: "ثامن أ",
+            class_name: "الصف الثامن - أ",
             class_grade_label: "الصف الثامن",
             name: "واجب الصف",
             description: null,
@@ -142,7 +142,7 @@ test("list applies class filter and maps class metadata", async () => {
 
   assert.equal(list.length, 1);
   assert.equal(list[0].class_id, 9);
-  assert.equal(list[0].class_name, "ثامن أ");
+  assert.equal(list[0].class_name, "الصف الثامن - أ");
   assert.ok(calls.some((c) => c.sql.includes("c.id = ?")));
 });
 

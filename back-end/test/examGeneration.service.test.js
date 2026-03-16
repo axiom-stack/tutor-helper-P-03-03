@@ -17,7 +17,7 @@ function createDbClientStub() {
 
       if (sql.includes("FROM Classes")) {
         return {
-          rows: [{ id: 3, name: "ثامن أ", grade_label: "صف ثامن", teacher_id: 2 }],
+          rows: [{ id: 3, grade_label: "صف ثامن", section_label: "أ", teacher_id: 2 }],
         };
       }
 

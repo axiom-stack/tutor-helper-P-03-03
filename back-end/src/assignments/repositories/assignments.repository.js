@@ -10,7 +10,13 @@ const ASSIGNMENT_SELECT = `
     a.*,
     ag.public_id AS assignment_group_public_id,
     c.id AS class_id,
-    c.name AS class_name,
+    CASE
+      WHEN c.id IS NULL THEN NULL
+      WHEN c.grade_label IS NOT NULL AND c.section_label IS NOT NULL THEN c.grade_label || ' - ' || c.section_label
+      WHEN c.grade_label IS NOT NULL THEN c.grade_label
+      WHEN c.section_label IS NOT NULL THEN c.section_label
+      ELSE NULL
+    END AS class_name,
     c.grade_label AS class_grade_label
   FROM ${ASSIGNMENTS_TABLE} a
   LEFT JOIN AssignmentGroups ag ON ag.id = a.assignment_group_id

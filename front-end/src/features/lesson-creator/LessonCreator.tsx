@@ -480,8 +480,11 @@ function LessonCreator() {
       const lessonTitle = lesson?.name?.trim() || selectedLesson?.name?.trim() || '';
       const subjectName = selectedSubject.name?.trim() || '';
       const unitName = selectedUnit.name?.trim() || '';
-      const gradeValue =
-        selectedClass.grade_label?.trim() || selectedClass.name?.trim() || '';
+      const gradeValue = selectedClass.grade_label?.trim() || '';
+      const classLabel = [selectedClass.grade_label, selectedClass.section_label]
+        .map((value) => value?.trim() ?? '')
+        .filter(Boolean)
+        .join(' - ');
       const safeDurationMinutes = Number(durationMinutes);
 
       if (!lessonTitle) {
@@ -515,7 +518,7 @@ function LessonCreator() {
         plan_type: planType,
         preparation_type: user?.profile?.preparation_type ?? null,
         class_id: selectedClass.id,
-        class_name: selectedClass.name,
+        class_name: classLabel || undefined,
         section: selectedClass.section,
       });
 
@@ -939,7 +942,10 @@ function LessonCreator() {
                   <option value="">اختر الصف...</option>
                   {classes.map((classItem) => (
                     <option key={classItem.id} value={classItem.id}>
-                      {classItem.grade_label} - {classItem.section_label} ({classItem.name})
+                      {[classItem.grade_label, classItem.section_label]
+                        .map((value) => value?.trim() ?? '')
+                        .filter(Boolean)
+                        .join(' - ')}
                     </option>
                   ))}
                 </select>

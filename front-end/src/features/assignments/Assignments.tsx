@@ -268,7 +268,13 @@ export default function Assignments() {
     }
 
     const classItem = classes.find((item) => item.id === selectedClassId);
-    return classItem?.name ?? `صف #${selectedClassId}`;
+    if (!classItem) {
+      return `صف #${selectedClassId}`;
+    }
+    return [classItem.grade_label, classItem.section_label]
+      .map((value) => value?.trim() ?? '')
+      .filter(Boolean)
+      .join(' - ');
   }, [classes, selectedClassId]);
 
   const summaryCards = useMemo<SummaryCard[]>(() => {
@@ -829,7 +835,10 @@ export default function Assignments() {
                 <option value="">كل الصفوف</option>
                 {classes.map((classItem) => (
                   <option key={classItem.id} value={classItem.id}>
-                    {classItem.grade_label} - {classItem.section_label} ({classItem.name})
+                    {[classItem.grade_label, classItem.section_label]
+                      .map((value) => value?.trim() ?? '')
+                      .filter(Boolean)
+                      .join(' - ')}
                   </option>
                 ))}
               </select>

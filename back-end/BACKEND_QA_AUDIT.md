@@ -55,10 +55,10 @@ SQLite treats unquoted identifiers as case-insensitive; normalization to schema 
 
 - **Users:** id, username, password, role, created_at. Used in auth, middleware, users repo, seed. Matches schema.
 - **UserProfiles:** user_id, language, educational_stage, subject, preparation_type, default_lesson_duration_minutes, default_plan_type, updated_at. Used in users repo. Matches schema (and migrations if any extend it).
-- **Classes:** id, name, description, grade_label, section_label, section, academic_year, default_duration_minutes, teacher_id. classes.controller and repos. Matches schema.
-- **Subjects:** id, name, description, teacher_id, class_id. subject.controller. Matches schema.
-- **Units:** id, name, description, subject_id, teacher_id. units.controller. Matches schema.
-- **Lessons:** id, name, description, unit_id, teacher_id, content, number_of_periods. lessons.controller, lessonPlans.controller, assignment/exam generation, refinement.service. Matches schema.
+- **Classes:** id, grade_label, stage, section_label, section, academic_year, default_duration_minutes, teacher_id. classes.controller and repos. Matches schema.
+- **Subjects:** id, name, description (nullable), teacher_id, class_id. subject.controller. Matches schema.
+- **Units:** id, name, description (nullable), subject_id, teacher_id. units.controller. Matches schema.
+- **Lessons:** id, name, description (nullable), unit_id, teacher_id, content, number_of_periods. lessons.controller, lessonPlans.controller, assignment/exam generation, refinement.service. Matches schema.
 - **TraditionalLessonPlans / ActiveLearningLessonPlans:** id, public_id, teacher_id, lesson_id, lesson_title, subject, grade, unit, duration_minutes, plan_json, validation_status, retry_occurred, created_at, updated_at. lessonPlans.repository and generation service. Matches schema.
 - **AssignmentGroups:** id, public_id, teacher_id, lesson_plan_public_id, lesson_id. assignmentGroups.repository. Matches schema.
 - **Assignments:** id, public_id, assignment_group_id, teacher_id, lesson_plan_public_id, lesson_id, name, description, type, content, due_date, whatsapp_message_text, created_at, updated_at. assignments.repository (migration 011 columns used). Matches schema + migrations.

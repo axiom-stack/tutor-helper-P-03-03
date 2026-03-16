@@ -73,6 +73,21 @@ function autoGenerateTitle(subjectName) {
   return `اختبار ${subjectName} - ${date}`;
 }
 
+function buildClassLabel(classRow) {
+  const gradeLabel =
+    typeof classRow?.grade_label === "string" ? classRow.grade_label.trim() : "";
+  const sectionLabel =
+    typeof classRow?.section_label === "string"
+      ? classRow.section_label.trim()
+      : "";
+
+  if (gradeLabel && sectionLabel) {
+    return `${gradeLabel} - ${sectionLabel}`;
+  }
+
+  return gradeLabel || sectionLabel || null;
+}
+
 function buildFinalQuestion(slot, generatedQuestion) {
   const base = {
     slot_id: slot.slot_id,
@@ -189,7 +204,7 @@ async function buildSubjectAndClassContext(dbClient, subjectId, accessContext) {
   }
 
   const classResult = await dbClient.execute({
-    sql: "SELECT id, name, grade_label, teacher_id FROM Classes WHERE id = ? LIMIT 1",
+    sql: "SELECT id, grade_label, section_label, teacher_id FROM Classes WHERE id = ? LIMIT 1",
     args: [subject.class_id],
   });
 
@@ -214,8 +229,8 @@ async function buildSubjectAndClassContext(dbClient, subjectId, accessContext) {
     },
     classRow: {
       id: Number(classRow.id),
-      name: classRow.name,
       grade_label: classRow.grade_label,
+      section_label: classRow.section_label,
     },
   };
 }
@@ -399,6 +414,7 @@ export function createExamGenerationService(dependencies = {}) {
       }
 
       const examTitle = safeTitle(request.title) || autoGenerateTitle(subject.name);
+      const classLabel = buildClassLabel(classRow);
 
       logger.info(
         {
@@ -413,7 +429,7 @@ export function createExamGenerationService(dependencies = {}) {
       const promptInitial = buildGenerateExamPrompt({
         examTitle,
         subjectName: subject.name,
-        classLabel: classRow.grade_label || classRow.name,
+        classLabel,
         slots,
         lessons: orderedLessons,
       });
@@ -433,7 +449,7 @@ export function createExamGenerationService(dependencies = {}) {
         const promptRetry = buildGenerateExamPrompt({
           examTitle,
           subjectName: subject.name,
-          classLabel: classRow.grade_label || classRow.name,
+          classLabel,
           slots,
           lessons: orderedLessons,
           validationErrors: validation.errors,
@@ -477,7 +493,7 @@ export function createExamGenerationService(dependencies = {}) {
           ...saved,
           retry_occurred: retryOccurred,
           subject_name: subject.name,
-          class_name: classRow.name,
+          class_name: classLabel,
           class_grade_label: classRow.grade_label,
         },
       };

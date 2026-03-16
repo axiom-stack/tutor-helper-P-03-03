@@ -11,6 +11,11 @@ export async function createSubject(req, res) {
     const { id: userId, role: userRole } = req.user;
     const parsedClassId = Number(class_id);
     const parsedTeacherId = Number(teacher_id);
+    const normalizedName = typeof name === "string" ? name.trim() : "";
+    const normalizedDescription =
+      typeof description === "string" ? description.trim() : "";
+    const finalDescription =
+      normalizedDescription.length > 0 ? normalizedDescription : null;
 
     if (!class_id || Number.isNaN(parsedClassId)) {
       return res.status(400).json({ error: "class_id is required" });
@@ -18,8 +23,15 @@ export async function createSubject(req, res) {
     if (!teacher_id || Number.isNaN(parsedTeacherId)) {
       return res.status(400).json({ error: "teacher_id is required" });
     }
-    if (!name || !description) {
-      return res.status(400).json({ error: "Missing required fields" });
+    if (!normalizedName) {
+      return res.status(400).json({ error: "name is required" });
+    }
+    if (
+      description !== undefined &&
+      description !== null &&
+      typeof description !== "string"
+    ) {
+      return res.status(400).json({ error: "description must be a string" });
     }
 
     if (userRole !== "admin" && parsedTeacherId !== Number(userId)) {
@@ -51,7 +63,7 @@ export async function createSubject(req, res) {
 
     const createdSubject = await turso.execute({
       sql: "INSERT INTO Subjects (name, description, teacher_id, class_id) VALUES (?, ?, ?, ?)",
-      args: [name.trim(), description.trim(), parsedTeacherId, parsedClassId],
+      args: [normalizedName, finalDescription, parsedTeacherId, parsedClassId],
     });
 
     // Get the inserted subject data
@@ -205,12 +217,21 @@ export async function updateSubjectBySubjectId(req, res) {
     }
     const { name, description, class_id } = req.body;
     const { id: userId, role: userRole } = req.user;
+    const hasDescription = Object.prototype.hasOwnProperty.call(
+      req.body,
+      "description",
+    );
+    const normalizedName = typeof name === "string" ? name.trim() : "";
 
-    if (!name) {
+    if (!normalizedName) {
       return res.status(400).json({ error: "name is required" });
     }
-    if (!description) {
-      return res.status(400).json({ error: "description is required" });
+    if (
+      hasDescription &&
+      description !== null &&
+      typeof description !== "string"
+    ) {
+      return res.status(400).json({ error: "description must be a string" });
     }
 
     // Fetch the subject to check ownership
@@ -228,6 +249,17 @@ export async function updateSubjectBySubjectId(req, res) {
     }
 
     let targetClassId = subject.rows[0].class_id;
+    let targetDescription = subject.rows[0].description ?? null;
+
+    if (hasDescription) {
+      if (description == null) {
+        targetDescription = null;
+      } else {
+        const normalizedDescription = description.trim();
+        targetDescription =
+          normalizedDescription.length > 0 ? normalizedDescription : null;
+      }
+    }
 
     if (class_id !== undefined) {
       const parsedClassId = Number(class_id);
@@ -262,7 +294,7 @@ export async function updateSubjectBySubjectId(req, res) {
 
     const updatedSubject = await turso.execute({
       sql: "UPDATE Subjects SET name = ?, description = ?, class_id = ? WHERE id = ?",
-      args: [name.trim(), description.trim(), targetClassId, subjectId],
+      args: [normalizedName, targetDescription, targetClassId, subjectId],
     });
 
     // Get the updated subject data

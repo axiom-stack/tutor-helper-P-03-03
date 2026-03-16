@@ -47,11 +47,10 @@ export async function createClass(
 export async function updateClass(
   classId: number,
   data: {
-    name: string;
-    description: string;
     stage?: string;
     grade_label: string;
     section_label: string;
+    section?: string;
     academic_year: string;
     default_duration_minutes?: number;
   }
@@ -107,7 +106,7 @@ export async function createSubject(
 
 export async function updateSubject(
   subjectId: number,
-  data: { name: string; description: string; class_id?: number }
+  data: { name: string; description?: string | null; class_id?: number }
 ): Promise<{ subject: Subject }> {
   const response = await api().put<{ subject: Subject }>(`/api/subjects/${subjectId}`, data);
   return response.data;
@@ -147,7 +146,7 @@ export async function createUnit(
 
 export async function updateUnit(
   unitId: number,
-  data: { name: string; description: string; subject_id?: number }
+  data: { name: string; description?: string | null; subject_id?: number }
 ): Promise<{ unit: Unit }> {
   const response = await api().put<{ unit: Unit }>(`/api/units/${unitId}`, data);
   return response.data;
@@ -180,7 +179,7 @@ export async function getLessonsByUnit(
 
 interface CreateLessonPayloadBase {
   name: string;
-  description: string;
+  description?: string;
   unit_id: number;
   teacher_id: number;
   number_of_periods: number;
@@ -213,22 +212,26 @@ export async function createLesson(
   payload: CreateLessonPayload
 ): Promise<CreateLessonResponse> {
   if (payload.content_type === 'text') {
-    const body = {
+    const body: Record<string, unknown> = {
       name: payload.name,
-      description: payload.description,
       unit_id: payload.unit_id,
       number_of_periods: payload.number_of_periods,
       content_type: payload.content_type,
       content: payload.content,
       id: payload.teacher_id,
     };
+    if (Object.prototype.hasOwnProperty.call(payload, 'description')) {
+      body.description = payload.description ?? '';
+    }
     const response = await api().post<CreateLessonResponse>('/api/lessons', body);
     return response.data;
   }
 
   const form = new FormData();
   form.append('name', payload.name);
-  form.append('description', payload.description);
+  if (Object.prototype.hasOwnProperty.call(payload, 'description')) {
+    form.append('description', payload.description ?? '');
+  }
   form.append('unit_id', String(payload.unit_id));
   form.append('number_of_periods', String(payload.number_of_periods));
   form.append('content_type', payload.content_type);
@@ -244,7 +247,7 @@ export async function updateLesson(
   payload:
     | {
         name: string;
-        description: string;
+        description?: string;
         content_type: 'text';
         content: string;
         unit_id?: number;
@@ -252,7 +255,7 @@ export async function updateLesson(
       }
     | {
         name: string;
-        description: string;
+        description?: string;
         content_type: 'pdf' | 'word';
         file: File;
         unit_id?: number;
@@ -269,7 +272,9 @@ export async function updateLesson(
 
   const form = new FormData();
   form.append('name', payload.name);
-  form.append('description', payload.description);
+  if (Object.prototype.hasOwnProperty.call(payload, 'description')) {
+    form.append('description', payload.description ?? '');
+  }
   form.append('content_type', payload.content_type);
   form.append('file', payload.file);
 

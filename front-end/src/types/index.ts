@@ -21,8 +21,6 @@ export interface User {
 
 export interface Class {
   id: number;
-  name: string;
-  description: string;
   grade_label: string;
   stage?: string | null;
   section_label: string;
@@ -38,7 +36,7 @@ export interface Subject {
   class_id: number;
   teacher_id: number;
   name: string;
-  description: string;
+  description: string | null;
   created_at: string; // ISO date string
 }
 
@@ -47,7 +45,7 @@ export interface Unit {
   subject_id: number;
   teacher_id: number;
   name: string;
-  description: string;
+  description: string | null;
   created_at: string; // ISO date string
 }
 
@@ -56,7 +54,7 @@ export interface Lesson {
   unit_id: number;
   teacher_id: number;
   name: string;
-  description: string;
+  description: string | null;
   content: string;
   number_of_periods: number;
   created_at: string; // ISO date string
@@ -497,8 +495,6 @@ export interface CreateUserData {
 }
 
 export interface CreateClassData {
-  name: string;
-  description: string;
   stage?: string | null;
   grade_label: string;
   section_label: string;
@@ -512,21 +508,21 @@ export interface CreateSubjectData {
   class_id: number;
   teacher_id: number;
   name: string;
-  description: string;
+  description?: string | null;
 }
 
 export interface CreateUnitData {
   subject_id: number;
   teacher_id: number;
   name: string;
-  description: string;
+  description?: string | null;
 }
 
 export interface CreateLessonData {
   unit_id: number;
   teacher_id: number;
   name: string;
-  description: string;
+  description?: string | null;
   content: string;
   number_of_periods?: number;
   content_type?: LessonContentType;

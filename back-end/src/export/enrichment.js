@@ -28,11 +28,18 @@ export async function getClassName(classId) {
   if (classId == null) return null;
   try {
     const result = await turso.execute({
-      sql: "SELECT name FROM Classes WHERE id = ? LIMIT 1",
+      sql: "SELECT grade_label, section_label FROM Classes WHERE id = ? LIMIT 1",
       args: [Number(classId)],
     });
     const row = result.rows[0];
-    return row?.name ?? null;
+    const gradeLabel =
+      typeof row?.grade_label === "string" ? row.grade_label.trim() : "";
+    const sectionLabel =
+      typeof row?.section_label === "string" ? row.section_label.trim() : "";
+    if (gradeLabel && sectionLabel) {
+      return `${gradeLabel} - ${sectionLabel}`;
+    }
+    return gradeLabel || sectionLabel || null;
   } catch {
     return null;
   }
