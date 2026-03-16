@@ -32,12 +32,6 @@
   line-height: 1.7;
 }
 
-.cam__modal small {
-  color: #64748b;
-  direction: ltr;
-  text-align: left;
-}
-
 .cam__actions {
   display: flex;
   gap: 0.5rem;

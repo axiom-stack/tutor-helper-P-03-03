@@ -39,7 +39,6 @@ export default function ConfirmActionModal({
       <div className="cam__modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
         <h3>{title}</h3>
         <p>{message}</p>
-        <small>{endpoint}</small>
         <div className="cam__actions">
           <button type="button" onClick={onCancel} disabled={isLoading}>
             {cancelLabel}
