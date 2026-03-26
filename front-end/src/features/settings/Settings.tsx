@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { MdDownload, MdImage, MdSave } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
-import type { UserProfileUpdatePayload } from '../../types';
+import type { UserProfileUpdatePayload, PreparationType } from '../../types';
+import { PREPARATION_TYPE_OPTIONS } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
 import { getMyProfile, updateMyProfile } from '../users/users.services';
 import { applyDisplayLanguageAndReload } from '../../utils/displayLanguage';
@@ -14,6 +15,7 @@ import './settings.css';
 
 type LanguageValue = 'ar' | 'en';
 type PlanTypeValue = 'traditional' | 'active_learning';
+type PreparationTypeValue = PreparationType;
 
 export default function Settings() {
   const { user, updateUserProfile } = useAuth();
@@ -21,6 +23,7 @@ export default function Settings() {
   const [language, setLanguage] = useState<LanguageValue>('ar');
   const [defaultPlanType, setDefaultPlanType] =
     useState<PlanTypeValue>('traditional');
+  const [preparationType, setPreparationType] = useState<PreparationTypeValue | ''>('');
   const [schoolName, setSchoolName] = useState('');
   const [schoolLogoUrl, setSchoolLogoUrl] = useState('');
   const [logoFileName, setLogoFileName] = useState('');
@@ -48,6 +51,8 @@ export default function Settings() {
             ? 'active_learning'
             : 'traditional'
         );
+        const pt = profile.preparation_type;
+        setPreparationType(pt === 'daily' || pt === 'weekly' || pt === 'other' ? pt : '');
         setSchoolName(profile.school_name ?? '');
         setSchoolLogoUrl(profile.school_logo_url ?? '');
         setLogoFileName(profile.school_logo_url ? 'شعار المدرسة الحالي' : '');
@@ -126,6 +131,7 @@ export default function Settings() {
 
     const payload: UserProfileUpdatePayload = {
       language,
+      preparation_type: preparationType || null,
       default_plan_type: defaultPlanType,
       school_name: schoolName.trim() || null,
       school_logo_url: schoolLogoUrl.trim() || null,
@@ -209,7 +215,7 @@ export default function Settings() {
           </label>
 
           <label className="st__field" htmlFor="settings-plan-type">
-            <span>نوع التحضير *</span>
+            <span>نوع الخطة الافتراضي *</span>
             <select
               id="settings-plan-type"
               value={defaultPlanType}
@@ -218,6 +224,24 @@ export default function Settings() {
               }
             >
               {PLAN_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="st__field" htmlFor="settings-preparation-type">
+            <span>نوع التحضير</span>
+            <select
+              id="settings-preparation-type"
+              value={preparationType}
+              onChange={(event) =>
+                setPreparationType(event.target.value as PreparationTypeValue | '')
+              }
+            >
+              <option value="">-- اختر نوع التحضير --</option>
+              {PREPARATION_TYPE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>

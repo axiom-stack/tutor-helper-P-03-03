@@ -449,7 +449,14 @@ export async function buildExamAnswerFormDocx(enrichedExam) {
   const vm = buildExamExportViewModel(enrichedExam);
   const children = [];
 
-  children.push(...buildTopBanner(vm, "نموذج الإجابات"));
+  children.push(
+    ...buildTopBanner(
+      vm,
+      vm.examMeta.title
+        ? `${vm.examMeta.title} - نموذج الإجابات`
+        : "نموذج الإجابات",
+    ),
+  );
 
   const { left, right } = buildAnswerFormHeaderTable(vm);
 
@@ -507,7 +514,14 @@ export async function buildExamAnswerKeyDocx(enrichedExam) {
   const vm = buildExamExportViewModel(enrichedExam);
   const children = [];
 
-  children.push(...buildTopBanner(vm, "نموذج الإجابات (معلم)"));
+  children.push(
+    ...buildTopBanner(
+      vm,
+      vm.examMeta.title
+        ? `${vm.examMeta.title} - نموذج الإجابات (معلم)`
+        : "نموذج الإجابات (معلم)",
+    ),
+  );
 
   children.push(buildExamHeaderTable(vm));
 

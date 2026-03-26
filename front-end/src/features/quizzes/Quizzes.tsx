@@ -39,7 +39,7 @@ import {
 import { useStage } from '../../context/StageContext';
 import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel';
 import { getRefinementTargetOptions } from '../refinements/refinementTargets';
-import { ACADEMIC_YEAR_OPTIONS, LESSON_DURATION_OPTIONS, SEMESTER_OPTIONS } from '../../constants/dropdown-options';
+import { LESSON_DURATION_OPTIONS, SEMESTER_OPTIONS } from '../../constants/dropdown-options';
 import './quizzes.css';
 
 type SelectValue = number | '';
@@ -135,9 +135,7 @@ export default function Quizzes() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [lessonOptions, setLessonOptions] = useState<LessonOption[]>([]);
 
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>(
-    ACADEMIC_YEAR_OPTIONS[0]
-  );
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>('');
   const [selectedSemester, setSelectedSemester] = useState<string>(SEMESTER_OPTIONS[0]);
   const [selectedClassId, setSelectedClassId] = useState<SelectValue>('');
   const [selectedSubjectId, setSelectedSubjectId] = useState<SelectValue>('');
@@ -154,6 +152,17 @@ export default function Quizzes() {
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
   const { activeStage } = useStage();
+  const academicYearOptions = useMemo(() => {
+    const years = new Set<string>();
+    classes.forEach((classItem) => {
+      const year = classItem.academic_year?.trim();
+      if (year) {
+        years.add(year);
+      }
+    });
+
+    return Array.from(years).sort((left, right) => right.localeCompare(left, 'ar', { numeric: true }));
+  }, [classes]);
 
   const [exams, setExams] = useState<OfflineExamRecord[]>([]);
   const [selectedExam, setSelectedExam] = useState<OfflineExamRecord | null>(null);
@@ -373,15 +382,19 @@ export default function Quizzes() {
     }));
   }, [lessonOptions, units]);
 
+  useEffect(() => {
+    if (academicYearOptions.length === 0) {
+      return;
+    }
+
+    setSelectedAcademicYear((current) =>
+      academicYearOptions.includes(current) ? current : academicYearOptions[0]
+    );
+  }, [academicYearOptions]);
+
   const selectedClass = useMemo(
-    () =>
-      classes.find(
-        (classItem) =>
-          classItem.id === selectedClassId &&
-          classItem.academic_year === selectedAcademicYear &&
-          (classItem.semester ?? '') === selectedSemester
-      ) ?? null,
-    [classes, selectedAcademicYear, selectedClassId, selectedSemester]
+    () => classes.find((classItem) => classItem.id === selectedClassId) ?? null,
+    [classes, selectedClassId]
   );
 
   const filteredClasses = useMemo(() => {
@@ -389,7 +402,11 @@ export default function Quizzes() {
       if (selectedAcademicYear && classItem.academic_year !== selectedAcademicYear) {
         return false;
       }
-      if (selectedSemester && (classItem.semester ?? '') !== selectedSemester) {
+      if (
+        selectedSemester &&
+        classItem.semester != null &&
+        classItem.semester !== selectedSemester
+      ) {
         return false;
       }
       return true;
@@ -424,7 +441,7 @@ export default function Quizzes() {
 
   const resetCreateExamState = () => {
     resetExamDraftSelection();
-    setSelectedAcademicYear(ACADEMIC_YEAR_OPTIONS[0]);
+    setSelectedAcademicYear(academicYearOptions[0] ?? '');
     setSelectedSemester(SEMESTER_OPTIONS[0]);
     setTotalQuestions(10);
     setTotalMarks(20);
@@ -1357,7 +1374,7 @@ export default function Quizzes() {
                   onChange={(event) => handleAcademicYearChange(event.target.value)}
                   disabled={isGenerating || isEditingExam}
                 >
-                  {ACADEMIC_YEAR_OPTIONS.map((year) => (
+                  {academicYearOptions.map((year) => (
                     <option key={year} value={year}>
                       {year}
                     </option>

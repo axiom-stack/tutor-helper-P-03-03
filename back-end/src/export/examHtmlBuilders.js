@@ -240,6 +240,7 @@ function escapeHtml(str) {
 
 function renderExamHeader(examMeta) {
   const {
+    title,
     subject,
     className,
     date,
@@ -264,6 +265,7 @@ function renderExamHeader(examMeta) {
         ${logoHtml}
         <div class="exam-school-name">مدرسة: ${escapeHtml(schoolName || "—")}</div>
       </div>
+      <div class="exam-subtitle">${escapeHtml(title || "اختبار")}</div>
       <div class="exam-title">اختبار مادة ${escapeHtml(subject)}</div>
       <div class="exam-subtitle">${escapeHtml(className)}</div>
       <div class="exam-subtitle">
@@ -475,7 +477,9 @@ function renderAnswerFormHeader(vm) {
     <section class="answer-form-header">
       <div style="display:flex;align-items:flex-start;gap:8px;">
         <div style="flex:3;">
-          <h2 style="margin:0 0 6px 0;font-size:18px;">نموذج الإجابات</h2>
+          <h2 style="margin:0 0 6px 0;font-size:18px;">${escapeHtml(
+            `نموذج الإجابات${e.title ? ` - ${e.title}` : ""}`,
+          )}</h2>
           <div class="answer-form-meta-grid">
             <div class="meta-field">
               <label>${escapeHtml(meta.studentNameLabel)}</label>
