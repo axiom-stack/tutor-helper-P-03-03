@@ -37,16 +37,20 @@ export function buildExamExportViewModel(enrichedExam) {
     title: enrichedExam.title ?? "—",
     subject: enrichedExam.subject_name ?? "—",
     className: enrichedExam.class_name ?? "—",
-    grade: enrichedExam.class_name ?? "—",
+    grade: enrichedExam.class_grade_label ?? enrichedExam.class_name ?? "—",
+    section: enrichedExam.class_section_label ?? null,
     teacherName: enrichedExam.teacher_name ?? "—",
     date: dateLabel,
     duration: enrichedExam.duration_label ?? enrichedExam.duration ?? "—",
     totalQuestions,
     totalMarks,
     stage: enrichedExam.stage ?? null,
-    term: enrichedExam.term ?? null,
+    term: enrichedExam.semester ?? enrichedExam.term ?? null,
+    semester: enrichedExam.semester ?? enrichedExam.term ?? null,
     academicYear: enrichedExam.academic_year ?? null,
-    institutionName: enrichedExam.institution_name ?? null,
+    schoolName: enrichedExam.school_name ?? enrichedExam.institution_name ?? null,
+    schoolLogoUrl: enrichedExam.school_logo_url ?? null,
+    institutionName: enrichedExam.school_name ?? enrichedExam.institution_name ?? null,
   };
 
   const studentMetaTemplate = {
@@ -145,4 +149,3 @@ function normalizeQuestionForExport(question, fallbackNumber) {
     rubric: Array.isArray(question.rubric) ? question.rubric : [],
   };
 }
-

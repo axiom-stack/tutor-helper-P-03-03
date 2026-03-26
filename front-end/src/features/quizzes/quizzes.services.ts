@@ -14,6 +14,7 @@ import { getReference, putReference } from '../../offline/references';
 import {
   cacheExam,
   cacheExams,
+  deleteExamLocally,
   duplicateExamLocally,
   getCachedExamById,
   getCachedExams,
@@ -318,6 +319,14 @@ export async function updateExam(
 }
 
 export async function deleteExamById(id: string): Promise<DeleteExamResponse> {
+  if (isLocalOnlyId(id)) {
+    const deletedExam = await deleteExamLocally(id);
+    if (!deletedExam) {
+      throw normalizeApiError(new Error('exam not found'), 'فشل حذف الاختبار.');
+    }
+    return { deleted: true, exam: deletedExam };
+  }
+
   try {
     const response = await api().delete<DeleteExamResponse>(`/api/exams/${id}`);
     return response.data;

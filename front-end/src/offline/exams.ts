@@ -161,3 +161,15 @@ export async function duplicateExamLocally(id: string) {
   dispatchOfflineRecordsChanged();
   return duplicate;
 }
+
+export async function deleteExamLocally(id: string) {
+  const existing = await getCachedExamById(id);
+  if (!existing) {
+    return null;
+  }
+
+  const db = await getOfflineDb();
+  await db.delete('exams', existing.local_id);
+  dispatchOfflineRecordsChanged();
+  return existing;
+}

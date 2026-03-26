@@ -5,6 +5,7 @@ import {
   PageOrientation,
   Paragraph,
   Packer,
+  ImageRun,
   Table,
   TableCell,
   TableLayoutType,
@@ -57,6 +58,55 @@ function para(text, size = 22) {
     ...RTL_BIDI,
     spacing: { after: 80 },
   });
+}
+
+function createSchoolLogoRun(logoUrl) {
+  if (typeof logoUrl !== "string" || !logoUrl.startsWith("data:image/")) {
+    return null;
+  }
+
+  const match = logoUrl.match(/^data:(image\/[\w.+-]+);base64,(.+)$/);
+  if (!match) {
+    return null;
+  }
+
+  const [, mimeType, base64Data] = match;
+  if (!mimeType || !base64Data) {
+    return null;
+  }
+
+  return new ImageRun({
+    data: Buffer.from(base64Data, "base64"),
+    transformation: { width: 72, height: 72 },
+  });
+}
+
+function buildTopBanner(vm, titleText) {
+  const e = vm.examMeta;
+  const children = [
+    heading("الجمهورية اليمنية"),
+    heading("وزارة التربية والتعليم"),
+    heading("محافظة عدن"),
+  ];
+
+  const logoRun = createSchoolLogoRun(e.schoolLogoUrl);
+  if (logoRun) {
+    children.push(
+      new Paragraph({
+        children: [logoRun],
+        ...RTL_OPTS,
+        ...RTL_BIDI,
+        spacing: { after: 40 },
+      }),
+    );
+  }
+
+  children.push(
+    para(`مدرسة: ${e.schoolName || "—"}`),
+    subheading(titleText || e.title || "—"),
+  );
+
+  return children;
 }
 
 function headerCell(label, value) {
@@ -141,12 +191,7 @@ export async function buildExamPaperDocx(enrichedExam) {
   const vm = buildExamExportViewModel(enrichedExam);
   const children = [];
 
-  children.push(
-    heading(
-      vm.examMeta.institutionName || "وزارة التربية والتعليم",
-    ),
-    subheading(vm.examMeta.title || "ورقة الاختبار"),
-  );
+  children.push(...buildTopBanner(vm, vm.examMeta.title || "ورقة الاختبار"));
 
   children.push(buildExamHeaderTable(vm));
   children.push(new Paragraph({ children: [], spacing: { after: 80 } }));
@@ -404,10 +449,7 @@ export async function buildExamAnswerFormDocx(enrichedExam) {
   const vm = buildExamExportViewModel(enrichedExam);
   const children = [];
 
-  children.push(
-    heading("نموذج الإجابات"),
-    subheading(vm.examMeta.title || ""),
-  );
+  children.push(...buildTopBanner(vm, "نموذج الإجابات"));
 
   const { left, right } = buildAnswerFormHeaderTable(vm);
 
@@ -465,10 +507,7 @@ export async function buildExamAnswerKeyDocx(enrichedExam) {
   const vm = buildExamExportViewModel(enrichedExam);
   const children = [];
 
-  children.push(
-    heading("نموذج الإجابات (معلم)"),
-    subheading(vm.examMeta.title || ""),
-  );
+  children.push(...buildTopBanner(vm, "نموذج الإجابات (معلم)"));
 
   children.push(buildExamHeaderTable(vm));
 
@@ -564,4 +603,3 @@ export async function buildExamAnswerKeyDocx(enrichedExam) {
 
   return Packer.toBuffer(doc);
 }
-

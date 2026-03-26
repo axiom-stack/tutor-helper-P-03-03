@@ -166,3 +166,14 @@ export async function duplicatePlanLocally(id: string) {
   return duplicate;
 }
 
+export async function deletePlanLocally(id: string) {
+  const existing = await getCachedPlanById(id);
+  if (!existing) {
+    return null;
+  }
+
+  const db = await getOfflineDb();
+  await db.delete('plans', existing.local_id);
+  dispatchOfflineRecordsChanged();
+  return existing;
+}

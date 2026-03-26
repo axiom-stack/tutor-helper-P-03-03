@@ -20,26 +20,56 @@ export async function getTeacherName(teacherId) {
 }
 
 /**
- * Get class name by class id.
+ * Get class details by class id.
  * @param {number} classId
- * @returns {Promise<string|null>}
+ * @returns {Promise<{ gradeLabel: string|null, sectionLabel: string|null, semester: string|null, academicYear: string|null }|null>}
  */
-export async function getClassName(classId) {
+export async function getClassInfo(classId) {
   if (classId == null) return null;
   try {
     const result = await turso.execute({
-      sql: "SELECT grade_label, section_label FROM Classes WHERE id = ? LIMIT 1",
+      sql: "SELECT grade_label, section_label, semester, academic_year FROM Classes WHERE id = ? LIMIT 1",
       args: [Number(classId)],
     });
     const row = result.rows[0];
-    const gradeLabel =
-      typeof row?.grade_label === "string" ? row.grade_label.trim() : "";
-    const sectionLabel =
-      typeof row?.section_label === "string" ? row.section_label.trim() : "";
-    if (gradeLabel && sectionLabel) {
-      return `${gradeLabel} - ${sectionLabel}`;
-    }
-    return gradeLabel || sectionLabel || null;
+    const gradeLabel = typeof row?.grade_label === "string" ? row.grade_label.trim() : null;
+    const sectionLabel = typeof row?.section_label === "string" ? row.section_label.trim() : null;
+    const semester = typeof row?.semester === "string" ? row.semester.trim() : null;
+    const academicYear =
+      typeof row?.academic_year === "string" ? row.academic_year.trim() : null;
+    return {
+      gradeLabel: gradeLabel || null,
+      sectionLabel: sectionLabel || null,
+      semester: semester || null,
+      academicYear: academicYear || null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get school settings by teacher id.
+ * @param {number} teacherId
+ * @returns {Promise<{ school_name: string|null, school_logo_url: string|null }|null>}
+ */
+export async function getSchoolSettings(teacherId) {
+  if (teacherId == null) return null;
+  try {
+    const result = await turso.execute({
+      sql: `
+        SELECT up.school_name, up.school_logo_url
+        FROM Users u
+        LEFT JOIN UserProfiles up ON up.user_id = u.id
+        WHERE u.id = ? LIMIT 1
+      `,
+      args: [Number(teacherId)],
+    });
+    const row = result.rows[0];
+    return {
+      school_name: row?.school_name ?? null,
+      school_logo_url: row?.school_logo_url ?? null,
+    };
   } catch {
     return null;
   }
@@ -127,15 +157,26 @@ export async function enrichAssignment(assignment) {
  */
 export async function enrichExam(exam) {
   if (!exam) return exam;
-  const [teacherName, className, subjectName] = await Promise.all([
+  const [teacherName, classInfo, subjectName, schoolSettings] = await Promise.all([
     getTeacherName(exam.teacher_id),
-    getClassName(exam.class_id),
+    getClassInfo(exam.class_id),
     getSubjectName(exam.subject_id),
+    getSchoolSettings(exam.teacher_id),
   ]);
+  const className =
+    classInfo?.gradeLabel && classInfo?.sectionLabel
+      ? `${classInfo.gradeLabel} - ${classInfo.sectionLabel}`
+      : classInfo?.gradeLabel || classInfo?.sectionLabel || "—";
   return {
     ...exam,
     teacher_name: teacherName ?? "—",
     class_name: className ?? "—",
+    class_grade_label: classInfo?.gradeLabel ?? null,
+    class_section_label: classInfo?.sectionLabel ?? null,
+    academic_year: classInfo?.academicYear ?? null,
+    semester: classInfo?.semester ?? null,
     subject_name: subjectName ?? "—",
+    school_name: schoolSettings?.school_name ?? null,
+    school_logo_url: schoolSettings?.school_logo_url ?? null,
   };
 }

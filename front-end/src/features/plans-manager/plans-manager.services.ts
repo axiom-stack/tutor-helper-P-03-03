@@ -1,9 +1,10 @@
 import { authAxios } from '../auth/auth.services';
 import type { LessonPlanRecord, PlanType } from '../../types';
 import { isOfflineError } from '../../offline/network';
-import { getCachedPlanById, getCachedPlans, cachePlan, cachePlans, duplicatePlanLocally, savePlanOffline } from '../../offline/plans';
+import { getCachedPlanById, getCachedPlans, cachePlan, cachePlans, deletePlanLocally, duplicatePlanLocally, savePlanOffline } from '../../offline/plans';
 import { upsertPendingEntityAction } from '../../offline/queue';
 import { isLocalOnlyId } from '../../offline/utils';
+import { normalizeApiError } from '../../utils/apiErrors';
 
 const api = () => authAxios();
 
@@ -133,6 +134,23 @@ export async function updatePlan(
 export async function duplicatePlan(planId: string): Promise<{ plan: LessonPlanRecord }> {
   const plan = await duplicatePlanLocally(planId);
   return { plan };
+}
+
+export async function deletePlanById(planId: string): Promise<{ deleted: boolean; plan: LessonPlanRecord }> {
+  if (isLocalOnlyId(planId)) {
+    const deletedPlan = await deletePlanLocally(planId);
+    if (!deletedPlan) {
+      throw new Error('الخطة المحلية غير متوفرة.');
+    }
+    return { deleted: true, plan: deletedPlan };
+  }
+
+  try {
+    const response = await api().delete<{ deleted: boolean; plan: LessonPlanRecord }>(`/api/plans/${planId}`);
+    return response.data;
+  } catch (error: unknown) {
+    throw normalizeApiError(error, 'فشل حذف الخطة.');
+  }
 }
 
 export async function getPlanExportBlob(planId: string, format: 'pdf' | 'docx'): Promise<Blob> {

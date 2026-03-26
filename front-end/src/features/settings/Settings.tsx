@@ -1,55 +1,34 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { MdSave } from 'react-icons/md';
+import { MdDownload, MdImage, MdSave } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
-import type { UserProfileUpdatePayload, PreparationType } from '../../types';
-import { PREPARATION_TYPE_OPTIONS } from '../../types';
+import type { UserProfileUpdatePayload } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
 import { getMyProfile, updateMyProfile } from '../users/users.services';
 import { applyDisplayLanguageAndReload } from '../../utils/displayLanguage';
 import {
-  getAllowedStages,
-  parseStages,
-  formatStagesForStorage,
-  type StageId,
-} from '../../constants/education';
+  LANGUAGE_OPTIONS,
+  PLAN_TYPE_OPTIONS,
+} from '../../constants/dropdown-options';
 import './settings.css';
 
 type LanguageValue = 'ar' | 'en';
-type DefaultPlanTypeValue = 'traditional' | 'active_learning';
-type PreparationTypeValue = PreparationType;
+type PlanTypeValue = 'traditional' | 'active_learning';
 
 export default function Settings() {
   const { user, updateUserProfile } = useAuth();
 
   const [language, setLanguage] = useState<LanguageValue>('ar');
-  const [educationalStage, setEducationalStage] = useState('');
-  const [subject, setSubject] = useState('');
-  const [preparationType, setPreparationType] = useState<PreparationTypeValue | ''>(
-    () => {
-      const pt = user?.profile?.preparation_type;
-      return pt === 'daily' || pt === 'weekly' || pt === 'other' ? pt : '';
-    }
-  );
   const [defaultPlanType, setDefaultPlanType] =
-    useState<DefaultPlanTypeValue>(
-      () =>
-        user?.profile?.default_plan_type === 'active_learning'
-          ? 'active_learning'
-          : 'traditional'
-    );
-  const [defaultLessonDuration, setDefaultLessonDuration] = useState<number>(
-    () => user?.profile?.default_lesson_duration_minutes ?? 45
-  );
+    useState<PlanTypeValue>('traditional');
+  const [schoolName, setSchoolName] = useState('');
+  const [schoolLogoUrl, setSchoolLogoUrl] = useState('');
+  const [logoFileName, setLogoFileName] = useState('');
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [, setError] = useState<string | null>(null);
-  const [stageError, setStageError] = useState<string | null>(null);
-  const [, setSuccess] = useState<string | null>(null);
-
-  const stageOptions = getAllowedStages();
-
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -63,22 +42,19 @@ export default function Settings() {
         }
 
         const profile = response.profile;
-        setLanguage(profile.language);
-        setEducationalStage(profile.educational_stage ?? '');
-        setSubject(profile.subject ?? '');
-        const pt = profile.preparation_type;
-        setPreparationType(pt === 'daily' || pt === 'weekly' || pt === 'other' ? pt : '');
+        setLanguage(profile.language === 'en' ? 'en' : 'ar');
         setDefaultPlanType(
           profile.default_plan_type === 'active_learning'
             ? 'active_learning'
             : 'traditional'
         );
-        setDefaultLessonDuration(profile.default_lesson_duration_minutes ?? 45);
+        setSchoolName(profile.school_name ?? '');
+        setSchoolLogoUrl(profile.school_logo_url ?? '');
+        setLogoFileName(profile.school_logo_url ? 'شعار المدرسة الحالي' : '');
       })
       .catch((loadError: unknown) => {
         if (!cancelled) {
-          const message =
-            normalizeApiError(loadError, 'تعذر تحميل الإعدادات الشخصية.').message;
+          const message = normalizeApiError(loadError, 'تعذر تحميل الإعدادات.').message;
           setError(message);
           toast.error(message);
         }
@@ -94,28 +70,65 @@ export default function Settings() {
     };
   }, []);
 
-  const handleSave = async () => {
-    const isTeacher = user?.userRole === 'teacher';
-    const parsedStages = parseStages(educationalStage);
+  const handleLogoFileChange = (file: File | null) => {
+    if (!file) {
+      setSchoolLogoUrl('');
+      setLogoFileName('');
+      return;
+    }
 
-    if (isTeacher && parsedStages.length === 0) {
-      const message = 'يجب اختيار مرحلة تعليمية واحدة على الأقل.';
-      setStageError(message);
+    if (!file.type.startsWith('image/')) {
+      const message = 'شعار المدرسة يجب أن يكون صورة.';
+      setError(message);
       toast.error(message);
       return;
     }
 
+    const reader = new FileReader();
+    reader.onload = () => {
+      const value = typeof reader.result === 'string' ? reader.result : '';
+      setSchoolLogoUrl(value);
+      setLogoFileName(file.name);
+    };
+    reader.onerror = () => {
+      const message = 'تعذر قراءة ملف الشعار.';
+      setError(message);
+      toast.error(message);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDownloadTemplate = () => {
+    const template = [
+      'قالب عرض الخطة المولدة',
+      '',
+      '1. اكتب عنوان الخطة في الأعلى.',
+      '2. اترك مساحة واضحة للمحتوى المولد.',
+      '3. أضف ملاحظات المعلم ونطاق التعديل أسفل الخطة.',
+      '4. احفظ الملف بصيغة PDF أو DOCX عند الحاجة.',
+    ].join('\n');
+
+    const blob = new Blob([template], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'lesson-plan-template.txt';
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleSave = async () => {
     setSaving(true);
     setError(null);
     setSuccess(null);
 
     const payload: UserProfileUpdatePayload = {
       language,
-      educational_stage: isTeacher ? (educationalStage.trim() || null) : null,
-      subject: isTeacher ? (subject.trim() || null) : null,
-      preparation_type: isTeacher ? (preparationType || null) : null,
       default_plan_type: defaultPlanType,
-      default_lesson_duration_minutes: defaultLessonDuration,
+      school_name: schoolName.trim() || null,
+      school_logo_url: schoolLogoUrl.trim() || null,
     };
 
     try {
@@ -123,12 +136,9 @@ export default function Settings() {
       updateUserProfile(response.profile);
       setSuccess('تم حفظ الإعدادات بنجاح.');
       toast.success('تم حفظ الإعدادات بنجاح.');
-      
-      // Ensure the language is applied and page reloaded to sync with Google Translate
       setTimeout(() => {
         applyDisplayLanguageAndReload(language);
-      }, 500);
-      return;
+      }, 250);
     } catch (saveError: unknown) {
       const message = normalizeApiError(saveError, 'فشل حفظ الإعدادات.').message;
       setError(message);
@@ -155,161 +165,130 @@ export default function Settings() {
   return (
     <div className="st ui-loaded">
       <header className="st__header page-header">
-        <h1>الإعدادات العامة</h1>
-        <p>
-          {user.userRole === 'admin'
-            ? 'تحديث إعدادات حسابك الإداري، وإدارة إعدادات المعلمين من صفحة إدارة المعلمين.'
-            : 'تحديث تفضيلاتك التعليمية الافتراضية المستخدمة ضمن لوحة التحكم.'}
-        </p>
+        <div>
+          <h1>الإعدادات</h1>
+          <p>
+            اللغة الافتراضية، نوع التحضير، وبيانات المدرسة التي تظهر في قالب
+            الاختبار.
+          </p>
+        </div>
+
+        <div className="st__role-chip">
+          {user.userRole === 'admin' ? 'حساب مدير' : 'حساب معلم'}
+        </div>
       </header>
 
+      {error ? (
+        <p className="ui-inline-notice ui-inline-notice--error" role="alert">
+          {error}
+        </p>
+      ) : null}
+
+      {success ? (
+        <p className="ui-inline-notice ui-inline-notice--success" role="status">
+          {success}
+        </p>
+      ) : null}
+
       <section className="st__panel">
-        <div className="st__form-grid">
+        <div className="st__grid">
           <label className="st__field" htmlFor="settings-language">
-            <span>لغة العرض</span>
+            <span>اللغة *</span>
             <select
               id="settings-language"
               className="notranslate"
               value={language}
               onChange={(event) => setLanguage(event.target.value as LanguageValue)}
             >
-              <option value="ar">العربية</option>
-              <option value="en">English</option>
-            </select>
-          </label>
-
-          {user.userRole === 'teacher' && (
-            <>
-              <label className="st__field" htmlFor="settings-stage">
-                <span>المرحلة التعليمية الافتراضية</span>
-                <div
-                  className="st__stage-toggle"
-                  aria-label="المراحل التعليمية التي تعمل عليها"
-                >
-                  {stageOptions.map((stage) => {
-                    const currentStages = parseStages(educationalStage);
-                    const isActive = currentStages.includes(stage);
-                    return (
-                      <button
-                        key={stage}
-                        type="button"
-                        className={
-                          isActive
-                            ? 'st__stage-pill st__stage-pill--active'
-                            : 'st__stage-pill'
-                        }
-                        onClick={() => {
-                          const existing = parseStages(educationalStage);
-                          let next: StageId[];
-                          if (existing.includes(stage)) {
-                            // Prevent removing the last remaining stage – at least one is required.
-                            if (existing.length === 1) {
-                              const message =
-                                'يجب أن تبقى مرحلة واحدة على الأقل محددة.';
-                              setStageError(message);
-                              toast.error(message);
-                              return;
-                            }
-                            next = existing.filter((s) => s !== stage);
-                          } else {
-                            next = [...existing, stage];
-                            // Clear any previous stage error once selection becomes valid.
-                            if (stageError) {
-                              setStageError(null);
-                            }
-                          }
-                          setEducationalStage(formatStagesForStorage(next));
-                        }}
-                      >
-                        {stage}
-                      </button>
-                    );
-                  })}
-                </div>
-                <small className="st__field-hint">
-                  يمكنك اختيار أكثر من مرحلة، وسيتم اعتبار الأولى كإعداد افتراضي
-                  في الواجهة.
-                </small>
-                {stageError && (
-                  <small className="st__field-error" aria-live="polite">
-                    {stageError}
-                  </small>
-                )}
-              </label>
-
-              <label className="st__field" htmlFor="settings-subject">
-                <span>المادة الافتراضية</span>
-                <input
-                  id="settings-subject"
-                  value={subject}
-                  onChange={(event) => setSubject(event.target.value)}
-                  placeholder="مثال: الرياضيات"
-                />
-              </label>
-
-              <label className="st__field" htmlFor="settings-preparation-type">
-                <span>نوع التحضير</span>
-                <select
-                  id="settings-preparation-type"
-                  value={preparationType}
-                  onChange={(event) =>
-                    setPreparationType(
-                      event.target.value as PreparationTypeValue
-                    )
-                  }
-                >
-                  <option value="">-- اختر نوع التحضير --</option>
-                  {PREPARATION_TYPE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </>
-          )}
-
-          <label className="st__field" htmlFor="settings-default-plan-type">
-            <span>نوع الخطة الافتراضي</span>
-            <select
-              id="settings-default-plan-type"
-              value={defaultPlanType}
-              onChange={(event) =>
-                setDefaultPlanType(event.target.value as DefaultPlanTypeValue)
-              }
-            >
-              <option value="traditional">تقليدية</option>
-              <option value="active_learning">تعلم نشط</option>
-            </select>
-          </label>
-
-          <label className="st__field" htmlFor="settings-duration">
-            <span>المدة الافتراضية للحصة (دقيقة)</span>
-            <select
-              id="settings-duration"
-              value={defaultLessonDuration}
-              onChange={(event) =>
-                setDefaultLessonDuration(Number(event.target.value) || 45)
-              }
-            >
-              {[30, 35, 40, 45, 50, 60, 90].map((d) => (
-                <option key={d} value={d}>
-                  {d} دقيقة
+              {LANGUAGE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>
           </label>
+
+          <label className="st__field" htmlFor="settings-plan-type">
+            <span>نوع التحضير *</span>
+            <select
+              id="settings-plan-type"
+              value={defaultPlanType}
+              onChange={(event) =>
+                setDefaultPlanType(event.target.value as PlanTypeValue)
+              }
+            >
+              {PLAN_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="st__field st__field--full" htmlFor="settings-school-name">
+            <span>المدرسة *</span>
+            <input
+              id="settings-school-name"
+              type="text"
+              value={schoolName}
+              onChange={(event) => setSchoolName(event.target.value)}
+              placeholder="اسم المدرسة"
+            />
+          </label>
+
+          <div className="st__field st__field--full">
+            <span>شعار المدرسة</span>
+            <label className="st__upload">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(event) =>
+                  handleLogoFileChange(event.target.files?.[0] ?? null)
+                }
+              />
+              <div className="st__upload-copy">
+                <MdImage aria-hidden />
+                <div>
+                  <strong>رفع صورة الشعار</strong>
+                  <p>{logoFileName || 'لم يتم اختيار شعار بعد'}</p>
+                </div>
+              </div>
+            </label>
+
+            <div className="st__logo-preview" aria-live="polite">
+              {schoolLogoUrl ? (
+                <img src={schoolLogoUrl} alt="شعار المدرسة" />
+              ) : (
+                <span>لا يوجد شعار مرفوع حالياً</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="st__template-row">
+          <div>
+            <h2>قالب عرض الخطة المولدة</h2>
+            <p>حمّل قالباً بسيطاً لتنسيق الخطة كما يظهر في صفحة العرض.</p>
+          </div>
+          <button
+            type="button"
+            className="st__template-link"
+            onClick={handleDownloadTemplate}
+          >
+            <MdDownload aria-hidden />
+            تحميل القوالب من هنا
+          </button>
         </div>
 
         <div className="st__actions">
           <button
             type="button"
             onClick={() => void handleSave()}
-            disabled={loading || saving}
+            disabled={saving}
           >
             {saving && <span className="ui-button-spinner" aria-hidden />}
             {!saving && <MdSave aria-hidden />}
-            {saving ? 'جارٍ الحفظ...' : 'حفظ الإعدادات'}
+            {saving ? 'جارٍ الحفظ...' : 'حفظ'}
           </button>
         </div>
       </section>

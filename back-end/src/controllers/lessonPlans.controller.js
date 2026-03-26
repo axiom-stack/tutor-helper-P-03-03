@@ -399,6 +399,51 @@ export function createLessonPlansController(dependencies = {}) {
         });
       }
     },
+
+    async deletePlanById(req, res) {
+      try {
+        const planPublicId = String(req.params.id || "").trim();
+
+        if (!isValidPlanId(planPublicId)) {
+          return res.status(400).json({
+            error: {
+              code: "invalid_id",
+              message: "Plan id must match trd_<number> or act_<number>",
+            },
+          });
+        }
+
+        const deletedPlan = await lessonPlansRepository.deleteByPublicId(
+          planPublicId,
+          {
+            userId: req.user.id,
+            role: req.user.role,
+          },
+        );
+
+        if (!deletedPlan) {
+          return res.status(404).json({
+            error: {
+              code: "plan_not_found",
+              message: "Plan not found",
+            },
+          });
+        }
+
+        return res.status(200).json({
+          deleted: true,
+          plan: deletedPlan,
+        });
+      } catch (error) {
+        req.log?.error?.({ error }, "Unexpected delete-plan failure");
+        return res.status(500).json({
+          error: {
+            code: "internal_error",
+            message: "Unexpected server error while deleting plan",
+          },
+        });
+      }
+    },
   };
 }
 
@@ -408,3 +453,4 @@ export const generatePlan = lessonPlansController.generatePlan;
 export const getPlanById = lessonPlansController.getPlanById;
 export const listPlans = lessonPlansController.listPlans;
 export const updatePlanById = lessonPlansController.updatePlanById;
+export const deletePlanById = lessonPlansController.deletePlanById;

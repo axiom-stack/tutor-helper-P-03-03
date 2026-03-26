@@ -255,6 +255,8 @@ export default function TeachersManagement() {
                   educational_stage: response.profile.educational_stage,
                   subject: response.profile.subject,
                   preparation_type: response.profile.preparation_type,
+                  school_name: response.profile.school_name,
+                  school_logo_url: response.profile.school_logo_url,
                   default_plan_type: response.profile.default_plan_type,
                   default_lesson_duration_minutes:
                     response.profile.default_lesson_duration_minutes,

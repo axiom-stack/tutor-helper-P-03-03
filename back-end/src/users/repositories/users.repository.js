@@ -18,6 +18,8 @@ function toProfileRecord(row) {
     educational_stage: row.educational_stage ?? null,
     subject: row.subject ?? null,
     preparation_type: row.preparation_type ?? null,
+    school_name: row.school_name ?? null,
+    school_logo_url: row.school_logo_url ?? null,
     default_lesson_duration_minutes: toNumber(
       row.default_lesson_duration_minutes,
     ),
@@ -41,6 +43,8 @@ function toTeacherRecord(row) {
       educational_stage: row.educational_stage ?? null,
       subject: row.subject ?? null,
       preparation_type: row.preparation_type ?? null,
+      school_name: row.school_name ?? null,
+      school_logo_url: row.school_logo_url ?? null,
       default_lesson_duration_minutes: toNumber(
         row.default_lesson_duration_minutes,
       ),
@@ -76,10 +80,12 @@ export function createUsersRepository(dbClient = turso) {
             educational_stage,
             subject,
             preparation_type,
+            school_name,
+            school_logo_url,
             default_lesson_duration_minutes,
             default_plan_type
           )
-          SELECT ?, 'ar', NULL, NULL, NULL, 45, 'traditional'
+          SELECT ?, 'ar', NULL, NULL, NULL, NULL, NULL, 45, 'traditional'
           WHERE EXISTS (SELECT 1 FROM Users WHERE id = ?)
             AND NOT EXISTS (SELECT 1 FROM UserProfiles WHERE user_id = ?)
         `,
@@ -196,6 +202,8 @@ export function createUsersRepository(dbClient = turso) {
             up.educational_stage,
             up.subject,
             up.preparation_type,
+            up.school_name,
+            up.school_logo_url,
             up.default_lesson_duration_minutes,
             up.default_plan_type,
             up.created_at,
@@ -240,6 +248,16 @@ export function createUsersRepository(dbClient = turso) {
       if (Object.prototype.hasOwnProperty.call(updates, "preparation_type")) {
         setClauses.push("preparation_type = ?");
         args.push(updates.preparation_type);
+      }
+
+      if (Object.prototype.hasOwnProperty.call(updates, "school_name")) {
+        setClauses.push("school_name = ?");
+        args.push(updates.school_name);
+      }
+
+      if (Object.prototype.hasOwnProperty.call(updates, "school_logo_url")) {
+        setClauses.push("school_logo_url = ?");
+        args.push(updates.school_logo_url);
       }
 
       if (
@@ -354,6 +372,8 @@ export function createUsersRepository(dbClient = turso) {
             up.educational_stage,
             up.subject,
             up.preparation_type,
+            up.school_name,
+            up.school_logo_url,
             COALESCE(up.default_lesson_duration_minutes, 45) AS default_lesson_duration_minutes,
             COALESCE(up.default_plan_type, 'traditional') AS default_plan_type,
             COALESCE(c.classes_count, 0) AS classes_count,

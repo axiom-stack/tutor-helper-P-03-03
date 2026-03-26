@@ -64,7 +64,7 @@ function Auth() {
       if (user?.userRole === 'admin') {
         navigate('/admin');
       } else {
-        navigate('/teacher');
+        navigate('/');
       }
     }
   }, [isAuthenticated, navigate, user?.userRole]);
@@ -93,8 +93,8 @@ function Auth() {
 
     setIsSubmitting(true);
     try {
-      await login(username, password);
-      navigate('/');
+      const response = await login(username, password);
+      navigate(response.user.userRole === 'admin' ? '/admin' : '/');
     } catch (error: unknown) {
       setError(normalizeApiError(error, 'حدث خطأ أثناء تسجيل الدخول').message);
     } finally {

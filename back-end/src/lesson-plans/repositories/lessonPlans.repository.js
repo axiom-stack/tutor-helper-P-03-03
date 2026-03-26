@@ -206,6 +206,37 @@ export function createLessonPlansRepository(dbClient = turso) {
       });
     },
 
+    async deleteByPublicId(planPublicId, accessContext) {
+      const planType = getPlanTypeByPublicId(planPublicId);
+      if (!planType) {
+        return null;
+      }
+
+      const existing = await this.getByPublicId(planPublicId, accessContext);
+      if (!existing) {
+        return null;
+      }
+
+      const tableName = PLAN_TABLES[planType];
+      const whereClauses = ["public_id = ?"];
+      const args = [planPublicId];
+
+      if (accessContext?.role !== "admin") {
+        whereClauses.push("teacher_id = ?");
+        args.push(accessContext?.userId);
+      }
+
+      await dbClient.execute({
+        sql: `
+          DELETE FROM ${tableName}
+          WHERE ${whereClauses.join(" AND ")}
+        `,
+        args,
+      });
+
+      return existing;
+    },
+
     async getLatestByLessonId(lessonId, accessContext) {
       const parsedLessonId = Number(lessonId);
       if (!Number.isInteger(parsedLessonId) || parsedLessonId <= 0) {

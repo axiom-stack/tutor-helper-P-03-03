@@ -2,21 +2,22 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router';
 import {
-  MdAssignment,
   MdCheckCircle,
   MdClose,
   MdEdit,
   MdHourglassTop,
   MdMenuBook,
-  MdOutlinePictureAsPdf,
-  MdOutlineTextSnippet,
   MdSave,
   MdViewTimeline,
 } from 'react-icons/md';
+import ConfirmActionModal from '../../components/common/ConfirmActionModal';
+import ExportFormatModal from '../../components/common/ExportFormatModal';
 import { useAuth } from '../../context/AuthContext';
+import { LESSON_DURATION_OPTIONS, PLAN_TYPE_OPTIONS } from '../../constants/dropdown-options';
 import type { Class, Lesson, Subject, Unit } from '../../types';
 import {
-  exportPlan,
+  getAllClasses,
+  getAllSubjects,
   generatePlan,
   getLessonById,
   getLessonsByUnit,
@@ -34,7 +35,7 @@ import {
   toPlanTypeLabel,
   toValidationStatusLabel,
 } from '../lesson-plans/planDisplay';
-import { updatePlan } from '../plans-manager/plans-manager.services';
+import { deletePlanById, updatePlan } from '../plans-manager/plans-manager.services';
 import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel';
 import { getRefinementTargetOptions } from '../refinements/refinementTargets';
 import { getLocalizedAiLimitMessage } from '../../utils/apiErrors';
@@ -42,7 +43,7 @@ import './lesson-creator.css';
 
 type SelectValue = number | '';
 
-type ExportAction = 'pdf' | 'word' | null;
+type LessonCreatorScreen = 'creator' | 'generated' | 'confirmation';
 
 interface PlanDraft {
   lessonTitle: string;
@@ -68,8 +69,6 @@ interface ApiErrorShape {
   };
   message?: string;
 }
-
-const DURATION_OPTIONS = [30, 35, 40, 45, 50, 60, 90];
 
 const TIMELINE_STEPS = [
   'استرجاع محتوى الدرس',
@@ -161,10 +160,12 @@ function LessonCreator() {
   );
   const [durationMinutes, setDurationMinutes] = useState<number>(() => {
     const profileDuration = user?.profile?.default_lesson_duration_minutes ?? 45;
-    return DURATION_OPTIONS.includes(profileDuration) ? profileDuration : 45;
+    return LESSON_DURATION_OPTIONS.includes(
+      profileDuration as (typeof LESSON_DURATION_OPTIONS)[number]
+    )
+      ? profileDuration
+      : 45;
   });
-  const [isDurationManuallySelected, setIsDurationManuallySelected] =
-    useState(false);
 
   const [initialLoading, setInitialLoading] = useState(true);
   const [unitsLoading, setUnitsLoading] = useState(false);
@@ -181,13 +182,51 @@ function LessonCreator() {
     null
   );
   const [queuedPlanNotice, setQueuedPlanNotice] = useState<string | null>(null);
-  const [exportingAction, setExportingAction] = useState<ExportAction>(null);
-  const [exportError, setExportError] = useState<string | null>(null);
   const [isEditingPlan, setIsEditingPlan] = useState(false);
   const [planDraft, setPlanDraft] = useState<PlanDraft | null>(null);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
+  const [screen, setScreen] = useState<LessonCreatorScreen>('creator');
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isExportingPlan, setIsExportingPlan] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [isDeletingPlan, setIsDeletingPlan] = useState(false);
 
   const { activeStage } = useStage();
+
+  const defaultDurationMinutes =
+    user?.profile?.default_lesson_duration_minutes ?? 45;
+  const defaultPlanType = user?.profile?.default_plan_type ?? 'traditional';
+
+  const resetGeneratedState = () => {
+    setGeneratedPlan(null);
+    setQueuedPlanNotice(null);
+    setGenerationError(null);
+    setGenerationState('idle');
+    setActiveTimelineIndex(0);
+    setIsEditingPlan(false);
+    setPlanDraft(null);
+    setIsExportModalOpen(false);
+    setIsExportingPlan(false);
+    setDeleteConfirmOpen(false);
+  };
+
+  const resetCreatorForm = () => {
+    setSelectedClassId('');
+    setSelectedSubjectId('');
+    setSelectedUnitId('');
+    setSelectedLessonId('');
+    setUnits([]);
+    setLessons([]);
+    setPlanType(defaultPlanType);
+    setDurationMinutes(
+      LESSON_DURATION_OPTIONS.includes(defaultDurationMinutes as (typeof LESSON_DURATION_OPTIONS)[number])
+        ? defaultDurationMinutes
+        : 45
+    );
+    setPageError(null);
+    setGenerationError(null);
+    setScreen('creator');
+  };
 
   useEffect(() => {
     if (!user) {
@@ -195,13 +234,13 @@ function LessonCreator() {
       return;
     }
 
-    if (user.userRole === 'admin') {
-      navigate('/admin');
+    if (user.userRole !== 'teacher' && user.userRole !== 'admin') {
+      navigate('/authentication', { replace: true });
     }
   }, [navigate, user]);
 
   useEffect(() => {
-    if (user?.userRole !== 'teacher') {
+    if (user?.userRole !== 'teacher' && user?.userRole !== 'admin') {
       return;
     }
 
@@ -212,9 +251,13 @@ function LessonCreator() {
       setPageError(null);
 
       try {
+        const classesLoader =
+          user.userRole === 'admin' ? getAllClasses : getMyClasses;
+        const subjectsLoader =
+          user.userRole === 'admin' ? getAllSubjects : getMySubjects;
         const [classesResponse, subjectsResponse] = await Promise.all([
-          getMyClasses(activeStage),
-          getMySubjects(activeStage),
+          classesLoader(activeStage),
+          subjectsLoader(activeStage),
         ]);
 
         if (cancelled) {
@@ -241,7 +284,7 @@ function LessonCreator() {
     return () => {
       cancelled = true;
     };
-  }, [user?.id, user?.userRole, activeStage]);
+  }, [activeStage, user?.id, user?.userRole]);
 
   useEffect(() => {
     if (selectedSubjectId === '') {
@@ -329,16 +372,10 @@ function LessonCreator() {
   }, [generationError]);
 
   useEffect(() => {
-    if (exportError) {
-      toast.error(exportError);
-    }
-  }, [exportError]);
-
-  useEffect(() => {
-    if (generationState === 'success' && generatedPlan) {
+    if (generationState === 'success' && generatedPlan && screen === 'generated') {
       toast.success('تم توليد الخطة وحفظها بنجاح.');
     }
-  }, [generationState, generatedPlan]);
+  }, [generationState, generatedPlan, screen]);
 
   const subjectsForSelectedClass = useMemo(() => {
     if (selectedClassId === '') {
@@ -399,10 +436,6 @@ function LessonCreator() {
 
   const handleClassSelect = (value: string) => {
     const nextClassId = value ? Number(value) : '';
-    const nextClass =
-      nextClassId === ''
-        ? null
-        : classes.find((classItem) => classItem.id === nextClassId) ?? null;
 
     setSelectedClassId(nextClassId);
     setSelectedSubjectId('');
@@ -411,15 +444,9 @@ function LessonCreator() {
     setUnits([]);
     setLessons([]);
 
-    if (!isDurationManuallySelected && nextClass) {
-      const classDuration = Number(nextClass.default_duration_minutes);
-      if (Number.isInteger(classDuration) && classDuration > 0) {
-        setDurationMinutes(classDuration);
-      }
-    }
-
     setPageError(null);
     setGenerationError(null);
+    setScreen('creator');
   };
 
   const handleSubjectSelect = (value: string) => {
@@ -430,6 +457,7 @@ function LessonCreator() {
     setLessons([]);
     setPageError(null);
     setGenerationError(null);
+    setScreen('creator');
   };
 
   const handleUnitSelect = (value: string) => {
@@ -438,12 +466,14 @@ function LessonCreator() {
     setSelectedLessonId('');
     setPageError(null);
     setGenerationError(null);
+    setScreen('creator');
   };
 
   const handleLessonSelect = (value: string) => {
     const nextLessonId = value ? Number(value) : '';
     setSelectedLessonId(nextLessonId);
     setGenerationError(null);
+    setScreen('creator');
   };
 
   const handleGeneratePlan = async () => {
@@ -527,10 +557,15 @@ function LessonCreator() {
         setQueuedPlanNotice(generated.message);
         setGenerationState('idle');
         setActiveTimelineIndex(0);
+        setGeneratedPlan(null);
+        setScreen('creator');
       } else {
         setGeneratedPlan(generated as GeneratedPlanResponse);
         setGenerationState('success');
         setActiveTimelineIndex(3);
+        setPlanDraft(null);
+        setIsEditingPlan(false);
+        setScreen('generated');
       }
     } catch (error: unknown) {
       clearTimelineTimers();
@@ -541,24 +576,6 @@ function LessonCreator() {
     } finally {
       setIsGenerating(false);
     }
-  };
-
-  const handleOpenAssignments = () => {
-    if (!generatedPlan || selectedLessonId === '') {
-      return;
-    }
-
-    const lessonId = Number(selectedLessonId);
-    if (!Number.isInteger(lessonId) || lessonId <= 0) {
-      return;
-    }
-
-    navigate(`/assignments/${generatedPlan.id}/${lessonId}`, {
-      state: {
-        lesson_plan_public_id: generatedPlan.id,
-        lesson_id: lessonId,
-      },
-    });
   };
 
   const buildPlanDraftFromGenerated = (plan: GeneratedPlanResponse): PlanDraft => {
@@ -578,40 +595,44 @@ function LessonCreator() {
     if (!generatedPlan) return;
     setPlanDraft(buildPlanDraftFromGenerated(generatedPlan));
     setIsEditingPlan(true);
+    setScreen('generated');
   };
 
   const handleCancelEditingPlan = () => {
     setIsEditingPlan(false);
     setPlanDraft(null);
+    setScreen('generated');
   };
 
   const handleSavePlan = async () => {
-    if (!generatedPlan?.id || !planDraft || isSavingPlan) return;
+    if (!generatedPlan?.id || isSavingPlan) return;
     setIsSavingPlan(true);
-    setExportError(null);
     try {
-      const nextPlanJson = JSON.parse(JSON.stringify(planDraft.planJson));
-      const header = nextPlanJson.header && typeof nextPlanJson.header === 'object' && !Array.isArray(nextPlanJson.header)
-        ? (nextPlanJson.header as Record<string, unknown>)
-        : {};
-      nextPlanJson.header = { ...header, lesson_title: planDraft.lessonTitle };
+      if (isEditingPlan && planDraft) {
+        const nextPlanJson = JSON.parse(JSON.stringify(planDraft.planJson));
+        const header = nextPlanJson.header && typeof nextPlanJson.header === 'object' && !Array.isArray(nextPlanJson.header)
+          ? (nextPlanJson.header as Record<string, unknown>)
+          : {};
+        nextPlanJson.header = { ...header, lesson_title: planDraft.lessonTitle };
 
-      const response = await updatePlan(generatedPlan.id, {
-        lesson_title: planDraft.lessonTitle,
-        plan_json: nextPlanJson,
-      });
-      const updated = response.plan;
-      setGeneratedPlan((prev) =>
-        prev
-          ? {
-              ...prev,
-              plan_json: updated.plan_json ?? prev.plan_json,
-            }
-          : null
-      );
+        const response = await updatePlan(generatedPlan.id, {
+          lesson_title: planDraft.lessonTitle,
+          plan_json: nextPlanJson,
+        });
+        const updated = response.plan;
+        setGeneratedPlan((prev) =>
+          prev
+            ? {
+                ...prev,
+                plan_json: updated.plan_json ?? prev.plan_json,
+              }
+            : null
+        );
+      }
       setIsEditingPlan(false);
       setPlanDraft(null);
-      toast.success('تم حفظ تعديلات الخطة.');
+      setScreen('confirmation');
+      toast.success('تم حفظ الخطة بنجاح.');
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, 'فشل حفظ الخطة.'));
     } finally {
@@ -619,26 +640,41 @@ function LessonCreator() {
     }
   };
 
-  const handleExportPdf = () => {
-    if (!generatedPlan?.id || exportingAction !== null) return;
-    setExportError(null);
-    setExportingAction('pdf');
-    exportPlan(generatedPlan.id, 'pdf').catch((err: unknown) => {
-      setExportError(getErrorMessage(err, 'فشل تصدير PDF.'));
-    }).finally(() => {
-      setExportingAction(null);
-    });
+  const handleExportPlan = async (format: 'pdf' | 'docx') => {
+    if (!generatedPlan?.id) {
+      return;
+    }
+
+    setIsExportingPlan(true);
+    try {
+      const { exportPlan } = await import('./lesson-creator.services');
+      await exportPlan(generatedPlan.id, format);
+      toast.success('تم تصدير الخطة بنجاح.');
+      setIsExportModalOpen(false);
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, 'فشل تصدير الخطة.'));
+    } finally {
+      setIsExportingPlan(false);
+    }
   };
 
-  const handleExportWord = () => {
-    if (!generatedPlan?.id || exportingAction !== null) return;
-    setExportError(null);
-    setExportingAction('word');
-    exportPlan(generatedPlan.id, 'docx').catch((err: unknown) => {
-      setExportError(getErrorMessage(err, 'فشل تصدير Word.'));
-    }).finally(() => {
-      setExportingAction(null);
-    });
+  const handleDeletePlan = async () => {
+    if (!generatedPlan?.id) {
+      return;
+    }
+
+    setIsDeletingPlan(true);
+    try {
+      await deletePlanById(generatedPlan.id);
+      toast.success('تم حذف الخطة بنجاح.');
+      resetGeneratedState();
+      resetCreatorForm();
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, 'فشل حذف الخطة.'));
+    } finally {
+      setIsDeletingPlan(false);
+      setDeleteConfirmOpen(false);
+    }
   };
 
   const handleRefinementCommitted = async () => {
@@ -657,6 +693,16 @@ function LessonCreator() {
       created_at: plan.created_at,
       updated_at: plan.updated_at,
     });
+    setScreen('generated');
+  };
+
+  const handleCreateNewPlan = () => {
+    resetGeneratedState();
+    resetCreatorForm();
+  };
+
+  const handleOpenPlanFromConfirmation = () => {
+    setScreen('generated');
   };
 
   const getStepState = (step: 1 | 2 | 3 | 4): StepState => {
@@ -738,7 +784,26 @@ function LessonCreator() {
     return 'اختر بيانات الدرس واضغط على توليد الخطة.';
   })();
 
-  if (user?.userRole !== 'teacher') {
+  const generatedLessonTitle = (() => {
+    const header = generatedPlan?.plan_json?.header;
+    const headerRecord =
+      header && typeof header === 'object' && !Array.isArray(header)
+        ? (header as Record<string, unknown>)
+        : null;
+    const headerTitle =
+      headerRecord && typeof headerRecord.lesson_title === 'string'
+        ? headerRecord.lesson_title.trim()
+        : '';
+
+    return (
+      planDraft?.lessonTitle?.trim() ||
+      headerTitle ||
+      selectedLesson?.name?.trim() ||
+      'خطة الدرس'
+    );
+  })();
+
+  if (user?.userRole !== 'teacher' && user?.userRole !== 'admin') {
     return null;
   }
 
@@ -757,331 +822,321 @@ function LessonCreator() {
       <header className="lcp__header page-header">
         <div>
           <nav className="lcp__breadcrumb" aria-label="breadcrumb">
-            <Link to="/teacher">الرئيسية</Link>
+            <Link to="/">الرئيسية</Link>
             <span>←</span>
             <span className="lcp__breadcrumb-current">خطط الدروس</span>
           </nav>
           <h1>مساحة إنشاء خطة الدرس</h1>
           <p>تجهيز خطة درس ذكية من محتوى درس محفوظ لديك في النظام.</p>
         </div>
-
-        <div className="lcp__header-actions" aria-hidden>
-          <button type="button" disabled>
-            حفظ
-          </button>
-          <button
-            type="button"
-            onClick={handleExportPdf}
-            disabled={!generatedPlan || exportingAction !== null}
-            aria-busy={exportingAction === 'pdf'}
-          >
-            {exportingAction === 'pdf' && <span className="ui-button-spinner" aria-hidden />}
-            {exportingAction !== 'pdf' && <MdOutlinePictureAsPdf aria-hidden />}
-            {exportingAction === 'pdf' ? 'جاري التصدير...' : 'تصدير PDF'}
-          </button>
-          <button
-            type="button"
-            onClick={handleExportWord}
-            disabled={!generatedPlan || exportingAction !== null}
-            aria-busy={exportingAction === 'word'}
-          >
-            {exportingAction === 'word' && <span className="ui-button-spinner" aria-hidden />}
-            {exportingAction !== 'word' && <MdOutlineTextSnippet aria-hidden />}
-            {exportingAction === 'word' ? 'جاري التصدير...' : 'تصدير Word'}
-          </button>
-        </div>
       </header>
 
-      <div className="lcp__layout">
-        <section className="lcp__preview" aria-live="polite">
-          <div ref={timelineCardRef} className="lcp__timeline-card">
-            <div className="lcp__timeline-head">
-              <h2>
-                <MdViewTimeline aria-hidden />
-                حالة التنفيذ
-              </h2>
-              {isGenerating && (
-                <span className="lcp__timeline-badge">
-                  <MdHourglassTop aria-hidden />
-                  جارٍ التنفيذ
-                </span>
-              )}
-              {generationState === 'success' && (
-                <span className="lcp__timeline-badge lcp__timeline-badge--success">
-                  <MdCheckCircle aria-hidden />
-                  اكتمل
-                </span>
-              )}
-            </div>
-            <p className="lcp__timeline-summary">{timelineSummary}</p>
+      {pageError ? (
+        <p className="ui-inline-notice ui-inline-notice--error" role="alert">
+          {pageError}
+        </p>
+      ) : null}
 
-            <ul className="lcp__timeline-list">
-              {TIMELINE_STEPS.map((step, index) => {
-                const status = getTimelineStatus(index);
-                return (
-                  <li
-                    key={step}
-                    className={`lcp__timeline-item lcp__timeline-item--${status}`}
-                  >
-                    <span className="lcp__timeline-dot" aria-hidden />
-                    <span>{step}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+      {generationError ? (
+        <p className="ui-inline-notice ui-inline-notice--error" role="alert">
+          {generationError}
+        </p>
+      ) : null}
 
-          {!generatedPlan ? (
-            <div className="lcp__empty">
-              <MdMenuBook className="lcp__empty-icon" aria-hidden />
-              <h3>لم يتم توليد أي خطة بعد</h3>
-              <p>
-                اختر الصف والمادة والوحدة والدرس من اللوحة اليمنى ثم اضغط على
-                "توليد الخطة".
-              </p>
-            </div>
-          ) : (
-            <article className="lcp__plan-card">
-              <div className="lcp__plan-banner" role="status">
-                <MdCheckCircle aria-hidden />
-                <span>
-                  تم إنشاء الخطة بنجاح | رقم الخطة: #{generatedPlan.id} | النوع:{' '}
-                  {toPlanTypeLabel(generatedPlan.plan_type)}{' '}
-                  | التحقق: {toValidationStatusLabel(generatedPlan.validation_status)} |
-                  {' '}إعادة التحسين:{' '}
-                  {generatedPlan.retry_occurred ? 'نعم' : 'لا'}
-                </span>
+      {screen === 'creator' ? (
+        <>
+          {queuedPlanNotice ? (
+            <p className="ui-inline-notice ui-inline-notice--warning">
+              {queuedPlanNotice}
+            </p>
+          ) : null}
+
+          <div className="lcp__layout">
+            <section className="lcp__preview" aria-live="polite">
+              <div ref={timelineCardRef} className="lcp__timeline-card">
+                <div className="lcp__timeline-head">
+                  <h2>
+                    <MdViewTimeline aria-hidden />
+                    حالة التنفيذ
+                  </h2>
+                  {isGenerating ? (
+                    <span className="lcp__timeline-badge">
+                      <MdHourglassTop aria-hidden />
+                      جارٍ التنفيذ
+                    </span>
+                  ) : null}
+                  {generationState === 'success' ? (
+                    <span className="lcp__timeline-badge lcp__timeline-badge--success">
+                      <MdCheckCircle aria-hidden />
+                      اكتمل
+                    </span>
+                  ) : null}
+                </div>
+                <p className="lcp__timeline-summary">{timelineSummary}</p>
+
+                <ul className="lcp__timeline-list">
+                  {TIMELINE_STEPS.map((step, index) => {
+                    const status = getTimelineStatus(index);
+                    return (
+                      <li
+                        key={step}
+                        className={`lcp__timeline-item lcp__timeline-item--${status}`}
+                      >
+                        <span className="lcp__timeline-dot" aria-hidden />
+                        <span>{step}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
 
-              <div className="lcp__plan-actions">
-                {!isEditingPlan && generatedPlan?.id ? (
-                  <button
-                    type="button"
-                    className="lcp__btn-edit"
-                    onClick={handleStartEditingPlan}
-                  >
-                    <MdEdit aria-hidden />
-                    تعديل
-                  </button>
-                ) : null}
-                {isEditingPlan && planDraft ? (
-                  <>
-                    <button
-                      type="button"
-                      className="lcp__btn-save"
-                      onClick={() => void handleSavePlan()}
-                      disabled={isSavingPlan}
+              <div className="lcp__empty">
+                <MdMenuBook className="lcp__empty-icon" aria-hidden />
+                <h3>لم يتم توليد أي خطة بعد</h3>
+                <p>
+                  اختر الصف والمادة والوحدة والدرس من اللوحة اليمنى ثم اضغط على
+                  "توليد الخطة".
+                </p>
+              </div>
+            </section>
+
+            <aside className="lcp__controls">
+              <h2>توليد الخطة بالذكاء الاصطناعي</h2>
+              <p>أكمل الخطوات بالترتيب، ثم اختر نوع الخطة والزمن واضغط توليد.</p>
+
+              <div className="lcp__steps">
+                <div className={`lcp__step lcp__step--${getStepState(1)}`}>
+                  <div className="lcp__step-index">1</div>
+                  <div className="lcp__step-content">
+                    <label htmlFor="lcp-class-select">الصف الدراسي</label>
+                    <select
+                      id="lcp-class-select"
+                      value={selectedClassId}
+                      onChange={(event) => handleClassSelect(event.target.value)}
+                      disabled={initialLoading || isGenerating}
                     >
-                      {isSavingPlan && <span className="ui-button-spinner" aria-hidden />}
-                      <MdSave aria-hidden />
-                      حفظ
-                    </button>
-                    <button
-                      type="button"
-                      className="lcp__btn-cancel"
-                      onClick={handleCancelEditingPlan}
-                      disabled={isSavingPlan}
+                      <option value="">اختر الصف...</option>
+                      {classes.map((classItem) => (
+                        <option key={classItem.id} value={classItem.id}>
+                          {[classItem.grade_label, classItem.section_label]
+                            .map((value) => value?.trim() ?? '')
+                            .filter(Boolean)
+                            .join(' - ')}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className={`lcp__step lcp__step--${getStepState(2)}`}>
+                  <div className="lcp__step-index">2</div>
+                  <div className="lcp__step-content">
+                    <label htmlFor="lcp-subject-select">المادة</label>
+                    <select
+                      id="lcp-subject-select"
+                      value={selectedSubjectId}
+                      onChange={(event) => handleSubjectSelect(event.target.value)}
+                      disabled={selectedClassId === '' || isGenerating}
                     >
-                      <MdClose aria-hidden />
-                      إلغاء
-                    </button>
-                  </>
-                ) : null}
+                      <option value="">اختر المادة...</option>
+                      {subjectsForSelectedClass.map((subjectItem) => (
+                        <option key={subjectItem.id} value={subjectItem.id}>
+                          {subjectItem.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className={`lcp__step lcp__step--${getStepState(3)}`}>
+                  <div className="lcp__step-index">3</div>
+                  <div className="lcp__step-content">
+                    <label htmlFor="lcp-unit-select">الوحدة</label>
+                    <select
+                      id="lcp-unit-select"
+                      value={selectedUnitId}
+                      onChange={(event) => handleUnitSelect(event.target.value)}
+                      disabled={selectedSubjectId === '' || unitsLoading || isGenerating}
+                    >
+                      <option value="">اختر الوحدة...</option>
+                      {units.map((unitItem) => (
+                        <option key={unitItem.id} value={unitItem.id}>
+                          {unitItem.name}
+                        </option>
+                      ))}
+                    </select>
+                    {unitsLoading ? <small>جارٍ تحميل وحدات المادة...</small> : null}
+                  </div>
+                </div>
+
+                <div className={`lcp__step lcp__step--${getStepState(4)}`}>
+                  <div className="lcp__step-index">4</div>
+                  <div className="lcp__step-content">
+                    <label htmlFor="lcp-lesson-select">الدرس</label>
+                    <select
+                      id="lcp-lesson-select"
+                      value={selectedLessonId}
+                      onChange={(event) => handleLessonSelect(event.target.value)}
+                      disabled={selectedUnitId === '' || lessonsLoading || isGenerating}
+                    >
+                      <option value="">اختر الدرس...</option>
+                      {lessons.map((lessonItem) => (
+                        <option key={lessonItem.id} value={lessonItem.id}>
+                          {lessonItem.name}
+                        </option>
+                      ))}
+                    </select>
+                    {lessonsLoading ? <small>جارٍ تحميل دروس الوحدة...</small> : null}
+                  </div>
+                </div>
+              </div>
+
+              <div className="lcp__options">
+                <div className="lcp__duration">
+                  <label htmlFor="lcp-plan-type">نوع الخطة</label>
+                  <select
+                    id="lcp-plan-type"
+                    value={planType}
+                    onChange={(event) => setPlanType(event.target.value as PlanType)}
+                    disabled={selectedLessonId === '' || isGenerating}
+                  >
+                    {PLAN_TYPE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="lcp__duration">
+                  <label htmlFor="lcp-duration">المدة الزمنية</label>
+                  <select
+                    id="lcp-duration"
+                    value={durationMinutes}
+                    onChange={(event) => {
+                      setDurationMinutes(Number(event.target.value));
+                    }}
+                    disabled={selectedLessonId === '' || isGenerating}
+                  >
+                    {LESSON_DURATION_OPTIONS.map((duration) => (
+                      <option key={duration} value={duration}>
+                        {duration} دقيقة
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <button
                   type="button"
-                  onClick={handleOpenAssignments}
-                  disabled={selectedLessonId === ''}
+                  className="lcp__generate-btn"
+                  onClick={() => void handleGeneratePlan()}
+                  disabled={!canGenerate}
                 >
-                  <MdAssignment aria-hidden />
-                  الانتقال لصفحة الواجبات
+                  {isGenerating ? (
+                    <>
+                      <span className="ui-button-spinner" aria-hidden />
+                      جارٍ توليد الخطة...
+                    </>
+                  ) : generationState === 'error' ? (
+                    'إعادة المحاولة'
+                  ) : (
+                    'توليد الخطة'
+                  )}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => navigate('/plans')}
-                >
-                  <MdMenuBook aria-hidden />
-                  الانتقال لصفحة الخطط
-                </button>
               </div>
-              <LessonPlanDocumentView
-                planType={generatedPlan.plan_type}
-                planJson={planDraft?.planJson ?? generatedPlan.plan_json}
-                mode={isEditingPlan ? 'edit' : 'view'}
-                lessonTitle={planDraft?.lessonTitle ?? ((generatedPlan.plan_json?.header && typeof generatedPlan.plan_json.header === 'object' && !Array.isArray(generatedPlan.plan_json.header) ? String((generatedPlan.plan_json.header as Record<string, unknown>).lesson_title ?? '') : '') || selectedLesson?.name || '')}
-                onLessonTitleChange={planDraft ? (value) => setPlanDraft((d) => (d ? { ...d, lessonTitle: value } : null)) : undefined}
-                onPlanJsonChange={planDraft ? (value) => setPlanDraft((d) => (d ? { ...d, planJson: value } : null)) : undefined}
-                fallback={{
-                  lessonTitle: selectedLesson?.name,
-                  subject: selectedSubject?.name,
-                  grade: selectedClass?.grade_label,
-                  section: selectedClass?.section_label,
-                  unit: selectedUnit?.name,
-                  durationMinutes,
-                }}
-              />
-
-            </article>
-          )}
-        </section>
-
-        <aside className="lcp__controls">
-          <h2>توليد الخطة بالذكاء الاصطناعي</h2>
-          <p>أكمل الخطوات بالترتيب، ثم اختر نوع الخطة والزمن واضغط توليد.</p>
-
-          <div className="lcp__steps">
-            <div className={`lcp__step lcp__step--${getStepState(1)}`}>
-              <div className="lcp__step-index">1</div>
-              <div className="lcp__step-content">
-                <label htmlFor="lcp-class-select">الصف الدراسي</label>
-                <select
-                  id="lcp-class-select"
-                  value={selectedClassId}
-                  onChange={(event) => handleClassSelect(event.target.value)}
-                  disabled={initialLoading || isGenerating}
-                >
-                  <option value="">اختر الصف...</option>
-                  {classes.map((classItem) => (
-                    <option key={classItem.id} value={classItem.id}>
-                      {[classItem.grade_label, classItem.section_label]
-                        .map((value) => value?.trim() ?? '')
-                        .filter(Boolean)
-                        .join(' - ')}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className={`lcp__step lcp__step--${getStepState(2)}`}>
-              <div className="lcp__step-index">2</div>
-              <div className="lcp__step-content">
-                <label htmlFor="lcp-subject-select">المادة</label>
-                <select
-                  id="lcp-subject-select"
-                  value={selectedSubjectId}
-                  onChange={(event) => handleSubjectSelect(event.target.value)}
-                  disabled={selectedClassId === '' || isGenerating}
-                >
-                  <option value="">اختر المادة...</option>
-                  {subjectsForSelectedClass.map((subjectItem) => (
-                    <option key={subjectItem.id} value={subjectItem.id}>
-                      {subjectItem.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className={`lcp__step lcp__step--${getStepState(3)}`}>
-              <div className="lcp__step-index">3</div>
-              <div className="lcp__step-content">
-                <label htmlFor="lcp-unit-select">الوحدة</label>
-                <select
-                  id="lcp-unit-select"
-                  value={selectedUnitId}
-                  onChange={(event) => handleUnitSelect(event.target.value)}
-                  disabled={selectedSubjectId === '' || unitsLoading || isGenerating}
-                >
-                  <option value="">اختر الوحدة...</option>
-                  {units.map((unitItem) => (
-                    <option key={unitItem.id} value={unitItem.id}>
-                      {unitItem.name}
-                    </option>
-                  ))}
-                </select>
-                {unitsLoading && <small>جارٍ تحميل وحدات المادة...</small>}
-              </div>
-            </div>
-
-            <div className={`lcp__step lcp__step--${getStepState(4)}`}>
-              <div className="lcp__step-index">4</div>
-              <div className="lcp__step-content">
-                <label htmlFor="lcp-lesson-select">الدرس</label>
-                <select
-                  id="lcp-lesson-select"
-                  value={selectedLessonId}
-                  onChange={(event) => handleLessonSelect(event.target.value)}
-                  disabled={selectedUnitId === '' || lessonsLoading || isGenerating}
-                >
-                  <option value="">اختر الدرس...</option>
-                  {lessons.map((lessonItem) => (
-                    <option key={lessonItem.id} value={lessonItem.id}>
-                      {lessonItem.name}
-                    </option>
-                  ))}
-                </select>
-                {lessonsLoading && <small>جارٍ تحميل دروس الوحدة...</small>}
-              </div>
-            </div>
+            </aside>
           </div>
+        </>
+      ) : screen === 'generated' && generatedPlan ? (
+        <section className="lcp__generated-view" aria-live="polite">
+          <header className="lcp__generated-head">
+            <h2>{generatedLessonTitle}</h2>
+            <p>
+              {toPlanTypeLabel(generatedPlan.plan_type)} |{' '}
+              {toValidationStatusLabel(generatedPlan.validation_status)} |{' '}
+              إعادة التحسين: {generatedPlan.retry_occurred ? 'نعم' : 'لا'}
+            </p>
+          </header>
 
-          <div className="lcp__options">
-            <div>
-              <label>نوع الخطة</label>
-              <div className="lcp__plan-type-toggle">
-                <button
-                  type="button"
-                  className={planType === 'traditional' ? 'is-active' : ''}
-                  onClick={() => setPlanType('traditional')}
-                  disabled={selectedLessonId === '' || isGenerating}
-                >
-                  تقليدية
-                </button>
-                <button
-                  type="button"
-                  className={planType === 'active_learning' ? 'is-active' : ''}
-                  onClick={() => setPlanType('active_learning')}
-                  disabled={selectedLessonId === '' || isGenerating}
-                >
-                  تعلم نشط
-                </button>
-              </div>
+          <article className="lcp__plan-card">
+            <div className="lcp__plan-banner" role="status">
+              <MdCheckCircle aria-hidden />
+              <span>تم إنشاء الخطة بنجاح | رقم الخطة: #{generatedPlan.id}</span>
             </div>
 
-            <div className="lcp__duration">
-              <label htmlFor="lcp-duration">المدة الزمنية</label>
-              <select
-                id="lcp-duration"
-                value={durationMinutes}
-                onChange={(event) => {
-                  setDurationMinutes(Number(event.target.value));
-                  setIsDurationManuallySelected(true);
-                }}
-                disabled={selectedLessonId === '' || isGenerating}
+            <div className="lcp__plan-actions">
+              <button
+                type="button"
+                className="lcp__btn-save"
+                onClick={() => void handleSavePlan()}
+                disabled={isSavingPlan}
               >
-                {DURATION_OPTIONS.map((duration) => (
-                  <option key={duration} value={duration}>
-                    {duration} دقيقة
-                  </option>
-                ))}
-              </select>
+                {isSavingPlan && <span className="ui-button-spinner" aria-hidden />}
+                <MdSave aria-hidden />
+                حفظ
+              </button>
+              {!isEditingPlan ? (
+                <button
+                  type="button"
+                  className="lcp__btn-edit"
+                  onClick={handleStartEditingPlan}
+                >
+                  <MdEdit aria-hidden />
+                  تعديل
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="lcp__btn-cancel"
+                  onClick={handleCancelEditingPlan}
+                  disabled={isSavingPlan}
+                >
+                  <MdClose aria-hidden />
+                  إلغاء
+                </button>
+              )}
+              <button
+                type="button"
+                className="lcp__btn-edit"
+                onClick={() => setIsExportModalOpen(true)}
+                disabled={!generatedPlan || isExportingPlan}
+              >
+                تصدير
+              </button>
             </div>
 
-            <button
-              type="button"
-              className="lcp__generate-btn"
-              onClick={() => void handleGeneratePlan()}
-              disabled={!canGenerate}
-            >
-              {isGenerating ? (
-                <>
-                  <span className="ui-button-spinner" aria-hidden />
-                  جارٍ توليد الخطة...
-                </>
-              ) : generationState === 'error' ? (
-                'إعادة المحاولة'
-              ) : (
-                'توليد الخطة'
-              )}
-            </button>
-          </div>
-        </aside>
+            <LessonPlanDocumentView
+              planType={generatedPlan.plan_type}
+              planJson={planDraft?.planJson ?? generatedPlan.plan_json}
+              mode={isEditingPlan ? 'edit' : 'view'}
+              lessonTitle={generatedLessonTitle}
+              onLessonTitleChange={
+                planDraft
+                  ? (value) =>
+                      setPlanDraft((draft) =>
+                        draft ? { ...draft, lessonTitle: value } : draft
+                      )
+                  : undefined
+              }
+              onPlanJsonChange={
+                planDraft
+                  ? (value) =>
+                      setPlanDraft((draft) =>
+                        draft ? { ...draft, planJson: value } : draft
+                      )
+                  : undefined
+              }
+              fallback={{
+                lessonTitle: selectedLesson?.name,
+                subject: selectedSubject?.name,
+                grade: selectedClass?.grade_label,
+                section: selectedClass?.section_label,
+                unit: selectedUnit?.name,
+                durationMinutes,
+              }}
+            />
+          </article>
 
-        {queuedPlanNotice ? (
-          <p className="ui-inline-notice ui-inline-notice--warning">{queuedPlanNotice}</p>
-        ) : null}
-
-        {generatedPlan && (
           <section className="lcp__refinement-row">
             <SmartRefinementPanel
               artifactType="lesson_plan"
@@ -1100,8 +1155,78 @@ function LessonCreator() {
               onCommitted={handleRefinementCommitted}
             />
           </section>
-        )}
-      </div>
+        </section>
+      ) : (
+        <section className="lcp__confirmation-view" aria-live="polite">
+          <div className="lcp__confirmation-card">
+            <h2>تم إنشاء خطة الدرس بنجاح ✓</h2>
+            <article className="lcp__confirmation-panel">
+              <h3>{generatedLessonTitle}</h3>
+              <p>
+                الوحدة الأولى | {selectedSubject?.name ?? '—'} | الصف:{' '}
+                {selectedClass?.grade_label ?? '—'} | الفصل:{' '}
+                {selectedClass?.semester ?? '—'} | {selectedClass?.academic_year ?? '—'} |{' '}
+                {toPlanTypeLabel(generatedPlan?.plan_type ?? planType)} | المدة:{' '}
+                {durationMinutes} د
+              </p>
+
+              <div className="lcp__confirmation-actions">
+                <button
+                  type="button"
+                  className="lcp__btn-save"
+                  onClick={handleOpenPlanFromConfirmation}
+                >
+                  عرض
+                </button>
+                <button
+                  type="button"
+                  className="lcp__btn-cancel"
+                  onClick={() => setDeleteConfirmOpen(true)}
+                  disabled={isDeletingPlan}
+                >
+                  حذف
+                </button>
+                <button
+                  type="button"
+                  className="lcp__btn-edit"
+                  onClick={handleCreateNewPlan}
+                >
+                  إنشاء خطة جديدة
+                </button>
+                <button
+                  type="button"
+                  className="lcp__btn-edit"
+                  onClick={() => navigate('/plans')}
+                >
+                  مكتبة الخطط
+                </button>
+              </div>
+            </article>
+          </div>
+        </section>
+      )}
+
+      <ExportFormatModal
+        isOpen={isExportModalOpen}
+        title="تصدير خطة الدرس"
+        onClose={() => setIsExportModalOpen(false)}
+        isSubmitting={isExportingPlan}
+        onConfirm={({ format }) => void handleExportPlan(format)}
+      />
+
+      <ConfirmActionModal
+        isOpen={deleteConfirmOpen}
+        title="تأكيد حذف الخطة"
+        message="سيتم حذف الخطة نهائيًا من المكتبة. لا يمكن التراجع بعد الحذف."
+        endpoint={generatedPlan?.id ? `/api/plans/${generatedPlan.id}` : '/api/plans'}
+        payload={generatedPlan?.id ? { planId: generatedPlan.id } : undefined}
+        isLoading={isDeletingPlan}
+        confirmLabel="حذف الخطة"
+        onCancel={() => setDeleteConfirmOpen(false)}
+        onConfirm={async () => {
+          await handleDeletePlan();
+        }}
+      />
     </div>
   );
 }

@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router';
-import { MdMenuBook, MdQuiz, MdRefresh } from 'react-icons/md';
+import {
+  MdInsights,
+  MdLibraryBooks,
+  MdMenuBook,
+  MdQuiz,
+  MdRefresh,
+  MdSchool,
+} from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
 import { useStage } from '../../context/StageContext';
-import { QuickAccess } from '../../components/layout';
 import type { Class, Exam, LessonPlanRecord, Subject } from '../../types';
 import {
   getScopedClasses,
   getScopedSubjects,
-  getScopedLessons,
-  listScopedAssignments,
   listScopedExams,
   listScopedPlans,
 } from './control-dashboard.services';
@@ -21,6 +25,13 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 const HEALTH_URL = `${BACKEND_URL.replace(/\/$/, '')}/health`;
 const HEALTH_TIMEOUT_MS = 5000;
 const WAKE_UP_WAIT_MS = 40000;
+
+type DashboardAction = {
+  path: string;
+  title: string;
+  description: string;
+  icon: typeof MdMenuBook;
+};
 
 function formatDateAr(value: string): string {
   try {
@@ -38,31 +49,27 @@ function formatDateAr(value: string): string {
 
 export default function ControlDashboard() {
   const { user } = useAuth();
+  const { activeStage } = useStage();
   const navigate = useNavigate();
 
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [plans, setPlans] = useState<LessonPlanRecord[]>([]);
   const [exams, setExams] = useState<Exam[]>([]);
-
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [serverWakingUp, setServerWakingUp] = useState(false);
   const [refreshReady, setRefreshReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  const displayName = user?.display_name || user?.username || 'المعلم';
   const isAdmin = user?.userRole === 'admin';
 
-  // Ping backend health on mount; if > 5s, show "server waking up" and allow refresh after 40s
   useEffect(() => {
-    const ac = new AbortController();
-    const timeoutId = window.setTimeout(() => {
-      ac.abort();
-    }, HEALTH_TIMEOUT_MS);
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
 
-    fetch(HEALTH_URL, { signal: ac.signal })
-      .then(() => {
-        clearTimeout(timeoutId);
-      })
+    fetch(HEALTH_URL, { signal: controller.signal })
+      .then(() => clearTimeout(timeoutId))
       .catch(() => {
         clearTimeout(timeoutId);
         setServerWakingUp(true);
@@ -70,18 +77,18 @@ export default function ControlDashboard() {
 
     return () => {
       clearTimeout(timeoutId);
-      ac.abort();
+      controller.abort();
     };
   }, []);
 
-  // When showing "waking up", start 40s countdown for refresh
   useEffect(() => {
-    if (!serverWakingUp) return;
-    const id = window.setTimeout(() => setRefreshReady(true), WAKE_UP_WAIT_MS);
-    return () => clearTimeout(id);
-  }, [serverWakingUp]);
+    if (!serverWakingUp) {
+      return;
+    }
 
-  const { activeStage } = useStage();
+    const timer = window.setTimeout(() => setRefreshReady(true), WAKE_UP_WAIT_MS);
+    return () => window.clearTimeout(timer);
+  }, [serverWakingUp]);
 
   useEffect(() => {
     if (!user?.userRole) {
@@ -89,40 +96,33 @@ export default function ControlDashboard() {
     }
 
     let cancelled = false;
+    setLoading(true);
+    setError(null);
 
     const stage = activeStage === 'all' ? undefined : activeStage;
 
     Promise.all([
       getScopedClasses(user.userRole, stage),
       getScopedSubjects(user.userRole, stage),
-      getScopedLessons(user.userRole, stage),
       listScopedPlans(stage),
       listScopedExams(stage),
-      listScopedAssignments(stage),
     ])
-      .then(
-        ([classesResponse, subjectsResponse, , plansResponse, examsResponse]) => {
-          if (cancelled) {
-            return;
-          }
-
-          const nextClasses = classesResponse.classes ?? [];
-          const nextSubjects = subjectsResponse.subjects ?? [];
-          const nextPlans = plansResponse.plans ?? [];
-          const nextExams = examsResponse.exams ?? [];
-
-          setClasses(nextClasses);
-          setSubjects(nextSubjects);
-          setPlans(nextPlans);
-          setExams(nextExams);
-        }
-      )
-      .catch(() => {
+      .then(([classesResponse, subjectsResponse, plansResponse, examsResponse]) => {
         if (cancelled) {
           return;
         }
-        setError('تعذر تحميل بيانات لوحة التحكم.');
-        toast.error('تعذر تحميل بيانات لوحة التحكم.');
+
+        setClasses(classesResponse.classes ?? []);
+        setSubjects(subjectsResponse.subjects ?? []);
+        setPlans(plansResponse.plans ?? []);
+        setExams(examsResponse.exams ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          const message = 'تعذر تحميل بيانات الصفحة الرئيسية.';
+          setError(message);
+          toast.error(message);
+        }
       })
       .finally(() => {
         if (!cancelled) {
@@ -135,67 +135,82 @@ export default function ControlDashboard() {
     };
   }, [user?.userRole, activeStage]);
 
+  const subjectMap = useMemo(() => {
+    return new Map(subjects.map((subject) => [subject.id, subject]));
+  }, [subjects]);
+
+  const classMap = useMemo(() => {
+    return new Map(classes.map((classItem) => [classItem.id, classItem]));
+  }, [classes]);
+
   const recentPlans = useMemo(() => {
     return [...plans]
-      .sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )
-      .slice(0, 6);
+      .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
+      .slice(0, 3);
   }, [plans]);
 
   const recentExams = useMemo(() => {
     return [...exams]
-      .sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )
-      .slice(0, 6);
+      .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
+      .slice(0, 3);
   }, [exams]);
 
-  const subjectsMap = useMemo(() => {
-    return new Map(subjects.map((subject) => [subject.id, subject]));
-  }, [subjects]);
-
-  const classesMap = useMemo(() => {
-    return new Map(classes.map((classItem) => [classItem.id, classItem]));
-  }, [classes]);
-
-  const stageStats = useMemo(() => {
-    const stages: Array<'ابتدائي' | 'اعدادي' | 'ثانوي'> = ['ابتدائي', 'اعدادي', 'ثانوي'];
-    const byStage = stages.map((stage) => {
-      const stageClasses = classes.filter((c) => c.stage === stage);
-      const classIds = new Set(stageClasses.map((c) => c.id));
-      const stageSubjects = subjects.filter((s) => classIds.has(s.class_id));
-      const subjectIds = new Set(stageSubjects.map((s) => s.id));
-      const stagePlans = plans.filter((p) => subjectIds.has((p as unknown as { subject_id?: number }).subject_id ?? 0));
-      const stageExams = exams.filter((e) => classIds.has(e.class_id));
-      return {
-        stage,
-        classesCount: stageClasses.length,
-        subjectsCount: stageSubjects.length,
-        plansCount: stagePlans.length,
-        examsCount: stageExams.length,
-      };
-    });
-
-    const totals = {
-      classesCount: classes.length,
-      subjectsCount: subjects.length,
-      plansCount: plans.length,
-      examsCount: exams.length,
-    };
-
-    return { byStage, totals };
-  }, [classes, subjects, plans, exams]);
+  const actions: DashboardAction[] = [
+    {
+      path: '/curriculum',
+      title: 'إدارة المنهج',
+      description: 'بناء هيكل العام الدراسي والفصل والصف والشعبة والمواد والوحدات والدروس.',
+      icon: MdSchool,
+    },
+    {
+      path: '/lessons',
+      title: 'إنشاء خطة درس',
+      description: 'توليد خطة درس ذكية من محتوى الدرس مع التحرير والتحسين والتصدير.',
+      icon: MdMenuBook,
+    },
+    {
+      path: '/quizzes/create',
+      title: 'إنشاء اختبار',
+      description: 'إعداد اختبار موحّد من الدروس المسجلة مع ضبط العدد والدرجة والمدة.',
+      icon: MdQuiz,
+    },
+    {
+      path: '/plans',
+      title: 'مكتبة الخطط',
+      description: 'تصفح الخطط المولدة، افتحها، حررها، أو صدّرها بصيغة PDF أو DOCX.',
+      icon: MdLibraryBooks,
+    },
+    {
+      path: '/quizzes',
+      title: 'مكتبة الاختبارات',
+      description: 'استعرض الاختبارات المحفوظة مع الفلترة حسب المادة والصف.',
+      icon: MdQuiz,
+    },
+    {
+      path: '/stats',
+      title: 'التقارير والأداء',
+      description: 'مراجعة ملخصات الاستخدام والجودة والنشاط من مكتبتك الخاصة.',
+      icon: MdInsights,
+    },
+  ];
 
   if (!user) {
     return null;
   }
 
+  if (loading && plans.length === 0 && exams.length === 0) {
+    return (
+      <div className="ui-loading-screen">
+        <div className="ui-loading-shell">
+          <span className="ui-spinner" aria-hidden />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={`cd ui-loaded ${loading ? 'cd--loading' : ''}${serverWakingUp ? ' auth--wake-notice-visible' : ''}`}>
-      {serverWakingUp && (
+    <div className="cd ui-loaded">
+      {serverWakingUp ? (
         <div className="auth__wake-notice" role="status">
           <p className="auth__wake-notice-text">
             الخادم المجاني قيد التشغيل. يرجى تحديث الصفحة بعد 40 ثانية ثم البدء باستخدام التطبيق.
@@ -203,7 +218,7 @@ export default function ControlDashboard() {
           <p className="auth__wake-notice-en">
             The free server is waking up. Please refresh the page after 40 seconds, then you can start using the app.
           </p>
-          {refreshReady && (
+          {refreshReady ? (
             <button
               type="button"
               className="auth__wake-refresh-btn"
@@ -212,207 +227,105 @@ export default function ControlDashboard() {
               <MdRefresh aria-hidden />
               تحديث الصفحة الآن / Refresh now
             </button>
-          )}
+          ) : null}
         </div>
-      )}
-      {/* Hero / Welcome */}
-      <header className="cd__hero" aria-label="ترحيب">
-        <div className="cd__hero-inner">
+      ) : null}
+
+      <header className="cd__hero page-header">
+        <div className="cd__hero-copy">
+          <p className="cd__eyebrow">الصفحة الرئيسية</p>
           <h1>
-            {loading ? (
-              <span aria-hidden />
-            ) : isAdmin ? (
-              'لوحة تحكم النظام'
-            ) : (
-              `مرحباً، ${user.display_name || user.username}`
-            )}
+            {isAdmin
+              ? `مرحباً، ${displayName}`
+              : `مرحباً، ${displayName}`}
           </h1>
           <p>
-            {loading ? (
-              <span aria-hidden />
-            ) : isAdmin ? (
-              'نظرة شاملة على بيانات النظام مع صلاحيات إشراف كاملة.'
-            ) : (
-              'نظرة سريعة على أنشطتك التعليمية وخيارات الوصول السريع.'
-            )}
+            اختر المهمة التي تريدها بسرعة، أو راجع أحدث الخطط والاختبارات من أسفل الصفحة.
           </p>
+        </div>
+
+        <div className="cd__hero-badge">
+          <span>{isAdmin ? 'وضع المدير' : 'وضع المعلم'}</span>
+          <strong>{error ? 'يوجد تنبيه' : 'جاهز للعمل'}</strong>
         </div>
       </header>
 
-      {/* Quick actions */}
-      <QuickAccess />
+      <section className="cd__actions" aria-label="التنقل السريع">
+        {actions.map((action) => {
+          const Icon = action.icon;
+          return (
+            <button
+              key={action.path}
+              type="button"
+              className="cd__action-card"
+              onClick={() => navigate(action.path)}
+            >
+              <span className="cd__action-icon" aria-hidden>
+                <Icon />
+              </span>
+              <span className="cd__action-copy">
+                <strong>{action.title}</strong>
+                <span>{action.description}</span>
+              </span>
+            </button>
+          );
+        })}
+      </section>
 
-      {/* Recent activity */}
-      {!error && (
-        <section className="cd__tables" aria-label="النشاط الأخير">
-          <article className={loading ? 'cd__table-card cd__table-card--skeleton' : 'cd__table-card'}>
-            <header>
-              <h2>أحدث الخطط</h2>
-              {!loading && (
-                <button
-                  type="button"
-                  className="cd__table-link"
-                  onClick={() => navigate('/plans')}
-                >
-                  عرض الكل
-                </button>
-              )}
-            </header>
-            {loading ? (
-              <>
-                <div className="cd__table-skeleton-row" />
-                <div className="cd__table-skeleton-row" />
-                <div className="cd__table-skeleton-row" />
-                <div className="cd__table-skeleton-row" />
-              </>
-            ) : recentPlans.length === 0 ? (
-              <div className="cd__empty">
-                <div className="cd__empty-icon">
-                  <MdMenuBook aria-hidden />
-                </div>
-                <p className="cd__empty-title">لا توجد خطط بعد</p>
-                <p className="cd__empty-text">ستظهر هنا أحدث الخطط المولدة عند إنشائها.</p>
-              </div>
+      <section className="cd__previews" aria-label="المخرجات الأخيرة">
+        <article className="cd__panel">
+          <header className="cd__panel-head">
+            <h2>أخر الخطط</h2>
+            <button type="button" onClick={() => navigate('/plans')}>
+              عرض الكل
+            </button>
+          </header>
+
+          <div className="cd__preview-list">
+            {recentPlans.length === 0 ? (
+              <p className="cd__empty">لا توجد خطط بعد.</p>
             ) : (
-              <div className="cd__table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>عنوان الدرس</th>
-                      <th>المادة</th>
-                      <th>النوع</th>
-                      <th>التاريخ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentPlans.map((plan) => (
-                      <tr key={plan.public_id}>
-                        <td>{plan.lesson_title}</td>
-                        <td>{plan.subject}</td>
-                        <td>
-                          <span className="cd__badge">
-                            {plan.plan_type === 'traditional' ? 'تقليدية' : 'تعلم نشط'}
-                          </span>
-                        </td>
-                        <td>{formatDateAr(plan.created_at)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </article>
-
-          <article className={loading ? 'cd__table-card cd__table-card--skeleton' : 'cd__table-card'}>
-            <header>
-              <h2>أحدث الاختبارات</h2>
-              {!loading && (
-                <button
-                  type="button"
-                  className="cd__table-link"
-                  onClick={() => navigate('/quizzes')}
-                >
-                  عرض الكل
-                </button>
-              )}
-            </header>
-            {loading ? (
-              <>
-                <div className="cd__table-skeleton-row" />
-                <div className="cd__table-skeleton-row" />
-                <div className="cd__table-skeleton-row" />
-                <div className="cd__table-skeleton-row" />
-              </>
-            ) : recentExams.length === 0 ? (
-              <div className="cd__empty">
-                <div className="cd__empty-icon">
-                  <MdQuiz aria-hidden />
+              recentPlans.map((plan) => (
+                <div key={plan.public_id} className="cd__preview-card">
+                  <strong>{plan.lesson_title}</strong>
+                  <span>{plan.subject} | {plan.grade}</span>
+                  <span>{plan.plan_type === 'traditional' ? 'تقليدية' : 'تعلم نشط'}</span>
+                  <span>{formatDateAr(plan.created_at)}</span>
                 </div>
-                <p className="cd__empty-title">لا توجد اختبارات بعد</p>
-                <p className="cd__empty-text">ستظهر هنا أحدث الاختبارات عند إنشائها.</p>
-              </div>
-            ) : (
-              <div className="cd__table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>العنوان</th>
-                      <th>المادة</th>
-                      <th>الصف</th>
-                      <th>عدد الأسئلة</th>
-                      <th>التاريخ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentExams.map((exam) => {
-                      const subject = subjectsMap.get(exam.subject_id);
-                      const classItem = classesMap.get(exam.class_id);
-
-                      return (
-                        <tr key={exam.public_id}>
-                          <td>{exam.title}</td>
-                          <td>{subject?.name ?? exam.subject_id}</td>
-                          <td>
-                            {classItem ? (
-                              `${classItem.grade_label} - ${classItem.section_label}`
-                            ) : (
-                              '—'
-                            )}
-                          </td>
-                          <td>{exam.total_questions}</td>
-                          <td>{formatDateAr(exam.created_at)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              ))
             )}
-          </article>
-        </section>
-      )}
+          </div>
+        </article>
 
-      {/* Stage-based stats for teachers */}
-      {!error && !isAdmin && (
-        <section className="cd__tables" aria-label="ملخص حسب المرحلة">
-          <article className="cd__table-card">
-            <header>
-              <h2>ملخص المراحل التعليمية</h2>
-            </header>
-            <div className="cd__table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>المرحلة</th>
-                    <th>عدد الصفوف</th>
-                    <th>عدد المواد</th>
-                    <th>عدد الخطط</th>
-                    <th>عدد الاختبارات</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stageStats.byStage.map((row) => (
-                    <tr key={row.stage}>
-                      <td>{row.stage}</td>
-                      <td>{row.classesCount}</td>
-                      <td>{row.subjectsCount}</td>
-                      <td>{row.plansCount}</td>
-                      <td>{row.examsCount}</td>
-                    </tr>
-                  ))}
-                  <tr>
-                    <td><strong>الإجمالي</strong></td>
-                    <td>{stageStats.totals.classesCount}</td>
-                    <td>{stageStats.totals.subjectsCount}</td>
-                    <td>{stageStats.totals.plansCount}</td>
-                    <td>{stageStats.totals.examsCount}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </article>
-        </section>
-      )}
+        <article className="cd__panel">
+          <header className="cd__panel-head">
+            <h2>أخر الاختبارات</h2>
+            <button type="button" onClick={() => navigate('/quizzes')}>
+              عرض الكل
+            </button>
+          </header>
+
+          <div className="cd__preview-list">
+            {recentExams.length === 0 ? (
+              <p className="cd__empty">لا توجد اختبارات بعد.</p>
+            ) : (
+              recentExams.map((exam) => {
+                const subject = subjectMap.get(exam.subject_id);
+                const classItem = classMap.get(exam.class_id);
+
+                return (
+                  <div key={exam.public_id} className="cd__preview-card">
+                    <strong>{exam.title}</strong>
+                    <span>{subject?.name ?? '—'} | {classItem?.grade_label ?? '—'}</span>
+                    <span>{exam.total_questions} سؤال | {exam.total_marks} درجة</span>
+                    <span>{formatDateAr(exam.created_at)}</span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </article>
+      </section>
     </div>
   );
 }

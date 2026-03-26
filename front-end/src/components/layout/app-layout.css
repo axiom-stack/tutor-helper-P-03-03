@@ -1,42 +1,24 @@
-/* ---------------------------------------------------------------------------
-   AppLayout – CSS Grid: row1 = NavBar (full width), row2 = Main | Sidebar
-   --------------------------------------------------------------------------- */
-
 .app-layout {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  /* With dir=rtl, col1 is right: put sidebar there (fixed), col2 is left: main (1fr) */
-  grid-template-columns: var(--sidebar-width) 1fr;
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
-  height: 100vh;
   min-width: 0;
-  background-color: var(--bg);
-  overflow: hidden;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(37, 99, 235, 0.06), transparent 30%),
+    linear-gradient(180deg, #f9fbff 0%, #f6f8fc 18%, #f8fafc 100%);
+  overflow-x: clip;
 }
 
-/* Row 1: NavBar spans both columns */
-.app-layout > .nav-bar {
-  grid-column: 1 / -1;
-  grid-row: 1;
-}
-
-/* Row 2: col1 = sidebar (right in RTL), col2 = main (1fr, left in RTL) */
 .app-layout > .app-layout__main {
-  grid-column: 2;
-  grid-row: 2;
   width: 100%;
+  flex: 1 1 auto;
   min-width: 0;
   max-width: 100%;
-  padding: var(--space-lg) var(--main-inline-padding);
+  padding: clamp(16px, 2vw, 32px) var(--main-inline-padding) var(--space-xl);
   overflow-x: hidden;
   overflow-y: auto;
   min-height: 0;
   box-sizing: border-box;
-}
-
-.app-layout > .sidebar {
-  grid-column: 1;
-  grid-row: 2;
 }
 
 .app-layout > .app-layout__main > * {
@@ -48,33 +30,8 @@
   box-sizing: border-box;
 }
 
-@media (max-width: 1024px) {
-  .app-layout {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
-    height: auto;
-    min-height: 100vh;
-  }
-
-  .app-layout > .sidebar {
-    display: none;
-  }
-
-  .app-layout > .app-layout__main {
-    grid-column: 1;
-    grid-row: 2;
-    padding: var(--space-md) var(--main-inline-padding);
-  }
-}
-
 @media (max-width: 640px) {
   .app-layout > .app-layout__main {
-    padding: var(--space-sm) var(--space-sm);
-  }
-}
-
-@media (max-width: 480px) {
-  .app-layout > .app-layout__main {
-    padding: var(--space-md) var(--space-sm);
+    padding: var(--space-md) var(--space-sm) var(--space-lg);
   }
 }

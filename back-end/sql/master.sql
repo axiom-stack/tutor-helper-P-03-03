@@ -13,6 +13,8 @@ CREATE TABLE UserProfiles (
   educational_stage TEXT,
   subject TEXT,
   preparation_type TEXT,
+  school_name TEXT,
+  school_logo_url TEXT,
   default_lesson_duration_minutes INTEGER NOT NULL DEFAULT 45 CHECK(default_lesson_duration_minutes > 0),
   default_plan_type TEXT NOT NULL DEFAULT 'traditional' CHECK(default_plan_type IN ('traditional', 'active_learning')),
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -23,6 +25,7 @@ CREATE TABLE Classes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   grade_label TEXT NOT NULL,
   stage TEXT,
+  semester TEXT,
   section_label TEXT NOT NULL,
   section TEXT NOT NULL DEFAULT 'أ',
   academic_year TEXT NOT NULL,
@@ -56,6 +59,7 @@ Create Table Lessons (
   name TEXT NOT NULL,
   description TEXT,
   content TEXT NOT NULL,
+  period_number INTEGER,
   number_of_periods INTEGER NOT NULL DEFAULT 1 CHECK(number_of_periods > 0),
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

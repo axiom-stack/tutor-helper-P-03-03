@@ -68,6 +68,10 @@
   grid-template-columns: 1fr;
 }
 
+.qz__layout--creator {
+  grid-template-columns: 1fr;
+}
+
 .qz__panel,
 .qz__content {
   background: #fff;
@@ -342,6 +346,51 @@
   cursor: pointer;
 }
 
+.qz__card-actions {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.qz__card-action {
+  border: 1px solid #d5e3f1;
+  background: #eef4fa;
+  color: #1f4f82;
+  border-radius: 0.55rem;
+  padding: 0.45rem 0.75rem;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.qz__card-action:hover:not(:disabled) {
+  background: #e4eef8;
+  border-color: #bcd2e8;
+}
+
+.qz__card-action--danger {
+  border-color: #efcccc;
+  background: #fff4f4;
+  color: #9b1c1c;
+}
+
+.qz__card-action--danger:hover:not(:disabled) {
+  background: #ffecec;
+  border-color: #e8a9a9;
+}
+
+.qz__card-action--subtle {
+  border-color: #cfd9e6;
+  background: #fff;
+  color: #24384d;
+}
+
+.qz__card-action--subtle:hover:not(:disabled) {
+  border-color: #b8c8db;
+  background: #f8fbff;
+}
+
 .qz__details-head {
   display: flex;
   justify-content: space-between;
@@ -418,6 +467,120 @@
 .qz__details-action-btn--secondary:hover:not(:disabled) {
   border-color: #bcd2e8;
   background: #e4eef8;
+}
+
+.qz__details-action-btn--danger {
+  border-color: #efcccc;
+  background: #fff4f4;
+  color: #9b1c1c;
+}
+
+.qz__details-action-btn--danger:hover:not(:disabled) {
+  border-color: #e8a9a9;
+  background: #ffecec;
+}
+
+.qz__generated-view {
+  display: grid;
+  gap: 1rem;
+}
+
+.qz__confirmation-view {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+}
+
+.qz__confirmation-card {
+  width: min(42rem, 100%);
+  background: #fff;
+  border: 1px solid #dde5ee;
+  border-radius: 1rem;
+  padding: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.qz__confirmation-card h2 {
+  margin: 0 0 0.85rem;
+  text-align: center;
+}
+
+.qz__confirmation-panel {
+  border: 1px solid #e5edf6;
+  border-radius: 0.9rem;
+  padding: 1rem;
+  display: grid;
+  gap: 0.75rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.qz__confirmation-panel h3 {
+  margin: 0;
+}
+
+.qz__confirmation-panel p {
+  margin: 0;
+  color: #465465;
+  line-height: 1.8;
+}
+
+.qz__confirmation-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.qz__btn-save,
+.qz__btn-edit,
+.qz__btn-cancel {
+  min-height: 2.45rem;
+  border-radius: 0.7rem;
+  border: 1px solid transparent;
+  padding: 0 0.95rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.qz__btn-save {
+  background: #1f4f82;
+  color: #fff;
+}
+
+.qz__btn-save:hover:not(:disabled) {
+  background: #1a426d;
+}
+
+.qz__btn-edit {
+  background: #eef4fa;
+  color: #1f4f82;
+  border-color: #d5e3f1;
+}
+
+.qz__btn-edit:hover:not(:disabled) {
+  background: #e4eef8;
+  border-color: #bcd2e8;
+}
+
+.qz__btn-cancel {
+  background: #fff4f4;
+  color: #9b1c1c;
+  border-color: #efcccc;
+}
+
+.qz__btn-cancel:hover:not(:disabled) {
+  background: #ffecec;
+  border-color: #e8a9a9;
+}
+
+.qz__btn-save:disabled,
+.qz__btn-edit:disabled,
+.qz__btn-cancel:disabled,
+.qz__card-action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .qz__edit-input,
@@ -657,6 +820,18 @@
 
   .qz__details-actions {
     justify-content: stretch;
+  }
+
+  .qz__card-actions,
+  .qz__confirmation-actions {
+    flex-direction: column;
+  }
+
+  .qz__card-action,
+  .qz__btn-save,
+  .qz__btn-edit,
+  .qz__btn-cancel {
+    width: 100%;
   }
 
   .qz__panel,

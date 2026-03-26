@@ -3,19 +3,18 @@ import type { KeyboardEvent } from 'react';
 import toast from 'react-hot-toast';
 import {
   MdClose,
-  MdContentCopy,
   MdEdit,
+  MdDelete,
   MdRefresh,
   MdSave,
-  MdWhatsapp,
 } from 'react-icons/md';
+import ConfirmActionModal from '../../components/common/ConfirmActionModal';
+import ExportFormatModal from '../../components/common/ExportFormatModal';
 import { SyncStatusBadge } from '../../components/common/SyncStatusBadge';
-import WhatsAppExportModal from '../../components/common/WhatsAppExportModal';
 import { useAuth } from '../../context/AuthContext';
 import { useStage } from '../../context/StageContext';
 import type { LessonPlanRecord, TeacherManagementRow } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
-import { shareDocument } from '../../utils/whatsapp';
 import { clearDraft, getDraft, saveDraft } from '../../offline/drafts';
 import { useOffline } from '../../offline/useOffline';
 import { isLocalOnlyId } from '../../offline/utils';
@@ -29,17 +28,15 @@ import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel
 import { getRefinementTargetOptions } from '../refinements/refinementTargets';
 import { listTeachers } from '../users/users.services';
 import {
+  deletePlanById,
   getPlanById,
-  getPlanExportBlob,
+  exportPlan,
   listPlans,
-  duplicatePlan,
   updatePlan,
 } from './plans-manager.services';
 import './plans-manager.css';
 
 type PlanTypeFilter = '' | 'traditional' | 'active_learning';
-
-type ExportAction = 'whatsapp' | null;
 
 interface PlanDraft {
   lessonTitle: string;
@@ -87,14 +84,20 @@ export default function PlansManager() {
   /** Which plan is currently loading details (by public_id). Only this card shows loading. */
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const [, setError] = useState<string | null>(null);
-  const [exportingAction, setExportingAction] = useState<ExportAction>(null);
   const [isEditingPlan, setIsEditingPlan] = useState(false);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
   const [planDraft, setPlanDraft] = useState<PlanDraft | null>(null);
   const [draftRecoveredNotice, setDraftRecoveredNotice] = useState<
     string | null
   >(null);
-  const [whatsAppExportOpen, setWhatsAppExportOpen] = useState(false);
+  const [exportFormatOpen, setExportFormatOpen] = useState(false);
+  const [exportTargetPlan, setExportTargetPlan] =
+    useState<OfflineLessonPlanRecord | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteTargetPlan, setDeleteTargetPlan] =
+    useState<OfflineLessonPlanRecord | null>(null);
+  const [isExportingPlan, setIsExportingPlan] = useState(false);
+  const [isDeletingPlan, setIsDeletingPlan] = useState(false);
 
   const plansRequestIdRef = useRef(0);
   const detailRequestIdRef = useRef(0);
@@ -325,8 +328,9 @@ export default function PlansManager() {
     }
   };
 
-  const canExportPlan =
-    selectedPlan?.public_id && !isLocalOnlyId(selectedPlan.public_id);
+  const selectedPlanCanExport = selectedPlan
+    ? !isLocalOnlyId(selectedPlan.public_id)
+    : false;
 
 
   const clearFilters = () => {
@@ -402,7 +406,7 @@ export default function PlansManager() {
   };
 
   const handleRefinementCommitted = async () => {
-    if (!canExportPlan) {
+    if (!selectedPlan?.public_id) {
       return;
     }
 
@@ -413,24 +417,58 @@ export default function PlansManager() {
     setSelectedPlan(detailResponse.plan as OfflineLessonPlanRecord);
   };
 
-  const handleDuplicatePlan = async () => {
-    if (!selectedPlan) {
+  const openExportDialog = (plan: OfflineLessonPlanRecord) => {
+    setExportTargetPlan(plan);
+    setExportFormatOpen(true);
+  };
+
+  const openDeleteDialog = (plan: OfflineLessonPlanRecord) => {
+    setDeleteTargetPlan(plan);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleExportSelectedPlan = async (format: 'pdf' | 'docx') => {
+    if (!exportTargetPlan?.public_id) {
       return;
     }
 
     try {
-      const response = await duplicatePlan(selectedPlan.public_id);
-      const duplicatedPlan = response.plan as OfflineLessonPlanRecord;
-      setAllPlans((current: OfflineLessonPlanRecord[]) => [
-        duplicatedPlan,
-        ...current,
-      ]);
-      setSelectedPlan(duplicatedPlan);
-      toast.success('تم إنشاء نسخة محلية من الخطة.');
+      setIsExportingPlan(true);
+      await exportPlan(exportTargetPlan.public_id, format);
+      toast.success('تم تصدير الخطة بنجاح.');
+      setExportFormatOpen(false);
     } catch (error: unknown) {
-      toast.error(
-        normalizeApiError(error, 'تعذر إنشاء نسخة محلية للخطة.').message
-      );
+      toast.error(normalizeApiError(error, 'فشل تصدير الخطة.').message);
+    } finally {
+      setIsExportingPlan(false);
+      setExportTargetPlan(null);
+    }
+  };
+
+  const handleDeleteSelectedPlan = async () => {
+    if (!deleteTargetPlan?.public_id) {
+      return;
+    }
+
+    try {
+      setIsDeletingPlan(true);
+      if (selectedPlan?.public_id === deleteTargetPlan.public_id) {
+        setIsEditingPlan(false);
+        setPlanDraft(null);
+        void clearDraft('plans-manager', deleteTargetPlan.local_id);
+      }
+      await deletePlanById(deleteTargetPlan.public_id);
+      toast.success('تم حذف الخطة بنجاح.');
+      if (selectedPlan?.public_id === deleteTargetPlan.public_id) {
+        setSelectedPlan(null);
+      }
+      await loadPlans();
+    } catch (error: unknown) {
+      toast.error(normalizeApiError(error, 'فشل حذف الخطة.').message);
+    } finally {
+      setIsDeletingPlan(false);
+      setDeleteConfirmOpen(false);
+      setDeleteTargetPlan(null);
     }
   };
 
@@ -605,6 +643,39 @@ export default function PlansManager() {
                       <div className="pm__card-foot">
                         <SyncStatusBadge status={plan.sync_status} />
                       </div>
+                      <div className="pm__card-actions">
+                        <button
+                          type="button"
+                          className="pm__card-action"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void handleSelectPlan(plan);
+                          }}
+                        >
+                          عرض
+                        </button>
+                        <button
+                          type="button"
+                          className="pm__card-action pm__card-action--danger"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openDeleteDialog(plan);
+                          }}
+                        >
+                          حذف
+                        </button>
+                        <button
+                          type="button"
+                          className="pm__card-action"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openExportDialog(plan);
+                          }}
+                          disabled={!plan.public_id || isLocalOnlyId(plan.public_id)}
+                        >
+                          تصدير
+                        </button>
+                      </div>
                       {plan.last_sync_error ? (
                         <p className="pm__card-error">{plan.last_sync_error}</p>
                       ) : null}
@@ -665,16 +736,14 @@ export default function PlansManager() {
                     <button
                       type="button"
                       className="pm__btn pm__btn--subtle"
-                      disabled={!canExportPlan || exportingAction !== null}
-                      onClick={() => setWhatsAppExportOpen(true)}
-                      title={
-                        !canExportPlan && selectedPlan
-                          ? 'مزامن الخطة مع الخادم أولاً لتمكين التصدير'
-                          : 'تصدير ومشاركة الخطة'
-                      }
+                      disabled={!selectedPlanCanExport}
+                      onClick={() => {
+                        if (selectedPlan) {
+                          openExportDialog(selectedPlan);
+                        }
+                      }}
                     >
-                      <MdWhatsapp aria-hidden />
-                      تصدير ومشاركة
+                      تصدير
                     </button>
                     <button
                       type="button"
@@ -687,12 +756,16 @@ export default function PlansManager() {
                     </button>
                     <button
                       type="button"
-                      className="pm__btn pm__btn--subtle"
+                      className="pm__btn pm__btn--subtle pm__btn--danger"
                       disabled={!selectedPlan || detailLoading}
-                      onClick={() => void handleDuplicatePlan()}
+                      onClick={() => {
+                        if (selectedPlan) {
+                          openDeleteDialog(selectedPlan);
+                        }
+                      }}
                     >
-                      <MdContentCopy aria-hidden />
-                      نسخة محلية
+                      <MdDelete aria-hidden />
+                      حذف
                     </button>
                   </>
                 )}
@@ -807,30 +880,31 @@ export default function PlansManager() {
         </article>
       </section>
 
-      <WhatsAppExportModal
-        isOpen={whatsAppExportOpen}
-        title="تصدير ومشاركة الخطة"
-        onClose={() => setWhatsAppExportOpen(false)}
-        isExporting={exportingAction === 'whatsapp'}
-        onConfirm={async ({ format }) => {
-          if (!canExportPlan) return;
-          setExportingAction('whatsapp');
-          try {
-            const blob = await getPlanExportBlob(selectedPlan!.public_id, format);
-            const ext = format === 'pdf' ? 'pdf' : 'docx';
-            const filename = `plan_${selectedPlan!.public_id}.${ext}`;
-            const result = await shareDocument(blob, filename);
-            if (result === 'shared') {
-              toast.success('تمت المشاركة بنجاح.');
-            } else if (result === 'downloaded') {
-              toast.success('تم تحميل الملف. أرفقه يدوياً عبر واتساب أو أي تطبيق آخر.');
-            }
-            setWhatsAppExportOpen(false);
-          } catch {
-            toast.error('فشل تصدير الخطة.');
-          } finally {
-            setExportingAction(null);
-          }
+      <ExportFormatModal
+        isOpen={exportFormatOpen}
+        title="تصدير الخطة"
+        onClose={() => {
+          setExportFormatOpen(false);
+          setExportTargetPlan(null);
+        }}
+        isSubmitting={isExportingPlan}
+        onConfirm={({ format }) => void handleExportSelectedPlan(format)}
+      />
+
+      <ConfirmActionModal
+        isOpen={deleteConfirmOpen}
+        title="تأكيد حذف الخطة"
+        message="سيتم حذف الخطة نهائيًا من المكتبة. لا يمكن التراجع بعد الحذف."
+        endpoint={deleteTargetPlan?.public_id ? `/api/plans/${deleteTargetPlan.public_id}` : '/api/plans'}
+        payload={deleteTargetPlan?.public_id ? { planId: deleteTargetPlan.public_id } : undefined}
+        isLoading={isDeletingPlan}
+        confirmLabel="حذف الخطة"
+        onCancel={() => {
+          setDeleteConfirmOpen(false);
+          setDeleteTargetPlan(null);
+        }}
+        onConfirm={async () => {
+          await handleDeleteSelectedPlan();
         }}
       />
     </div>

@@ -9,6 +9,7 @@ import { AppLayout } from './components/layout';
 import { StageProvider } from './context/StageContext';
 import { RequireAdmin, RequireAuth, RequireTeacher } from './components/routing/RouteGuards';
 import ControlDashboard from './features/control-dashboard/ControlDashboard';
+import AdminDashboard from './features/admin-dashboard/AdminDashboard';
 import ControlCurriculum from './features/control-curriculum/ControlCurriculum';
 import PlansManager from './features/plans-manager/PlansManager';
 import Settings from './features/settings/Settings';
@@ -43,13 +44,20 @@ function App() {
         >
           <Route path="/" element={<ControlDashboard />} />
           <Route path="/teacher" element={<Navigate to="/" replace />} />
-          <Route path="/admin" element={<Navigate to="/" replace />} />
+          <Route
+            path="/admin"
+            element={
+              <RequireAdmin>
+                <AdminDashboard />
+              </RequireAdmin>
+            }
+          />
           <Route
             path="/lessons"
             element={
-              <RequireTeacher>
+              <RequireAuth>
                 <LessonCreator />
-              </RequireTeacher>
+              </RequireAuth>
             }
           />
           <Route
@@ -68,6 +76,7 @@ function App() {
               </RequireTeacher>
             }
           />
+          <Route path="/quizzes/create" element={<Quizzes />} />
           <Route path="/quizzes" element={<Quizzes />} />
           <Route path="/curriculum" element={<ControlCurriculum />} />
           <Route path="/plans" element={<PlansManager />} />

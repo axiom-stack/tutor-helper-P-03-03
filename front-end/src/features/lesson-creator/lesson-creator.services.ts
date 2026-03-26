@@ -78,6 +78,29 @@ export async function getMyClasses(
   }
 }
 
+export async function getAllClasses(
+  stage?: string
+): Promise<{ classes: Class[] }> {
+  try {
+    const params: Record<string, string> = {};
+    if (stage && stage !== 'all') {
+      params.stage = stage;
+    }
+    const response = await api().get<{ classes: Class[] }>('/api/classes', {
+      params,
+    });
+    await putReference('classes:all', 'classes', response.data.classes ?? []);
+    return response.data;
+  } catch (error: unknown) {
+    if (!isOfflineError(error)) {
+      throw error;
+    }
+
+    const cached = await getReference<Class[]>('classes:all');
+    return { classes: cached ?? [] };
+  }
+}
+
 export async function getMySubjects(stage?: string): Promise<{ subjects: Subject[] }> {
   try {
     const params: Record<string, string> = {};
@@ -95,6 +118,27 @@ export async function getMySubjects(stage?: string): Promise<{ subjects: Subject
     }
 
     const cached = await getReference<Subject[]>('subjects:mine');
+    return { subjects: cached ?? [] };
+  }
+}
+
+export async function getAllSubjects(stage?: string): Promise<{ subjects: Subject[] }> {
+  try {
+    const params: Record<string, string> = {};
+    if (stage && stage !== 'all') {
+      params.stage = stage;
+    }
+    const response = await api().get<{ subjects: Subject[] }>('/api/subjects', {
+      params,
+    });
+    await putReference('subjects:all', 'subjects', response.data.subjects ?? []);
+    return response.data;
+  } catch (error: unknown) {
+    if (!isOfflineError(error)) {
+      throw error;
+    }
+
+    const cached = await getReference<Subject[]>('subjects:all');
     return { subjects: cached ?? [] };
   }
 }

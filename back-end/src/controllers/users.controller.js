@@ -55,6 +55,24 @@ function buildProfileUpdates(body = {}, options = {}) {
     }
   }
 
+  if (Object.prototype.hasOwnProperty.call(body, "school_name")) {
+    const parsedValue = normalizeOptionalText(body.school_name);
+    if (Number.isNaN(parsedValue)) {
+      errors.push("school_name must be a string or null");
+    } else {
+      updates.school_name = parsedValue;
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "school_logo_url")) {
+    const parsedValue = normalizeOptionalText(body.school_logo_url);
+    if (Number.isNaN(parsedValue)) {
+      errors.push("school_logo_url must be a string or null");
+    } else {
+      updates.school_logo_url = parsedValue;
+    }
+  }
+
   if (
     Object.prototype.hasOwnProperty.call(
       body,

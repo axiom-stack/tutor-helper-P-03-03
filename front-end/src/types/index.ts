@@ -23,6 +23,7 @@ export interface Class {
   id: number;
   grade_label: string;
   stage?: string | null;
+  semester?: string | null;
   section_label: string;
   section: string;
   academic_year: string;
@@ -56,6 +57,7 @@ export interface Lesson {
   name: string;
   description: string | null;
   content: string;
+  period_number?: number | null;
   number_of_periods: number;
   created_at: string; // ISO date string
 }
@@ -217,6 +219,8 @@ export interface UserProfile {
   educational_stage: string | null;
   subject: string | null;
   preparation_type: PreparationType | null;
+  school_name: string | null;
+  school_logo_url: string | null;
   default_lesson_duration_minutes: number;
   default_plan_type: 'traditional' | 'active_learning';
   created_at: string;
@@ -228,6 +232,8 @@ export interface UserProfileUpdatePayload {
   educational_stage?: string | null;
   subject?: string | null;
   preparation_type?: PreparationType | null;
+  school_name?: string | null;
+  school_logo_url?: string | null;
   default_lesson_duration_minutes?: number;
   default_plan_type?: 'traditional' | 'active_learning';
 }
@@ -261,6 +267,8 @@ export interface TeacherManagementRow {
     educational_stage: string | null;
     subject: string | null;
     preparation_type: PreparationType | null;
+    school_name: string | null;
+    school_logo_url: string | null;
     default_lesson_duration_minutes: number;
     default_plan_type: 'traditional' | 'active_learning';
   };
@@ -387,6 +395,10 @@ export interface GenerateExamRequest {
   total_marks: number;
   duration_minutes?: number;
   title?: string;
+  academic_year?: string;
+  semester?: string;
+  grade?: string;
+  section?: string;
 }
 
 export interface GenerateAssignmentsRequest {
@@ -496,6 +508,7 @@ export interface CreateUserData {
 
 export interface CreateClassData {
   stage?: string | null;
+  semester?: string | null;
   grade_label: string;
   section_label: string;
   section?: string;
@@ -524,6 +537,7 @@ export interface CreateLessonData {
   name: string;
   description?: string | null;
   content: string;
+  period_number?: number;
   number_of_periods?: number;
   content_type?: LessonContentType;
 }

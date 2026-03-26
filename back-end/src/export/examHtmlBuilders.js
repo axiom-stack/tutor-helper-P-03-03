@@ -40,6 +40,46 @@ const EXAM_BASE_STYLES = `
     gap: 6px;
   }
 
+  .exam-ministry {
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+
+  .exam-brand-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 8px 0 10px;
+  }
+
+  .exam-school-logo {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #f8fafc;
+    flex-shrink: 0;
+  }
+
+  .exam-school-logo--placeholder {
+    display: grid;
+    place-items: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #475569;
+  }
+
+  .exam-school-name {
+    flex: 1 1 auto;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
   .exam-header-item label,
   .student-field label,
   .meta-field label {
@@ -200,23 +240,36 @@ function escapeHtml(str) {
 
 function renderExamHeader(examMeta) {
   const {
-    title,
     subject,
     className,
     date,
     duration,
     totalMarks,
-    institutionName,
+    schoolName,
+    schoolLogoUrl,
     term,
     academicYear,
   } = examMeta;
 
+  const logoHtml = schoolLogoUrl
+    ? `<img class="exam-school-logo" src="${escapeHtml(schoolLogoUrl)}" alt="شعار المدرسة" />`
+    : `<div class="exam-school-logo exam-school-logo--placeholder">[شعار المدرسة]</div>`;
+
   return `
     <section class="exam-header">
-      <div class="exam-title">${escapeHtml(
-        institutionName || "وزارة التربية والتعليم",
-      )}</div>
-      <div class="exam-subtitle">${escapeHtml(title || "اختبار")}</div>
+      <div class="exam-ministry">الجمهورية اليمنية</div>
+      <div class="exam-ministry">وزارة التربية والتعليم</div>
+      <div class="exam-ministry">محافظة عدن</div>
+      <div class="exam-brand-row">
+        ${logoHtml}
+        <div class="exam-school-name">مدرسة: ${escapeHtml(schoolName || "—")}</div>
+      </div>
+      <div class="exam-title">اختبار مادة ${escapeHtml(subject)}</div>
+      <div class="exam-subtitle">${escapeHtml(className)}</div>
+      <div class="exam-subtitle">
+        الفصل الدراسي ${escapeHtml(term || "—")} (${escapeHtml(academicYear || "—")})
+      </div>
+      <div class="exam-subtitle">الدرجة الكلية: ${escapeHtml(String(totalMarks ?? "—"))}</div>
       <div class="exam-header-grid">
         <div class="exam-header-item">
           <label>المادة</label>
@@ -684,4 +737,3 @@ export function buildExamAnswerKeyHtml(enrichedExam) {
 </body>
 </html>`;
 }
-
