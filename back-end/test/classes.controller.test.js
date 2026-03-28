@@ -57,7 +57,10 @@ test("createClass returns 409 when duplicate class identity exists for same teac
   const controller = createClassesController({
     dbClient: {
       async execute({ sql }) {
-        if (sql.includes("FROM Classes") && sql.includes("semester = ?")) {
+        if (
+          sql.includes("FROM Classes") &&
+          sql.includes("COALESCE(NULLIF(TRIM(semester), ''), 'الأول') = ?")
+        ) {
           return { rows: [duplicateClass] };
         }
         throw new Error("should not continue after duplicate check");
@@ -85,6 +88,50 @@ test("createClass returns 409 when duplicate class identity exists for same teac
   assert.equal(res.payload?.class?.id, 9);
 });
 
+test("createClass treats legacy null semester rows as الأول for duplicate checks", async () => {
+  const duplicateClass = {
+    id: 19,
+    teacher_id: 2,
+    academic_year: "2025 - 2026",
+    semester: null,
+    grade_label: "السابع",
+    section_label: "أ",
+  };
+
+  const controller = createClassesController({
+    dbClient: {
+      async execute({ sql }) {
+        if (
+          sql.includes("FROM Classes") &&
+          sql.includes("COALESCE(NULLIF(TRIM(semester), ''), 'الأول') = ?")
+        ) {
+          return { rows: [duplicateClass] };
+        }
+        throw new Error("should not continue after duplicate check");
+      },
+    },
+  });
+
+  const req = {
+    user: { id: 2, role: "teacher" },
+    body: {
+      teacher_id: 2,
+      academic_year: "2025 - 2026",
+      semester: "الأول",
+      grade_label: "السابع",
+      section_label: "أ",
+      default_duration_minutes: 45,
+    },
+  };
+  const res = createMockRes();
+
+  await controller.createClass(req, res);
+
+  assert.equal(res.statusCode, 409);
+  assert.equal(res.payload?.error?.code, "class_already_exists");
+  assert.equal(res.payload?.class?.id, 19);
+});
+
 test("createClass checks duplicates within teacher scope only", async () => {
   const calls = [];
   const createdClass = {
@@ -103,7 +150,10 @@ test("createClass checks duplicates within teacher scope only", async () => {
     dbClient: {
       async execute({ sql, args }) {
         calls.push({ sql, args });
-        if (sql.includes("FROM Classes") && sql.includes("semester = ?")) {
+        if (
+          sql.includes("FROM Classes") &&
+          sql.includes("COALESCE(NULLIF(TRIM(semester), ''), 'الأول') = ?")
+        ) {
           return { rows: [] };
         }
         if (sql.includes("INSERT INTO Classes")) {
@@ -137,7 +187,8 @@ test("createClass checks duplicates within teacher scope only", async () => {
   assert.equal(res.payload?.class?.id, 44);
 
   const duplicateCheckCall = calls.find((call) =>
-    call.sql.includes("FROM Classes") && call.sql.includes("semester = ?"),
+    call.sql.includes("FROM Classes") &&
+    call.sql.includes("COALESCE(NULLIF(TRIM(semester), ''), 'الأول') = ?"),
   );
   assert.ok(duplicateCheckCall, "duplicate check query should run");
   assert.equal(duplicateCheckCall.args?.[0], 2);
@@ -171,7 +222,10 @@ test("updateClassByClassId returns 409 when update collides with another class k
         if (sql.includes("SELECT * FROM Classes WHERE id = ? LIMIT 1")) {
           return { rows: [existingClass] };
         }
-        if (sql.includes("FROM Classes") && sql.includes("semester = ?")) {
+        if (
+          sql.includes("FROM Classes") &&
+          sql.includes("COALESCE(NULLIF(TRIM(semester), ''), 'الأول') = ?")
+        ) {
           assert.equal(args?.[5], 11);
           return { rows: [conflictingClass] };
         }
@@ -224,7 +278,10 @@ test("updateClassByClassId keeps existing default duration when field is omitted
         if (sql.includes("SELECT * FROM Classes WHERE id = ? LIMIT 1")) {
           return { rows: [existingClass] };
         }
-        if (sql.includes("FROM Classes") && sql.includes("semester = ?")) {
+        if (
+          sql.includes("FROM Classes") &&
+          sql.includes("COALESCE(NULLIF(TRIM(semester), ''), 'الأول') = ?")
+        ) {
           return { rows: [] };
         }
         if (sql.includes("UPDATE Classes")) {

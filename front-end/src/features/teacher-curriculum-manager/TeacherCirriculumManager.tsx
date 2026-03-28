@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
@@ -63,10 +64,10 @@ import {
 import {
   formatClassSelectLabel,
   formatClassShortLabel,
+  formatSubjectSelectLabel,
   isSameClassIdentity,
   normalizeAcademicYearLabel,
   normalizeSemesterLabel,
-  UNKNOWN_SEMESTER_LABEL,
 } from '../../utils/classDisplay';
 import './teacher-cirriculum-manager.css';
 
@@ -335,6 +336,34 @@ function TeacherCirriculumManager(props: {
       : (subjects.find((subjectItem) => subjectItem.id === selectedSubjectId) ??
         null);
 
+  const classByIdMap = useMemo(
+    () => new Map<number, Class>(classes.map((classItem) => [classItem.id, classItem])),
+    [classes]
+  );
+
+  const orderedSubjects = useMemo<Subject[]>(() => {
+    return [...subjects].sort((left, right) => {
+      const leftClass = classByIdMap.get(left.class_id);
+      const rightClass = classByIdMap.get(right.class_id);
+      const leftClassLabel = leftClass
+        ? formatClassSelectLabel(leftClass)
+        : `#${left.class_id}`;
+      const rightClassLabel = rightClass
+        ? formatClassSelectLabel(rightClass)
+        : `#${right.class_id}`;
+
+      const classComparison = leftClassLabel.localeCompare(
+        rightClassLabel,
+        'ar'
+      );
+      if (classComparison !== 0) {
+        return classComparison;
+      }
+
+      return left.name.localeCompare(right.name, 'ar');
+    });
+  }, [subjects, classByIdMap]);
+
   const filteredExistingClasses = classes.filter((classItem) => {
     if (
       existingClassYearFilter &&
@@ -346,15 +375,8 @@ function TeacherCirriculumManager(props: {
 
     if (existingClassSemesterFilter) {
       if (
-        existingClassSemesterFilter === UNKNOWN_SEMESTER_LABEL &&
-        classItem.semester?.trim()
-      ) {
-        return false;
-      }
-
-      if (
-        existingClassSemesterFilter !== UNKNOWN_SEMESTER_LABEL &&
-        normalizeSemesterLabel(classItem.semester) !== existingClassSemesterFilter
+        normalizeSemesterLabel(classItem.semester) !==
+        existingClassSemesterFilter
       ) {
         return false;
       }
@@ -388,20 +410,6 @@ function TeacherCirriculumManager(props: {
     })
   );
 
-  const subjectsForSelectedClass =
-    selectedClassId === ''
-      ? []
-      : subjects.filter(
-          (subjectItem) => subjectItem.class_id === selectedClassId
-        );
-
-  const creatorSubjectsForClass =
-    creatorClassMode === 'existing' && creatorExistingClassId !== ''
-      ? subjects.filter(
-          (subjectItem) => subjectItem.class_id === creatorExistingClassId
-        )
-      : [];
-
   const totalLessons = units.reduce(
     (sum, unitItem) => sum + (lessonsByUnit[unitItem.id]?.length ?? 0),
     0
@@ -431,7 +439,12 @@ function TeacherCirriculumManager(props: {
   const isCreatorValid = (() => {
     if (creatorClassMode === 'existing') {
       if (creatorExistingClassId === '') {
-        return false;
+        if (
+          creatorSubjectMode !== 'existing' ||
+          creatorExistingSubjectId === ''
+        ) {
+          return false;
+        }
       }
     } else if (
       !creatorNewClassGradeLabel.trim() ||
@@ -757,6 +770,7 @@ function TeacherCirriculumManager(props: {
     }
 
     const requestId = ++creatorUnitsRequestIdRef.current;
+    setCreatorExistingUnitId('');
     getUnitsBySubject(creatorExistingSubjectId)
       .then((response) => {
         if (requestId !== creatorUnitsRequestIdRef.current) {
@@ -805,14 +819,39 @@ function TeacherCirriculumManager(props: {
     setSuccess(null);
     setClassSelectionMode('existing');
     setSelectedClassId(nextValue);
-    setSelectedSubjectId('');
-    clearHierarchy();
+
+    if (nextValue === '') {
+      setSelectedSubjectId('');
+      clearHierarchy();
+      return;
+    }
+
+    const currentSubject =
+      selectedSubjectId === ''
+        ? null
+        : (subjects.find((subjectItem) => subjectItem.id === selectedSubjectId) ??
+          null);
+
+    if (!currentSubject || currentSubject.class_id !== nextValue) {
+      setSelectedSubjectId('');
+      clearHierarchy();
+    }
   };
 
   const handleSubjectChange = (nextValue: SelectValue) => {
     setError(null);
     setSuccess(null);
     setSelectedSubjectId(nextValue);
+
+    if (nextValue === '') {
+      return;
+    }
+
+    const nextSubject =
+      subjects.find((subjectItem) => subjectItem.id === nextValue) ?? null;
+    if (nextSubject && selectedClassId !== nextSubject.class_id) {
+      setSelectedClassId(nextSubject.class_id);
+    }
   };
 
   const handleCreateClassFromSelector = async () => {
@@ -1299,9 +1338,24 @@ function TeacherCirriculumManager(props: {
 
       if (creatorClassMode === 'existing') {
         if (creatorExistingClassId === '') {
-          throw new Error('اختر صفاً موجوداً أو أنشئ صفاً جديداً.');
+          if (
+            creatorSubjectMode === 'existing' &&
+            creatorExistingSubjectId !== ''
+          ) {
+            const subjectFromSelection = subjects.find(
+              (subjectItem) => subjectItem.id === creatorExistingSubjectId
+            );
+            if (!subjectFromSelection) {
+              throw new Error('المادة المختارة غير موجودة.');
+            }
+            resolvedClassId = subjectFromSelection.class_id;
+            setCreatorExistingClassId(subjectFromSelection.class_id);
+          } else {
+            throw new Error('اختر صفاً موجوداً أو أنشئ صفاً جديداً.');
+          }
+        } else {
+          resolvedClassId = creatorExistingClassId;
         }
-        resolvedClassId = creatorExistingClassId;
       } else {
         if (!creatorNewClassGradeLabel.trim()) {
           throw new Error('يرجى إدخال الصف.');
@@ -1351,10 +1405,8 @@ function TeacherCirriculumManager(props: {
         if (!selectedCreatorSubject) {
           throw new Error('المادة المختارة غير موجودة.');
         }
-        if (selectedCreatorSubject.class_id !== resolvedClassId) {
-          throw new Error('المادة المختارة لا تتبع الصف المختار.');
-        }
-
+        resolvedClassId = selectedCreatorSubject.class_id;
+        setCreatorExistingClassId(selectedCreatorSubject.class_id);
         resolvedSubjectId = creatorExistingSubjectId;
       } else {
         if (!creatorNewSubjectName.trim()) {
@@ -1574,7 +1626,7 @@ function TeacherCirriculumManager(props: {
 
               {classSelectionMode === 'existing' ? (
                 <>
-                  <div className="tcm2__inline-grid">
+                  <div className="tcm2__class-filter-grid">
                     <div className="tcm2__field">
                       <label htmlFor="class-year-filter">العام الدراسي</label>
                       <select
@@ -1607,13 +1659,10 @@ function TeacherCirriculumManager(props: {
                             {semesterOption}
                           </option>
                         ))}
-                        <option value={UNKNOWN_SEMESTER_LABEL}>
-                          غير محدد (بيانات قديمة)
-                        </option>
                       </select>
                     </div>
                     <div className="tcm2__field">
-                      <label htmlFor="class-grade-filter">الصف</label>
+                      <label htmlFor="class-grade-filter">الصف الدراسي</label>
                       <select
                         id="class-grade-filter"
                         value={existingClassGradeFilter}
@@ -1631,23 +1680,25 @@ function TeacherCirriculumManager(props: {
                     </div>
                   </div>
 
-                  <select
-                    id="active-class"
-                    aria-label="اختيار الصف"
-                    value={selectedClassId}
-                    onChange={(event) =>
-                      handleClassChange(
-                        event.target.value ? Number(event.target.value) : ''
-                      )
-                    }
-                  >
-                    <option value="">اختر الصف</option>
-                    {filteredExistingClasses.map((classItem) => (
-                      <option key={classItem.id} value={classItem.id}>
-                        {formatClassSelectLabel(classItem)}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="tcm2__field tcm2__stored-class-field">
+                    <label htmlFor="active-class">الصف المحفوظ</label>
+                    <select
+                      id="active-class"
+                      value={selectedClassId}
+                      onChange={(event) =>
+                        handleClassChange(
+                          event.target.value ? Number(event.target.value) : ''
+                        )
+                      }
+                    >
+                      <option value="">اختر الصف</option>
+                      {filteredExistingClasses.map((classItem) => (
+                        <option key={classItem.id} value={classItem.id}>
+                          {formatClassSelectLabel(classItem)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </>
               ) : (
                 <div className="tcm2__step tcm2__step--compact">
@@ -1686,7 +1737,9 @@ function TeacherCirriculumManager(props: {
                       </select>
                     </div>
                     <div className="tcm2__field">
-                      <label htmlFor="new-class-grade">3. الصف *</label>
+                      <label htmlFor="new-class-grade">
+                        3. الصف الدراسي (1-12) *
+                      </label>
                       <select
                         id="new-class-grade"
                         value={newClassGradeLabel}
@@ -1760,13 +1813,13 @@ function TeacherCirriculumManager(props: {
               )}
             </div>
 
-            <div className="tcm2__field">
-              <div className="tcm2__selector-row">
-                <label htmlFor="active-subject">المادة</label>
-                <div className="tcm2__selector-actions">
-                  <button
-                    type="button"
-                    className="tcm2__primary-soft tcm2__quick-select-btn"
+          <div className="tcm2__field">
+            <div className="tcm2__selector-row">
+              <label htmlFor="active-subject">المادة المحفوظة</label>
+              <div className="tcm2__selector-actions">
+                <button
+                  type="button"
+                  className="tcm2__primary-soft tcm2__quick-select-btn"
                     onClick={() =>
                       selectedClassId !== ''
                         ? openQuickAddSubject(selectedClassId)
@@ -1788,12 +1841,14 @@ function TeacherCirriculumManager(props: {
                     event.target.value ? Number(event.target.value) : ''
                   )
                 }
-                disabled={selectedClassId === ''}
               >
                 <option value="">اختر المادة</option>
-                {subjectsForSelectedClass.map((subjectItem) => (
+                {orderedSubjects.map((subjectItem) => (
                   <option key={subjectItem.id} value={subjectItem.id}>
-                    {subjectItem.name}
+                    {formatSubjectSelectLabel(
+                      subjectItem,
+                      classByIdMap.get(subjectItem.class_id) ?? null
+                    )}
                   </option>
                 ))}
               </select>
@@ -1910,7 +1965,7 @@ function TeacherCirriculumManager(props: {
           </div>
 
           {!selectedSubject ? (
-            <div className="tcm2__empty">اختر الصف ثم المادة لعرض الهيكل.</div>
+            <div className="tcm2__empty">اختر الصف أو المادة لعرض الهيكل.</div>
           ) : hierarchyLoading ? (
             <div className="tcm2__loading">جاري تحميل الوحدات والدروس...</div>
           ) : units.length === 0 ? (
@@ -2249,17 +2304,31 @@ function TeacherCirriculumManager(props: {
                     <select
                       id="creator-existing-subject"
                       value={creatorExistingSubjectId}
-                      onChange={(event) =>
-                        setCreatorExistingSubjectId(
-                          event.target.value ? Number(event.target.value) : ''
-                        )
-                      }
-                      disabled={creatorExistingClassId === ''}
+                      onChange={(event) => {
+                        const nextSubjectId = event.target.value
+                          ? Number(event.target.value)
+                          : '';
+                        setCreatorExistingSubjectId(nextSubjectId);
+                        setCreatorExistingUnitId('');
+                        if (nextSubjectId !== '') {
+                          const nextSubject =
+                            subjects.find(
+                              (subjectItem) =>
+                                subjectItem.id === nextSubjectId
+                            ) ?? null;
+                          if (nextSubject) {
+                            setCreatorExistingClassId(nextSubject.class_id);
+                          }
+                        }
+                      }}
                     >
                       <option value="">اختر المادة</option>
-                      {creatorSubjectsForClass.map((subjectItem) => (
+                      {orderedSubjects.map((subjectItem) => (
                         <option key={subjectItem.id} value={subjectItem.id}>
-                          {subjectItem.name}
+                          {formatSubjectSelectLabel(
+                            subjectItem,
+                            classByIdMap.get(subjectItem.class_id) ?? null
+                          )}
                         </option>
                       ))}
                     </select>

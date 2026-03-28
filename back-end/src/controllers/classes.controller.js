@@ -69,7 +69,7 @@ async function findDuplicateClassByIdentity(dbClient, payload, options = {}) {
     FROM Classes
     WHERE teacher_id = ?
       AND academic_year = ?
-      AND semester = ?
+      AND COALESCE(NULLIF(TRIM(semester), ''), 'الأول') = ?
       AND grade_label = ?
       AND section_label = ?
   `;

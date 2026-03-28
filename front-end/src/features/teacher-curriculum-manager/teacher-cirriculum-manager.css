@@ -421,6 +421,32 @@
   font-size: var(--text-md);
 }
 
+.tcm2__class-filter-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-sm);
+}
+
+@media (min-width: 900px) {
+  .tcm2__class-filter-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.tcm2__stored-class-field {
+  display: grid;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.tcm2__stored-class-field label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
 .tcm2__warning {
   margin: 0;
   padding: var(--space-xs) var(--space-sm);

@@ -13,18 +13,19 @@ INSERT INTO Users (username, display_name, password, role) VALUES
 -- Insert classes
 INSERT INTO Classes (
   grade_label,
+  semester,
   section_label,
   section,
   academic_year,
   default_duration_minutes,
   teacher_id
 ) VALUES
-('Grade 8', 'A', 'أ', '2025-2026', 45, 2), -- john_doe
-('Grade 9', 'B', 'ب', '2025-2026', 45, 3), -- sarah_smith
-('Grade 10', 'A', 'أ', '2025-2026', 50, 4), -- mike_johnson
-('Grade 10', 'B', 'ب', '2025-2026', 50, 5), -- emily_brown
-('Grade 11', 'A', 'أ', '2025-2026', 45, 6), -- david_wilson
-('Grade 11', 'C', 'ج', '2025-2026', 50, 7); -- lisa_garcia
+('Grade 8', 'الأول', 'A', 'أ', '2025-2026', 45, 2), -- john_doe
+('Grade 9', 'الأول', 'B', 'ب', '2025-2026', 45, 3), -- sarah_smith
+('Grade 10', 'الأول', 'A', 'أ', '2025-2026', 50, 4), -- mike_johnson
+('Grade 10', 'الأول', 'B', 'ب', '2025-2026', 50, 5), -- emily_brown
+('Grade 11', 'الأول', 'A', 'أ', '2025-2026', 45, 6), -- david_wilson
+('Grade 11', 'الأول', 'C', 'ج', '2025-2026', 50, 7); -- lisa_garcia
 
 -- Insert subjects for each class
 INSERT INTO Subjects (class_id, teacher_id, name, description) VALUES

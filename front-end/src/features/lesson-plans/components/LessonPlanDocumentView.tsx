@@ -255,7 +255,7 @@ export default function LessonPlanDocumentView({
                 )}
               </div>
               <div>
-                <label>الساعة</label>
+                <label>المدة الزمنية</label>
                 {isEditMode ? (
                   <FieldInput
                     value={toEditableText(header.time)}
@@ -439,7 +439,7 @@ export default function LessonPlanDocumentView({
                 )}
               </div>
               <div>
-                <label>الساعة</label>
+                <label>المدة الزمنية</label>
                 {isEditMode ? (
                   <FieldInput
                     value={toEditableText(header.time)}

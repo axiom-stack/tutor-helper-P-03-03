@@ -1,6 +1,6 @@
-import type { Class } from '../types';
+import type { Class, Subject } from '../types';
 
-export const UNKNOWN_SEMESTER_LABEL = 'غير محدد';
+const DEFAULT_SEMESTER_LABEL = 'الأول';
 
 type ClassIdentityLike = Pick<
   Class,
@@ -23,11 +23,10 @@ export function normalizeAcademicYearLabel(
 }
 
 export function normalizeSemesterLabel(
-  value: string | null | undefined,
-  unknownSemesterLabel = UNKNOWN_SEMESTER_LABEL
+  value: string | null | undefined
 ): string {
   const normalized = normalizeText(value);
-  return normalized || unknownSemesterLabel;
+  return normalized || DEFAULT_SEMESTER_LABEL;
 }
 
 function resolveSectionLabel(classItem: ClassIdentityLike): string {
@@ -60,6 +59,17 @@ export function formatClassSelectLabel(classItem: ClassIdentityLike): string {
   return `العام: ${yearLabel} | الفصل: ${semesterLabel} | الصف: ${gradeLabel} | الشعبة: ${sectionLabel}`;
 }
 
+export function formatSubjectSelectLabel(
+  subjectItem: Pick<Subject, 'name' | 'class_id'>,
+  classItem?: ClassIdentityLike | null
+): string {
+  const classLabel = classItem
+    ? formatClassShortLabel(classItem)
+    : `#${subjectItem.class_id}`;
+
+  return `${subjectItem.name} | ${classLabel}`;
+}
+
 export function isSameClassIdentity(
   classItem: ClassIdentityLike,
   candidate: {
@@ -72,7 +82,8 @@ export function isSameClassIdentity(
   return (
     normalizeAcademicYearLabel(classItem.academic_year) ===
       normalizeAcademicYearLabel(candidate.academicYear) &&
-    normalizeText(classItem.semester) === normalizeText(candidate.semester) &&
+    normalizeSemesterLabel(classItem.semester) ===
+      normalizeSemesterLabel(candidate.semester) &&
     normalizeText(classItem.grade_label) === normalizeText(candidate.gradeLabel) &&
     normalizeText(classItem.section_label) ===
       normalizeText(candidate.sectionLabel)

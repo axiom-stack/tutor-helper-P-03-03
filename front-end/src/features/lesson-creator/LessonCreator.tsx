@@ -885,9 +885,6 @@ function LessonCreator() {
               <ol className="lcp__classic-list">
                 <li className="lcp__classic-row">
                   <label htmlFor="lcp-class-select">حدد الصف</label>
-                  <small className="lcp__classic-note">
-                    (قائمة الصفوف المسندة من قبل إدارة المنهج)
-                  </small>
                   <select
                     id="lcp-class-select"
                     value={selectedClassId}
@@ -905,9 +902,6 @@ function LessonCreator() {
 
                 <li className="lcp__classic-row">
                   <label htmlFor="lcp-subject-select">حدد المادة</label>
-                  <small className="lcp__classic-note">
-                    (قائمة المواد المسندة من قبل المعلم أو إدارة المنهج)
-                  </small>
                   <select
                     id="lcp-subject-select"
                     value={selectedSubjectId}
@@ -925,9 +919,6 @@ function LessonCreator() {
 
                 <li className="lcp__classic-row">
                   <label htmlFor="lcp-unit-select">حدد الوحدة</label>
-                  <small className="lcp__classic-note">
-                    (قائمة الوحدات المسندة من قبل المعلم أو إدارة المنهج)
-                  </small>
                   <select
                     id="lcp-unit-select"
                     value={selectedUnitId}
@@ -952,9 +943,6 @@ function LessonCreator() {
 
                 <li className="lcp__classic-row">
                   <label htmlFor="lcp-lesson-select">حدد عنوان الدرس</label>
-                  <small className="lcp__classic-note">
-                    (قائمة عناوين الدروس المسندة من قبل المعلم أو إدارة المنهج)
-                  </small>
                   <select
                     id="lcp-lesson-select"
                     value={selectedLessonId}
@@ -979,7 +967,6 @@ function LessonCreator() {
 
                 <li className="lcp__classic-row">
                   <label htmlFor="lcp-duration">المدة الزمنية للحصة</label>
-                  <small className="lcp__classic-note">(قائمة منسدلة 8)</small>
                   <select
                     id="lcp-duration"
                     value={durationMinutes}
@@ -998,9 +985,6 @@ function LessonCreator() {
 
                 <li className="lcp__classic-row">
                   <label htmlFor="lcp-period-order">ترتيب الحصة</label>
-                  <small className="lcp__classic-note">
-                    (قائمة منسدلة 3)
-                  </small>
                   <select
                     id="lcp-period-order"
                     value={selectedPeriodOrder}
@@ -1018,7 +1002,6 @@ function LessonCreator() {
 
                 <li className="lcp__classic-row">
                   <label htmlFor="lcp-plan-type">نوع الخطة</label>
-                  <small className="lcp__classic-note">(قائمة منسدلة 9)</small>
                   <select
                     id="lcp-plan-type"
                     value={planType}

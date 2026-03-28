@@ -355,10 +355,10 @@ export function buildPlanHtml(enrichedPlan) {
             <div class="lpdv__traditional-header-grid">
               <div><label>التاريخ</label><p>${date}</p></div>
               <div><label>اليوم</label><p>${day}</p></div>
-              <div><label>الساعة</label><p>${time}</p></div>
+              <div><label>المدة الزمنية</label><p>${time}</p></div>
               <div><label>الصف</label><p>${grade}</p></div>
               <div><label>الشعبة</label><p>${section}</p></div>
-              <div><label>الحصة</label><p>${lessonTitle}</p></div>
+              <div><label>الحصة</label><p>${time}</p></div>
               <div><label>العنوان</label><p>${lessonTitle}</p></div>
               <div><label>الوحدة</label><p>${unit}</p></div>
               <div><label>الوقت</label><p>${duration}</p></div>
@@ -444,7 +444,7 @@ export function buildPlanHtml(enrichedPlan) {
             <div class="lpdv__active-header-grid">
               <div><label>التاريخ</label><p>${date}</p></div>
               <div><label>اليوم</label><p>${day}</p></div>
-              <div><label>الساعة</label><p>${time}</p></div>
+              <div><label>المدة الزمنية</label><p>${time}</p></div>
               <div><label>المادة</label><p>${subject}</p></div>
               <div><label>الصف</label><p>${grade}</p></div>
               <div><label>الشعبة</label><p>${section}</p></div>

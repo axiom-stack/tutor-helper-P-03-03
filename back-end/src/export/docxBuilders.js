@@ -183,7 +183,7 @@ export async function buildPlanDocx(enrichedPlan) {
           children: [
             headerCell("التاريخ", date),
             headerCell("اليوم", day),
-            headerCell("الساعة", time),
+            headerCell("المدة الزمنية", time),
             headerCell("الصف", grade),
           ],
         }),
@@ -191,7 +191,7 @@ export async function buildPlanDocx(enrichedPlan) {
           cantSplit: true,
           children: [
             headerCell("الشعبة", section),
-            headerCell("الحصة", lessonTitle),
+            headerCell("الحصة", time),
             headerCell("العنوان", lessonTitle),
             headerCell("الوحدة", unit),
           ],
@@ -304,7 +304,7 @@ export async function buildPlanDocx(enrichedPlan) {
           children: [
             headerCell("التاريخ", date),
             headerCell("اليوم", day),
-            headerCell("الساعة", time),
+            headerCell("المدة الزمنية", time),
             headerCell("المادة", subject),
           ],
         }),
