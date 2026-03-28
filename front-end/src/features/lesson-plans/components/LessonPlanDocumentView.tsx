@@ -255,17 +255,6 @@ export default function LessonPlanDocumentView({
                 )}
               </div>
               <div>
-                <label>المدة الزمنية</label>
-                {isEditMode ? (
-                  <FieldInput
-                    value={toEditableText(header.time)}
-                    onChange={(value) => updateHeaderText('time', value)}
-                  />
-                ) : (
-                  <p>{toDisplayText(header.time)}</p>
-                )}
-              </div>
-              <div>
                 <label>الصف</label>
                 <p>{resolveHeaderValue(header, 'grade', fallback?.grade ?? undefined)}</p>
               </div>
@@ -439,17 +428,6 @@ export default function LessonPlanDocumentView({
                 )}
               </div>
               <div>
-                <label>المدة الزمنية</label>
-                {isEditMode ? (
-                  <FieldInput
-                    value={toEditableText(header.time)}
-                    onChange={(value) => updateHeaderText('time', value)}
-                  />
-                ) : (
-                  <p>{toDisplayText(header.time)}</p>
-                )}
-              </div>
-              <div>
                 <label>المادة</label>
                 <p>{resolveHeaderValue(header, 'subject', fallback?.subject ?? undefined)}</p>
               </div>
@@ -477,7 +455,7 @@ export default function LessonPlanDocumentView({
                 <p>{resolveHeaderValue(header, 'unit', fallback?.unit ?? undefined)}</p>
               </div>
               <div>
-                <label>المدة</label>
+                <label>الوقت</label>
                 <p>{resolveDurationValue(header, fallback?.durationMinutes)}</p>
               </div>
             </div>

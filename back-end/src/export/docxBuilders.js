@@ -160,7 +160,6 @@ export async function buildPlanDocx(enrichedPlan) {
     : {};
   const header = plan.header && typeof plan.header === "object" ? plan.header : {};
   const isTraditional = enrichedPlan.plan_type === "traditional";
-
   const duration = enrichedPlan.duration_minutes
     ? `${enrichedPlan.duration_minutes} دقيقة`
     : "—";
@@ -183,26 +182,17 @@ export async function buildPlanDocx(enrichedPlan) {
           children: [
             headerCell("التاريخ", date),
             headerCell("اليوم", day),
-            headerCell("المدة الزمنية", time),
             headerCell("الصف", grade),
+            headerCell("الشعبة", section),
           ],
         }),
         new TableRow({
           cantSplit: true,
           children: [
-            headerCell("الشعبة", section),
             headerCell("الحصة", time),
             headerCell("العنوان", lessonTitle),
             headerCell("الوحدة", unit),
-          ],
-        }),
-        new TableRow({
-          cantSplit: true,
-          children: [
             headerCell("الوقت", duration),
-            new TableCell({ borders: CELL_BORDER, children: [new Paragraph("")] }),
-            new TableCell({ borders: CELL_BORDER, children: [new Paragraph("")] }),
-            new TableCell({ borders: CELL_BORDER, children: [new Paragraph("")] }),
           ],
         }),
       ],
@@ -304,26 +294,17 @@ export async function buildPlanDocx(enrichedPlan) {
           children: [
             headerCell("التاريخ", date),
             headerCell("اليوم", day),
-            headerCell("المدة الزمنية", time),
             headerCell("المادة", subject),
+            headerCell("الصف", grade),
           ],
         }),
         new TableRow({
           cantSplit: true,
           children: [
-            headerCell("الصف", grade),
             headerCell("الشعبة", section),
             headerCell("العنوان", lessonTitle),
             headerCell("الوحدة", unit),
-          ],
-        }),
-        new TableRow({
-          cantSplit: true,
-          children: [
-            headerCell("المدة", duration),
-            new TableCell({ borders: CELL_BORDER, children: [new Paragraph("")] }),
-            new TableCell({ borders: CELL_BORDER, children: [new Paragraph("")] }),
-            new TableCell({ borders: CELL_BORDER, children: [new Paragraph("")] }),
+            headerCell("الوقت", duration),
           ],
         }),
       ],

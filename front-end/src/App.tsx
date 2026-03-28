@@ -18,6 +18,7 @@ import ControlDashboard from './features/control-dashboard/ControlDashboard';
 import AdminDashboard from './features/admin-dashboard/AdminDashboard';
 import ControlCurriculum from './features/control-curriculum/ControlCurriculum';
 import PlansManager from './features/plans-manager/PlansManager';
+import PlanViewerPage from './features/plans-manager/PlanViewerPage';
 import Settings from './features/settings/Settings';
 import TeachersManagement from './features/teachers-management/TeachersManagement';
 import Stats from './features/stats/Stats';
@@ -84,6 +85,7 @@ function App() {
           <Route path="/quizzes" element={<Quizzes />} />
           <Route path="/curriculum" element={<ControlCurriculum />} />
           <Route path="/plans" element={<PlansManager />} />
+          <Route path="/plans/:planId" element={<PlanViewerPage />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/stats" element={<Stats />} />
           <Route

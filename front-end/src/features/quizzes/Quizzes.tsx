@@ -6,6 +6,9 @@ import {
   MdClose,
   MdDelete,
   MdEdit,
+  MdCheckCircle,
+  MdLock,
+  MdLockOpen,
   MdQuiz,
   MdRefresh,
   MdSave,
@@ -469,6 +472,13 @@ export default function Quizzes() {
     [selectedSubjectId, subjectsForSelectedClass]
   );
 
+  const isSubjectSelectionLocked =
+    selectedAcademicYear === '' ||
+    selectedSemester === '' ||
+    selectedClassId === '' ||
+    isGenerating ||
+    isEditingExam;
+
   const resetExamDraftSelection = () => {
     setSelectedClassId('');
     setSelectedSubjectId('');
@@ -693,7 +703,7 @@ export default function Quizzes() {
         setExamScreen('creator');
       } else {
         setSelectedExam((response as { exam: Exam }).exam as OfflineExamRecord);
-        setExamScreen('generated');
+        setExamScreen('confirmation');
         setSuccessMessage('تم توليد الاختبار وحفظه بنجاح.');
         await loadExams();
       }
@@ -1479,79 +1489,96 @@ export default function Quizzes() {
               </div>
             ) : null}
 
-            <div className="qz__inline-grid">
-              <div className="qz__field">
-                <label htmlFor="qz-academic-year">العام الدراسي</label>
+            <section className="qz__setup-card qz__setup-card--foundation">
+              <div className="qz__setup-card-header" aria-hidden="true">
+                <span className="qz__setup-step">01</span>
+              </div>
+
+              <div className="qz__selection-grid qz__selection-grid--foundation">
+                <div className="qz__field">
+                  <label htmlFor="qz-academic-year">العام الدراسي</label>
+                  <select
+                    id="qz-academic-year"
+                    value={selectedAcademicYear}
+                    onChange={(event) =>
+                      handleAcademicYearChange(event.target.value)
+                    }
+                    disabled={isGenerating || isEditingExam}
+                  >
+                    {academicYearOptions.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="qz__field">
+                  <label htmlFor="qz-semester">الفصل الدراسي</label>
+                  <select
+                    id="qz-semester"
+                    value={selectedSemester}
+                    onChange={(event) => handleSemesterChange(event.target.value)}
+                    disabled={isGenerating || isEditingExam}
+                  >
+                    {SEMESTER_OPTIONS.map((semester) => (
+                      <option key={semester} value={semester}>
+                        {semester}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="qz__field">
+                  <label htmlFor="qz-class">الصف</label>
+                  <select
+                    id="qz-class"
+                    value={selectedClassId}
+                    onChange={(event) => handleClassChange(event.target.value)}
+                    disabled={isGenerating || isEditingExam}
+                  >
+                    <option value="">اختر الصف...</option>
+                    {filteredClasses.map((classItem) => (
+                      <option key={classItem.id} value={classItem.id}>
+                        {formatClassSelectLabel(classItem)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </section>
+
+            <section
+              className={`qz__setup-card qz__setup-card--subject ${
+                isSubjectSelectionLocked ? 'qz__setup-card--locked' : ''
+              }`}
+            >
+              <div className="qz__setup-card-header">
+                <span className="qz__setup-step">02</span>
+                <span className="qz__setup-card-icon" aria-hidden="true">
+                  {isSubjectSelectionLocked ? <MdLock /> : <MdLockOpen />}
+                </span>
+              </div>
+
+              <div className="qz__field qz__field--subject">
+                <label htmlFor="qz-subject">المادة</label>
                 <select
-                  id="qz-academic-year"
-                  value={selectedAcademicYear}
+                  id="qz-subject"
+                  value={selectedSubjectId}
                   onChange={(event) =>
-                    handleAcademicYearChange(event.target.value)
+                    void handleSubjectChange(event.target.value)
                   }
-                  disabled={isGenerating || isEditingExam}
+                  disabled={isSubjectSelectionLocked}
                 >
-                  {academicYearOptions.map((year) => (
-                    <option key={year} value={year}>
-                      {year}
+                  <option value="">اختر المادة...</option>
+                  {subjectsForSelectedClass.map((subject) => (
+                    <option key={subject.id} value={subject.id}>
+                      {subject.name}
                     </option>
                   ))}
                 </select>
               </div>
-
-              <div className="qz__field">
-                <label htmlFor="qz-semester">الفصل الدراسي</label>
-                <select
-                  id="qz-semester"
-                  value={selectedSemester}
-                  onChange={(event) => handleSemesterChange(event.target.value)}
-                  disabled={isGenerating || isEditingExam}
-                >
-                  {SEMESTER_OPTIONS.map((semester) => (
-                    <option key={semester} value={semester}>
-                      {semester}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="qz__field">
-                <label htmlFor="qz-class">الصف</label>
-                <select
-                  id="qz-class"
-                  value={selectedClassId}
-                  onChange={(event) => handleClassChange(event.target.value)}
-                  disabled={isGenerating || isEditingExam}
-                >
-                  <option value="">اختر الصف...</option>
-                  {filteredClasses.map((classItem) => (
-                    <option key={classItem.id} value={classItem.id}>
-                      {formatClassSelectLabel(classItem)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="qz__field">
-              <label htmlFor="qz-subject">المادة</label>
-              <select
-                id="qz-subject"
-                value={selectedSubjectId}
-                onChange={(event) =>
-                  void handleSubjectChange(event.target.value)
-                }
-                disabled={
-                  isGenerating || isEditingExam || selectedClassId === ''
-                }
-              >
-                <option value="">اختر المادة...</option>
-                {subjectsForSelectedClass.map((subject) => (
-                  <option key={subject.id} value={subject.id}>
-                    {subject.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            </section>
 
             <div className="qz__field">
               <label htmlFor="qz-title">عنوان الاختبار</label>
@@ -1577,7 +1604,7 @@ export default function Quizzes() {
               />
             </div>
 
-            <div className="qz__inline-grid">
+            <div className="qz__selection-grid qz__selection-grid--settings">
               <div className="qz__field">
                 <label htmlFor="qz-total-questions">عدد الأسئلة</label>
                 <input
@@ -1604,7 +1631,6 @@ export default function Quizzes() {
                   }
                   disabled={isGenerating || isEditingExam}
                 />
-                <small>تُوزَّع الدرجات على الأسئلة بمضاعفات 0.25.</small>
               </div>
               <div className="qz__field">
                 <label htmlFor="qz-duration-minutes">
@@ -1626,6 +1652,10 @@ export default function Quizzes() {
                 </select>
               </div>
             </div>
+
+            <p className="qz__field-note">
+              تُوزَّع الدرجات على الأسئلة بمضاعفات 0.25.
+            </p>
 
             <section className="qz__lesson-picker">
               <h3>اختيار الدروس ({lessonIdsArray.length})</h3>
@@ -1779,11 +1809,15 @@ export default function Quizzes() {
               <div className="qz__confirmation-card">
                 <h2>تم إنشاء اختبار بنجاح ✓</h2>
                 <article className="qz__confirmation-panel">
+                  <div className="qz__confirmation-banner" role="status">
+                    <MdCheckCircle aria-hidden />
+                    <span>تم حفظ الاختبار الجديد بنجاح.</span>
+                  </div>
                   <h3>{selectedExam.title}</h3>
-                  <p>عنوان الاختبار: {selectedExam.title}</p>
                   <p>
-                    عدد الأسئلة: {totalQuestions} | الدرجة: {totalMarks} |
-                    المدة: {durationMinutes} د
+                    عدد الأسئلة: {selectedExam.total_questions} | الدرجة:{' '}
+                    {selectedExam.total_marks} | المدة:{' '}
+                    {selectedExam.duration_minutes ?? durationMinutes} د
                   </p>
                   <p>
                     العام الدراسي: {selectedAcademicYear} | الفصل الدراسي:{' '}

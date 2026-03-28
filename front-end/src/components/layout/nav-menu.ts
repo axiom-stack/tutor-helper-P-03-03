@@ -32,7 +32,9 @@ function getCurrentHeaderKey(pathname: string): HeaderNavKey | null {
   if (normalizedPath === '/curriculum') return 'curriculum';
   if (normalizedPath === '/lessons') return 'lesson_create';
   if (normalizedPath === '/quizzes/create') return 'exam_create';
-  if (normalizedPath === '/plans') return 'plan_library';
+  if (normalizedPath === '/plans' || normalizedPath.startsWith('/plans/')) {
+    return 'plan_library';
+  }
   if (normalizedPath === '/quizzes') return 'exam_library';
   if (normalizedPath === '/stats') return 'reports';
   return null;

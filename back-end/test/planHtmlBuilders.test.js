@@ -38,6 +38,8 @@ test("renders legacy traditional plan_json without requiring schema changes", ()
   assert.match(html, /خطة الدرس/u);
   assert.match(html, /الأهداف \/ المخرجات التعليمية/u);
   assert.match(html, /التقويم/u);
+  assert.match(html, /الوقت/u);
+  assert.doesNotMatch(html, /المدة الزمنية/u);
   assert.match(html, /دورة الماء/u);
 });
 
@@ -106,5 +108,7 @@ test("renders repaired active-learning plan_json with row-based flow unchanged",
   assert.match(html, /تدفق الدرس/u);
   assert.match(html, /الزمن/u);
   assert.match(html, /نوع النشاط/u);
+  assert.match(html, /الوقت/u);
+  assert.doesNotMatch(html, /المدة الزمنية/u);
   assert.match(html, /حالات الماء/u);
 });
