@@ -173,6 +173,7 @@
   color: var(--primary);
   font: inherit;
   font-weight: 700;
+  text-decoration: none;
   cursor: pointer;
   transition:
     background var(--transition-fast),

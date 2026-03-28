@@ -23,7 +23,9 @@ export function NavBar() {
   } | null>(null);
 
   const displayName = user?.display_name || user?.username || 'مستخدم';
-  const showMenuButton = true;
+  const isHomeRoute =
+    location.pathname === '/' || location.pathname === '/teacher';
+  const showMenuButton = !isHomeRoute;
   const menuItems = useMemo(
     () => getHeaderNavItems(location.pathname),
     [location.pathname]
@@ -54,7 +56,8 @@ export function NavBar() {
       const rect = button.getBoundingClientRect();
       const menuOffset = 10;
       const top = Math.min(rect.bottom + menuOffset, window.innerHeight - 16);
-      const isRtl = document.documentElement.dir === 'rtl';
+      const isRtl =
+        window.getComputedStyle(document.documentElement).direction === 'rtl';
 
       setMenuPosition(
         isRtl
@@ -84,7 +87,9 @@ export function NavBar() {
       return;
     }
 
-    const handlePointerDown = (event: MouseEvent) => {
+    const handlePointerDown = (
+      event: MouseEvent | TouchEvent | PointerEvent
+    ) => {
       const target = event.target;
       if (!(target instanceof Node)) {
         return;
@@ -104,11 +109,11 @@ export function NavBar() {
       }
     };
 
-    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('pointerdown', handlePointerDown);
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [menuOpen]);
@@ -130,7 +135,10 @@ export function NavBar() {
           ref={menuButtonRef}
           type="button"
           className="nav-bar__menu-btn"
-          onClick={() => setMenuOpen((value) => !value)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setMenuOpen((value) => !value);
+          }}
           aria-label={menuOpen ? 'إغلاق القائمة' : 'فتح القائمة'}
           aria-expanded={menuOpen}
           aria-controls="header-nav-menu"
@@ -198,7 +206,11 @@ export function NavBar() {
           مرحبا <span className="nav-bar__greeting-name">{displayName}</span>
         </button>
 
-        <button type="button" className="nav-bar__logout" onClick={() => void handleLogout()}>
+        <button
+          type="button"
+          className="nav-bar__logout"
+          onClick={() => void handleLogout()}
+        >
           <span>خروج</span>
           <MdLogout className="nav-bar__logout-icon" aria-hidden />
         </button>

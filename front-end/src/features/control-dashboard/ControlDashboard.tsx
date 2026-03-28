@@ -250,19 +250,21 @@ export default function ControlDashboard() {
       ) : null}
 
       {isAdmin ? (
-        <header className="cd__hero page-header">
-          <div className="cd__hero-copy">
-            <p className="cd__eyebrow">الصفحة الرئيسية</p>
-            <h1>مرحباً، {displayName}</h1>
-            <p>
-              اختر المهمة التي تريدها بسرعة، أو راجع أحدث الخطط والاختبارات من
-              أسفل الصفحة.
-            </p>
-          </div>
+        <header className="cd__hero">
+          <div className="cd__hero-content">
+            <div className="cd__hero-copy">
+              <p className="cd__eyebrow">الصفحة الرئيسية</p>
+              <h1>مرحباً، {displayName}</h1>
+              <p>
+                اختر المهمة التي تريدها بسرعة، أو راجع أحدث الخطط والاختبارات من
+                أسفل الصفحة.
+              </p>
+            </div>
 
-          <div className="cd__hero-badge">
-            <span>وضع المدير</span>
-            <strong>{error ? 'يوجد تنبيه' : 'جاهز للعمل'}</strong>
+            <div className="cd__hero-badge">
+              <span>وضع المدير</span>
+              <strong>{error ? 'يوجد تنبيه' : 'جاهز للعمل'}</strong>
+            </div>
           </div>
         </header>
       ) : null}

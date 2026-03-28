@@ -4,6 +4,7 @@ import {
   parsePositiveInteger,
   normalizeOptionalText,
 } from "../utils/normalization.js";
+import { normalizeOptionalImageDataUrl } from "../utils/imageDataUrl.js";
 
 const MIN_PASSWORD_LENGTH = 6;
 
@@ -56,9 +57,11 @@ function buildProfileUpdates(body = {}, options = {}) {
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "school_logo_url")) {
-    const parsedValue = normalizeOptionalText(body.school_logo_url);
+    const parsedValue = normalizeOptionalImageDataUrl(body.school_logo_url);
     if (Number.isNaN(parsedValue)) {
-      errors.push("school_logo_url must be a string or null");
+      errors.push(
+        "school_logo_url must be a base64 image data URL or null",
+      );
     } else {
       updates.school_logo_url = parsedValue;
     }

@@ -23,6 +23,7 @@ const TEACHER_HEADER_NAV_ITEMS: HeaderNavItem[] = [
   { key: 'plan_library', label: 'مكتبة الخطط', path: '/plans' },
   { key: 'exam_library', label: 'مكتبة الاختبارات', path: '/quizzes' },
   { key: 'reports', label: 'التقارير والأداء', path: '/stats' },
+  { key: 'settings', label: 'الإعدادات', path: '/settings' },
 ];
 
 function getCurrentHeaderKey(pathname: string): HeaderNavKey | null {

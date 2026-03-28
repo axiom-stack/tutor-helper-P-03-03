@@ -255,3 +255,55 @@ test("updateMyProfile rejects invalid default_plan_type", async () => {
   assert.equal(res.statusCode, 400);
   assert.match(res.payload?.error || "", /default_plan_type must be one of/i);
 });
+
+test("updateMyProfile accepts base64 image data URLs for school logo", async () => {
+  const controller = createUsersController({
+    async updateProfileByUserId(userId, updates) {
+      return {
+        user_id: userId,
+        username: "teacher_2",
+        role: "teacher",
+        language: updates.language ?? "ar",
+        subject: null,
+        preparation_type: updates.preparation_type ?? null,
+        school_name: updates.school_name ?? null,
+        school_logo_url: updates.school_logo_url ?? null,
+        default_lesson_duration_minutes:
+          updates.default_lesson_duration_minutes ?? 45,
+        default_plan_type: updates.default_plan_type ?? "traditional",
+      };
+    },
+  });
+
+  const schoolLogoUrl =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=";
+  const req = {
+    user: { id: 2, role: "teacher" },
+    body: { school_logo_url: schoolLogoUrl },
+  };
+  const res = createMockRes();
+
+  await controller.updateMyProfile(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.payload?.profile?.school_logo_url, schoolLogoUrl);
+});
+
+test("updateMyProfile rejects malformed school logo values", async () => {
+  const controller = createUsersController({
+    async updateProfileByUserId() {
+      return null;
+    },
+  });
+
+  const req = {
+    user: { id: 2, role: "teacher" },
+    body: { school_logo_url: "not-a-data-url" },
+  };
+  const res = createMockRes();
+
+  await controller.updateMyProfile(req, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.match(res.payload?.error || "", /school_logo_url must be a base64 image data URL/i);
+});

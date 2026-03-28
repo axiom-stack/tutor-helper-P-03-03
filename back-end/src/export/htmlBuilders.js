@@ -21,12 +21,12 @@ const BASE_STYLES = `
     border-radius: 22px;
     background: #ffffff;
     padding: 18px;
-    border: 2px solid #cbd5e1;
+    border: 2px solid #000000;
   }
 
   .lpdv__traditional-shell,
   .lpdv__active-shell {
-    border: 1px solid #cbd5e1;
+    border: 1px solid #000000;
     border-radius: 18px;
     color: #000000;
     overflow: hidden;
@@ -37,13 +37,13 @@ const BASE_STYLES = `
   .lpdv__active-header-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    border-bottom: 1px solid #cbd5e1;
+    border-bottom: 1px solid #000000;
   }
 
   .lpdv__traditional-header-grid > div,
   .lpdv__active-header-grid > div {
-    border-left: 1px solid #e2e8f0;
-    border-bottom: 1px solid #e2e8f0;
+    border-left: 1px solid #000000;
+    border-bottom: 1px solid #000000;
     padding: 10px 12px;
   }
 
@@ -75,7 +75,7 @@ const BASE_STYLES = `
   .lpdv__active-objectives,
   .lpdv__active-flow {
     padding: 12px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid #000000;
   }
 
   .lpdv__traditional-intro h3,
@@ -113,11 +113,11 @@ const BASE_STYLES = `
   .lpdv__traditional-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid #000000;
   }
 
   .lpdv__traditional-grid section {
-    border-left: 1px solid #e2e8f0;
+    border-left: 1px solid #000000;
     padding: 12px;
     min-height: 200px;
   }
@@ -139,7 +139,7 @@ const BASE_STYLES = `
 
   .lpdv__traditional-footer > div {
     padding: 10px 12px;
-    border-left: 1px solid #e2e8f0;
+    border-left: 1px solid #000000;
   }
 
   .lpdv__traditional-footer > div:last-child {
@@ -171,7 +171,7 @@ const BASE_STYLES = `
 
   .lpdv__table-wrap {
     overflow-x: auto;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #000000;
     border-radius: 10px;
   }
 
@@ -183,7 +183,7 @@ const BASE_STYLES = `
 
   .lpdv__flow-table th,
   .lpdv__flow-table td {
-    border: 1px solid #e2e8f0;
+    border: 1px solid #000000;
     padding: 8px;
     font-size: 13px;
     text-align: right;
@@ -193,7 +193,7 @@ const BASE_STYLES = `
   }
 
   .lpdv__flow-table thead th {
-    background: #f1f5f9;
+    background: #ffffff;
     color: #000000;
     font-weight: bold;
   }
@@ -205,9 +205,9 @@ const BASE_STYLES = `
   .qz__question-card {
     margin-bottom: 20px;
     padding: 15px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #000000;
     border-radius: 8px;
-    background: #f8fafc;
+    background: #ffffff;
   }
 
   .qz__question-meta {
@@ -219,7 +219,7 @@ const BASE_STYLES = `
   .qz__answer {
     margin-top: 15px;
     padding-top: 10px;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid #000000;
   }
 
   .lpdv__traditional-header-grid,
@@ -543,7 +543,7 @@ export function buildAssignmentHtml(enrichedAssignment) {
       </div>
       <div style="padding: 12px;">
         <h3>المحتوى</h3>
-        <pre style="white-space: pre-wrap; word-wrap: break-word; background: #f8fafc; padding: 12px; border-radius: 4px; color: #000000; border: 1px solid #e2e8f0;">${content}</pre>
+        <pre style="white-space: pre-wrap; word-wrap: break-word; background: #ffffff; padding: 12px; border-radius: 4px; color: #000000; border: 1px solid #000000;">${content}</pre>
       </div>
     </div>
   </div>
@@ -777,7 +777,7 @@ export function buildStatsHtml(summary = {}) {
   ]
     .map(
       ([label, value]) => `
-        <article style="border:1px solid #e2e8f0;border-radius:10px;padding:12px;background:#f8fafc;">
+        <article style="border:1px solid #000000;border-radius:10px;padding:12px;background:#ffffff;">
           <div style="font-size:11px;color:#000000;font-weight:700;">${escapeHtml(label)}</div>
           <strong style="font-size:18px;color:#000000;">${escapeHtml(String(value))}</strong>
         </article>
@@ -850,7 +850,7 @@ export function buildStatsHtml(summary = {}) {
 <body>
   <div class="lpdv__active-card">
     <div class="lpdv__active-shell">
-      <div style="padding: 12px; border-bottom: 1px solid #e2e8f0;">
+      <div style="padding: 12px; border-bottom: 1px solid #000000;">
         <h1 style="margin: 0; font-size: 20px;">التقارير والإحصائيات</h1>
       </div>
       <div class="lpdv__active-header-grid">
@@ -860,14 +860,14 @@ export function buildStatsHtml(summary = {}) {
         <div class="header-item"><label>تاريخ الإنشاء</label><p>${generatedAt}</p></div>
       </div>
 
-      <div style="padding: 12px; border-bottom: 1px solid #e2e8f0;">
+      <div style="padding: 12px; border-bottom: 1px solid #000000;">
         <h3>ملخص المؤشرات الرئيسية</h3>
         <div class="kpi-grid" style="margin-top: 10px;">
           ${kpiCards}
         </div>
       </div>
 
-      <div style="padding: 12px; border-bottom: 1px solid #e2e8f0;">
+      <div style="padding: 12px; border-bottom: 1px solid #000000;">
         <h3>ملخص جودة الخطط</h3>
         <table>
           <thead>
@@ -886,7 +886,7 @@ export function buildStatsHtml(summary = {}) {
         </table>
       </div>
 
-      <div style="padding: 12px; border-bottom: 1px solid #e2e8f0;">
+      <div style="padding: 12px; border-bottom: 1px solid #000000;">
         <h3>الاتجاهات الشهرية</h3>
         <table>
           <thead>
@@ -903,7 +903,7 @@ export function buildStatsHtml(summary = {}) {
         </table>
       </div>
 
-      <div class="split-grid" style="padding: 12px; border-bottom: 1px solid #e2e8f0;">
+      <div class="split-grid" style="padding: 12px; border-bottom: 1px solid #000000;">
         <div>
           <h3>تفصيل أنواع الخطط</h3>
           <table>
@@ -940,7 +940,7 @@ export function buildStatsHtml(summary = {}) {
       ${
         admin
           ? `
-          <div style="padding: 12px; border-bottom: 1px solid #e2e8f0;">
+          <div style="padding: 12px; border-bottom: 1px solid #000000;">
             <h3>أداء المعلمين</h3>
             <table>
               <thead>

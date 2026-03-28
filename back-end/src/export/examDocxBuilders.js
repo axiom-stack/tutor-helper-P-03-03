@@ -15,15 +15,16 @@ import {
   WidthType,
 } from "docx";
 import { buildExamExportViewModel } from "./examViewModel.js";
+import { parseImageDataUrl } from "../utils/imageDataUrl.js";
 
 const RTL_OPTS = { alignment: AlignmentType.RIGHT };
 const RTL_BIDI = { bidirectional: true };
 
 const CELL_BORDER = {
-  top: { style: BorderStyle.SINGLE, size: 1, color: "cbd5e1" },
-  bottom: { style: BorderStyle.SINGLE, size: 1, color: "cbd5e1" },
-  left: { style: BorderStyle.SINGLE, size: 1, color: "cbd5e1" },
-  right: { style: BorderStyle.SINGLE, size: 1, color: "cbd5e1" },
+  top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+  bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+  left: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+  right: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
 };
 
 const PORTRAIT_SECTION = {
@@ -61,22 +62,13 @@ function para(text, size = 22) {
 }
 
 function createSchoolLogoRun(logoUrl) {
-  if (typeof logoUrl !== "string" || !logoUrl.startsWith("data:image/")) {
-    return null;
-  }
-
-  const match = logoUrl.match(/^data:(image\/[\w.+-]+);base64,(.+)$/);
-  if (!match) {
-    return null;
-  }
-
-  const [, mimeType, base64Data] = match;
-  if (!mimeType || !base64Data) {
+  const parsedLogo = parseImageDataUrl(logoUrl);
+  if (!parsedLogo) {
     return null;
   }
 
   return new ImageRun({
-    data: Buffer.from(base64Data, "base64"),
+    data: Buffer.from(parsedLogo.base64Data, "base64"),
     transformation: { width: 72, height: 72 },
   });
 }
@@ -244,7 +236,7 @@ export async function buildExamPaperDocx(enrichedExam) {
           new Paragraph({
             children: [new TextRun({ text: " ", size: 22 })],
             border: {
-              bottom: { style: BorderStyle.SINGLE, size: 1, color: "cbd5e1" },
+              bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
             },
             ...RTL_OPTS,
             ...RTL_BIDI,
@@ -315,10 +307,10 @@ function buildAnswerFormHeaderTable(vm) {
           }),
         ],
         border: {
-          top: { style: BorderStyle.SINGLE, size: 1, color: "94a3b8" },
-          bottom: { style: BorderStyle.SINGLE, size: 1, color: "94a3b8" },
-          left: { style: BorderStyle.SINGLE, size: 1, color: "94a3b8" },
-          right: { style: BorderStyle.SINGLE, size: 1, color: "94a3b8" },
+          top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+          bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+          left: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+          right: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
         },
         spacing: { after: 80 },
         ...RTL_OPTS,
@@ -553,19 +545,16 @@ export async function buildExamAnswerKeyDocx(enrichedExam) {
               new TextRun({
                 text: `${opt.label ?? ""}) `,
                 bold: isCorrect,
-                color: isCorrect ? "15803d" : "000000",
               }),
               new TextRun({
                 text: opt.text ?? "",
                 bold: isCorrect,
-                color: isCorrect ? "15803d" : "000000",
               }),
               ...(isCorrect
                 ? [
                     new TextRun({
                       text: "  (الإجابة الصحيحة)",
                       size: 18,
-                      color: "15803d",
                     }),
                   ]
                 : []),

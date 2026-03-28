@@ -189,8 +189,8 @@ export default function AdminDashboard() {
 
   return (
     <div className="ad ui-loaded">
-      <header className="ad__hero page-header">
-        <div>
+      <header className="ad__hero">
+        <div className="ad__hero-content">
           <p className="ad__eyebrow">لوحة النظام</p>
           <h1>مرحباً، {displayName}</h1>
           <p>
@@ -199,23 +199,23 @@ export default function AdminDashboard() {
           </p>
         </div>
 
-      <div className="ad__stats">
-        <div>
-          <span>المعلمين</span>
-          <strong>{teacherCount}</strong>
-        </div>
-        <div>
-          <span>الصفوف</span>
-          <strong>{classCount}</strong>
-        </div>
-        <div>
-          <span>المواد</span>
-          <strong>{subjectCount}</strong>
-        </div>
-        <div>
-          <span>الخطط</span>
-          <strong>{plans.length}</strong>
-        </div>
+        <div className="ad__stats">
+          <div>
+            <span>المعلمين</span>
+            <strong>{teacherCount}</strong>
+          </div>
+          <div>
+            <span>الصفوف</span>
+            <strong>{classCount}</strong>
+          </div>
+          <div>
+            <span>المواد</span>
+            <strong>{subjectCount}</strong>
+          </div>
+          <div>
+            <span>الخطط</span>
+            <strong>{plans.length}</strong>
+          </div>
           <div>
             <span>الاختبارات</span>
             <strong>{exams.length}</strong>

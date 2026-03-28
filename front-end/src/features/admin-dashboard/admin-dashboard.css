@@ -3,24 +3,23 @@
   gap: var(--space-lg);
   width: 100%;
   min-width: 0;
+  align-content: start;
 }
 
 .ad__hero {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   gap: var(--space-md);
-  align-items: flex-start;
-  padding: var(--space-lg);
-  border: 1px solid rgba(37, 99, 235, 0.14);
-  border-radius: 20px;
-  background:
-    radial-gradient(circle at 10% 10%, rgba(37, 99, 235, 0.1), transparent 32%),
-    linear-gradient(135deg, #ffffff 0%, #eef4ff 100%);
-  box-shadow: var(--shadow-sm);
+}
+
+.ad__hero-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
 }
 
 .ad__eyebrow {
-  margin: 0 0 var(--space-xs);
+  margin: 0;
   font-size: var(--text-sm);
   font-weight: 700;
   color: var(--primary);
@@ -29,10 +28,11 @@
 .ad__hero h1 {
   margin: 0;
   font-size: clamp(1.5rem, 3vw, 2.15rem);
+  color: var(--text-primary);
 }
 
 .ad__hero p {
-  margin: var(--space-xs) 0 0;
+  margin: 0;
   color: var(--text-secondary);
   line-height: 1.8;
   max-width: 46ch;
@@ -48,10 +48,11 @@
 .ad__stats > div {
   display: grid;
   gap: 0.15rem;
-  padding: 0.85rem 1rem;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(37, 99, 235, 0.12);
+  padding: var(--space-md);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
 }
 
 .ad__stats span {
@@ -61,6 +62,7 @@
 
 .ad__stats strong {
   font-size: var(--text-xl);
+  color: var(--text-primary);
 }
 
 .ad__actions {
@@ -71,8 +73,8 @@
 
 .ad__action-card {
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.96);
-  border-radius: 18px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
   padding: var(--space-md);
   min-width: 0;
   display: flex;
@@ -82,17 +84,18 @@
   font-family: inherit;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .ad__action-card:hover {
-  border-color: rgba(37, 99, 235, 0.35);
+  border-color: rgba(37, 99, 235, 0.5);
   box-shadow: var(--shadow-md);
 }
 
 .ad__action-icon {
   width: 3rem;
   height: 3rem;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: rgba(37, 99, 235, 0.1);
   color: var(--primary);
   display: grid;
@@ -113,6 +116,7 @@
 
 .ad__action-copy strong {
   font-size: var(--text-md);
+  color: var(--text-primary);
 }
 
 .ad__action-copy span {
@@ -131,10 +135,11 @@
   display: grid;
   gap: var(--space-md);
   padding: var(--space-md);
-  background: rgba(255, 255, 255, 0.94);
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
+  align-content: start;
 }
 
 .ad__panel-head {
@@ -147,16 +152,22 @@
 .ad__panel-head h2 {
   margin: 0;
   font-size: var(--text-lg);
+  color: var(--text-primary);
 }
 
 .ad__panel-head button {
-  border: 1px solid transparent;
-  background: rgba(37, 99, 235, 0.08);
+  border: none;
+  background: transparent;
   color: var(--primary);
-  border-radius: 999px;
-  padding: 0.45rem 0.8rem;
+  font-size: var(--text-sm);
   font-family: inherit;
   cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+}
+
+.ad__panel-head button:hover {
+  text-decoration: underline;
 }
 
 .ad__list {
@@ -167,14 +178,15 @@
 .ad__item {
   display: grid;
   gap: 0.2rem;
-  padding: 0.8rem 0.9rem;
-  border-radius: 14px;
-  border: 1px solid var(--border-light);
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg);
 }
 
 .ad__item strong {
   font-size: var(--text-md);
+  color: var(--text-primary);
 }
 
 .ad__item span {
@@ -187,6 +199,9 @@
   padding: var(--space-md);
   color: var(--text-secondary);
   text-align: center;
+  background: var(--bg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
 }
 
 @media (max-width: 1080px) {
@@ -200,14 +215,6 @@
 }
 
 @media (max-width: 700px) {
-  .ad__hero {
-    flex-direction: column;
-  }
-
-  .ad__stats {
-    width: 100%;
-  }
-
   .ad__actions {
     grid-template-columns: 1fr;
   }

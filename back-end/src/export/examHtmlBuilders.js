@@ -1,132 +1,392 @@
 import { buildExamExportViewModel } from "./examViewModel.js";
+import { parseImageDataUrl } from "../utils/imageDataUrl.js";
 
 const EXAM_BASE_STYLES = `
   * { box-sizing: border-box; }
-  body {
-    font-family: 'Traditional Arabic', 'Amiri', 'Arial', sans-serif;
-    font-size: 14px;
-    line-height: 1.7;
-    color: #000000;
-    padding: 0;
+  html, body {
     margin: 0;
+    padding: 0;
     background: #ffffff;
+    color: #000000;
+    font-family: 'Traditional Arabic', 'Amiri', 'Noto Naskh Arabic', 'Arial', sans-serif;
+    font-size: 14px;
+    line-height: 1.75;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .exam-page {
     width: 100%;
+    max-width: 210mm;
     margin: 0 auto;
-    padding: 16mm 12mm;
-  }
-
-  .exam-header,
-  .exam-student-block,
-  .exam-instructions,
-  .exam-section,
-  .answer-form-header,
-  .answer-form-instructions,
-  .answer-form-grid {
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    padding: 10px 12px;
-    margin-bottom: 10px;
+    padding: 10mm 9mm 12mm;
+    border: 1.5px solid #000000;
     background: #ffffff;
   }
 
-  .exam-header-grid,
-  .student-grid,
-  .answer-form-meta-grid {
+  .exam-sheet {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
-  }
-
-  .exam-ministry {
-    text-align: center;
-    font-size: 16px;
-    font-weight: 700;
-    margin-bottom: 2px;
-  }
-
-  .exam-brand-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
     gap: 12px;
-    margin: 8px 0 10px;
   }
 
-  .exam-school-logo {
-    width: 64px;
-    height: 64px;
+  .exam-header-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    border: 1px solid #000000;
+    background: #ffffff;
+  }
+
+  .exam-header-table td {
+    border-left: 1px solid #000000;
+    vertical-align: middle;
+    padding: 10px 12px;
+  }
+
+  .exam-header-table td:first-child {
+    border-left: none;
+  }
+
+  .exam-header-cell {
+    text-align: center;
+  }
+
+  .exam-header-cell--school {
+    text-align: right;
+  }
+
+  .exam-header-ministry {
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.45;
+    text-align: center;
+  }
+
+  .exam-header-logo {
+    width: 44px;
+    height: 44px;
+    display: block;
+    margin: 0 auto 8px;
+    border: 1px solid #000000;
+    border-radius: 4px;
+    background: #ffffff;
     object-fit: contain;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    background: #f8fafc;
-    flex-shrink: 0;
   }
 
-  .exam-school-logo--placeholder {
+  .exam-header-logo--placeholder {
     display: grid;
     place-items: center;
     font-size: 11px;
     font-weight: 700;
-    color: #475569;
+    color: #000000;
   }
 
-  .exam-school-name {
-    flex: 1 1 auto;
-    text-align: center;
-    font-size: 16px;
+  .exam-header-title {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #000000;
+    line-height: 1.4;
+  }
+
+  .exam-header-line {
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.5;
+  }
+
+  .exam-header-school-lines {
+    text-align: right;
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.5;
+    color: #000000;
+  }
+
+  .exam-student-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 48mm;
+    gap: 14px;
+    align-items: center;
+  }
+
+  .student-field {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.98rem;
     font-weight: 700;
   }
 
-  .exam-header-item label,
-  .student-field label,
-  .meta-field label {
+  .student-field__line {
+    flex: 1 1 auto;
+    min-height: 18px;
+    border-bottom: 1.5px solid #000000;
+  }
+
+  .student-field__box {
+    width: 24mm;
+    height: 18px;
+    border: 1.5px solid #000000;
+    border-radius: 4px;
+  }
+
+  .exam-question {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .exam-question-header {
+    display: grid;
+    grid-template-columns: 24mm minmax(0, 1fr) 24mm;
+    border: 1px solid #000000;
+    background: #ffffff;
+    align-items: center;
+  }
+
+  .exam-question-header > div {
+    padding: 6px 8px;
+    text-align: center;
+    font-size: 0.94rem;
+    font-weight: 800;
+    line-height: 1.35;
+  }
+
+  .exam-question-header > div + div {
+    border-right: 1px solid #000000;
+  }
+
+  .exam-question-body {
+    padding: 10px 4px 2px;
+    font-size: 0.98rem;
+    line-height: 1.9;
+  }
+
+  .exam-question-text {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+
+  .exam-question-lines {
+    margin: 0;
+    padding: 0 18px 0 0;
+    list-style: none;
+    display: grid;
+    gap: 4px;
+  }
+
+  .exam-question-lines li {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    overflow-wrap: anywhere;
+  }
+
+  .exam-question-line-index {
+    flex: 0 0 auto;
+    min-width: 18px;
+    font-weight: 700;
+  }
+
+  .exam-question-line-text {
+    flex: 1 1 auto;
+  }
+
+  .exam-options {
+    margin: 8px 0 0;
+    padding: 0 14px 0 0;
+    list-style: none;
+    display: grid;
+    gap: 3px;
+  }
+
+  .exam-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    overflow-wrap: anywhere;
+  }
+
+  .exam-option-label {
+    min-width: 18px;
+    font-weight: 700;
+  }
+
+  .exam-blank {
+    min-width: 20px;
+    display: inline-block;
+    letter-spacing: 0.2em;
+    font-weight: 700;
+  }
+
+  .exam-true-false-legend {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 0.94rem;
+    font-weight: 700;
+  }
+
+  .exam-true-false-choice {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .exam-answer-lines {
+    margin-top: 10px;
+    display: grid;
+    gap: 10px;
+  }
+
+  .exam-answer-line {
+    display: block;
+    min-height: 12px;
+    border-bottom: 1px solid #000000;
+  }
+
+  .exam-footer {
+    margin-top: 18px;
+    text-align: center;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #000000;
+  }
+
+  .exam-empty {
+    margin: 0;
+    padding: 12px 0;
+    text-align: center;
+    color: #000000;
+    font-size: 0.95rem;
+  }
+
+  .exam-instructions {
+    border: 1px solid #000000;
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #ffffff;
+  }
+
+  .exam-answer-form-header,
+  .answer-form-instructions,
+  .answer-form-grid {
+    border: 1px solid #000000;
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #ffffff;
+  }
+
+  .answer-form-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .answer-form-header__meta {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .answer-form-header__meta-grid,
+  .answer-form-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .answer-form-header__admin {
+    width: min(34%, 220px);
+  }
+
+  .meta-field label,
+  .student-field label {
     display: block;
     font-size: 11px;
     font-weight: 700;
     margin-bottom: 2px;
   }
 
-  .exam-header-item span,
-  .student-field span,
-  .meta-field span {
+  .meta-field span,
+  .student-field span {
     display: block;
     font-size: 13px;
     font-weight: 600;
     min-height: 18px;
   }
 
-  .exam-title {
-    text-align: center;
-    font-size: 18px;
-    font-weight: 700;
-    margin-bottom: 6px;
-  }
-
-  .exam-subtitle {
-    text-align: center;
-    font-size: 14px;
-    margin-bottom: 8px;
-  }
-
-  .exam-instructions ul,
   .answer-form-instructions ul {
     margin: 0;
     padding-right: 18px;
   }
 
-  .exam-instructions li,
   .answer-form-instructions li {
     margin-bottom: 4px;
   }
 
+  .answer-form-grid table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .answer-form-grid th,
+  .answer-form-grid td {
+    border: 1px solid #000000;
+    text-align: center;
+    font-size: 12px;
+    padding: 4px;
+  }
+
+  .answer-form-grid thead th {
+    background: #ffffff;
+    font-weight: 700;
+  }
+
+  .bubble-cell {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid #000000;
+    margin: 0 auto;
+  }
+
+  .admin-zone {
+    border: 1px dashed #000000;
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
+  .admin-zone-title {
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .barcode-box {
+    border: 1px solid #000000;
+    height: 32px;
+    margin-bottom: 4px;
+  }
+
+  .serial-box {
+    border: 1px solid #000000;
+    height: 24px;
+    margin-bottom: 4px;
+  }
+
+  .paper-support,
+  .exam-section {
+    display: grid;
+    gap: 12px;
+  }
+
   .question-block {
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
+    border: 1px solid #000000;
+    border-radius: 8px;
     padding: 8px 10px;
-    margin-bottom: 8px;
+    background: #ffffff;
     break-inside: avoid;
     page-break-inside: avoid;
   }
@@ -134,7 +394,7 @@ const EXAM_BASE_STYLES = `
   .question-header {
     font-size: 13px;
     margin-bottom: 4px;
-    color: #0f172a;
+    color: #000000;
   }
 
   .question-text {
@@ -164,63 +424,13 @@ const EXAM_BASE_STYLES = `
   }
 
   .answer-line {
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid #000000;
     margin-top: 8px;
     height: 18px;
   }
 
-  .answer-form-grid table {
-    width: 100%;
-    border-collapse: collapse;
-    table-layout: fixed;
-  }
-
-  .answer-form-grid th,
-  .answer-form-grid td {
-    border: 1px solid #cbd5e1;
-    text-align: center;
-    font-size: 12px;
-    padding: 4px;
-  }
-
-  .answer-form-grid thead th {
-    background: #f1f5f9;
-    font-weight: 700;
-  }
-
-  .bubble-cell {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    border: 1px solid #0f172a;
-    margin: 0 auto;
-  }
-
-  .admin-zone {
-    border: 1px dashed #94a3b8;
-    padding: 6px 8px;
-    font-size: 11px;
-  }
-
-  .admin-zone-title {
-    font-weight: 700;
-    margin-bottom: 4px;
-  }
-
-  .barcode-box {
-    border: 1px solid #94a3b8;
-    height: 32px;
-    margin-bottom: 4px;
-  }
-
-  .serial-box {
-    border: 1px solid #94a3b8;
-    height: 24px;
-    margin-bottom: 4px;
-  }
-
   @page {
-    margin: 10mm;
+    margin: 8mm;
   }
 
   thead {
@@ -238,200 +448,245 @@ function escapeHtml(str) {
     .replace(/'/g, "&#39;");
 }
 
+const QUESTION_ORDINAL_WORDS = {
+  1: "الأول",
+  2: "الثاني",
+  3: "الثالث",
+  4: "الرابع",
+  5: "الخامس",
+  6: "السادس",
+  7: "السابع",
+  8: "الثامن",
+  9: "التاسع",
+  10: "العاشر",
+};
+
+const ARABIC_OPTION_LABELS = ["أ", "ب", "ج", "د"];
+
+function formatOrdinalWord(value) {
+  const normalized = Number.isFinite(Number(value))
+    ? Math.max(1, Math.trunc(Number(value)))
+    : 1;
+  return QUESTION_ORDINAL_WORDS[normalized] || `رقم ${normalized}`;
+}
+
+function splitLines(value) {
+  return (value ?? "")
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function normalizeGradeLabel(value) {
+  const text = String(value ?? "").trim();
+  if (!text || text === "—") {
+    return "—";
+  }
+  if (text.startsWith("الصف ")) {
+    return text;
+  }
+  if (text.startsWith("صف ")) {
+    return `الصف ${text.slice(4).trim()}`;
+  }
+  if (text === "صف") {
+    return "الصف";
+  }
+  return `الصف ${text}`;
+}
+
+function renderLogoHtml(schoolLogoUrl) {
+  if (parseImageDataUrl(schoolLogoUrl)) {
+    return `<img class="exam-header-logo" src="${escapeHtml(
+      schoolLogoUrl.trim(),
+    )}" alt="شعار المدرسة" />`;
+  }
+
+  return `<div class="exam-header-logo exam-header-logo--placeholder">شعار المدرسة</div>`;
+}
+
+function renderQuestionPrompt(q) {
+  const lines = splitLines(q.text);
+  if (!lines.length) {
+    return "";
+  }
+
+  if (lines.length === 1) {
+    const blank = q.type === "true_false" ? '<span class="exam-blank">( )</span>' : "";
+    return `
+      <p class="exam-question-text">
+        <span>${escapeHtml(lines[0])}</span>
+        ${blank}
+      </p>
+    `;
+  }
+
+  return `
+    <ol class="exam-question-lines">
+      ${lines
+        .map((line, index) => {
+          const blank =
+            q.type === "true_false"
+              ? '<span class="exam-blank">( )</span>'
+              : "";
+          return `
+            <li>
+              <span class="exam-question-line-index">${index + 1}.</span>
+              <span class="exam-question-line-text">${escapeHtml(line)}</span>
+              ${blank}
+            </li>
+          `;
+        })
+        .join("")}
+    </ol>
+  `;
+}
+
+function renderQuestionAnswers(q, promptLineCount = 0) {
+  if (q.type === "mcq" && Array.isArray(q.options) && q.options.length > 0) {
+    return `
+      <ul class="exam-options">
+        ${q.options
+          .map((opt) => {
+            const label = opt.label ?? "";
+            const text = opt.text ?? "";
+            return `
+              <li class="exam-option">
+                <span class="exam-option-label">${escapeHtml(label)} -</span>
+                <span class="exam-option-text">${escapeHtml(text)}</span>
+              </li>
+            `;
+          })
+          .join("")}
+      </ul>
+    `;
+  }
+
+  if (q.type === "true_false" && promptLineCount <= 1) {
+    return `
+      <div class="exam-true-false-legend">
+        <span class="exam-true-false-choice">
+          <span class="exam-blank">( )</span>
+          <span>صح</span>
+        </span>
+        <span class="exam-true-false-choice">
+          <span class="exam-blank">( )</span>
+          <span>خطأ</span>
+        </span>
+      </div>
+    `;
+  }
+
+  if (q.type === "short_answer") {
+    return `
+      <div class="exam-answer-lines">
+        <span class="exam-answer-line"></span>
+        <span class="exam-answer-line"></span>
+      </div>
+    `;
+  }
+
+  if (q.type === "essay") {
+    return `
+      <div class="exam-answer-lines">
+        <span class="exam-answer-line"></span>
+        <span class="exam-answer-line"></span>
+        <span class="exam-answer-line"></span>
+        <span class="exam-answer-line"></span>
+        <span class="exam-answer-line"></span>
+      </div>
+    `;
+  }
+
+  return "";
+}
+
 function renderExamHeader(examMeta) {
   const {
     title,
-    subject,
-    className,
-    date,
-    duration,
+    grade,
     totalMarks,
     schoolName,
     schoolLogoUrl,
     term,
     academicYear,
   } = examMeta;
-
-  const logoHtml = schoolLogoUrl
-    ? `<img class="exam-school-logo" src="${escapeHtml(schoolLogoUrl)}" alt="شعار المدرسة" />`
-    : `<div class="exam-school-logo exam-school-logo--placeholder">[شعار المدرسة]</div>`;
+  const gradeLabel = normalizeGradeLabel(String(grade ?? "—").split(" - ")[0]);
 
   return `
     <section class="exam-header">
-      <div class="exam-ministry">الجمهورية اليمنية</div>
-      <div class="exam-ministry">وزارة التربية والتعليم</div>
-      <div class="exam-ministry">محافظة عدن</div>
-      <div class="exam-brand-row">
-        ${logoHtml}
-        <div class="exam-school-name">مدرسة: ${escapeHtml(schoolName || "—")}</div>
-      </div>
-      <div class="exam-subtitle">${escapeHtml(title || "اختبار")}</div>
-      <div class="exam-title">اختبار مادة ${escapeHtml(subject)}</div>
-      <div class="exam-subtitle">${escapeHtml(className)}</div>
-      <div class="exam-subtitle">
-        الفصل الدراسي ${escapeHtml(term || "—")} (${escapeHtml(academicYear || "—")})
-      </div>
-      <div class="exam-subtitle">الدرجة الكلية: ${escapeHtml(String(totalMarks ?? "—"))}</div>
-      <div class="exam-header-grid">
-        <div class="exam-header-item">
-          <label>المادة</label>
-          <span>${escapeHtml(subject)}</span>
-        </div>
-        <div class="exam-header-item">
-          <label>الصف / الفئة</label>
-          <span>${escapeHtml(className)}</span>
-        </div>
-        <div class="exam-header-item">
-          <label>التاريخ</label>
-          <span>${escapeHtml(date)}</span>
-        </div>
-        <div class="exam-header-item">
-          <label>المدة</label>
-          <span>${escapeHtml(String(duration ?? "—"))}</span>
-        </div>
-        <div class="exam-header-item">
-          <label>الدرجة الكلية</label>
-          <span>${escapeHtml(String(totalMarks ?? "—"))}</span>
-        </div>
-        <div class="exam-header-item">
-          <label>عدد الأسئلة</label>
-          <span>${escapeHtml(String(examMeta.totalQuestions ?? "—"))}</span>
-        </div>
-        <div class="exam-header-item">
-          <label>الفصل الدراسي</label>
-          <span>${escapeHtml(term ?? "—")}</span>
-        </div>
-        <div class="exam-header-item">
-          <label>العام الدراسي</label>
-          <span>${escapeHtml(academicYear ?? "—")}</span>
-        </div>
-      </div>
+      <table class="exam-header-table">
+        <tbody>
+          <tr>
+            <td class="exam-header-cell exam-header-cell--ministry">
+              <div class="exam-header-ministry">الجمهورية اليمنية</div>
+              <div class="exam-header-ministry">وزارة التربية والتعليم</div>
+              <div class="exam-header-ministry">محافظة عدن</div>
+            </td>
+            <td class="exam-header-cell exam-header-cell--center">
+              <div class="exam-header-title">${escapeHtml(
+                title || "اختبار",
+              )}</div>
+              <div class="exam-header-line">${escapeHtml(gradeLabel)}</div>
+              <div class="exam-header-line">
+                الفصل الدراسي ${escapeHtml(term || "—")} (${escapeHtml(
+                  academicYear || "—",
+                )})
+              </div>
+            </td>
+            <td class="exam-header-cell exam-header-cell--school">
+              ${renderLogoHtml(schoolLogoUrl)}
+              <div class="exam-header-school-lines">
+                <div>مدرسة: ${escapeHtml(schoolName || "—")}</div>
+                <div>الدرجة الكلية: ${escapeHtml(
+                  String(totalMarks ?? "—"),
+                )}</div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </section>
   `;
 }
 
-function renderStudentBlock(vm) {
-  const meta = vm.studentMetaTemplate;
-  const e = vm.examMeta;
-
+function renderStudentBlock() {
   return `
     <section class="exam-student-block">
-      <div class="student-grid">
+      <div class="exam-student-row">
         <div class="student-field">
-          <label>${escapeHtml(meta.studentNameLabel)}</label>
-          <span></span>
+          <span>اسم الطالب:</span>
+          <span class="student-field__line"></span>
         </div>
         <div class="student-field">
-          <label>${escapeHtml(meta.seatNumberLabel)}</label>
-          <span></span>
-        </div>
-        <div class="student-field">
-          <label>${escapeHtml(meta.classLabel)}</label>
-          <span>${escapeHtml(e.className ?? "—")}</span>
-        </div>
-        <div class="student-field">
-          <label>${escapeHtml(meta.sectionLabel)}</label>
-          <span></span>
-        </div>
-        <div class="student-field">
-          <label>${escapeHtml(meta.subjectLabel)}</label>
-          <span>${escapeHtml(e.subject ?? "—")}</span>
-        </div>
-        <div class="student-field">
-          <label>${escapeHtml(meta.dateLabel)}</label>
-          <span>${escapeHtml(e.date ?? "—")}</span>
-        </div>
-        <div class="student-field">
-          <label>${escapeHtml(meta.examNumberLabel)}</label>
-          <span></span>
-        </div>
-        <div class="student-field">
-          <label>اسم المعلم</label>
-          <span>${escapeHtml(e.teacherName ?? "—")}</span>
+          <span>الشعبة:</span>
+          <span class="student-field__box"></span>
         </div>
       </div>
     </section>
   `;
-}
-
-function renderExamInstructions() {
-  return `
-    <section class="exam-instructions">
-      <h3 style="margin-top:0;margin-bottom:4px;font-size:14px;">التعليمات</h3>
-      <ul>
-        <li>اقرأ الأسئلة جيدًا قبل الإجابة.</li>
-        <li>أجب عن أسئلة الاختيار من متعدد و الصواب والخطأ في نموذج الإجابات المخصص.</li>
-        <li>اكتب إجابات الأسئلة المقالية في المساحة المخصصة أسفل كل سؤال.</li>
-        <li>التزم بالزمن المحدد للاختبار.</li>
-      </ul>
-    </section>
-  `;
-}
-
-function renderAnswerLines(count) {
-  const lines = [];
-  for (let i = 0; i < count; i += 1) {
-    lines.push('<div class="answer-line"></div>');
-  }
-  return `<div class="answer-lines">${lines.join("")}</div>`;
 }
 
 function renderQuestionBlock(q) {
-  const headerParts = [];
-  headerParts.push(`السؤال رقم ${q.number}`);
-  if (q.marks != null) {
-    headerParts.push(`${q.marks} درجة`);
-  }
-  if (q.lessonName) {
-    headerParts.push(q.lessonName);
-  }
-
-  const header = headerParts.join(" | ");
-
-  let optionsHtml = "";
-  if (q.type === "mcq" && Array.isArray(q.options) && q.options.length) {
-    optionsHtml = `
-      <ul class="question-options">
-        ${q.options
-          .map(
-            (opt) => `
-              <li>
-                <span class="question-option-label">${escapeHtml(
-                  opt.label ?? "",
-                )})</span>
-                <span>${escapeHtml(opt.text ?? "")}</span>
-              </li>
-            `,
-          )
-          .join("")}
-      </ul>
-    `;
-  } else if (q.type === "true_false") {
-    optionsHtml = `
-      <ul class="question-options">
-        <li><span class="question-option-label">${escapeHtml(
-          q.trueLabel,
-        )}</span> <span>صحيح</span></li>
-        <li><span class="question-option-label">${escapeHtml(
-          q.falseLabel,
-        )}</span> <span>خطأ</span></li>
-      </ul>
-    `;
-  }
-
-  let answerArea = "";
-  if (q.type === "short_answer") {
-    answerArea = renderAnswerLines(2);
-  } else if (q.type === "essay") {
-    answerArea = renderAnswerLines(5);
-  }
-
+  const promptLines = splitLines(q.text);
   return `
-    <article class="question-block">
-      <div class="question-header">${escapeHtml(header)}</div>
-      <div class="question-text">${escapeHtml(q.text ?? "")}</div>
-      ${optionsHtml}
-      ${answerArea}
+    <article class="exam-question">
+      <div class="exam-question-header">
+        <div>السؤال ${formatOrdinalWord(q.number)}</div>
+        <div>${escapeHtml(
+          q.type === "mcq"
+            ? "اختر الإجابة الصحيحة"
+            : q.type === "true_false"
+              ? "أجب بلا أو نعم"
+              : "أجب عن الأسئلة الآتية",
+        )}</div>
+        <div>${escapeHtml(
+          q.marks != null ? `الدرجة ${q.marks}` : "الدرجة —",
+        )}</div>
+      </div>
+      <div class="exam-question-body">
+        ${renderQuestionPrompt(q)}
+        ${renderQuestionAnswers(q, promptLines.length)}
+      </div>
     </article>
   `;
 }
@@ -439,17 +694,10 @@ function renderQuestionBlock(q) {
 export function buildExamPaperHtml(enrichedExam) {
   const vm = buildExamExportViewModel(enrichedExam);
   const header = renderExamHeader(vm.examMeta);
-  const student = renderStudentBlock(vm);
-  const instructions = renderExamInstructions();
+  const student = renderStudentBlock();
 
   const section = vm.sections[0];
   const questionsHtml = section.questions.map(renderQuestionBlock).join("");
-
-  const sectionHtml = `
-    <section class="exam-section">
-      ${questionsHtml || "<p>لا توجد أسئلة.</p>"}
-    </section>
-  `;
 
   return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -459,11 +707,13 @@ export function buildExamPaperHtml(enrichedExam) {
   <style>${EXAM_BASE_STYLES}</style>
 </head>
 <body>
-  <div class="exam-page">
+  <div class="exam-page exam-sheet">
     ${header}
     ${student}
-    ${instructions}
-    ${sectionHtml}
+    <section class="exam-section">
+      ${questionsHtml || "<p class=\"exam-empty\">لا توجد أسئلة.</p>"}
+    </section>
+    <footer class="exam-footer">انتهت الأسئلة</footer>
   </div>
 </body>
 </html>`;
@@ -475,54 +725,52 @@ function renderAnswerFormHeader(vm) {
 
   return `
     <section class="answer-form-header">
-      <div style="display:flex;align-items:flex-start;gap:8px;">
-        <div style="flex:3;">
-          <h2 style="margin:0 0 6px 0;font-size:18px;">${escapeHtml(
-            `نموذج الإجابات${e.title ? ` - ${e.title}` : ""}`,
-          )}</h2>
-          <div class="answer-form-meta-grid">
-            <div class="meta-field">
-              <label>${escapeHtml(meta.studentNameLabel)}</label>
-              <span></span>
-            </div>
-            <div class="meta-field">
-              <label>${escapeHtml(meta.seatNumberLabel)}</label>
-              <span></span>
-            </div>
-            <div class="meta-field">
-              <label>${escapeHtml(meta.classLabel)}</label>
-              <span>${escapeHtml(e.className ?? "—")}</span>
-            </div>
-            <div class="meta-field">
-              <label>${escapeHtml(meta.sectionLabel)}</label>
-              <span></span>
-            </div>
-            <div class="meta-field">
-              <label>${escapeHtml(meta.subjectLabel)}</label>
-              <span>${escapeHtml(e.subject ?? "—")}</span>
-            </div>
-            <div class="meta-field">
-              <label>${escapeHtml(meta.dateLabel)}</label>
-              <span>${escapeHtml(e.date ?? "—")}</span>
-            </div>
-            <div class="meta-field">
-              <label>${escapeHtml(meta.examNumberLabel)}</label>
-              <span></span>
-            </div>
-            <div class="meta-field">
-              <label>اسم المعلم</label>
-              <span>${escapeHtml(e.teacherName ?? "—")}</span>
-            </div>
+      <div class="answer-form-header__meta">
+        <h2 style="margin:0 0 6px 0;font-size:18px;">${escapeHtml(
+          `نموذج الإجابات${e.title ? ` - ${e.title}` : ""}`,
+        )}</h2>
+        <div class="answer-form-header__meta-grid">
+          <div class="meta-field">
+            <label>${escapeHtml(meta.studentNameLabel)}</label>
+            <span></span>
+          </div>
+          <div class="meta-field">
+            <label>${escapeHtml(meta.seatNumberLabel)}</label>
+            <span></span>
+          </div>
+          <div class="meta-field">
+            <label>${escapeHtml(meta.classLabel)}</label>
+            <span>${escapeHtml(e.className ?? "—")}</span>
+          </div>
+          <div class="meta-field">
+            <label>${escapeHtml(meta.sectionLabel)}</label>
+            <span></span>
+          </div>
+          <div class="meta-field">
+            <label>${escapeHtml(meta.subjectLabel)}</label>
+            <span>${escapeHtml(e.subject ?? "—")}</span>
+          </div>
+          <div class="meta-field">
+            <label>${escapeHtml(meta.dateLabel)}</label>
+            <span>${escapeHtml(e.date ?? "—")}</span>
+          </div>
+          <div class="meta-field">
+            <label>${escapeHtml(meta.examNumberLabel)}</label>
+            <span></span>
+          </div>
+          <div class="meta-field">
+            <label>اسم المعلم</label>
+            <span>${escapeHtml(e.teacherName ?? "—")}</span>
           </div>
         </div>
-        <div style="flex:2;">
-          <div class="admin-zone">
-            <div class="admin-zone-title">منطقة إدارية / آلية</div>
-            <div class="barcode-box"></div>
-            <div class="serial-box"></div>
-            <div style="font-size:10px;">
-              لا تكتب في هذه المنطقة. للاستخدام من قبل المراقب/الإدارة فقط.
-            </div>
+      </div>
+      <div class="answer-form-header__admin">
+        <div class="admin-zone">
+          <div class="admin-zone-title">منطقة إدارية / آلية</div>
+          <div class="barcode-box"></div>
+          <div class="serial-box"></div>
+          <div style="font-size:10px;">
+            لا تكتب في هذه المنطقة. للاستخدام من قبل المراقب/الإدارة فقط.
           </div>
         </div>
       </div>
@@ -625,7 +873,7 @@ export function buildExamAnswerFormHtml(enrichedExam) {
   <style>${EXAM_BASE_STYLES}</style>
 </head>
 <body>
-  <div class="exam-page">
+  <div class="exam-page exam-sheet">
     ${header}
     ${instructions}
     ${grid}
@@ -641,7 +889,7 @@ export function buildExamAnswerKeyHtml(enrichedExam) {
 
   const questionsHtml = section.questions
     .map((q) => {
-      const headerParts = [`السؤال رقم ${q.number}`];
+      const headerParts = [`السؤال ${formatOrdinalWord(q.number)}`];
       if (q.marks != null) headerParts.push(`${q.marks} درجة`);
       if (q.lessonName) headerParts.push(q.lessonName);
       const meta = headerParts.join(" | ");
@@ -656,14 +904,14 @@ export function buildExamAnswerKeyHtml(enrichedExam) {
             return `
               <li style="margin-bottom:2px;">
                 <span class="question-option-label"${
-                  isCorrect ? ' style="color:#15803d;font-weight:700;"' : ""
-                }>${escapeHtml(opt.label ?? "")})</span>
+                  isCorrect ? ' style="font-weight:700;text-decoration:underline;"' : ""
+                }>${escapeHtml(opt.label ?? "")} -</span>
                 <span${
-                  isCorrect ? ' style="color:#15803d;font-weight:700;"' : ""
+                  isCorrect ? ' style="font-weight:700;text-decoration:underline;"' : ""
                 }>${escapeHtml(opt.text ?? "")}</span>
                 ${
                   isCorrect
-                    ? '<span style="margin-right:6px;font-size:11px;color:#15803d;">(الإجابة الصحيحة)</span>'
+                    ? '<span style="margin-right:6px;font-size:11px;font-weight:700;">(الإجابة الصحيحة)</span>'
                     : ""
                 }
               </li>
@@ -728,7 +976,7 @@ export function buildExamAnswerKeyHtml(enrichedExam) {
   <style>${EXAM_BASE_STYLES}</style>
 </head>
 <body>
-  <div class="exam-page">
+  <div class="exam-page exam-sheet">
     ${header}
     <section class="exam-instructions">
       <h3 style="margin-top:0;margin-bottom:4px;font-size:14px;">مفتاح الإجابات</h3>

@@ -24,10 +24,10 @@ const RTL_OPTS = { alignment: AlignmentType.RIGHT };
 const RTL_BIDI = { bidirectional: true };
 
 const CELL_BORDER = {
-  top: { style: BorderStyle.SINGLE, size: 1, color: "cbd5e1" },
-  bottom: { style: BorderStyle.SINGLE, size: 1, color: "cbd5e1" },
-  left: { style: BorderStyle.SINGLE, size: 1, color: "cbd5e1" },
-  right: { style: BorderStyle.SINGLE, size: 1, color: "cbd5e1" },
+  top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+  bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+  left: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+  right: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
 };
 
 const LANDSCAPE_SECTION = {
@@ -323,7 +323,7 @@ export async function buildPlanDocx(enrichedPlan) {
       ? plan.lesson_flow.filter((item) => item && typeof item === "object")
       : [];
 
-    const flowHeaderShading = { type: ShadingType.SOLID, color: "f1f5f9" };
+    const flowHeaderShading = { type: ShadingType.SOLID, color: "FFFFFF" };
     const flowTableRows = [
       new TableRow({
         cantSplit: true,

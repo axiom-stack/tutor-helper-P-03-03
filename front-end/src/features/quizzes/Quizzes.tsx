@@ -71,6 +71,278 @@ interface ExamDraft {
   questions: ExamQuestion[];
 }
 
+const PAPER_ORDINAL_WORDS: Record<number, string> = {
+  1: 'الأول',
+  2: 'الثاني',
+  3: 'الثالث',
+  4: 'الرابع',
+  5: 'الخامس',
+  6: 'السادس',
+  7: 'السابع',
+  8: 'الثامن',
+  9: 'التاسع',
+  10: 'العاشر',
+};
+
+const PAPER_OPTION_LABELS = ['أ', 'ب', 'ج', 'د'];
+
+function formatPaperOrdinal(value: number): string {
+  const normalized = Math.max(1, Math.trunc(value));
+  return PAPER_ORDINAL_WORDS[normalized] ?? `رقم ${normalized}`;
+}
+
+function splitPaperLines(value: string | null | undefined): string[] {
+  return (value ?? '')
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function normalizePaperGradeLabel(value: string | null | undefined): string {
+  const text = (value ?? '').trim();
+  if (!text || text === '—') {
+    return '—';
+  }
+
+  const firstPart = text.split(' - ')[0]?.trim() ?? text;
+  if (firstPart.startsWith('الصف ')) {
+    return firstPart;
+  }
+  if (firstPart.startsWith('صف ')) {
+    return `الصف ${firstPart.slice(4).trim()}`;
+  }
+  if (firstPart === 'صف') {
+    return 'الصف';
+  }
+  return `الصف ${firstPart}`;
+}
+
+function getPaperQuestionInstruction(
+  questionType: ExamQuestion['question_type']
+): string {
+  switch (questionType) {
+    case 'multiple_choice':
+      return 'اختر الإجابة الصحيحة';
+    case 'true_false':
+      return 'أجب بلا أو نعم';
+    case 'fill_blank':
+      return 'أجب عن الأسئلة الآتية';
+    case 'open_ended':
+    default:
+      return 'أجب عن الأسئلة الآتية';
+  }
+}
+
+function getPaperAnswerLineCount(
+  questionType: ExamQuestion['question_type']
+): number {
+  switch (questionType) {
+    case 'fill_blank':
+      return 2;
+    case 'open_ended':
+      return 5;
+    default:
+      return 0;
+  }
+}
+
+function PaperQuestionSection({
+  question,
+}: {
+  question: ExamQuestion;
+}) {
+  const promptLines = splitPaperLines(question.question_text);
+  const questionNumber = Number.isFinite(question.question_number)
+    ? question.question_number
+    : 1;
+  const marksLabel =
+    Number.isFinite(question.marks) && question.marks > 0
+      ? `${question.marks}`
+      : '—';
+
+  return (
+    <article className={`qz__paper-question qz__paper-question--${question.question_type}`}>
+      <header className="qz__paper-question-header">
+        <span className="qz__paper-question-tag">
+          السؤال {formatPaperOrdinal(questionNumber)}
+        </span>
+        <span className="qz__paper-question-instruction">
+          {getPaperQuestionInstruction(question.question_type)}
+        </span>
+        <span className="qz__paper-question-marks">
+          الدرجة {marksLabel}
+        </span>
+      </header>
+
+      <div className="qz__paper-question-body">
+        {promptLines.length > 1 ? (
+          <ol className="qz__paper-question-lines">
+            {promptLines.map((line, index) => (
+              <li key={`${question.slot_id}-line-${index}`}>
+                <span className="qz__paper-question-line-index">
+                  {index + 1}.
+                </span>
+                <span className="qz__paper-question-line-text">{line}</span>
+                {question.question_type === 'true_false' ? (
+                  <span className="qz__paper-blank" aria-hidden="true">
+                    ( )
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        ) : promptLines.length === 1 ? (
+          <p className="qz__paper-question-text">
+            <span>{promptLines[0]}</span>
+            {question.question_type === 'true_false' ? (
+              <span className="qz__paper-blank" aria-hidden="true">
+                ( )
+              </span>
+            ) : null}
+          </p>
+        ) : null}
+
+        {question.question_type === 'multiple_choice' &&
+        Array.isArray(question.options) &&
+        question.options.length > 0 ? (
+          <ul className="qz__paper-options">
+            {question.options.map((option, index) => (
+              <li key={`${question.slot_id}-option-${index}`}>
+                <span className="qz__paper-option-label">
+                  {PAPER_OPTION_LABELS[index] ?? index + 1} -
+                </span>
+                <span className="qz__paper-option-text">{option}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {question.question_type === 'true_false' && promptLines.length <= 1 ? (
+          <div className="qz__paper-true-false-legend">
+            <span className="qz__paper-true-false-choice">
+              <span className="qz__paper-blank" aria-hidden="true">
+                ( )
+              </span>
+              <span>صح</span>
+            </span>
+            <span className="qz__paper-true-false-choice">
+              <span className="qz__paper-blank" aria-hidden="true">
+                ( )
+              </span>
+              <span>خطأ</span>
+            </span>
+          </div>
+        ) : null}
+
+        {question.question_type === 'fill_blank' ||
+        question.question_type === 'open_ended' ? (
+          <div
+            className={`qz__paper-answer-lines qz__paper-answer-lines--${question.question_type}`}
+          >
+            {Array.from({
+              length: getPaperAnswerLineCount(question.question_type),
+            }).map((_, index) => (
+              <span
+                key={`${question.slot_id}-answer-line-${index}`}
+                className="qz__paper-answer-line"
+                aria-hidden="true"
+              />
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+interface ExamPaperSheetProps {
+  title: string;
+  schoolName: string;
+  schoolLogoUrl?: string | null;
+  classLabel: string;
+  academicYearLabel: string;
+  semesterLabel: string;
+  totalMarks: number;
+  questions: ExamQuestion[];
+}
+
+function ExamPaperSheet({
+  title,
+  schoolName,
+  schoolLogoUrl,
+  classLabel,
+  academicYearLabel,
+  semesterLabel,
+  totalMarks,
+  questions,
+}: ExamPaperSheetProps) {
+  return (
+    <section className="qz__paper-shell" aria-label="ورقة الاختبار">
+      <div className="qz__paper-page">
+        <header className="qz__paper-header">
+          <div className="qz__paper-header-cell qz__paper-header-cell--ministry">
+            <div className="qz__paper-header-ministry">الجمهورية اليمنية</div>
+            <div className="qz__paper-header-ministry">
+              وزارة التربية والتعليم
+            </div>
+            <div className="qz__paper-header-ministry">محافظة عدن</div>
+          </div>
+
+          <div className="qz__paper-header-cell qz__paper-header-cell--center">
+            <div className="qz__paper-header-title">{title}</div>
+            <div className="qz__paper-header-line">{classLabel}</div>
+            <div className="qz__paper-header-line">
+              {semesterLabel}
+              {academicYearLabel ? ` (${academicYearLabel})` : ''}
+            </div>
+          </div>
+
+          <div className="qz__paper-header-cell qz__paper-header-cell--school">
+            <div className="qz__paper-school-logo">
+              {schoolLogoUrl ? (
+                <img src={schoolLogoUrl} alt="شعار المدرسة" />
+              ) : (
+                <span>شعار المدرسة</span>
+              )}
+            </div>
+            <div className="qz__paper-school-lines">
+              <div>مدرسة: {schoolName}</div>
+              <div>الدرجة الكلية: {totalMarks}</div>
+            </div>
+          </div>
+        </header>
+
+        <div className="qz__paper-student-row">
+          <div className="qz__paper-student-field qz__paper-student-field--name">
+            <span>اسم الطالب:</span>
+            <span className="qz__paper-student-line" aria-hidden="true" />
+          </div>
+
+          <div className="qz__paper-student-field qz__paper-student-field--section">
+            <span>الشعبة:</span>
+            <span className="qz__paper-student-box" aria-hidden="true" />
+          </div>
+        </div>
+
+        <div className="qz__paper-sections">
+          {questions.length > 0 ? (
+            questions.map((question) => (
+              <PaperQuestionSection
+                key={question.slot_id}
+                question={question}
+              />
+            ))
+          ) : (
+            <div className="qz__paper-empty">لا توجد أسئلة لعرضها.</div>
+          )}
+        </div>
+
+        <footer className="qz__paper-footer">انتهت الأسئلة</footer>
+      </div>
+    </section>
+  );
+}
+
 function formatDateTimeAr(iso: string): string {
   try {
     return new Date(iso).toLocaleString('ar-SA', {
@@ -799,6 +1071,30 @@ export default function Quizzes() {
     ? !isLocalOnlyId(selectedExam.public_id)
     : false;
 
+  const paperSchoolName = user?.profile?.school_name?.trim() || '—';
+  const paperSchoolLogoUrl = user?.profile?.school_logo_url ?? null;
+  const paperSourceClass =
+    (selectedExam
+      ? classesById.get(selectedExam.class_id) ?? selectedClass
+      : selectedClass) ?? null;
+  const paperGradeLabel =
+    normalizePaperGradeLabel(
+      paperSourceClass?.grade_label?.trim() ||
+        selectedExam?.class_name?.trim() ||
+        '—'
+    );
+  const paperAcademicYearLabel = paperSourceClass
+    ? normalizeAcademicYearLabel(paperSourceClass.academic_year) || '—'
+    : isCreateRoute
+      ? selectedAcademicYear || '—'
+      : '—';
+  const paperSemesterLabel = paperSourceClass
+    ? normalizeSemesterLabel(paperSourceClass.semester)
+    : isCreateRoute
+      ? normalizeSemesterLabel(selectedSemester)
+      : '—';
+  const paperClassLabel = paperGradeLabel;
+
   const examDetailsTitle =
     isCreateRoute && examScreen === 'generated'
       ? 'عرض الاختبار المولد'
@@ -809,7 +1105,7 @@ export default function Quizzes() {
     setExportFormatOpen(true);
   };
 
-  const openExamExportDialog = (
+  const openExamExportDialog = async (
     exam: OfflineExamRecord,
     type: 'questions_only' | 'answer_key' = 'questions_only'
   ) => {
@@ -818,9 +1114,18 @@ export default function Quizzes() {
       return;
     }
 
-    setSelectedExam(exam);
-    setExportTargetType(type);
-    setExportFormatOpen(true);
+    setIsExamLoading(true);
+    setError(null);
+    try {
+      const response = await getExamById(exam.public_id);
+      setSelectedExam(response.exam as OfflineExamRecord);
+      setExportTargetType(type);
+      setExportFormatOpen(true);
+    } catch (loadError: unknown) {
+      setError(normalizeApiError(loadError, 'تعذر تحميل تفاصيل الاختبار.'));
+    } finally {
+      setIsExamLoading(false);
+    }
   };
 
   const handleExportSelectedExam = async (format: 'pdf' | 'docx') => {
@@ -1010,7 +1315,11 @@ export default function Quizzes() {
     : (selectedExam?.questions ?? []);
 
   const examDetailsView = selectedExam ? (
-    <div className="qz__details">
+    <div
+      className={`qz__details ${
+        !isEditingExam ? 'qz__details--paper' : ''
+      }`}
+    >
       <h3>{examDetailsTitle}</h3>
       {isExamLoading ? (
         <p>جارٍ تحميل التفاصيل...</p>
@@ -1152,8 +1461,253 @@ export default function Quizzes() {
             </p>
           ) : null}
 
-          {selectedExam.blueprint?.cells && (
-            <section className="qz__blueprint">
+          {isEditingExam ? (
+            <>
+              {selectedExam.blueprint?.cells && (
+                <section className="qz__blueprint">
+                  <h5>مصفوفة جدول المواصفات</h5>
+                  <div className="qz__table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>الدرس</th>
+                          <th>المستوى</th>
+                          <th>وزن الدرس</th>
+                          <th>وزن المستوى</th>
+                          <th>وزن الخلية</th>
+                          <th>الأسئلة</th>
+                          <th>الدرجات</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedExam.blueprint.cells.map((cell, index) => (
+                          <tr key={`${cell.lesson_id}-${cell.level}-${index}`}>
+                            <td>{cell.lesson_name}</td>
+                            <td>{cell.level_label}</td>
+                            <td>{cell.topic_weight}</td>
+                            <td>{cell.level_weight}</td>
+                            <td>{cell.cell_weight}</td>
+                            <td>{cell.question_count}</td>
+                            <td>{cell.cell_marks}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
+
+              <section className="qz__questions qz__questions--editor">
+                <h5>الأسئلة والإجابات</h5>
+                {displayedExamQuestions.length > 0 ? (
+                  displayedExamQuestions.map((question) => (
+                    <article
+                      key={question.slot_id}
+                      className="qz__question-card"
+                    >
+                      <div className="qz__question-meta">
+                        <strong>س{question.question_number}</strong>
+                        <span>{QUESTION_TYPE_LABELS[question.question_type]}</span>
+                        <span>{question.bloom_level_label}</span>
+                        <span>{question.marks} درجة</span>
+                        <span>{question.lesson_name}</span>
+                      </div>
+                      <div className="qz__question-editor">
+                        <label
+                          className="qz__editor-label"
+                          htmlFor={question.slot_id}
+                        >
+                          نص السؤال
+                        </label>
+                        <textarea
+                          id={question.slot_id}
+                          className="qz__edit-textarea"
+                          rows={4}
+                          value={question.question_text}
+                          onChange={(event) =>
+                            updateDraftQuestion(question.slot_id, (current) => ({
+                              ...current,
+                              question_text: event.target.value,
+                            }))
+                          }
+                        />
+
+                        {question.question_type === 'multiple_choice' ? (
+                          <>
+                            <div className="qz__question-edit-grid">
+                              <label className="qz__editor-label">
+                                الخيار الصحيح
+                              </label>
+                              <select
+                                className="qz__edit-select"
+                                value={question.correct_option_index ?? 0}
+                                onChange={(event) =>
+                                  updateDraftQuestion(
+                                    question.slot_id,
+                                    (current) => ({
+                                      ...current,
+                                      correct_option_index: Number(
+                                        event.target.value
+                                      ),
+                                    })
+                                  )
+                                }
+                              >
+                                {(question.options ?? []).map((_, index) => (
+                                  <option
+                                    key={`${question.slot_id}-correct-${index}`}
+                                    value={index}
+                                  >
+                                    الخيار {index + 1}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="qz__options-edit">
+                              {(question.options ?? []).map((option, index) => (
+                                <label
+                                  key={`${question.slot_id}-opt-edit-${index}`}
+                                  className="qz__option-edit-row"
+                                >
+                                  <span>{index + 1}</span>
+                                  <input
+                                    type="text"
+                                    className="qz__edit-input"
+                                    value={option}
+                                    onChange={(event) =>
+                                      updateDraftQuestion(
+                                        question.slot_id,
+                                        (current) => {
+                                          const nextOptions = [
+                                            ...(current.options ?? []),
+                                          ];
+                                          nextOptions[index] =
+                                            event.target.value;
+                                          return {
+                                            ...current,
+                                            options: nextOptions,
+                                          };
+                                        }
+                                      )
+                                    }
+                                  />
+                                </label>
+                              ))}
+                            </div>
+                          </>
+                        ) : null}
+
+                        {question.question_type === 'true_false' ? (
+                          <div className="qz__question-edit-grid">
+                            <label className="qz__editor-label">
+                              الإجابة الصحيحة
+                            </label>
+                            <select
+                              className="qz__edit-select"
+                              value={question.correct_answer ? 'true' : 'false'}
+                              onChange={(event) =>
+                                updateDraftQuestion(
+                                  question.slot_id,
+                                  (current) => ({
+                                    ...current,
+                                    correct_answer: event.target.value === 'true',
+                                  })
+                                )
+                              }
+                            >
+                              <option value="true">صحيح</option>
+                              <option value="false">خطأ</option>
+                            </select>
+                          </div>
+                        ) : null}
+
+                        {question.question_type === 'fill_blank' ? (
+                          <div className="qz__question-edit-grid">
+                            <label className="qz__editor-label">
+                              الإجابة النموذجية
+                            </label>
+                            <textarea
+                              className="qz__edit-textarea"
+                              rows={3}
+                              value={question.answer_text}
+                              onChange={(event) =>
+                                updateDraftQuestion(
+                                  question.slot_id,
+                                  (current) => ({
+                                    ...current,
+                                    answer_text: event.target.value,
+                                  })
+                                )
+                              }
+                            />
+                          </div>
+                        ) : null}
+
+                        {question.question_type === 'open_ended' ? (
+                          <>
+                            <div className="qz__question-edit-grid">
+                              <label className="qz__editor-label">
+                                الإجابة النموذجية
+                              </label>
+                              <textarea
+                                className="qz__edit-textarea"
+                                rows={4}
+                                value={question.answer_text}
+                                onChange={(event) =>
+                                  updateDraftQuestion(
+                                    question.slot_id,
+                                    (current) => ({
+                                      ...current,
+                                      answer_text: event.target.value,
+                                    })
+                                  )
+                                }
+                              />
+                            </div>
+                            <div className="qz__question-edit-grid">
+                              <label className="qz__editor-label">
+                                معيار التصحيح
+                              </label>
+                              <textarea
+                                className="qz__edit-textarea"
+                                rows={4}
+                                value={joinLines(question.rubric)}
+                                onChange={(event) =>
+                                  updateDraftQuestion(
+                                    question.slot_id,
+                                    (current) => ({
+                                      ...current,
+                                      rubric: splitLines(event.target.value),
+                                    })
+                                  )
+                                }
+                              />
+                            </div>
+                          </>
+                        ) : null}
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <p>لا توجد أسئلة لعرضها.</p>
+                )}
+              </section>
+            </>
+          ) : (
+            <ExamPaperSheet
+              title={selectedExam.title}
+              schoolName={paperSchoolName}
+              schoolLogoUrl={paperSchoolLogoUrl}
+              classLabel={paperClassLabel}
+              academicYearLabel={paperAcademicYearLabel}
+              semesterLabel={`الفصل الدراسي ${paperSemesterLabel}`}
+              totalMarks={selectedExam.total_marks}
+              questions={displayedExamQuestions}
+            />
+          )}
+
+          {!isEditingExam && selectedExam.blueprint?.cells ? (
+            <section className="qz__blueprint qz__blueprint--paper">
               <h5>مصفوفة جدول المواصفات</h5>
               <div className="qz__table-wrap">
                 <table>
@@ -1184,235 +1738,7 @@ export default function Quizzes() {
                 </table>
               </div>
             </section>
-          )}
-
-          <section className="qz__questions">
-            <h5>الأسئلة والإجابات</h5>
-            {displayedExamQuestions.length > 0 ? (
-              displayedExamQuestions.map((question) => (
-                <article key={question.slot_id} className="qz__question-card">
-                  <div className="qz__question-meta">
-                    <strong>س{question.question_number}</strong>
-                    <span>{QUESTION_TYPE_LABELS[question.question_type]}</span>
-                    <span>{question.bloom_level_label}</span>
-                    <span>{question.marks} درجة</span>
-                    <span>{question.lesson_name}</span>
-                  </div>
-                  {isEditingExam ? (
-                    <div className="qz__question-editor">
-                      <label
-                        className="qz__editor-label"
-                        htmlFor={question.slot_id}
-                      >
-                        نص السؤال
-                      </label>
-                      <textarea
-                        id={question.slot_id}
-                        className="qz__edit-textarea"
-                        rows={4}
-                        value={question.question_text}
-                        onChange={(event) =>
-                          updateDraftQuestion(question.slot_id, (current) => ({
-                            ...current,
-                            question_text: event.target.value,
-                          }))
-                        }
-                      />
-
-                      {question.question_type === 'multiple_choice' ? (
-                        <>
-                          <div className="qz__question-edit-grid">
-                            <label className="qz__editor-label">
-                              الخيار الصحيح
-                            </label>
-                            <select
-                              className="qz__edit-select"
-                              value={question.correct_option_index ?? 0}
-                              onChange={(event) =>
-                                updateDraftQuestion(
-                                  question.slot_id,
-                                  (current) => ({
-                                    ...current,
-                                    correct_option_index: Number(
-                                      event.target.value
-                                    ),
-                                  })
-                                )
-                              }
-                            >
-                              {(question.options ?? []).map((_, index) => (
-                                <option
-                                  key={`${question.slot_id}-correct-${index}`}
-                                  value={index}
-                                >
-                                  الخيار {index + 1}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="qz__options-edit">
-                            {(question.options ?? []).map((option, index) => (
-                              <label
-                                key={`${question.slot_id}-opt-edit-${index}`}
-                                className="qz__option-edit-row"
-                              >
-                                <span>{index + 1}</span>
-                                <input
-                                  type="text"
-                                  className="qz__edit-input"
-                                  value={option}
-                                  onChange={(event) =>
-                                    updateDraftQuestion(
-                                      question.slot_id,
-                                      (current) => {
-                                        const nextOptions = [
-                                          ...(current.options ?? []),
-                                        ];
-                                        nextOptions[index] = event.target.value;
-                                        return {
-                                          ...current,
-                                          options: nextOptions,
-                                        };
-                                      }
-                                    )
-                                  }
-                                />
-                              </label>
-                            ))}
-                          </div>
-                        </>
-                      ) : null}
-
-                      {question.question_type === 'true_false' ? (
-                        <div className="qz__question-edit-grid">
-                          <label className="qz__editor-label">
-                            الإجابة الصحيحة
-                          </label>
-                          <select
-                            className="qz__edit-select"
-                            value={question.correct_answer ? 'true' : 'false'}
-                            onChange={(event) =>
-                              updateDraftQuestion(
-                                question.slot_id,
-                                (current) => ({
-                                  ...current,
-                                  correct_answer: event.target.value === 'true',
-                                })
-                              )
-                            }
-                          >
-                            <option value="true">صحيح</option>
-                            <option value="false">خطأ</option>
-                          </select>
-                        </div>
-                      ) : null}
-
-                      {question.question_type === 'fill_blank' ? (
-                        <div className="qz__question-edit-grid">
-                          <label className="qz__editor-label">
-                            الإجابة النموذجية
-                          </label>
-                          <textarea
-                            className="qz__edit-textarea"
-                            rows={3}
-                            value={question.answer_text}
-                            onChange={(event) =>
-                              updateDraftQuestion(
-                                question.slot_id,
-                                (current) => ({
-                                  ...current,
-                                  answer_text: event.target.value,
-                                })
-                              )
-                            }
-                          />
-                        </div>
-                      ) : null}
-
-                      {question.question_type === 'open_ended' ? (
-                        <>
-                          <div className="qz__question-edit-grid">
-                            <label className="qz__editor-label">
-                              الإجابة النموذجية
-                            </label>
-                            <textarea
-                              className="qz__edit-textarea"
-                              rows={4}
-                              value={question.answer_text}
-                              onChange={(event) =>
-                                updateDraftQuestion(
-                                  question.slot_id,
-                                  (current) => ({
-                                    ...current,
-                                    answer_text: event.target.value,
-                                  })
-                                )
-                              }
-                            />
-                          </div>
-                          <div className="qz__question-edit-grid">
-                            <label className="qz__editor-label">
-                              معيار التصحيح
-                            </label>
-                            <textarea
-                              className="qz__edit-textarea"
-                              rows={4}
-                              value={joinLines(question.rubric)}
-                              onChange={(event) =>
-                                updateDraftQuestion(
-                                  question.slot_id,
-                                  (current) => ({
-                                    ...current,
-                                    rubric: splitLines(event.target.value),
-                                  })
-                                )
-                              }
-                            />
-                          </div>
-                        </>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <>
-                      <p className="qz__question-text">
-                        {question.question_text}
-                      </p>
-
-                      {question.question_type === 'multiple_choice' &&
-                        question.options && (
-                          <ul className="qz__options">
-                            {question.options.map((option, index) => (
-                              <li key={`${question.slot_id}-opt-${index}`}>
-                                {index + 1}. {option}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-
-                      {question.question_type === 'open_ended' &&
-                        question.rubric &&
-                        question.rubric.length > 0 && (
-                          <ul className="qz__rubric">
-                            {question.rubric.map((item, index) => (
-                              <li key={`${question.slot_id}-rubric-${index}`}>
-                                {item}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-
-                      <div className="qz__answer">
-                        <label>الإجابة النموذجية</label>
-                        <p>{question.answer_text}</p>
-                      </div>
-                    </>
-                  )}
-                </article>
-              ))
-            ) : (
-              <p>لا توجد أسئلة لعرضها.</p>
-            )}
-          </section>
+          ) : null}
 
           {!isEditingExam && selectedExam.server_id ? (
             <SmartRefinementPanel
@@ -1817,67 +2143,6 @@ export default function Quizzes() {
           </aside>
         ) : null}
 
-        <>
-          {false ? (
-            <div className="qz__filters">
-              <h2>الأرشيف</h2>
-              <div className="qz__filters-grid">
-                <div className="qz__field">
-                  <label htmlFor="qz-filter-subject">فلترة بالمادة</label>
-                  <select
-                    id="qz-filter-subject"
-                    value={filterSubjectId}
-                    onChange={(event) =>
-                      setFilterSubjectId(
-                        event.target.value ? Number(event.target.value) : ''
-                      )
-                    }
-                    disabled={isEditingExam}
-                  >
-                    <option value="">الكل</option>
-                    {subjects.map((subject) => (
-                      <option key={subject.id} value={subject.id}>
-                        {subject.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="qz__field">
-                  <label htmlFor="qz-filter-class">فلترة بالصف</label>
-                  <select
-                    id="qz-filter-class"
-                    value={filterClassId}
-                    onChange={(event) =>
-                      setFilterClassId(
-                        event.target.value ? Number(event.target.value) : ''
-                      )
-                    }
-                    disabled={isEditingExam}
-                  >
-                    <option value="">الكل</option>
-                    {classes.map((classItem) => (
-                      <option key={classItem.id} value={classItem.id}>
-                        {formatClassSelectLabel(classItem)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="qz__refresh-btn"
-                onClick={() => void loadExams()}
-                disabled={isListLoading || isEditingExam}
-              >
-                {isListLoading && (
-                  <span className="ui-button-spinner" aria-hidden />
-                )}
-                {!isListLoading && <MdRefresh aria-hidden />}
-                {isListLoading ? 'جارٍ التحديث...' : 'تحديث القائمة'}
-              </button>
-            </div>
-          ) : null}
-
           {isCreateRoute && examScreen === 'generated' && selectedExam ? (
             <section
               className="qz__content qz__generated-view"
@@ -2114,7 +2379,10 @@ export default function Quizzes() {
                               type="button"
                               className="qz__card-action qz__card-action--subtle"
                               onClick={() =>
-                                openExamExportDialog(exam, 'questions_only')
+                                void openExamExportDialog(
+                                  exam,
+                                  'questions_only'
+                                )
                               }
                               disabled={!canExportExam || isExportingExam}
                             >
@@ -2130,7 +2398,6 @@ export default function Quizzes() {
               </div>
             </section>
           ) : null}
-        </>
       </div>
 
       <ExportFormatModal
