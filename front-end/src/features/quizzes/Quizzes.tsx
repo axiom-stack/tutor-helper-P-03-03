@@ -124,7 +124,10 @@ function formatArabicNumber(value: number): string {
 }
 
 function toArabicDigits(value: string | number | null | undefined): string {
-  return String(value ?? '').replace(/\d/g, (digit) => ARABIC_DIGIT_MAP[digit] ?? digit);
+  return String(value ?? '').replace(
+    /\d/g,
+    (digit) => ARABIC_DIGIT_MAP[digit] ?? digit
+  );
 }
 
 function splitPaperLines(value: string | null | undefined): string[] {
@@ -153,7 +156,9 @@ function normalizePaperGradeLabel(value: string | null | undefined): string {
   return toArabicDigits(`الصف ${firstPart}`);
 }
 
-function groupPaperQuestions(questions: ExamQuestion[]): PaperQuestionSection[] {
+function groupPaperQuestions(
+  questions: ExamQuestion[]
+): PaperQuestionSection[] {
   const normalizedQuestions = questions.map((question) => ({ ...question }));
   const sections: PaperQuestionSection[] = [];
   const knownTypes = new Set<ExamQuestion['question_type']>();
@@ -162,8 +167,8 @@ function groupPaperQuestions(questions: ExamQuestion[]): PaperQuestionSection[] 
     group.questionTypes.forEach((questionType) => knownTypes.add(questionType));
     const sectionQuestions = normalizedQuestions.filter((question) =>
       group.questionTypes.some(
-        (questionType) => questionType === question.question_type,
-      ),
+        (questionType) => questionType === question.question_type
+      )
     );
 
     if (!sectionQuestions.length) {
@@ -185,13 +190,13 @@ function groupPaperQuestions(questions: ExamQuestion[]): PaperQuestionSection[] 
     new Set(
       normalizedQuestions
         .map((question) => question.question_type)
-        .filter((questionType) => !knownTypes.has(questionType)),
-    ),
+        .filter((questionType) => !knownTypes.has(questionType))
+    )
   );
 
   unknownTypes.forEach((questionType) => {
     const sectionQuestions = normalizedQuestions.filter(
-      (question) => question.question_type === questionType,
+      (question) => question.question_type === questionType
     );
     if (!sectionQuestions.length) {
       return;
@@ -224,19 +229,14 @@ function getPaperAnswerLineCount(
   }
 }
 
-function PaperQuestionCard({
-  question,
-}: {
-  question: PaperQuestion;
-}) {
+function PaperQuestionCard({ question }: { question: PaperQuestion }) {
   const promptLines = splitPaperLines(question.question_text);
   const questionNumber = formatArabicNumber(
-    question.displayNumber ?? question.question_number ?? 1,
+    question.displayNumber ?? question.question_number ?? 1
   );
-  const marksLabel =
-    Number.isFinite(question.marks)
-      ? formatArabicNumber(question.marks)
-      : '—';
+  const marksLabel = Number.isFinite(question.marks)
+    ? formatArabicNumber(question.marks)
+    : '—';
 
   return (
     <article
@@ -244,9 +244,7 @@ function PaperQuestionCard({
     >
       <header className="qz__paper-question-header">
         <span className="qz__paper-question-tag">السؤال {questionNumber}</span>
-        <span className="qz__paper-question-marks">
-          الدرجة {marksLabel}
-        </span>
+        <span className="qz__paper-question-marks">الدرجة {marksLabel}</span>
       </header>
 
       <div className="qz__paper-question-body">
@@ -286,7 +284,8 @@ function PaperQuestionCard({
             {question.options.map((option, index) => (
               <li key={`${question.slot_id}-option-${index}`}>
                 <span className="qz__paper-option-label">
-                  {PAPER_OPTION_LABELS[index] ?? formatArabicNumber(index + 1)} -
+                  {PAPER_OPTION_LABELS[index] ?? formatArabicNumber(index + 1)}{' '}
+                  -
                 </span>
                 <span className="qz__paper-option-text">
                   {toArabicDigits(option)}
@@ -313,8 +312,8 @@ function PaperQuestionCard({
           </div>
         ) : null}
 
-        {(question.question_type === 'fill_blank' ||
-          question.question_type === 'open_ended') ? (
+        {question.question_type === 'fill_blank' ||
+        question.question_type === 'open_ended' ? (
           <div
             className={`qz__paper-answer-lines qz__paper-answer-lines--${question.question_type}`}
           >
@@ -334,14 +333,12 @@ function PaperQuestionCard({
   );
 }
 
-function PaperSectionBlock({
-  section,
-}: {
-  section: PaperQuestionSection;
-}) {
+function PaperSectionBlock({ section }: { section: PaperQuestionSection }) {
   return (
     <section className="qz__paper-section">
-      <h2 className="qz__paper-section-title">{toArabicDigits(section.title)}</h2>
+      <h2 className="qz__paper-section-title">
+        {toArabicDigits(section.title)}
+      </h2>
       <div className="qz__paper-section-questions">
         {section.questions.map((question) => (
           <PaperQuestionCard key={question.slot_id} question={question} />
@@ -387,13 +384,17 @@ function ExamPaperSheet({
           </div>
 
           <div className="qz__paper-header-cell qz__paper-header-cell--center">
-            <div className="qz__paper-header-title">{toArabicDigits(title)}</div>
+            <div className="qz__paper-header-title">
+              {toArabicDigits(title)}
+            </div>
             <div className="qz__paper-header-line">
               {toArabicDigits(classLabel)}
             </div>
             <div className="qz__paper-header-line">
               {toArabicDigits(semesterLabel)}
-              {academicYearLabel ? ` (${toArabicDigits(academicYearLabel)})` : ''}
+              {academicYearLabel
+                ? ` (${toArabicDigits(academicYearLabel)})`
+                : ''}
             </div>
           </div>
 
@@ -427,10 +428,7 @@ function ExamPaperSheet({
         <div className="qz__paper-sections">
           {sections.length > 0 ? (
             sections.map((section) => (
-              <PaperSectionBlock
-                key={section.id}
-                section={section}
-              />
+              <PaperSectionBlock key={section.id} section={section} />
             ))
           ) : (
             <div className="qz__paper-empty">لا توجد أسئلة لعرضها.</div>
@@ -457,10 +455,9 @@ function formatDateTimeAr(iso: string): string {
   }
 }
 
-function formatExamSummaryParts(exam: Pick<
-  Exam,
-  'total_questions' | 'total_marks' | 'duration_minutes'
->): string[] {
+function formatExamSummaryParts(
+  exam: Pick<Exam, 'total_questions' | 'total_marks' | 'duration_minutes'>
+): string[] {
   return [
     `عدد الأسئلة: ${formatArabicNumber(exam.total_questions)}`,
     `الدرجة: ${formatArabicNumber(exam.total_marks)}`,
@@ -1105,23 +1102,28 @@ export default function Quizzes() {
     }
   };
 
-  const handleLoadExamDetails = useCallback(async (examId: string) => {
-    if (isEditingExam) {
-      toast.error('احفظ تعديلات الاختبار الحالي أو ألغها قبل فتح اختبار آخر.');
-      return;
-    }
+  const handleLoadExamDetails = useCallback(
+    async (examId: string) => {
+      if (isEditingExam) {
+        toast.error(
+          'احفظ تعديلات الاختبار الحالي أو ألغها قبل فتح اختبار آخر.'
+        );
+        return;
+      }
 
-    setIsExamLoading(true);
-    setError(null);
-    try {
-      const response = await getExamById(examId);
-      setSelectedExam(response.exam as OfflineExamRecord);
-    } catch (loadError: unknown) {
-      setError(normalizeApiError(loadError, 'تعذر تحميل تفاصيل الاختبار.'));
-    } finally {
-      setIsExamLoading(false);
-    }
-  }, [isEditingExam]);
+      setIsExamLoading(true);
+      setError(null);
+      try {
+        const response = await getExamById(examId);
+        setSelectedExam(response.exam as OfflineExamRecord);
+      } catch (loadError: unknown) {
+        setError(normalizeApiError(loadError, 'تعذر تحميل تفاصيل الاختبار.'));
+      } finally {
+        setIsExamLoading(false);
+      }
+    },
+    [isEditingExam]
+  );
 
   useEffect(() => {
     if (!selectedExamIdFromRoute || isCreateRoute || isEditingExam) {
@@ -1190,14 +1192,13 @@ export default function Quizzes() {
   const paperSchoolLogoUrl = user?.profile?.school_logo_url ?? null;
   const paperSourceClass =
     (selectedExam
-      ? classesById.get(selectedExam.class_id) ?? selectedClass
+      ? (classesById.get(selectedExam.class_id) ?? selectedClass)
       : selectedClass) ?? null;
-  const paperGradeLabel =
-    normalizePaperGradeLabel(
-      paperSourceClass?.grade_label?.trim() ||
-        selectedExam?.class_name?.trim() ||
-        '—'
-    );
+  const paperGradeLabel = normalizePaperGradeLabel(
+    paperSourceClass?.grade_label?.trim() ||
+      selectedExam?.class_name?.trim() ||
+      '—'
+  );
   const paperAcademicYearLabel = paperSourceClass
     ? normalizeAcademicYearLabel(paperSourceClass.academic_year) || '—'
     : isCreateRoute
@@ -1289,16 +1290,6 @@ export default function Quizzes() {
 
   const handleCreateNewExam = () => {
     resetCreateExamState();
-  };
-
-  const handleBackToLibrary = () => {
-    if (selectedExam) {
-      setExamDraft(null);
-      setIsEditingExam(false);
-      setIsSavingExam(false);
-      setDraftRecoveredNotice(null);
-      setSelectedExam(null);
-    }
   };
 
   const handleCancelEditingExam = () => {
@@ -1431,9 +1422,7 @@ export default function Quizzes() {
 
   const examDetailsView = selectedExam ? (
     <div
-      className={`qz__details ${
-        !isEditingExam ? 'qz__details--paper' : ''
-      }`}
+      className={`qz__details ${!isEditingExam ? 'qz__details--paper' : ''}`}
     >
       <h3>{examDetailsTitle}</h3>
       {isExamLoading ? (
@@ -1465,8 +1454,8 @@ export default function Quizzes() {
                 </div>
               )}
               <p>
-                {formatArabicNumber(selectedExam.total_questions)} سؤال | {formatArabicNumber(selectedExam.total_marks)}{' '}
-                درجة
+                {formatArabicNumber(selectedExam.total_questions)} سؤال |{' '}
+                {formatArabicNumber(selectedExam.total_marks)} درجة
                 {selectedExam.duration_minutes != null
                   ? ` | مدة: ${formatArabicNumber(selectedExam.duration_minutes)} دقيقة`
                   : ''}
@@ -1622,7 +1611,9 @@ export default function Quizzes() {
                     >
                       <div className="qz__question-meta">
                         <strong>س{question.question_number}</strong>
-                        <span>{QUESTION_TYPE_LABELS[question.question_type]}</span>
+                        <span>
+                          {QUESTION_TYPE_LABELS[question.question_type]}
+                        </span>
                         <span>{question.bloom_level_label}</span>
                         <span>{question.marks} درجة</span>
                         <span>{question.lesson_name}</span>
@@ -1640,10 +1631,13 @@ export default function Quizzes() {
                           rows={4}
                           value={question.question_text}
                           onChange={(event) =>
-                            updateDraftQuestion(question.slot_id, (current) => ({
-                              ...current,
-                              question_text: event.target.value,
-                            }))
+                            updateDraftQuestion(
+                              question.slot_id,
+                              (current) => ({
+                                ...current,
+                                question_text: event.target.value,
+                              })
+                            )
                           }
                         />
 
@@ -1725,7 +1719,8 @@ export default function Quizzes() {
                                   question.slot_id,
                                   (current) => ({
                                     ...current,
-                                    correct_answer: event.target.value === 'true',
+                                    correct_answer:
+                                      event.target.value === 'true',
                                   })
                                 )
                               }
@@ -1902,20 +1897,16 @@ export default function Quizzes() {
         <header className="qz__header page-header">
           <div>
             <nav className="qz__breadcrumb" aria-label="breadcrumb">
-              <button
-                type="button"
-                className="qz__breadcrumb-button"
-                onClick={handleBackToLibrary}
-              >
+              <Link to="/quizzes" className="qz__breadcrumb-button">
                 مكتبة الاختبارات
-              </button>
+              </Link>
               <span>←</span>
               <span className="qz__breadcrumb-current">تفاصيل الاختبار</span>
             </nav>
             <h1>{toArabicDigits(selectedExam.title)}</h1>
             <p>
-              {formatArabicNumber(selectedExam.total_questions)} سؤال | {formatArabicNumber(selectedExam.total_marks)}{' '}
-              درجة
+              {formatArabicNumber(selectedExam.total_questions)} سؤال |{' '}
+              {formatArabicNumber(selectedExam.total_marks)} درجة
               {selectedExam.duration_minutes != null
                 ? ` | مدة: ${formatArabicNumber(selectedExam.duration_minutes)} دقيقة`
                 : ''}
@@ -1930,13 +1921,9 @@ export default function Quizzes() {
         ) : null}
 
         <section className="qz__content qz__detail-page" aria-live="polite">
-          <button
-            type="button"
-            className="qz__detail-back-btn qz__btn-edit"
-            onClick={handleBackToLibrary}
-          >
+          <Link to="/quizzes" className="qz__detail-back-btn qz__btn-edit">
             العودة إلى المكتبة
-          </button>
+          </Link>
           {examDetailsView}
         </section>
 
@@ -2062,7 +2049,9 @@ export default function Quizzes() {
                   <select
                     id="qz-semester"
                     value={selectedSemester}
-                    onChange={(event) => handleSemesterChange(event.target.value)}
+                    onChange={(event) =>
+                      handleSemesterChange(event.target.value)
+                    }
                     disabled={isGenerating || isEditingExam}
                   >
                     {SEMESTER_OPTIONS.map((semester) => (
@@ -2226,7 +2215,8 @@ export default function Quizzes() {
                           />
                           <span>{lesson.name}</span>
                           <small>
-                            {formatArabicNumber(lesson.number_of_periods ?? 1)} حصة
+                            {formatArabicNumber(lesson.number_of_periods ?? 1)}{' '}
+                            حصة
                           </small>
                         </label>
                       ))
@@ -2260,278 +2250,276 @@ export default function Quizzes() {
           </aside>
         ) : null}
 
-          {isCreateRoute && examScreen === 'generated' && selectedExam ? (
-            <section
-              className="qz__content qz__generated-view"
-              aria-live="polite"
-            >
-              {examDetailsView}
-            </section>
-          ) : null}
+        {isCreateRoute && examScreen === 'generated' && selectedExam ? (
+          <section
+            className="qz__content qz__generated-view"
+            aria-live="polite"
+          >
+            {examDetailsView}
+          </section>
+        ) : null}
 
-          {isCreateRoute && examScreen === 'confirmation' && selectedExam ? (
-            <section className="qz__confirmation-view" aria-live="polite">
-              <div className="qz__confirmation-card">
-                <h2>تم إنشاء اختبار بنجاح ✓</h2>
-                <article className="qz__confirmation-panel">
-                  <div className="qz__confirmation-banner" role="status">
-                    <MdCheckCircle aria-hidden />
-                    <span>تم حفظ الاختبار الجديد بنجاح.</span>
-                  </div>
-                  <h3>{toArabicDigits(selectedExam.title)}</h3>
-                  <p>
-                    عدد الأسئلة: {formatArabicNumber(selectedExam.total_questions)} | الدرجة:{' '}
-                    {formatArabicNumber(selectedExam.total_marks)} | المدة:{' '}
-                    {formatArabicNumber(selectedExam.duration_minutes ?? durationMinutes)} د
-                  </p>
-                  <p>
-                    العام الدراسي: {toArabicDigits(selectedAcademicYear)} | الفصل الدراسي:{' '}
-                    {toArabicDigits(selectedSemester)} | الصف:{' '}
-                    {toArabicDigits(selectedClass?.grade_label ?? '—')} | الشعبة:{' '}
-                    {toArabicDigits(selectedClass?.section_label ??
-                      selectedClass?.section ??
-                      '—')}{' '}
-                    | المادة: {selectedSubject?.name ?? '—'}
-                  </p>
-                  <div className="qz__confirmation-actions">
-                    <button
-                      type="button"
-                      className="qz__btn-save"
-                      onClick={handleOpenGeneratedExamFromConfirmation}
-                    >
-                      عرض
-                    </button>
-                    <button
-                      type="button"
-                      className="qz__btn-cancel"
-                      onClick={() => requestDeleteExam(selectedExam.public_id)}
-                      disabled={isDeleting || isExamLoading}
-                    >
-                      حذف
-                    </button>
-                    <button
-                      type="button"
-                      className="qz__btn-edit"
-                      onClick={handleCreateNewExam}
-                    >
-                      إنشاء اختبار جديد
-                    </button>
-                    <button
-                      type="button"
-                      className="qz__btn-edit"
-                      onClick={() => navigate('/quizzes')}
-                    >
-                      مكتبة الاختبارات
-                    </button>
-                  </div>
-                </article>
-              </div>
-            </section>
-          ) : null}
-
-          {!isCreateRoute ? (
-            <section className="qz__content">
-              <div className="qz__filters">
-                <h2>الأرشيف</h2>
-                <div className="qz__filters-grid">
-                  <div className="qz__field">
-                    <label htmlFor="qz-filter-subject">فلترة بالمادة</label>
-                    <select
-                      id="qz-filter-subject"
-                      value={filterSubjectId}
-                      onChange={(event) =>
-                        setFilterSubjectId(
-                          event.target.value ? Number(event.target.value) : ''
-                        )
-                      }
-                      disabled={isEditingExam}
-                    >
-                      <option value="">الكل</option>
-                      {subjects.map((subject) => (
-                        <option key={subject.id} value={subject.id}>
-                          {subject.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="qz__field">
-                    <label htmlFor="qz-filter-class">فلترة بالصف</label>
-                    <select
-                      id="qz-filter-class"
-                      value={filterClassId}
-                      onChange={(event) =>
-                        setFilterClassId(
-                          event.target.value ? Number(event.target.value) : ''
-                        )
-                      }
-                      disabled={isEditingExam}
-                    >
-                      <option value="">الكل</option>
-                      {classes.map((classItem) => (
-                        <option key={classItem.id} value={classItem.id}>
-                          {formatClassSelectLabel(classItem)}
-                        </option>
-                      ))}
-                      </select>
-                    </div>
+        {isCreateRoute && examScreen === 'confirmation' && selectedExam ? (
+          <section className="qz__confirmation-view" aria-live="polite">
+            <div className="qz__confirmation-card">
+              <h2>تم إنشاء اختبار بنجاح ✓</h2>
+              <article className="qz__confirmation-panel">
+                <div className="qz__confirmation-banner" role="status">
+                  <MdCheckCircle aria-hidden />
+                  <span>تم حفظ الاختبار الجديد بنجاح.</span>
                 </div>
-                <button
-                  type="button"
-                  className="qz__refresh-btn"
-                  onClick={() => void loadExams()}
-                  disabled={isListLoading || isEditingExam}
-                >
-                  {isListLoading && (
-                    <span className="ui-button-spinner" aria-hidden />
-                  )}
-                  {!isListLoading && <MdRefresh aria-hidden />}
-                  {isListLoading ? 'جارٍ التحديث...' : 'تحديث القائمة'}
-                </button>
-              </div>
+                <h3>{toArabicDigits(selectedExam.title)}</h3>
+                <p>
+                  عدد الأسئلة:{' '}
+                  {formatArabicNumber(selectedExam.total_questions)} | الدرجة:{' '}
+                  {formatArabicNumber(selectedExam.total_marks)} | المدة:{' '}
+                  {formatArabicNumber(
+                    selectedExam.duration_minutes ?? durationMinutes
+                  )}{' '}
+                  د
+                </p>
+                <p>
+                  العام الدراسي: {toArabicDigits(selectedAcademicYear)} | الفصل
+                  الدراسي: {toArabicDigits(selectedSemester)} | الصف:{' '}
+                  {toArabicDigits(selectedClass?.grade_label ?? '—')} | الشعبة:{' '}
+                  {toArabicDigits(
+                    selectedClass?.section_label ??
+                      selectedClass?.section ??
+                      '—'
+                  )}{' '}
+                  | المادة: {selectedSubject?.name ?? '—'}
+                </p>
+                <div className="qz__confirmation-actions">
+                  <button
+                    type="button"
+                    className="qz__btn-save"
+                    onClick={handleOpenGeneratedExamFromConfirmation}
+                  >
+                    عرض
+                  </button>
+                  <button
+                    type="button"
+                    className="qz__btn-cancel"
+                    onClick={() => requestDeleteExam(selectedExam.public_id)}
+                    disabled={isDeleting || isExamLoading}
+                  >
+                    حذف
+                  </button>
+                  <button
+                    type="button"
+                    className="qz__btn-edit"
+                    onClick={handleCreateNewExam}
+                  >
+                    إنشاء اختبار جديد
+                  </button>
+                  <button
+                    type="button"
+                    className="qz__btn-edit"
+                    onClick={() => navigate('/quizzes')}
+                  >
+                    مكتبة الاختبارات
+                  </button>
+                </div>
+              </article>
+            </div>
+          </section>
+        ) : null}
 
-              <div className="qz__archive-and-details">
-                <div className="qz__archive">
-                  <div className="qz__archive-head">
-                    <div>
-                      <h3>الاختبارات المحفوظة ({filteredExams.length})</h3>
-                      <p>عرض مركّز وسريع للاختبارات المحفوظة حديثًا.</p>
-                    </div>
-                    <span className="qz__archive-count">
-                      {filteredExams.length}
-                    </span>
+        {!isCreateRoute ? (
+          <section className="qz__content">
+            <div className="qz__filters">
+              <h2>الأرشيف</h2>
+              <div className="qz__filters-grid">
+                <div className="qz__field">
+                  <label htmlFor="qz-filter-subject">فلترة بالمادة</label>
+                  <select
+                    id="qz-filter-subject"
+                    value={filterSubjectId}
+                    onChange={(event) =>
+                      setFilterSubjectId(
+                        event.target.value ? Number(event.target.value) : ''
+                      )
+                    }
+                    disabled={isEditingExam}
+                  >
+                    <option value="">الكل</option>
+                    {subjects.map((subject) => (
+                      <option key={subject.id} value={subject.id}>
+                        {subject.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="qz__field">
+                  <label htmlFor="qz-filter-class">فلترة بالصف</label>
+                  <select
+                    id="qz-filter-class"
+                    value={filterClassId}
+                    onChange={(event) =>
+                      setFilterClassId(
+                        event.target.value ? Number(event.target.value) : ''
+                      )
+                    }
+                    disabled={isEditingExam}
+                  >
+                    <option value="">الكل</option>
+                    {classes.map((classItem) => (
+                      <option key={classItem.id} value={classItem.id}>
+                        {formatClassSelectLabel(classItem)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="qz__refresh-btn"
+                onClick={() => void loadExams()}
+                disabled={isListLoading || isEditingExam}
+              >
+                {isListLoading && (
+                  <span className="ui-button-spinner" aria-hidden />
+                )}
+                {!isListLoading && <MdRefresh aria-hidden />}
+                {isListLoading ? 'جارٍ التحديث...' : 'تحديث القائمة'}
+              </button>
+            </div>
+
+            <div className="qz__archive-and-details">
+              <div className="qz__archive">
+                <div className="qz__archive-head">
+                  <div>
+                    <h3>الاختبارات المحفوظة ({filteredExams.length})</h3>
+                    <p>عرض مركّز وسريع للاختبارات المحفوظة حديثًا.</p>
                   </div>
-                  {isListLoading ? (
-                    <p>جارٍ تحميل الاختبارات...</p>
-                  ) : filteredExams.length === 0 ? (
-                    <p>لا توجد اختبارات محفوظة.</p>
-                  ) : (
-                    filteredExams.map((exam) => {
-                      const subject = subjectsById.get(exam.subject_id);
-                      const classItem = classesById.get(exam.class_id);
-                      const isActive =
-                        selectedExam?.public_id === exam.public_id;
-                      const canExportExam = !isLocalOnlyId(exam.public_id);
-                      const classLabel = classItem
-                        ? [
-                            classItem.grade_label,
-                            classItem.section_label,
-                          ]
-                            .map((value) => value?.trim() ?? '')
-                            .filter(Boolean)
-                            .join(' - ')
-                        : `صف #${exam.class_id}`;
-                      const metadataParts = [
-                        subject?.name ?? `مادة #${exam.subject_id}`,
-                        classLabel,
-                        formatDateTimeAr(exam.created_at),
-                      ];
-                      const summaryParts = formatExamSummaryParts(exam);
-                      return (
-                        <article
-                          key={exam.public_id}
-                          className={`qz__exam-card animate-fadeIn ${
-                            isActive ? 'qz__exam-card--active' : ''
-                          }`}
-                        >
-                          <div className="qz__exam-topline">
-                            <div className="qz__exam-heading">
-                              <h4>
-                                <button
-                                  type="button"
-                                  className="qz__exam-title-button"
-                                  onClick={() =>
-                                    void handleLoadExamDetails(exam.public_id)
-                                  }
-                                  disabled={isExamLoading || isEditingExam}
+                  <span className="qz__archive-count">
+                    {filteredExams.length}
+                  </span>
+                </div>
+                {isListLoading ? (
+                  <p>جارٍ تحميل الاختبارات...</p>
+                ) : filteredExams.length === 0 ? (
+                  <p>لا توجد اختبارات محفوظة.</p>
+                ) : (
+                  filteredExams.map((exam) => {
+                    const subject = subjectsById.get(exam.subject_id);
+                    const classItem = classesById.get(exam.class_id);
+                    const isActive = selectedExam?.public_id === exam.public_id;
+                    const canExportExam = !isLocalOnlyId(exam.public_id);
+                    const classLabel = classItem
+                      ? [classItem.grade_label, classItem.section_label]
+                          .map((value) => value?.trim() ?? '')
+                          .filter(Boolean)
+                          .join(' - ')
+                      : `صف #${exam.class_id}`;
+                    const metadataParts = [
+                      subject?.name ?? `مادة #${exam.subject_id}`,
+                      classLabel,
+                      formatDateTimeAr(exam.created_at),
+                    ];
+                    const summaryParts = formatExamSummaryParts(exam);
+                    return (
+                      <article
+                        key={exam.public_id}
+                        className={`qz__exam-card animate-fadeIn ${
+                          isActive ? 'qz__exam-card--active' : ''
+                        }`}
+                      >
+                        <div className="qz__exam-topline">
+                          <div className="qz__exam-heading">
+                            <h4>
+                              <button
+                                type="button"
+                                className="qz__exam-title-button"
+                                onClick={() =>
+                                  void handleLoadExamDetails(exam.public_id)
+                                }
+                                disabled={isExamLoading || isEditingExam}
+                              >
+                                {exam.title}
+                              </button>
+                            </h4>
+                            <div
+                              className="qz__exam-meta-line"
+                              aria-label="تفاصيل الاختبار"
+                            >
+                              {metadataParts.map((part, index) => (
+                                <Fragment
+                                  key={`${exam.public_id}-${part}-${index}`}
                                 >
-                                  {exam.title}
-                                </button>
-                              </h4>
-                              <div
-                                className="qz__exam-meta-line"
-                                aria-label="تفاصيل الاختبار"
-                              >
-                                {metadataParts.map((part, index) => (
-                                  <Fragment
-                                    key={`${exam.public_id}-${part}-${index}`}
-                                  >
-                                    {index > 0 ? (
-                                      <span
-                                        className="qz__meta-separator"
-                                        aria-hidden
-                                      >
-                                        |
-                                      </span>
-                                    ) : null}
-                                    <span className="qz__meta-item">{part}</span>
-                                  </Fragment>
-                                ))}
-                              </div>
-                              <div
-                                className="qz__exam-summary-line"
-                                aria-label="ملخص الاختبار"
-                              >
-                                {summaryParts.map((part, index) => (
-                                  <Fragment
-                                    key={`${exam.public_id}-summary-${part}-${index}`}
-                                  >
-                                    {index > 0 ? (
-                                      <span
-                                        className="qz__meta-separator"
-                                        aria-hidden
-                                      >
-                                        |
-                                      </span>
-                                    ) : null}
-                                    <span className="qz__meta-item">{part}</span>
-                                  </Fragment>
-                                ))}
-                              </div>
+                                  {index > 0 ? (
+                                    <span
+                                      className="qz__meta-separator"
+                                      aria-hidden
+                                    >
+                                      |
+                                    </span>
+                                  ) : null}
+                                  <span className="qz__meta-item">{part}</span>
+                                </Fragment>
+                              ))}
+                            </div>
+                            <div
+                              className="qz__exam-summary-line"
+                              aria-label="ملخص الاختبار"
+                            >
+                              {summaryParts.map((part, index) => (
+                                <Fragment
+                                  key={`${exam.public_id}-summary-${part}-${index}`}
+                                >
+                                  {index > 0 ? (
+                                    <span
+                                      className="qz__meta-separator"
+                                      aria-hidden
+                                    >
+                                      |
+                                    </span>
+                                  ) : null}
+                                  <span className="qz__meta-item">{part}</span>
+                                </Fragment>
+                              ))}
                             </div>
                           </div>
+                        </div>
 
-                          <div className="qz__card-actions">
-                            <button
-                              type="button"
-                              className="qz__card-action"
-                              onClick={() =>
-                                void handleLoadExamDetails(exam.public_id)
-                              }
-                              disabled={isExamLoading || isEditingExam}
-                            >
-                              عرض
-                            </button>
-                            <button
-                              type="button"
-                              className="qz__card-action qz__card-action--danger"
-                              onClick={() => requestDeleteExam(exam.public_id)}
-                              disabled={isDeleting || isEditingExam}
-                            >
-                              حذف
-                            </button>
-                            <button
-                              type="button"
-                              className="qz__card-action qz__card-action--subtle"
-                              onClick={() =>
-                                void openExamExportDialog(
-                                  exam,
-                                  'questions_only'
-                                )
-                              }
-                              disabled={!canExportExam || isExportingExam}
-                            >
-                              تصدير
-                            </button>
-                          </div>
-                        </article>
-                      );
-                    })
-                  )}
-                </div>
-
+                        <div className="qz__card-actions">
+                          <button
+                            type="button"
+                            className="qz__card-action"
+                            onClick={() =>
+                              void handleLoadExamDetails(exam.public_id)
+                            }
+                            disabled={isExamLoading || isEditingExam}
+                          >
+                            عرض
+                          </button>
+                          <button
+                            type="button"
+                            className="qz__card-action qz__card-action--danger"
+                            onClick={() => requestDeleteExam(exam.public_id)}
+                            disabled={isDeleting || isEditingExam}
+                          >
+                            حذف
+                          </button>
+                          <button
+                            type="button"
+                            className="qz__card-action qz__card-action--subtle"
+                            onClick={() =>
+                              void openExamExportDialog(exam, 'questions_only')
+                            }
+                            disabled={!canExportExam || isExportingExam}
+                          >
+                            تصدير
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })
+                )}
               </div>
-            </section>
-          ) : null}
+            </div>
+          </section>
+        ) : null}
       </div>
 
       <ExportFormatModal
