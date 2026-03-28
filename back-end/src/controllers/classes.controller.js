@@ -1,6 +1,8 @@
 import { turso } from "../lib/turso.js";
 import { normalizeString, parsePositiveInteger } from "../utils/normalization.js";
 
+const DEFAULT_SECTION = "أ";
+
 function validateRequiredClassFields(payload) {
   const normalized = {
     grade_label: normalizeString(payload?.grade_label),
@@ -14,14 +16,45 @@ function validateRequiredClassFields(payload) {
   if (!normalized.grade_label) {
     errors.push("grade_label is required");
   }
+
   if (!normalized.section_label) {
     errors.push("section_label is required");
   }
+
   if (!normalized.academic_year) {
     errors.push("academic_year is required");
   }
 
   return { normalized, errors };
+}
+
+async function loadClassById(classId) {
+  const result = await turso.execute({
+    sql: "SELECT * FROM Classes WHERE id = ? LIMIT 1",
+    args: [classId],
+  });
+
+  return result.rows?.[0] ?? null;
+}
+
+function canAccessClass(user, classRow) {
+  if (!user || !classRow) {
+    return false;
+  }
+
+  if (user.role === "admin") {
+    return true;
+  }
+
+  return Number(classRow.teacher_id) === Number(user.id);
+}
+
+function resolveDefaultDuration(body) {
+  if (!Object.prototype.hasOwnProperty.call(body, "default_duration_minutes")) {
+    return 45;
+  }
+
+  return parsePositiveInteger(body.default_duration_minutes);
 }
 
 // POST
@@ -32,11 +65,10 @@ export async function createClass(req, res) {
       return res.status(400).json({ error: "Request body required" });
     }
 
-    const { teacher_id } = req.body;
-    const { id: userId, role: userRole } = req.user;
-    const parsedTeacherId = Number(teacher_id);
+    const currentUser = req.user ?? {};
+    const teacherId = parsePositiveInteger(req.body.teacher_id);
 
-    if (!teacher_id || Number.isNaN(parsedTeacherId)) {
+    if (!teacherId) {
       return res.status(400).json({ error: "teacher_id is required" });
     }
 
@@ -45,25 +77,20 @@ export async function createClass(req, res) {
       return res.status(400).json({ error: errors.join(", ") });
     }
 
-    const defaultDurationMinutes =
-      parsePositiveInteger(req.body.default_duration_minutes) ?? 45;
-
-    if (
-      req.body.default_duration_minutes !== undefined &&
-      parsePositiveInteger(req.body.default_duration_minutes) === null
-    ) {
+    const defaultDurationMinutes = resolveDefaultDuration(req.body);
+    if (defaultDurationMinutes == null) {
       return res
         .status(400)
         .json({ error: "default_duration_minutes must be a positive integer" });
     }
 
-    if (userRole !== "admin" && parsedTeacherId !== Number(userId)) {
+    if (currentUser.role !== "admin" && teacherId !== Number(currentUser.id)) {
       return res.status(403).json({
         error: "Unauthorized: You can only create classes for your own account",
       });
     }
 
-    const createdClass = await turso.execute({
+    const insertResult = await turso.execute({
       sql: `
         INSERT INTO Classes
           (grade_label, section_label, section, academic_year, default_duration_minutes, teacher_id)
@@ -72,86 +99,117 @@ export async function createClass(req, res) {
       args: [
         normalized.grade_label,
         normalized.section_label,
-        normalized.section || "أ",
+        normalized.section || DEFAULT_SECTION,
         normalized.academic_year,
         defaultDurationMinutes,
-        parsedTeacherId,
+        teacherId,
       ],
     });
 
-    const insertedClass = await turso.execute({
-      sql: "SELECT * FROM Classes WHERE id = ?",
-      args: [createdClass.lastInsertRowid],
-    });
+    const createdClassId = Number(insertResult.lastInsertRowid);
+    const createdClass = await loadClassById(createdClassId);
 
-    return res.status(201).json({ class: insertedClass.rows[0] });
-  } catch {
+    if (!createdClass) {
+      return res.status(500).json({ error: "Internal server error" });
+    }
+
+    return res.status(201).json({ class: createdClass });
+  } catch (error) {
+    req.log?.error?.({ error }, "Failed to create class");
     return res.status(500).json({ error: "Internal server error" });
-  }ection_label, section, academic_year, default_duration_minutes, teacher_id)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `,
-      args: [
-        normalized.grade_labelssId
-// - getAllClassesInTheSystem
+  }
+}
+
+// GET
+// - getClassesByTeacherId
 export async function getClassesByTeacherId(req, res) {
   try {
-    const { id: userId } = req.user;
-    const classes = await turso.execute({
-      sql: `SELECT * FROM Classes WHERE teacher_id = ?`,
-      args: [userId]
+    const currentUser = req.user ?? {};
+    const teacherId = Number(currentUser.id);
 
-    return res.status(200).json({ classes: classes.rows });
-  } catch {
+    if (!Number.isInteger(teacherId) || teacherId <= 0) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const classes = await turso.execute({
+      sql: "SELECT * FROM Classes WHERE teacher_id = ?",
+      args: [teacherId],
+    });
+
+    return res.status(200).json({ classes: classes.rows ?? [] });
+  } catch (error) {
+    req.log?.error?.({ error }, "Failed to list teacher classes");
     return res.status(500).json({ error: "Internal server error" });
   }
 }
 
 export async function getClassByClassId(req, res) {
   try {
-    const { classId } = req.params;
-    const { id: userId, role: userRole } = req.user;
+    const classId = parsePositiveInteger(req.params.classId);
+    if (!classId) {
+      return res.status(400).json({ error: "classId is required" });
+    }
 
-    const returnedClass = await turso.execute({
-      sql: "SELECT * FROM Classes WHERE id = ?",
-      args: [classId],
-    });
+    const currentUser = req.user ?? {};
+    const classRow = await loadClassById(classId);
 
-    if (returnedClass.rows.length === 0) {
+    if (!classRow) {
       return res.status(404).json({ error: "Class not found" });
     }
 
-    if (
-      userRole !== "admin" &&
-      Number(returnedClass.rows[0].teacher_id) !== Number(userId)
-    ) {
+    if (!canAccessClass(currentUser, classRow)) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
-    return res.status(200).json({ class: returnedClass.rows[0] });
-  } catch {
+    return res.status(200).json({ class: classRow });
+  } catch (error) {
+    req.log?.error?.({ error }, "Failed to load class");
     return res.status(500).json({ error: "Internal server error" });
   }
 }
 
 export async function getAllClassesInTheSystem(req, res) {
   try {
-    const { role: userRole } = req.user;
+    const currentUser = req.user ?? {};
 
-    if (userRole !== "admin") {
+    if (currentUser.role !== "admin") {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
-    const whereSql = "";
-    const args = [];
-
     const classes = await turso.execute({
-      sql: `SELECT * FROM Classes ${whereSql}`,
-      args,
+      sql: "SELECT * FROM Classes",
+      args: [],
     });
-    returnclasses = await turso.execute({
-      sql: `SELECT * FROM Classes`,
-      args: []lassId) {
+
+    return res.status(200).json({ classes: classes.rows ?? [] });
+  } catch (error) {
+    req.log?.error?.({ error }, "Failed to list all classes");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// PUT
+// - updateClassByClassId
+export async function updateClassByClassId(req, res) {
+  try {
+    if (!req.body) {
+      return res.status(400).json({ error: "Request body required" });
+    }
+
+    const classId = parsePositiveInteger(req.params.classId);
+    if (!classId) {
       return res.status(400).json({ error: "classId is required" });
+    }
+
+    const currentUser = req.user ?? {};
+    const classRow = await loadClassById(classId);
+
+    if (!classRow) {
+      return res.status(404).json({ error: "Class not found" });
+    }
+
+    if (!canAccessClass(currentUser, classRow)) {
+      return res.status(403).json({ error: "Unauthorized" });
     }
 
     const { normalized, errors } = validateRequiredClassFields(req.body);
@@ -159,36 +217,15 @@ export async function getAllClassesInTheSystem(req, res) {
       return res.status(400).json({ error: errors.join(", ") });
     }
 
-    const defaultDurationMinutes =
-      parsePositiveInteger(req.body.default_duration_minutes) ?? 45;
-
-    if (
-      req.body.default_duration_minutes !== undefined &&
-      parsePositiveInteger(req.body.default_duration_minutes) === null
-    ) {
+    const defaultDurationMinutes = resolveDefaultDuration(req.body);
+    if (defaultDurationMinutes == null) {
       return res
         .status(400)
         .json({ error: "default_duration_minutes must be a positive integer" });
     }
 
-    const returnedClass = await turso.execute({
-      sql: "SELECT * FROM Classes WHERE id = ?",
-      args: [classId],
-    });
-
-    if (returnedClass.rows.length === 0) {
-      return res.status(404).json({ error: "Class not found" });
-    }
-
-    if (
-      userRole !== "admin" &&
-      Number(returnedClass.rows[0].teacher_id) !== Number(userId)
-    ) {
-      return res.status(403).json({ error: "Unauthorized" });
-    }
-
     const finalSection =
-      normalized.section || normalizeString(returnedClass.rows[0]?.section) || "أ";
+      normalized.section || normalizeString(classRow.section) || DEFAULT_SECTION;
 
     await turso.execute({
       sql: `
@@ -211,13 +248,14 @@ export async function getAllClassesInTheSystem(req, res) {
       ],
     });
 
-    const updatedClassData = await turso.execute({
-      sql: "SELECT * FROM Classes WHERE id = ?",
-      args: [classId],
-    });
+    const updatedClass = await loadClassById(classId);
+    if (!updatedClass) {
+      return res.status(500).json({ error: "Internal server error" });
+    }
 
-    return res.status(200).json({ class: updatedClassData.rows[0] });
-  } catch {
+    return res.status(200).json({ class: updatedClass });
+  } catch (error) {
+    req.log?.error?.({ error }, "Failed to update class");
     return res.status(500).json({ error: "Internal server error" });
   }
 }
@@ -226,21 +264,19 @@ export async function getAllClassesInTheSystem(req, res) {
 // - deleteClassByClassId
 export async function deleteClassByClassId(req, res) {
   try {
-    const { classId } = req.params;
-    const { id: userId, role: userRole } = req.user;
+    const classId = parsePositiveInteger(req.params.classId);
+    if (!classId) {
+      return res.status(400).json({ error: "classId is required" });
+    }
 
-    const classToDelete = await turso.execute({
-      sql: "SELECT * FROM Classes WHERE id = ?",
-      args: [classId],
-    });
+    const currentUser = req.user ?? {};
+    const classRow = await loadClassById(classId);
 
-    if (classToDelete.rows.length === 0) {
+    if (!classRow) {
       return res.status(404).json({ error: "Class not found" });
     }
-    if (
-      userRole !== "admin" &&
-      Number(classToDelete.rows[0].teacher_id) !== Number(userId)
-    ) {
+
+    if (!canAccessClass(currentUser, classRow)) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
@@ -249,8 +285,9 @@ export async function deleteClassByClassId(req, res) {
       args: [classId],
     });
 
-    return res.status(200).json({ class: classToDelete.rows[0] });
-  } catch {
+    return res.status(200).json({ class: classRow });
+  } catch (error) {
+    req.log?.error?.({ error }, "Failed to delete class");
     return res.status(500).json({ error: "Internal server error" });
   }
 }

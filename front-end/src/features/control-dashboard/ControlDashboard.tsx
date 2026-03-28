@@ -249,23 +249,23 @@ export default function ControlDashboard() {
         </div>
       ) : null}
 
-      <header className="cd__hero page-header">
-        <div className="cd__hero-copy">
-          <p className="cd__eyebrow">الصفحة الرئيسية</p>
-          <h1>
-            {isAdmin ? `مرحباً، ${displayName}` : `مرحباً، ${displayName}`}
-          </h1>
-          <p>
-            اختر المهمة التي تريدها بسرعة، أو راجع أحدث الخطط والاختبارات من
-            أسفل الصفحة.
-          </p>
-        </div>
+      {isAdmin ? (
+        <header className="cd__hero page-header">
+          <div className="cd__hero-copy">
+            <p className="cd__eyebrow">الصفحة الرئيسية</p>
+            <h1>مرحباً، {displayName}</h1>
+            <p>
+              اختر المهمة التي تريدها بسرعة، أو راجع أحدث الخطط والاختبارات من
+              أسفل الصفحة.
+            </p>
+          </div>
 
-        <div className="cd__hero-badge">
-          <span>{isAdmin ? 'وضع المدير' : 'وضع المعلم'}</span>
-          <strong>{error ? 'يوجد تنبيه' : 'جاهز للعمل'}</strong>
-        </div>
-      </header>
+          <div className="cd__hero-badge">
+            <span>وضع المدير</span>
+            <strong>{error ? 'يوجد تنبيه' : 'جاهز للعمل'}</strong>
+          </div>
+        </header>
+      ) : null}
 
       <section className="cd__actions" aria-label="التنقل السريع">
         {actions.map((action) => {

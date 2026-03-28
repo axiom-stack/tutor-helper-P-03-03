@@ -21,7 +21,7 @@
 
 .nav-bar__menu-btn {
   position: absolute;
-  left: var(--space-lg);
+  inset-inline-start: var(--space-lg);
   top: 50%;
   transform: translateY(-50%);
   display: inline-flex;
@@ -65,10 +65,14 @@
   width: 100%;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: var(--space-sm);
+  justify-content: space-between;
+  gap: var(--space-md);
   min-width: 0;
   padding-inline-start: 4.75rem;
+}
+
+.nav-bar__content--home {
+  padding-inline-start: 0;
 }
 
 .nav-bar__brand {
@@ -114,15 +118,6 @@
   border: 1px solid rgba(217, 119, 6, 0.2);
 }
 
-.nav-bar__draft-status {
-  color: #1d4ed8;
-  border: 1px solid rgba(37, 99, 235, 0.18);
-  background: rgba(239, 246, 255, 0.9);
-  max-width: 20rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .nav-bar__syncing {
   color: var(--text-secondary);
   font-size: var(--text-xs);
@@ -134,24 +129,41 @@
   display: inline-flex;
   align-items: center;
   min-height: 2rem;
-  padding: 0.35rem 0.75rem;
-  border: none;
+  gap: 0.2rem;
+  padding: 0.45rem 1.2rem;
+  border: 1px solid rgba(17, 24, 39, 0.08);
   border-radius: 999px;
-  background: rgba(17, 24, 39, 0.05);
+  background: rgba(17, 24, 39, 0.04);
   color: var(--text-primary);
   font: inherit;
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: 800;
   white-space: nowrap;
   cursor: pointer;
   max-width: 16rem;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: background var(--transition-fast);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .nav-bar__greeting:hover {
-  background: rgba(37, 99, 235, 0.08);
+  background: rgba(17, 24, 39, 0.06);
+  border-color: rgba(17, 24, 39, 0.12);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.nav-bar__greeting-name {
+  color: var(--primary);
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  background: rgba(37, 99, 235, 0.1);
+  padding: 0.1rem 0.45rem;
+  border-radius: 0.55rem;
 }
 
 .nav-bar__logout {
@@ -186,7 +198,7 @@
 
 .nav-bar__menu-panel {
   position: absolute;
-  left: var(--space-lg);
+  inset-inline-start: var(--space-lg);
   top: calc(var(--topbar-height) - 0.2rem);
   width: min(18rem, calc(100vw - 2rem));
   display: grid;
@@ -228,15 +240,15 @@
 
   .nav-bar__content {
     padding-inline-start: 4.25rem;
-    gap: var(--space-xs);
+    gap: var(--space-sm);
+  }
+
+  .nav-bar__content--home {
+    padding-inline-start: 0;
   }
 
   .nav-bar__brand {
     font-size: var(--text-md);
-  }
-
-  .nav-bar__draft-status {
-    display: none;
   }
 }
 
@@ -246,15 +258,19 @@
   }
 
   .nav-bar__menu-btn {
-    left: var(--space-sm);
+    inset-inline-start: var(--space-sm);
     width: 40px;
     height: 40px;
     border-radius: 10px;
   }
 
   .nav-bar__content {
-    gap: var(--space-xs);
+    gap: var(--space-sm);
     padding-inline-start: 3.75rem;
+  }
+
+  .nav-bar__content--home {
+    padding-inline-start: 0;
   }
 
   .nav-bar__status-wrap {

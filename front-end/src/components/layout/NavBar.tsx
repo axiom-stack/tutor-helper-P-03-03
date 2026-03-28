@@ -8,17 +8,26 @@ import './nav-bar.css';
 
 export function NavBar() {
   const { user, logout } = useAuth();
-  const { isOnline, queueCount, isSyncing, lastSyncAt } = useOffline();
+  const { isOnline, isSyncing } = useOffline();
   const navigate = useNavigate();
   const location = useLocation();
   const menuRef = useRef<HTMLElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const displayName = user?.display_name || user?.username || 'مستخدم';
+  const isHomePage =
+    location.pathname === '/' || location.pathname === '/teacher';
+  const showMenuButton = !isHomePage;
   const menuItems = useMemo(
     () => getHeaderNavItems(location.pathname),
     [location.pathname]
   );
+
+  useEffect(() => {
+    if (!showMenuButton) {
+      setMenuOpen(false);
+    }
+  }, [showMenuButton]);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -56,14 +65,6 @@ export function NavBar() {
   }, [menuOpen]);
 
   const connectionLabel = isOnline ? 'متصل' : 'غير متصل';
-  const draftLabel =
-    queueCount > 0
-      ? `Draft saved locally (${queueCount})`
-      : isSyncing
-        ? 'جارٍ المزامنة...'
-        : lastSyncAt
-          ? 'Draft saved locally'
-          : 'Draft saved locally';
 
   const handleLogout = async () => {
     try {
@@ -75,18 +76,20 @@ export function NavBar() {
 
   return (
     <header className="nav-bar" role="banner" ref={menuRef}>
-      <button
-        type="button"
-        className="nav-bar__menu-btn"
-        onClick={() => setMenuOpen((value) => !value)}
-        aria-label="فتح القائمة"
-        aria-expanded={menuOpen}
-        aria-controls="header-nav-menu"
-      >
-        <MdMenu className="nav-bar__menu-icon" aria-hidden />
-      </button>
+      {showMenuButton ? (
+        <button
+          type="button"
+          className="nav-bar__menu-btn"
+          onClick={() => setMenuOpen((value) => !value)}
+          aria-label="فتح القائمة"
+          aria-expanded={menuOpen}
+          aria-controls="header-nav-menu"
+        >
+          <MdMenu className="nav-bar__menu-icon" aria-hidden />
+        </button>
+      ) : null}
 
-      {menuOpen ? (
+      {showMenuButton && menuOpen ? (
         <div
           id="header-nav-menu"
           className="nav-bar__menu-panel"
@@ -107,7 +110,11 @@ export function NavBar() {
         </div>
       ) : null}
 
-      <div className="nav-bar__content">
+      <div
+        className={`nav-bar__content ${
+          showMenuButton ? '' : 'nav-bar__content--home'
+        }`}
+      >
         <Link to="/" className="nav-bar__brand">
           المساعد الذكي للمعلم
         </Link>
@@ -123,8 +130,6 @@ export function NavBar() {
             {connectionLabel}
           </span>
 
-          <span className="nav-bar__draft-status">{draftLabel}</span>
-
           {isSyncing ? (
             <span className="nav-bar__syncing">جارٍ المزامنة...</span>
           ) : null}
@@ -135,7 +140,7 @@ export function NavBar() {
           className="nav-bar__greeting"
           onClick={() => navigate('/settings')}
         >
-          مرحبا {displayName}
+          مرحبا <span className="nav-bar__greeting-name">{displayName}</span>
         </button>
 
         <button type="button" className="nav-bar__logout" onClick={() => void handleLogout()}>
