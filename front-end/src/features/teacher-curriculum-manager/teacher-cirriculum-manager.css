@@ -509,7 +509,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-md);
-  z-index: 1000;
+  z-index: 1200;
 }
 
 .tcm2__modal {

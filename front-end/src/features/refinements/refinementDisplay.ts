@@ -392,7 +392,12 @@ function buildLessonPlanMeta(tokens: PathToken[], path: string): GroupMeta {
         key: 'plan_json.header',
         label: 'بيانات الحصة',
         description: 'المعلومات الأساسية أعلى الخطة',
-        itemLabel: nestedField ? getFieldLabel(nestedField) : 'بيانات الحصة',
+        itemLabel:
+          nestedField === 'time'
+            ? 'الحصة'
+            : nestedField
+              ? getFieldLabel(nestedField)
+              : 'بيانات الحصة',
         hint: null,
       };
     case 'intro':

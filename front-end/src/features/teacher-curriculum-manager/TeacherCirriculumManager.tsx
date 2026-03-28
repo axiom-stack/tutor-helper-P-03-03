@@ -28,8 +28,6 @@ import {
   LESSON_DURATION_OPTIONS,
   PERIOD_OPTIONS,
   SEMESTER_OPTIONS,
-  SUBJECT_OPTIONS,
-  UNIT_OPTIONS,
 } from '../../constants/dropdown-options';
 import type {
   Class,
@@ -51,10 +49,10 @@ import {
   deleteLesson,
   deleteSubject,
   deleteUnit,
-  getLessonsByUnit,
   getMyClasses,
+  getMyLessons,
   getMySubjects,
-  getUnitsBySubject,
+  getMyUnits,
   updateClass,
   updateLesson,
   updateSubject,
@@ -69,6 +67,10 @@ import {
   normalizeAcademicYearLabel,
   normalizeSemesterLabel,
 } from '../../utils/classDisplay';
+import {
+  getScopedLessons,
+  getScopedUnits,
+} from '../control-dashboard/control-dashboard.services';
 import './teacher-cirriculum-manager.css';
 
 export interface TeacherCirriculumManagerScope {
@@ -81,6 +83,12 @@ type ClassMode = 'existing' | 'new';
 type LevelMode = 'skip' | 'existing' | 'new';
 type LessonMode = 'skip' | 'new';
 type EntityKind = 'class' | 'subject' | 'unit' | 'lesson';
+
+interface SearchSuggestion {
+  id: number;
+  label: string;
+  description?: string | null;
+}
 
 interface ApiErrorShape {
   response?: {
@@ -207,6 +215,85 @@ function validateLessonFile(
   return null;
 }
 
+function normalizeLookupText(value: string | null | undefined): string {
+  return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
+}
+
+function matchesLookupQuery(value: string, query: string): boolean {
+  const normalizedQuery = normalizeLookupText(query).toLowerCase();
+  if (!normalizedQuery) {
+    return false;
+  }
+  return normalizeLookupText(value).toLowerCase().includes(normalizedQuery);
+}
+
+function SearchablePickerField(props: {
+  id: string;
+  label: string;
+  value: string;
+  placeholder?: string;
+  helperText?: string;
+  statusText?: string;
+  suggestions: SearchSuggestion[];
+  onChange: (value: string) => void;
+  onSelectSuggestion: (suggestion: SearchSuggestion) => void;
+  disabled?: boolean;
+}) {
+  const {
+    id,
+    label,
+    value,
+    placeholder,
+    helperText,
+    statusText,
+    suggestions,
+    onChange,
+    onSelectSuggestion,
+    disabled,
+  } = props;
+
+  return (
+    <div className="tcm2__field">
+      <label htmlFor={id}>{label}</label>
+      <div className="tcm2__picker">
+        <input
+          id={id}
+          type="text"
+          value={value}
+          placeholder={placeholder}
+          onChange={(event) => onChange(event.target.value)}
+          disabled={disabled}
+          autoComplete="off"
+        />
+        {helperText ? <small>{helperText}</small> : null}
+        {statusText ? (
+          <small className="tcm2__picker-status">{statusText}</small>
+        ) : null}
+        {value.trim().length > 0 && suggestions.length > 0 ? (
+          <div className="tcm2__picker-results" role="listbox">
+            {suggestions.map((suggestion) => (
+              <button
+                key={suggestion.id}
+                type="button"
+                className="tcm2__picker-result"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  onSelectSuggestion(suggestion);
+                }}
+              >
+                <strong>{suggestion.label}</strong>
+                {suggestion.description ? (
+                  <span>{suggestion.description}</span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function getLessonCreationMessage(result: CreateLessonResponse): string {
   if (result.message) {
     return result.message;
@@ -223,8 +310,7 @@ function TeacherCirriculumManager(props: {
   const { scope } = props;
   const { user } = useAuth();
   const navigate = useNavigate();
-  const hierarchyRequestIdRef = useRef(0);
-  const creatorUnitsRequestIdRef = useRef(0);
+  const curriculumLoadRequestIdRef = useRef(0);
 
   const teacherId =
     scope?.role === 'admin' ? scope.selectedTeacherId : (user?.id ?? 0);
@@ -239,9 +325,7 @@ function TeacherCirriculumManager(props: {
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
-  const [lessonsByUnit, setLessonsByUnit] = useState<Record<number, Lesson[]>>(
-    {}
-  );
+  const [lessons, setLessons] = useState<Lesson[]>([]);
   const [expandedUnitIds, setExpandedUnitIds] = useState<Set<number>>(
     new Set()
   );
@@ -267,7 +351,6 @@ function TeacherCirriculumManager(props: {
   );
 
   const [loading, setLoading] = useState(true);
-  const [hierarchyLoading, setHierarchyLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -297,21 +380,13 @@ function TeacherCirriculumManager(props: {
   const [creatorNewClassDefaultDuration, setCreatorNewClassDefaultDuration] =
     useState<number>(() => resolvedDefaultDuration);
 
-  const [creatorSubjectMode, setCreatorSubjectMode] =
-    useState<LevelMode>('skip');
-  const [creatorExistingSubjectId, setCreatorExistingSubjectId] =
-    useState<SelectValue>('');
-  const [creatorNewSubjectName, setCreatorNewSubjectName] = useState('');
+  const [creatorSubjectName, setCreatorSubjectName] = useState('');
   const [creatorNewSubjectDescription, setCreatorNewSubjectDescription] =
     useState('');
 
-  const [creatorUnitMode, setCreatorUnitMode] = useState<LevelMode>('skip');
-  const [creatorExistingUnitId, setCreatorExistingUnitId] =
-    useState<SelectValue>('');
-  const [creatorNewUnitName, setCreatorNewUnitName] = useState('');
+  const [creatorUnitName, setCreatorUnitName] = useState('');
   const [creatorNewUnitDescription, setCreatorNewUnitDescription] =
     useState('');
-  const [creatorSubjectUnits, setCreatorSubjectUnits] = useState<Unit[]>([]);
 
   const [creatorLessonMode, setCreatorLessonMode] =
     useState<LessonMode>('skip');
@@ -335,6 +410,23 @@ function TeacherCirriculumManager(props: {
       ? null
       : (subjects.find((subjectItem) => subjectItem.id === selectedSubjectId) ??
         null);
+
+  const selectedSubjectUnits = useMemo(
+    () => units.filter((unitItem) => unitItem.subject_id === selectedSubjectId),
+    [units, selectedSubjectId]
+  );
+
+  const lessonsByUnit = useMemo<Record<number, Lesson[]>>(() => {
+    return lessons.reduce<Record<number, Lesson[]>>(
+      (accumulator, lessonItem) => {
+        const nextLessons = accumulator[lessonItem.unit_id] ?? [];
+        nextLessons.push(lessonItem);
+        accumulator[lessonItem.unit_id] = nextLessons;
+        return accumulator;
+      },
+      {}
+    );
+  }, [lessons]);
 
   const classByIdMap = useMemo(
     () => new Map<number, Class>(classes.map((classItem) => [classItem.id, classItem])),
@@ -363,6 +455,149 @@ function TeacherCirriculumManager(props: {
       return left.name.localeCompare(right.name, 'ar');
     });
   }, [subjects, classByIdMap]);
+
+  const creatorResolvedClassId =
+    creatorClassMode === 'existing' && creatorExistingClassId !== ''
+      ? creatorExistingClassId
+      : null;
+
+  const creatorSubjectMatch = useMemo(() => {
+    if (creatorResolvedClassId === null) {
+      return null;
+    }
+
+    const normalizedSubjectName = normalizeLookupText(creatorSubjectName);
+    if (!normalizedSubjectName) {
+      return null;
+    }
+
+    return (
+      subjects.find(
+        (subjectItem) =>
+          subjectItem.class_id === creatorResolvedClassId &&
+          normalizeLookupText(subjectItem.name) === normalizedSubjectName
+      ) ?? null
+    );
+  }, [creatorResolvedClassId, creatorSubjectName, subjects]);
+
+  const creatorUnitMatch = useMemo(() => {
+    if (!creatorSubjectMatch) {
+      return null;
+    }
+
+    const normalizedUnitName = normalizeLookupText(creatorUnitName);
+    if (!normalizedUnitName) {
+      return null;
+    }
+
+    return (
+      units.find(
+        (unitItem) =>
+          unitItem.subject_id === creatorSubjectMatch.id &&
+          normalizeLookupText(unitItem.name) === normalizedUnitName
+      ) ?? null
+    );
+  }, [creatorSubjectMatch, creatorUnitName, units]);
+
+  const creatorSubjectSuggestions = useMemo<SearchSuggestion[]>(() => {
+    if (creatorResolvedClassId === null) {
+      return [];
+    }
+
+    const normalizedQuery = normalizeLookupText(creatorSubjectName);
+    if (!normalizedQuery) {
+      return [];
+    }
+
+    return subjects
+      .filter(
+        (subjectItem) =>
+          subjectItem.class_id === creatorResolvedClassId &&
+          matchesLookupQuery(subjectItem.name, normalizedQuery)
+      )
+      .sort((left, right) => left.name.localeCompare(right.name, 'ar'))
+      .slice(0, 6)
+      .map((subjectItem) => ({
+        id: subjectItem.id,
+        label: subjectItem.name,
+        description: subjectItem.description ?? null,
+      }));
+  }, [creatorResolvedClassId, creatorSubjectName, subjects]);
+
+  const creatorUnitSuggestions = useMemo<SearchSuggestion[]>(() => {
+    if (!creatorSubjectMatch) {
+      return [];
+    }
+
+    const normalizedQuery = normalizeLookupText(creatorUnitName);
+    if (!normalizedQuery) {
+      return [];
+    }
+
+    return units
+      .filter(
+        (unitItem) =>
+          unitItem.subject_id === creatorSubjectMatch.id &&
+          matchesLookupQuery(unitItem.name, normalizedQuery)
+      )
+      .sort((left, right) => left.name.localeCompare(right.name, 'ar'))
+      .slice(0, 6)
+      .map((unitItem) => ({
+        id: unitItem.id,
+        label: unitItem.name,
+        description: unitItem.description ?? null,
+      }));
+  }, [creatorSubjectMatch, creatorUnitName, units]);
+
+  const quickAddSubjectSuggestions = useMemo<SearchSuggestion[]>(() => {
+    if (!quickAddDraft || quickAddDraft.kind !== 'subject' || !quickAddDraft.classId) {
+      return [];
+    }
+
+    const normalizedQuery = normalizeLookupText(quickAddDraft.name);
+    if (!normalizedQuery) {
+      return [];
+    }
+
+    return subjects
+      .filter(
+        (subjectItem) =>
+          subjectItem.class_id === quickAddDraft.classId &&
+          matchesLookupQuery(subjectItem.name, normalizedQuery)
+      )
+      .sort((left, right) => left.name.localeCompare(right.name, 'ar'))
+      .slice(0, 6)
+      .map((subjectItem) => ({
+        id: subjectItem.id,
+        label: subjectItem.name,
+        description: subjectItem.description ?? null,
+      }));
+  }, [quickAddDraft, subjects]);
+
+  const quickAddUnitSuggestions = useMemo<SearchSuggestion[]>(() => {
+    if (!quickAddDraft || quickAddDraft.kind !== 'unit' || !quickAddDraft.subjectId) {
+      return [];
+    }
+
+    const normalizedQuery = normalizeLookupText(quickAddDraft.name);
+    if (!normalizedQuery) {
+      return [];
+    }
+
+    return units
+      .filter(
+        (unitItem) =>
+          unitItem.subject_id === quickAddDraft.subjectId &&
+          matchesLookupQuery(unitItem.name, normalizedQuery)
+      )
+      .sort((left, right) => left.name.localeCompare(right.name, 'ar'))
+      .slice(0, 6)
+      .map((unitItem) => ({
+        id: unitItem.id,
+        label: unitItem.name,
+        description: unitItem.description ?? null,
+      }));
+  }, [quickAddDraft, units]);
 
   const filteredExistingClasses = classes.filter((classItem) => {
     if (
@@ -410,7 +645,7 @@ function TeacherCirriculumManager(props: {
     })
   );
 
-  const totalLessons = units.reduce(
+  const totalLessons = selectedSubjectUnits.reduce(
     (sum, unitItem) => sum + (lessonsByUnit[unitItem.id]?.length ?? 0),
     0
   );
@@ -437,50 +672,43 @@ function TeacherCirriculumManager(props: {
   }, [success]);
 
   const isCreatorValid = (() => {
-    if (creatorClassMode === 'existing') {
-      if (creatorExistingClassId === '') {
-        if (
-          creatorSubjectMode !== 'existing' ||
-          creatorExistingSubjectId === ''
-        ) {
-          return false;
-        }
+    const hasExistingClass = creatorClassMode === 'existing';
+    const hasNewClass =
+      creatorClassMode === 'new' &&
+      creatorNewClassGradeLabel.trim().length > 0 &&
+      creatorNewClassSemester.trim().length > 0 &&
+      creatorNewClassSectionLabel.trim().length > 0 &&
+      creatorNewClassAcademicYear.trim().length > 0 &&
+      Number.isInteger(creatorNewClassDefaultDuration) &&
+      creatorNewClassDefaultDuration > 0;
+
+    if (hasExistingClass && creatorExistingClassId === '') {
+      return false;
+    }
+    if (creatorClassMode === 'new' && !hasNewClass) {
+      return false;
+    }
+
+    const subjectName = normalizeLookupText(creatorSubjectName);
+    const unitName = normalizeLookupText(creatorUnitName);
+
+    if (!subjectName && (unitName.length > 0 || creatorLessonMode === 'new')) {
+      return false;
+    }
+    if (subjectName && unitName.length > 0 && creatorLessonMode === 'new') {
+      if (!creatorLessonName.trim()) {
+        return false;
       }
-    } else if (
-      !creatorNewClassGradeLabel.trim() ||
-      !creatorNewClassSemester.trim() ||
-      !creatorNewClassSectionLabel.trim() ||
-      !creatorNewClassAcademicYear.trim() ||
-      !Number.isInteger(creatorNewClassDefaultDuration) ||
-      creatorNewClassDefaultDuration <= 0
-    ) {
+    }
+    if (unitName.length > 0 && !subjectName) {
       return false;
     }
-
-    if (creatorSubjectMode === 'skip') {
-      return creatorUnitMode === 'skip' && creatorLessonMode === 'skip';
-    }
-    if (creatorSubjectMode === 'existing' && creatorExistingSubjectId === '') {
-      return false;
-    }
-    if (creatorSubjectMode === 'new' && !creatorNewSubjectName.trim()) {
-      return false;
-    }
-
-    if (creatorUnitMode === 'skip') {
-      return creatorLessonMode === 'skip';
-    }
-    if (creatorUnitMode === 'existing' && creatorExistingUnitId === '') {
-      return false;
-    }
-    if (creatorUnitMode === 'new' && !creatorNewUnitName.trim()) {
-      return false;
-    }
-
     if (creatorLessonMode !== 'new') {
       return true;
     }
-
+    if (!subjectName || !unitName) {
+      return false;
+    }
     if (
       !creatorLessonName.trim() ||
       !Number.isInteger(creatorLessonPeriodNumber) ||
@@ -565,81 +793,89 @@ function TeacherCirriculumManager(props: {
     return true;
   })();
 
-  const clearHierarchy = useCallback(() => {
-    hierarchyRequestIdRef.current += 1;
-    setUnits([]);
-    setLessonsByUnit({});
-    setExpandedUnitIds(new Set());
-    setHierarchyLoading(false);
+  const ensureUnitExpanded = useCallback((unitId: number) => {
+    setExpandedUnitIds((previous) => {
+      const next = new Set(previous);
+      next.add(unitId);
+      return next;
+    });
   }, []);
 
-  const refreshBaseData = useCallback(async () => {
-    if (scope?.role === 'admin' && scope?.selectedTeacherId) {
-      const [classesResponse, subjectsResponse] = await Promise.all([
-        getScopedClasses('admin'),
-        getScopedSubjects('admin'),
-      ]);
-      const tid = scope.selectedTeacherId;
-      setClasses(
-        (classesResponse.classes ?? []).filter((c) => c.teacher_id === tid)
-      );
-      setSubjects(
-        (subjectsResponse.subjects ?? []).filter((s) => s.teacher_id === tid)
-      );
-    } else {
-      const [classesResponse, subjectsResponse] = await Promise.all([
-        getMyClasses(),
-        getMySubjects(),
-      ]);
-      setClasses(classesResponse.classes ?? []);
-      setSubjects(subjectsResponse.subjects ?? []);
+  const loadCurriculumData = useCallback(async () => {
+    const requestId = ++curriculumLoadRequestIdRef.current;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const isAdminScoped =
+        scope?.role === 'admin' && scope?.selectedTeacherId != null;
+
+      const [classesResponse, subjectsResponse, unitsResponse, lessonsResponse] =
+        await Promise.all([
+          isAdminScoped ? getScopedClasses('admin') : getMyClasses(),
+          isAdminScoped ? getScopedSubjects('admin') : getMySubjects(),
+          isAdminScoped ? getScopedUnits('admin') : getMyUnits(),
+          isAdminScoped ? getScopedLessons('admin') : getMyLessons(),
+        ]);
+
+      if (requestId !== curriculumLoadRequestIdRef.current) {
+        return;
+      }
+
+      const teacherFilterId = isAdminScoped ? scope.selectedTeacherId : null;
+      const nextClasses = teacherFilterId
+        ? (classesResponse.classes ?? []).filter(
+            (classItem) => classItem.teacher_id === teacherFilterId
+          )
+        : (classesResponse.classes ?? []);
+      const nextSubjects = teacherFilterId
+        ? (subjectsResponse.subjects ?? []).filter(
+            (subjectItem) => subjectItem.teacher_id === teacherFilterId
+          )
+        : (subjectsResponse.subjects ?? []);
+      const nextUnits = teacherFilterId
+        ? (unitsResponse.units ?? []).filter(
+            (unitItem) => unitItem.teacher_id === teacherFilterId
+          )
+        : (unitsResponse.units ?? []);
+      const nextLessons = teacherFilterId
+        ? (lessonsResponse.lessons ?? []).filter(
+            (lessonItem) => lessonItem.teacher_id === teacherFilterId
+          )
+        : (lessonsResponse.lessons ?? []);
+
+      setClasses(nextClasses);
+      setSubjects(nextSubjects);
+      setUnits(nextUnits);
+      setLessons(nextLessons);
+      setSelectedClassId('');
+      setSelectedSubjectId('');
+      setExpandedUnitIds(new Set());
+    } catch (loadError: unknown) {
+      if (requestId === curriculumLoadRequestIdRef.current) {
+        setError(getErrorMessage(loadError, 'فشل تحميل بيانات المنهج.'));
+      }
+    } finally {
+      if (requestId === curriculumLoadRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [scope?.role, scope?.selectedTeacherId]);
 
-  const loadHierarchyForSubject = useCallback(async (subjectId: number) => {
-    const requestId = ++hierarchyRequestIdRef.current;
-    setHierarchyLoading(true);
-
-    try {
-      const unitsResponse = await getUnitsBySubject(subjectId);
-      if (requestId !== hierarchyRequestIdRef.current) {
-        return;
-      }
-
-      const fetchedUnits = unitsResponse.units ?? [];
-      setUnits(fetchedUnits);
-      setExpandedUnitIds(new Set(fetchedUnits.map((unitItem) => unitItem.id)));
-
-      const lessonResponses = await Promise.all(
-        fetchedUnits.map(async (unitItem) => {
-          const response = await getLessonsByUnit(unitItem.id);
-          return {
-            unitId: unitItem.id,
-            lessons: response.lessons ?? [],
-          };
-        })
+  const activateSubjectView = useCallback(
+    (subjectId: number, classId: number, nextUnits: Unit[] = units) => {
+      setSelectedClassId(classId);
+      setSelectedSubjectId(subjectId);
+      setExpandedUnitIds(
+        new Set(
+          nextUnits
+            .filter((unitItem) => unitItem.subject_id === subjectId)
+            .map((unitItem) => unitItem.id)
+        )
       );
-
-      if (requestId !== hierarchyRequestIdRef.current) {
-        return;
-      }
-
-      const nextLessonMap: Record<number, Lesson[]> = {};
-      lessonResponses.forEach((item) => {
-        nextLessonMap[item.unitId] = item.lessons;
-      });
-
-      setLessonsByUnit(nextLessonMap);
-    } catch (loadError: unknown) {
-      if (requestId === hierarchyRequestIdRef.current) {
-        setError(getErrorMessage(loadError, 'فشل تحميل هيكل المنهج.'));
-      }
-    } finally {
-      if (requestId === hierarchyRequestIdRef.current) {
-        setHierarchyLoading(false);
-      }
-    }
-  }, []);
+    },
+    [units]
+  );
 
   const resetCreatorForm = () => {
     setCreatorClassMode('existing');
@@ -649,15 +885,10 @@ function TeacherCirriculumManager(props: {
     setCreatorNewClassSectionLabel('');
     setCreatorNewClassAcademicYear(ACADEMIC_YEAR_OPTIONS[0]);
     setCreatorNewClassDefaultDuration(resolvedDefaultDuration);
-    setCreatorSubjectMode('skip');
-    setCreatorExistingSubjectId('');
-    setCreatorNewSubjectName('');
+    setCreatorSubjectName('');
     setCreatorNewSubjectDescription('');
-    setCreatorUnitMode('skip');
-    setCreatorExistingUnitId('');
-    setCreatorNewUnitName('');
+    setCreatorUnitName('');
     setCreatorNewUnitDescription('');
-    setCreatorSubjectUnits([]);
     setCreatorLessonMode('skip');
     setCreatorLessonName('');
     setCreatorLessonDescription('');
@@ -699,94 +930,27 @@ function TeacherCirriculumManager(props: {
       }
     }, 15_000);
 
-    const loadInitialData = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        if (scope?.role === 'admin' && scope?.selectedTeacherId) {
-          const [classesResponse, subjectsResponse] = await Promise.all([
-            getScopedClasses('admin'),
-            getScopedSubjects('admin'),
-          ]);
-          if (cancelled) return;
-          const tid = scope.selectedTeacherId;
-          setClasses(
-            (classesResponse.classes ?? []).filter((c) => c.teacher_id === tid)
-          );
-          setSubjects(
-            (subjectsResponse.subjects ?? []).filter(
-              (s) => s.teacher_id === tid
-            )
-          );
-        } else {
-          const [classesResponse, subjectsResponse] = await Promise.all([
-            getMyClasses(),
-            getMySubjects(),
-          ]);
-          if (cancelled) return;
-          setClasses(classesResponse.classes ?? []);
-          setSubjects(subjectsResponse.subjects ?? []);
-        }
-      } catch (loadError: unknown) {
-        if (!cancelled) {
-          setError(getErrorMessage(loadError, 'فشل تحميل بيانات المنهج.'));
-        }
-      } finally {
-        if (!cancelled) {
-          window.clearTimeout(timeoutId);
-          setLoading(false);
-        }
+    void loadCurriculumData().finally(() => {
+      if (!cancelled) {
+        window.clearTimeout(timeoutId);
       }
-    };
-
-    void loadInitialData();
+    });
 
     return () => {
       cancelled = true;
+      curriculumLoadRequestIdRef.current += 1;
       window.clearTimeout(timeoutId);
     };
-  }, [scope?.role, scope?.selectedTeacherId, user?.userRole]);
+  }, [loadCurriculumData, scope?.role, scope?.selectedTeacherId, user?.userRole]);
 
   useEffect(() => {
     if (selectedSubjectId === '') {
-      hierarchyRequestIdRef.current += 1;
-      setUnits([]);
-      setLessonsByUnit({});
       setExpandedUnitIds(new Set());
-      setHierarchyLoading(false);
       return;
     }
 
-    void loadHierarchyForSubject(selectedSubjectId);
-  }, [selectedSubjectId, loadHierarchyForSubject]);
-
-  useEffect(() => {
-    if (creatorSubjectMode !== 'existing' || creatorExistingSubjectId === '') {
-      creatorUnitsRequestIdRef.current += 1;
-      setCreatorSubjectUnits([]);
-      setCreatorExistingUnitId('');
-      return;
-    }
-
-    const requestId = ++creatorUnitsRequestIdRef.current;
-    setCreatorExistingUnitId('');
-    getUnitsBySubject(creatorExistingSubjectId)
-      .then((response) => {
-        if (requestId !== creatorUnitsRequestIdRef.current) {
-          return;
-        }
-        setCreatorSubjectUnits(response.units ?? []);
-      })
-      .catch((loadError: unknown) => {
-        if (requestId !== creatorUnitsRequestIdRef.current) {
-          return;
-        }
-        setError(
-          getErrorMessage(loadError, 'فشل تحميل وحدات المادة المختارة.')
-        );
-      });
-  }, [creatorSubjectMode, creatorExistingSubjectId]);
+    setExpandedUnitIds(new Set(selectedSubjectUnits.map((unitItem) => unitItem.id)));
+  }, [selectedSubjectId, selectedSubjectUnits]);
 
   // When not in admin scope: show loading until user is known; hide view only for non-teachers.
   if (!scope) {
@@ -822,19 +986,13 @@ function TeacherCirriculumManager(props: {
 
     if (nextValue === '') {
       setSelectedSubjectId('');
-      clearHierarchy();
+      setExpandedUnitIds(new Set());
       return;
     }
 
-    const currentSubject =
-      selectedSubjectId === ''
-        ? null
-        : (subjects.find((subjectItem) => subjectItem.id === selectedSubjectId) ??
-          null);
-
-    if (!currentSubject || currentSubject.class_id !== nextValue) {
+    if (!selectedSubject || selectedSubject.class_id !== nextValue) {
       setSelectedSubjectId('');
-      clearHierarchy();
+      setExpandedUnitIds(new Set());
     }
   };
 
@@ -844,6 +1002,7 @@ function TeacherCirriculumManager(props: {
     setSelectedSubjectId(nextValue);
 
     if (nextValue === '') {
+      setExpandedUnitIds(new Set());
       return;
     }
 
@@ -880,12 +1039,20 @@ function TeacherCirriculumManager(props: {
         teacher_id: teacherId,
       });
 
-      await refreshBaseData();
+      setClasses((previous) =>
+        previous.some((classItem) => classItem.id === response.class.id)
+          ? previous.map((classItem) =>
+              classItem.id === response.class.id ? response.class : classItem
+            )
+          : [...previous, response.class]
+      );
       setExistingClassYearFilter(normalizeAcademicYearLabel(newClassAcademicYear));
       setExistingClassSemesterFilter(newClassSemester);
       setExistingClassGradeFilter(newClassGradeLabel);
       setClassSelectionMode('existing');
-      handleClassChange(response.class.id);
+      setSelectedClassId(response.class.id);
+      setSelectedSubjectId('');
+      setExpandedUnitIds(new Set());
       setNewClassSectionLabel('');
       setSuccess('تم إنشاء الصف والشعبة بنجاح.');
     } catch (createError: unknown) {
@@ -963,7 +1130,7 @@ function TeacherCirriculumManager(props: {
 
     try {
       if (quickAddDraft.kind === 'class') {
-        await createClass({
+        const response = await createClass({
           grade_label: quickAddDraft.gradeLabel?.trim() ?? '',
           semester: quickAddDraft.semester?.trim() ?? '',
           section_label: quickAddDraft.sectionLabel?.trim() ?? '',
@@ -974,47 +1141,101 @@ function TeacherCirriculumManager(props: {
           default_duration_minutes: quickAddDraft.defaultDurationMinutes ?? 45,
           teacher_id: teacherId,
         });
-        await refreshBaseData();
+        setClasses((previous) =>
+          previous.some((classItem) => classItem.id === response.class.id)
+            ? previous.map((classItem) =>
+                classItem.id === response.class.id ? response.class : classItem
+              )
+            : [...previous, response.class]
+        );
+        setSelectedClassId(response.class.id);
+        setSelectedSubjectId('');
+        setExpandedUnitIds(new Set());
       }
 
       if (quickAddDraft.kind === 'subject') {
         if (!quickAddDraft.classId) {
           throw new Error('اختر الصف أولاً.');
         }
-        const response = await createSubject({
-          class_id: quickAddDraft.classId,
-          teacher_id: teacherId,
-          name: quickAddDraft.name.trim(),
-          description: quickAddDraft.description.trim(),
-        });
-        await refreshBaseData();
-        setSelectedClassId(quickAddDraft.classId);
-        setSelectedSubjectId(response.subject.id);
-        await loadHierarchyForSubject(response.subject.id);
+        const normalizedSubjectName = normalizeLookupText(quickAddDraft.name);
+        const existingSubject = subjects.find(
+          (subjectItem) =>
+            subjectItem.class_id === quickAddDraft.classId &&
+            normalizeLookupText(subjectItem.name) === normalizedSubjectName
+        );
+        if (existingSubject) {
+          activateSubjectView(existingSubject.id, existingSubject.class_id);
+        } else {
+          const response = await createSubject({
+            class_id: quickAddDraft.classId,
+            teacher_id: teacherId,
+            name: normalizedSubjectName,
+            description: quickAddDraft.description.trim(),
+          });
+          setSubjects((previous) => [...previous, response.subject]);
+          activateSubjectView(response.subject.id, response.subject.class_id);
+        }
       }
 
       if (quickAddDraft.kind === 'unit') {
         if (!quickAddDraft.subjectId) {
           throw new Error('اختر المادة أولاً.');
         }
-        await createUnit({
-          subject_id: quickAddDraft.subjectId,
-          teacher_id: teacherId,
-          name: quickAddDraft.name.trim(),
-          description: quickAddDraft.description.trim(),
-        });
-        if (selectedSubjectId !== quickAddDraft.subjectId) {
-          setSelectedSubjectId(quickAddDraft.subjectId);
+        const targetSubject =
+          subjects.find((subjectItem) => subjectItem.id === quickAddDraft.subjectId) ??
+          null;
+        if (!targetSubject) {
+          throw new Error('المادة المختارة غير موجودة.');
         }
-        await loadHierarchyForSubject(quickAddDraft.subjectId);
+        const normalizedUnitName = normalizeLookupText(quickAddDraft.name);
+        const existingUnit = units.find(
+          (unitItem) =>
+            unitItem.subject_id === quickAddDraft.subjectId &&
+            normalizeLookupText(unitItem.name) === normalizedUnitName
+        );
+        if (existingUnit) {
+          activateSubjectView(
+            targetSubject.id,
+            targetSubject.class_id,
+            units
+          );
+          ensureUnitExpanded(existingUnit.id);
+        } else {
+          const response = await createUnit({
+            subject_id: quickAddDraft.subjectId,
+            teacher_id: teacherId,
+            name: normalizedUnitName,
+            description: quickAddDraft.description.trim(),
+          });
+          const nextUnits = [...units, response.unit];
+          setUnits(nextUnits);
+          activateSubjectView(targetSubject.id, targetSubject.class_id, nextUnits);
+        }
       }
 
       if (quickAddDraft.kind === 'lesson') {
         if (!quickAddDraft.unitId) {
           throw new Error('اختر الوحدة أولاً.');
         }
+        const targetUnit =
+          units.find((unitItem) => unitItem.id === quickAddDraft.unitId) ?? null;
+        if (!targetUnit) {
+          throw new Error('الوحدة المختارة غير موجودة.');
+        }
+        const targetSubject =
+          subjects.find((subjectItem) => subjectItem.id === targetUnit.subject_id) ??
+          null;
+        if (!targetSubject) {
+          throw new Error('المادة المرتبطة بالوحدة غير موجودة.');
+        }
+        const targetClass =
+          classes.find((classItem) => classItem.id === targetSubject.class_id) ??
+          null;
+        if (!targetClass) {
+          throw new Error('الصف المرتبط بالمادة غير موجود.');
+        }
         if (quickAddDraft.contentType === 'text') {
-          await createLesson({
+          const response = await createLesson({
             content_type: 'text',
             content: quickAddDraft.content?.trim() ?? '',
             description: quickAddDraft.description.trim(),
@@ -1024,6 +1245,12 @@ function TeacherCirriculumManager(props: {
             teacher_id: teacherId,
             unit_id: quickAddDraft.unitId,
           });
+          if (response.lesson) {
+            setLessons((previous) => [...previous, response.lesson as Lesson]);
+          }
+          ensureUnitExpanded(targetUnit.id);
+          setSelectedClassId(targetClass.id);
+          setSelectedSubjectId(targetSubject.id);
         } else {
           const fileValidationError = validateLessonFile(
             quickAddDraft.file ?? null,
@@ -1032,7 +1259,7 @@ function TeacherCirriculumManager(props: {
           if (fileValidationError) {
             throw new Error(fileValidationError);
           }
-          await createLesson({
+          const response = await createLesson({
             content_type: quickAddDraft.contentType === 'pdf' ? 'pdf' : 'word',
             file: quickAddDraft.file as File,
             description: quickAddDraft.description.trim(),
@@ -1042,9 +1269,12 @@ function TeacherCirriculumManager(props: {
             teacher_id: teacherId,
             unit_id: quickAddDraft.unitId,
           });
-        }
-        if (selectedSubjectId !== '') {
-          await loadHierarchyForSubject(selectedSubjectId);
+          if (response.lesson) {
+            setLessons((previous) => [...previous, response.lesson as Lesson]);
+          }
+          ensureUnitExpanded(targetUnit.id);
+          setSelectedClassId(targetClass.id);
+          setSelectedSubjectId(targetSubject.id);
         }
       }
 
@@ -1181,12 +1411,16 @@ function TeacherCirriculumManager(props: {
         if (selectedSubjectId === '') {
           throw new Error('اختر مادة قبل تعديل الوحدة.');
         }
-        await updateUnit(editDraft.id, {
+        const response = await updateUnit(editDraft.id, {
           name: editDraft.name.trim(),
           description: editDraft.description.trim(),
           subject_id: selectedSubjectId,
         });
-        await loadHierarchyForSubject(selectedSubjectId);
+        setUnits((previous) =>
+          previous.map((item) =>
+            item.id === response.unit.id ? response.unit : item
+          )
+        );
       }
 
       if (editDraft.kind === 'lesson') {
@@ -1210,7 +1444,7 @@ function TeacherCirriculumManager(props: {
           if (!editDraft.content || !editDraft.content.trim()) {
             throw new Error('محتوى الدرس مطلوب.');
           }
-          await updateLesson(editDraft.id, {
+          const response = await updateLesson(editDraft.id, {
             name: editDraft.name.trim(),
             description: editDraft.description.trim(),
             content_type: 'text',
@@ -1219,6 +1453,14 @@ function TeacherCirriculumManager(props: {
             period_number: Number(editDraft.periodNumber),
             number_of_periods: Number(editDraft.numberOfPeriods),
           });
+          if (response.lesson) {
+            setLessons((previous) =>
+              previous.map((item) =>
+                item.id === response.lesson?.id ? (response.lesson as Lesson) : item
+              )
+            );
+          }
+          ensureUnitExpanded(editDraft.unitId);
         } else {
           const fileValidationError = validateLessonFile(
             editDraft.file ?? null,
@@ -1227,7 +1469,7 @@ function TeacherCirriculumManager(props: {
           if (fileValidationError) {
             throw new Error(fileValidationError);
           }
-          await updateLesson(editDraft.id, {
+          const response = await updateLesson(editDraft.id, {
             name: editDraft.name.trim(),
             description: editDraft.description.trim(),
             content_type: lessonContentType,
@@ -1236,9 +1478,14 @@ function TeacherCirriculumManager(props: {
             period_number: Number(editDraft.periodNumber),
             number_of_periods: Number(editDraft.numberOfPeriods),
           });
-        }
-        if (selectedSubjectId !== '') {
-          await loadHierarchyForSubject(selectedSubjectId);
+          if (response.lesson) {
+            setLessons((previous) =>
+              previous.map((item) =>
+                item.id === response.lesson?.id ? (response.lesson as Lesson) : item
+              )
+            );
+          }
+          ensureUnitExpanded(editDraft.unitId);
         }
       }
 
@@ -1258,39 +1505,57 @@ function TeacherCirriculumManager(props: {
 
     try {
       if (kind === 'class') {
+        const subjectIdsToRemove = subjects
+          .filter((item) => item.class_id === id)
+          .map((item) => item.id);
+        const unitIdsToRemove = units
+          .filter((item) => subjectIdsToRemove.includes(item.subject_id))
+          .map((item) => item.id);
         await deleteClass(id);
         setClasses((previous) => previous.filter((item) => item.id !== id));
         setSubjects((previous) =>
           previous.filter((item) => item.class_id !== id)
         );
+        setUnits((previous) =>
+          previous.filter((item) => !subjectIdsToRemove.includes(item.subject_id))
+        );
+        setLessons((previous) =>
+          previous.filter((item) => !unitIdsToRemove.includes(item.unit_id))
+        );
         if (selectedClassId === id) {
           setSelectedClassId('');
           setSelectedSubjectId('');
-          clearHierarchy();
+          setExpandedUnitIds(new Set());
         }
       }
 
       if (kind === 'subject') {
+        const unitIdsToRemove = units
+          .filter((item) => item.subject_id === id)
+          .map((item) => item.id);
         await deleteSubject(id);
         setSubjects((previous) => previous.filter((item) => item.id !== id));
+        setUnits((previous) =>
+          previous.filter((item) => item.subject_id !== id)
+        );
+        setLessons((previous) =>
+          previous.filter((item) => !unitIdsToRemove.includes(item.unit_id))
+        );
         if (selectedSubjectId === id) {
           setSelectedSubjectId('');
-          clearHierarchy();
+          setExpandedUnitIds(new Set());
         }
       }
 
       if (kind === 'unit') {
         await deleteUnit(id);
-        if (selectedSubjectId !== '') {
-          await loadHierarchyForSubject(selectedSubjectId);
-        }
+        setUnits((previous) => previous.filter((item) => item.id !== id));
+        setLessons((previous) => previous.filter((item) => item.unit_id !== id));
       }
 
       if (kind === 'lesson') {
         await deleteLesson(id);
-        if (selectedSubjectId !== '') {
-          await loadHierarchyForSubject(selectedSubjectId);
-        }
+        setLessons((previous) => previous.filter((item) => item.id !== id));
       }
 
       setSuccess('تم الحذف بنجاح.');
@@ -1332,30 +1597,16 @@ function TeacherCirriculumManager(props: {
 
     try {
       let resolvedClassId: number;
-      let resolvedSubjectId: number | null = null;
-      let resolvedUnitId: number | null = null;
+      let resolvedSubject: Subject | null = null;
+      let resolvedUnit: Unit | null = null;
+      let createdUnit: Unit | null = null;
       let lessonCreationResult: CreateLessonResponse | null = null;
 
       if (creatorClassMode === 'existing') {
         if (creatorExistingClassId === '') {
-          if (
-            creatorSubjectMode === 'existing' &&
-            creatorExistingSubjectId !== ''
-          ) {
-            const subjectFromSelection = subjects.find(
-              (subjectItem) => subjectItem.id === creatorExistingSubjectId
-            );
-            if (!subjectFromSelection) {
-              throw new Error('المادة المختارة غير موجودة.');
-            }
-            resolvedClassId = subjectFromSelection.class_id;
-            setCreatorExistingClassId(subjectFromSelection.class_id);
-          } else {
-            throw new Error('اختر صفاً موجوداً أو أنشئ صفاً جديداً.');
-          }
-        } else {
-          resolvedClassId = creatorExistingClassId;
+          throw new Error('اختر صفاً موجوداً.');
         }
+        resolvedClassId = creatorExistingClassId;
       } else {
         if (!creatorNewClassGradeLabel.trim()) {
           throw new Error('يرجى إدخال الصف.');
@@ -1388,76 +1639,79 @@ function TeacherCirriculumManager(props: {
           teacher_id: teacherId,
         });
         resolvedClassId = classResponse.class.id;
+        setClasses((previous) =>
+          previous.some((classItem) => classItem.id === classResponse.class.id)
+            ? previous.map((classItem) =>
+                classItem.id === classResponse.class.id
+                  ? classResponse.class
+                  : classItem
+              )
+            : [...previous, classResponse.class]
+        );
       }
 
-      if (creatorSubjectMode === 'skip') {
-        if (creatorUnitMode !== 'skip' || creatorLessonMode !== 'skip') {
-          throw new Error('لا يمكن إضافة وحدة أو درس بدون تحديد مادة.');
-        }
-      } else if (creatorSubjectMode === 'existing') {
-        if (creatorExistingSubjectId === '') {
-          throw new Error('اختر مادة موجودة.');
-        }
+      const normalizedSubjectName = normalizeLookupText(creatorSubjectName);
+      const normalizedUnitName = normalizeLookupText(creatorUnitName);
 
-        const selectedCreatorSubject = subjects.find(
-          (subjectItem) => subjectItem.id === creatorExistingSubjectId
-        );
-        if (!selectedCreatorSubject) {
-          throw new Error('المادة المختارة غير موجودة.');
-        }
-        resolvedClassId = selectedCreatorSubject.class_id;
-        setCreatorExistingClassId(selectedCreatorSubject.class_id);
-        resolvedSubjectId = creatorExistingSubjectId;
-      } else {
-        if (!creatorNewSubjectName.trim()) {
-          throw new Error('يرجى إدخال اسم المادة.');
-        }
+      if (normalizedSubjectName.length > 0) {
+        const existingSubject =
+          creatorClassMode === 'existing'
+            ? subjects.find(
+                (subjectItem) =>
+                  subjectItem.class_id === resolvedClassId &&
+                  normalizeLookupText(subjectItem.name) === normalizedSubjectName
+              ) ?? null
+            : null;
 
-        const subjectResponse = await createSubject({
-          class_id: resolvedClassId,
-          teacher_id: teacherId,
-          name: creatorNewSubjectName.trim(),
-          description: creatorNewSubjectDescription.trim(),
-        });
-        resolvedSubjectId = subjectResponse.subject.id;
+        if (existingSubject) {
+          resolvedSubject = existingSubject;
+        } else {
+          const subjectResponse = await createSubject({
+            class_id: resolvedClassId,
+            teacher_id: teacherId,
+            name: normalizedSubjectName,
+            description: creatorNewSubjectDescription.trim(),
+          });
+          resolvedSubject = subjectResponse.subject;
+          setSubjects((previous) => [...previous, subjectResponse.subject]);
+        }
+      } else if (normalizedUnitName.length > 0 || creatorLessonMode === 'new') {
+        throw new Error('لا يمكن إضافة وحدة أو درس بدون تحديد مادة.');
       }
 
-      if (creatorUnitMode === 'skip') {
-        if (creatorLessonMode !== 'skip') {
-          throw new Error('لا يمكن إضافة درس بدون تحديد وحدة.');
-        }
-      } else if (creatorUnitMode === 'existing') {
-        if (creatorExistingUnitId === '') {
-          throw new Error('اختر وحدة موجودة.');
-        }
-
-        const selectedCreatorUnit = creatorSubjectUnits.find(
-          (unitItem) => unitItem.id === creatorExistingUnitId
-        );
-        if (!selectedCreatorUnit) {
-          throw new Error('الوحدة المختارة غير موجودة ضمن المادة المختارة.');
-        }
-
-        resolvedUnitId = creatorExistingUnitId;
-      } else {
-        if (!resolvedSubjectId) {
+      if (normalizedUnitName.length > 0) {
+        if (!resolvedSubject) {
           throw new Error('لا يمكن إنشاء وحدة بدون مادة.');
         }
-        if (!creatorNewUnitName.trim()) {
-          throw new Error('يرجى إدخال اسم الوحدة.');
-        }
 
-        const unitResponse = await createUnit({
-          subject_id: resolvedSubjectId,
-          teacher_id: teacherId,
-          name: creatorNewUnitName.trim(),
-          description: creatorNewUnitDescription.trim(),
-        });
-        resolvedUnitId = unitResponse.unit.id;
+        const existingUnit =
+          units.find(
+            (unitItem) =>
+              unitItem.subject_id === resolvedSubject.id &&
+              normalizeLookupText(unitItem.name) === normalizedUnitName
+          ) ?? null;
+
+        if (existingUnit) {
+          resolvedUnit = existingUnit;
+        } else {
+          const unitResponse = await createUnit({
+            subject_id: resolvedSubject.id,
+            teacher_id: teacherId,
+            name: normalizedUnitName,
+            description: creatorNewUnitDescription.trim(),
+          });
+          resolvedUnit = unitResponse.unit;
+          createdUnit = unitResponse.unit;
+          setUnits((previous) => [...previous, unitResponse.unit]);
+        }
+      } else if (creatorLessonMode === 'new') {
+        if (!resolvedSubject) {
+          throw new Error('لا يمكن إضافة درس بدون تحديد وحدة.');
+        }
       }
 
       if (creatorLessonMode === 'new') {
-        if (!resolvedUnitId) {
+        if (!resolvedUnit) {
           throw new Error('لا يمكن إنشاء درس بدون وحدة.');
         }
         if (!creatorLessonName.trim()) {
@@ -1488,8 +1742,11 @@ function TeacherCirriculumManager(props: {
             period_number: creatorLessonPeriodNumber,
             number_of_periods: creatorLessonNumberOfPeriods,
             teacher_id: teacherId,
-            unit_id: resolvedUnitId,
+            unit_id: resolvedUnit.id,
           });
+          if (lessonCreationResult.lesson) {
+            setLessons((previous) => [...previous, lessonCreationResult.lesson as Lesson]);
+          }
         } else {
           const fileValidationError = validateLessonFile(
             creatorLessonFile,
@@ -1507,28 +1764,41 @@ function TeacherCirriculumManager(props: {
             period_number: creatorLessonPeriodNumber,
             number_of_periods: creatorLessonNumberOfPeriods,
             teacher_id: teacherId,
-            unit_id: resolvedUnitId,
+            unit_id: resolvedUnit.id,
           });
+          if (lessonCreationResult.lesson) {
+            setLessons((previous) => [...previous, lessonCreationResult.lesson as Lesson]);
+          }
         }
       }
 
-      await refreshBaseData();
-      setSelectedClassId(resolvedClassId);
+      const nextUnits = createdUnit ? [...units, createdUnit] : units;
 
-      if (resolvedSubjectId) {
-        setSelectedSubjectId(resolvedSubjectId);
-        await loadHierarchyForSubject(resolvedSubjectId);
+      setSelectedClassId(resolvedClassId);
+      if (resolvedSubject) {
+        setSelectedSubjectId(resolvedSubject.id);
+        setExpandedUnitIds(
+          new Set(
+            nextUnits
+              .filter((unitItem) => unitItem.subject_id === resolvedSubject?.id)
+              .map((unitItem) => unitItem.id)
+          )
+        );
       } else {
         setSelectedSubjectId('');
-        clearHierarchy();
+        setExpandedUnitIds(new Set());
       }
 
       resetCreatorForm();
       setCreatorClassMode('existing');
       setCreatorExistingClassId(resolvedClassId);
-      if (resolvedSubjectId) {
-        setCreatorSubjectMode('existing');
-        setCreatorExistingSubjectId(resolvedSubjectId);
+      if (resolvedSubject) {
+        setCreatorSubjectName(resolvedSubject.name);
+        setCreatorNewSubjectDescription(resolvedSubject.description ?? '');
+      }
+      if (resolvedUnit) {
+        setCreatorUnitName(resolvedUnit.name);
+        setCreatorNewUnitDescription(resolvedUnit.description ?? '');
       }
 
       if (lessonCreationResult) {
@@ -1567,7 +1837,7 @@ function TeacherCirriculumManager(props: {
               هيكل المنهج
             </h2>
             <span>
-              {units.length} وحدة / {totalLessons} درس
+              {selectedSubjectUnits.length} وحدة / {totalLessons} درس
             </span>
           </div>
 
@@ -1955,9 +2225,11 @@ function TeacherCirriculumManager(props: {
               type="button"
               className="tcm2__primary-soft"
               onClick={() =>
-                units[0] ? openQuickAddLesson(units[0].id) : undefined
+                selectedSubjectUnits[0]
+                  ? openQuickAddLesson(selectedSubjectUnits[0].id)
+                  : undefined
               }
-              disabled={!selectedSubject || units.length === 0}
+              disabled={!selectedSubject || selectedSubjectUnits.length === 0}
             >
               <MdAdd aria-hidden />
               إضافة درس سريع
@@ -1966,13 +2238,11 @@ function TeacherCirriculumManager(props: {
 
           {!selectedSubject ? (
             <div className="tcm2__empty">اختر الصف أو المادة لعرض الهيكل.</div>
-          ) : hierarchyLoading ? (
-            <div className="tcm2__loading">جاري تحميل الوحدات والدروس...</div>
-          ) : units.length === 0 ? (
+          ) : selectedSubjectUnits.length === 0 ? (
             <div className="tcm2__empty">لا توجد وحدات بعد لهذه المادة.</div>
           ) : (
             <div className="tcm2__hierarchy">
-              {units.map((unitItem) => {
+              {selectedSubjectUnits.map((unitItem) => {
                 const unitLessons = lessonsByUnit[unitItem.id] ?? [];
                 const isExpanded = expandedUnitIds.has(unitItem.id);
 
@@ -2268,206 +2538,103 @@ function TeacherCirriculumManager(props: {
 
               <div className="tcm2__step">
                 <h3>2) المادة</h3>
+                <SearchablePickerField
+                  id="creator-subject-name"
+                  label="اسم المادة *"
+                  value={creatorSubjectName}
+                  placeholder={
+                    creatorClassMode === 'existing'
+                      ? 'اكتب اسم المادة أو ابحث عن مادة محفوظة'
+                      : 'اكتب اسم المادة الجديدة'
+                  }
+                  helperText={
+                    creatorClassMode === 'existing'
+                      ? creatorExistingClassId === ''
+                        ? 'اختر الصف أولاً ليظهر التطابق داخل هذا الصف.'
+                        : 'سيُعاد استخدام المادة المطابقة داخل الصف نفسه، وإلا ستُنشأ مادة جديدة.'
+                      : 'ستُنشأ المادة داخل الصف الجديد إذا لم يوجد تطابق.'
+                  }
+                  statusText={
+                    creatorSubjectName.trim().length === 0
+                      ? ''
+                      : creatorResolvedClassId === null
+                        ? 'سيتم إنشاء مادة جديدة بعد حفظ الصف.'
+                        : creatorSubjectMatch
+                          ? 'مادة محفوظة ضمن الصف المختار.'
+                          : 'مادة جديدة ستُنشأ ضمن الصف المختار.'
+                  }
+                  suggestions={creatorSubjectSuggestions}
+                  onChange={setCreatorSubjectName}
+                  onSelectSuggestion={(suggestion) => {
+                    setCreatorSubjectName(suggestion.label);
+                    setCreatorNewSubjectDescription(
+                      suggestion.description ?? ''
+                    );
+                  }}
+                  disabled={
+                    creatorClassMode === 'existing' && creatorExistingClassId === ''
+                  }
+                />
                 <div className="tcm2__field">
-                  <label htmlFor="creator-subject-mode">المادة</label>
-                  <select
-                    id="creator-subject-mode"
-                    value={creatorSubjectMode}
-                    onChange={(event) => {
-                      const nextMode = event.target.value as LevelMode;
-                      setCreatorSubjectMode(nextMode);
-                      if (nextMode === 'skip') {
-                        setCreatorUnitMode('skip');
-                        setCreatorLessonMode('skip');
-                      }
-                      if (nextMode !== 'existing') {
-                        setCreatorExistingSubjectId('');
-                      }
-                    }}
-                  >
-                    <option value="skip">عدم إضافة مادة</option>
-                    <option
-                      value="existing"
-                      disabled={creatorClassMode === 'new'}
-                    >
-                      استخدام مادة موجودة
-                    </option>
-                    <option value="new">إنشاء مادة جديدة</option>
-                  </select>
+                  <label htmlFor="creator-new-subject-description">
+                    وصف المادة
+                  </label>
+                  <input
+                    id="creator-new-subject-description"
+                    type="text"
+                    value={creatorNewSubjectDescription}
+                    onChange={(event) =>
+                      setCreatorNewSubjectDescription(event.target.value)
+                    }
+                  />
                 </div>
-
-                {creatorSubjectMode === 'existing' && (
-                  <div className="tcm2__field">
-                    <label htmlFor="creator-existing-subject">
-                      المادة الحالية *
-                    </label>
-                    <select
-                      id="creator-existing-subject"
-                      value={creatorExistingSubjectId}
-                      onChange={(event) => {
-                        const nextSubjectId = event.target.value
-                          ? Number(event.target.value)
-                          : '';
-                        setCreatorExistingSubjectId(nextSubjectId);
-                        setCreatorExistingUnitId('');
-                        if (nextSubjectId !== '') {
-                          const nextSubject =
-                            subjects.find(
-                              (subjectItem) =>
-                                subjectItem.id === nextSubjectId
-                            ) ?? null;
-                          if (nextSubject) {
-                            setCreatorExistingClassId(nextSubject.class_id);
-                          }
-                        }
-                      }}
-                    >
-                      <option value="">اختر المادة</option>
-                      {orderedSubjects.map((subjectItem) => (
-                        <option key={subjectItem.id} value={subjectItem.id}>
-                          {formatSubjectSelectLabel(
-                            subjectItem,
-                            classByIdMap.get(subjectItem.class_id) ?? null
-                          )}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {creatorSubjectMode === 'new' && (
-                  <div className="tcm2__inline-grid">
-                    <div className="tcm2__field">
-                      <label htmlFor="creator-new-subject-name">
-                        اسم المادة *
-                      </label>
-                      <select
-                        id="creator-new-subject-name"
-                        value={creatorNewSubjectName}
-                        onChange={(event) =>
-                          setCreatorNewSubjectName(event.target.value)
-                        }
-                      >
-                        <option value="">اختر المادة</option>
-                        {SUBJECT_OPTIONS.map((subjectOption) => (
-                          <option key={subjectOption} value={subjectOption}>
-                            {subjectOption}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="tcm2__field">
-                      <label htmlFor="creator-new-subject-description">
-                        وصف المادة
-                      </label>
-                      <input
-                        id="creator-new-subject-description"
-                        type="text"
-                        value={creatorNewSubjectDescription}
-                        onChange={(event) =>
-                          setCreatorNewSubjectDescription(event.target.value)
-                        }
-                      />
-                    </div>
-                  </div>
-                )}
               </div>
 
               <div className="tcm2__step">
                 <h3>3) الوحدة</h3>
+                <SearchablePickerField
+                  id="creator-unit-name"
+                  label="اسم الوحدة *"
+                  value={creatorUnitName}
+                  placeholder="اكتب اسم الوحدة"
+                  helperText={
+                    normalizeLookupText(creatorSubjectName).length > 0
+                      ? creatorSubjectMatch
+                        ? 'سيُبحث داخل المادة المحددة فقط، والمطابق سيُعاد استخدامه.'
+                        : 'ستُنشأ الوحدة بعد إنشاء المادة التي كتبتها.'
+                      : 'ابدأ بكتابة اسم المادة أولاً.'
+                  }
+                  statusText={
+                    creatorUnitName.trim().length === 0
+                      ? ''
+                      : creatorSubjectMatch === null
+                        ? 'لن تُطابق الوحدة حتى تُحدد مادة.'
+                        : creatorUnitMatch
+                          ? 'وحدة محفوظة ضمن المادة المختارة.'
+                          : 'وحدة جديدة ستُنشأ ضمن المادة المختارة.'
+                  }
+                  suggestions={creatorUnitSuggestions}
+                  onChange={setCreatorUnitName}
+                  onSelectSuggestion={(suggestion) => {
+                    setCreatorUnitName(suggestion.label);
+                    setCreatorNewUnitDescription(suggestion.description ?? '');
+                  }}
+                  disabled={normalizeLookupText(creatorSubjectName).length === 0}
+                />
                 <div className="tcm2__field">
-                  <label htmlFor="creator-unit-mode">الوحدة</label>
-                  <select
-                    id="creator-unit-mode"
-                    value={creatorUnitMode}
-                    onChange={(event) => {
-                      const nextMode = event.target.value as LevelMode;
-                      setCreatorUnitMode(nextMode);
-                      if (nextMode === 'skip') {
-                        setCreatorLessonMode('skip');
-                      }
-                      if (nextMode !== 'existing') {
-                        setCreatorExistingUnitId('');
-                      }
-                    }}
-                  >
-                    <option value="skip">عدم إضافة وحدة</option>
-                    <option
-                      value="existing"
-                      disabled={creatorSubjectMode !== 'existing'}
-                    >
-                      استخدام وحدة موجودة
-                    </option>
-                    <option
-                      value="new"
-                      disabled={creatorSubjectMode === 'skip'}
-                    >
-                      إنشاء وحدة جديدة
-                    </option>
-                  </select>
+                  <label htmlFor="creator-new-unit-description">
+                    وصف الوحدة
+                  </label>
+                  <input
+                    id="creator-new-unit-description"
+                    type="text"
+                    value={creatorNewUnitDescription}
+                    onChange={(event) =>
+                      setCreatorNewUnitDescription(event.target.value)
+                    }
+                    disabled={normalizeLookupText(creatorSubjectName).length === 0}
+                  />
                 </div>
-
-                {creatorUnitMode === 'existing' && (
-                  <div className="tcm2__field">
-                    <label htmlFor="creator-existing-unit">
-                      الوحدة الحالية *
-                    </label>
-                    <select
-                      id="creator-existing-unit"
-                      value={creatorExistingUnitId}
-                      onChange={(event) =>
-                        setCreatorExistingUnitId(
-                          event.target.value ? Number(event.target.value) : ''
-                        )
-                      }
-                      disabled={creatorExistingSubjectId === ''}
-                    >
-                      <option value="">اختر الوحدة</option>
-                      {creatorSubjectUnits.map((unitItem) => (
-                        <option key={unitItem.id} value={unitItem.id}>
-                          {unitItem.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {creatorUnitMode === 'new' && (
-                  <div className="tcm2__inline-grid">
-                    <div className="tcm2__field">
-                      <label htmlFor="creator-new-unit-name">
-                        اسم الوحدة *
-                      </label>
-                      <select
-                        id="creator-new-unit-name"
-                        value={creatorNewUnitName}
-                        onChange={(event) =>
-                          setCreatorNewUnitName(event.target.value)
-                        }
-                      >
-                        <option value="">اختر الوحدة</option>
-                        {UNIT_OPTIONS.map((unitOption) => (
-                          <option key={unitOption} value={unitOption}>
-                            {unitOption}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="tcm2__field">
-                      <label htmlFor="creator-new-unit-description">
-                        وصف الوحدة
-                      </label>
-                      <input
-                        id="creator-new-unit-description"
-                        type="text"
-                        value={creatorNewUnitDescription}
-                        onChange={(event) =>
-                          setCreatorNewUnitDescription(event.target.value)
-                        }
-                      />
-                    </div>
-                  </div>
-                )}
               </div>
 
               <div className="tcm2__step">
@@ -2480,7 +2647,7 @@ function TeacherCirriculumManager(props: {
                     onChange={(event) =>
                       setCreatorLessonMode(event.target.value as LessonMode)
                     }
-                    disabled={creatorUnitMode === 'skip'}
+                    disabled={normalizeLookupText(creatorUnitName).length === 0}
                   >
                     <option value="skip">عدم إضافة درس</option>
                     <option value="new">إنشاء درس جديد</option>
@@ -2687,53 +2854,83 @@ function TeacherCirriculumManager(props: {
 
             {quickAddDraft.kind !== 'class' && (
               <>
-                <div className="tcm2__field">
-                  <label htmlFor="quick-add-name">الاسم *</label>
-                  {quickAddDraft.kind === 'subject' ? (
-                    <select
-                      id="quick-add-name"
-                      value={quickAddDraft.name}
-                      onChange={(event) =>
-                        setQuickAddDraft((previous) =>
-                          previous
-                            ? {
-                                ...previous,
-                                name: event.target.value,
-                              }
-                            : previous
-                        )
-                      }
-                    >
-                      <option value="">اختر المادة</option>
-                      {SUBJECT_OPTIONS.map((subjectOption) => (
-                        <option key={subjectOption} value={subjectOption}>
-                          {subjectOption}
-                        </option>
-                      ))}
-                    </select>
-                  ) : quickAddDraft.kind === 'unit' ? (
-                    <select
-                      id="quick-add-name"
-                      value={quickAddDraft.name}
-                      onChange={(event) =>
-                        setQuickAddDraft((previous) =>
-                          previous
-                            ? {
-                                ...previous,
-                                name: event.target.value,
-                              }
-                            : previous
-                        )
-                      }
-                    >
-                      <option value="">اختر الوحدة</option>
-                      {UNIT_OPTIONS.map((unitOption) => (
-                        <option key={unitOption} value={unitOption}>
-                          {unitOption}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
+                {quickAddDraft.kind === 'subject' ? (
+                  <SearchablePickerField
+                    id="quick-add-name"
+                    label="اسم المادة *"
+                    value={quickAddDraft.name}
+                    placeholder="اكتب اسم المادة"
+                    helperText="ابحث داخل هذا الصف أو اكتب اسمًا جديدًا."
+                    statusText={
+                      quickAddDraft.name.trim().length === 0
+                        ? ''
+                        : quickAddSubjectSuggestions.length > 0
+                          ? 'هناك مواد محفوظة مطابقة للاسم المدخل.'
+                          : 'لن تُستخدم مادة محفوظة لهذا الاسم.'
+                    }
+                    suggestions={quickAddSubjectSuggestions}
+                    onChange={(value) =>
+                      setQuickAddDraft((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              name: value,
+                            }
+                          : previous
+                      )
+                    }
+                    onSelectSuggestion={(suggestion) =>
+                      setQuickAddDraft((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              name: suggestion.label,
+                              description: suggestion.description ?? '',
+                            }
+                          : previous
+                      )
+                    }
+                  />
+                ) : quickAddDraft.kind === 'unit' ? (
+                  <SearchablePickerField
+                    id="quick-add-name"
+                    label="اسم الوحدة *"
+                    value={quickAddDraft.name}
+                    placeholder="اكتب اسم الوحدة"
+                    helperText="ابحث داخل المادة المحددة أو اكتب اسمًا جديدًا."
+                    statusText={
+                      quickAddDraft.name.trim().length === 0
+                        ? ''
+                        : quickAddUnitSuggestions.length > 0
+                          ? 'هناك وحدات محفوظة مطابقة للاسم المدخل.'
+                          : 'لن تُستخدم وحدة محفوظة لهذا الاسم.'
+                    }
+                    suggestions={quickAddUnitSuggestions}
+                    onChange={(value) =>
+                      setQuickAddDraft((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              name: value,
+                            }
+                          : previous
+                      )
+                    }
+                    onSelectSuggestion={(suggestion) =>
+                      setQuickAddDraft((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              name: suggestion.label,
+                              description: suggestion.description ?? '',
+                            }
+                          : previous
+                      )
+                    }
+                  />
+                ) : (
+                  <div className="tcm2__field">
+                    <label htmlFor="quick-add-name">الاسم *</label>
                     <input
                       id="quick-add-name"
                       type="text"
@@ -2749,8 +2946,8 @@ function TeacherCirriculumManager(props: {
                         )
                       }
                     />
-                  )}
-                </div>
+                  </div>
+                )}
 
                 <div className="tcm2__field">
                   <label htmlFor="quick-add-description">الوصف</label>

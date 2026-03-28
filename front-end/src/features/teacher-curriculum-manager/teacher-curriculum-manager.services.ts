@@ -73,6 +73,36 @@ export async function getMySubjects(
   }
 }
 
+export async function getMyUnits(
+): Promise<{ units: Unit[] }> {
+  try {
+    const response = await api().get<{ units: Unit[] }>('/api/units/mine');
+    await putReference('units:mine', 'units', response.data.units ?? []);
+    return response.data;
+  } catch (error: unknown) {
+    if (isOfflineError(error)) {
+      const cached = await getReference<Unit[]>('units:mine');
+      return { units: cached ?? [] };
+    }
+    throw error;
+  }
+}
+
+export async function getMyLessons(
+): Promise<{ lessons: Lesson[] }> {
+  try {
+    const response = await api().get<{ lessons: Lesson[] }>('/api/lessons/mine');
+    await putReference('lessons:mine', 'lessons', response.data.lessons ?? []);
+    return response.data;
+  } catch (error: unknown) {
+    if (isOfflineError(error)) {
+      const cached = await getReference<Lesson[]>('lessons:mine');
+      return { lessons: cached ?? [] };
+    }
+    throw error;
+  }
+}
+
 export async function getSubjectsByClass(
   classId: number
 ): Promise<{ subjects: Subject[] }> {

@@ -36,11 +36,16 @@
   color: #fff;
   cursor: pointer;
   box-shadow: 0 10px 22px rgba(37, 99, 235, 0.24);
+  transition: none;
 }
 
 .nav-bar__menu-btn:hover {
   background: var(--primary-hover);
   box-shadow: 0 14px 26px rgba(37, 99, 235, 0.28);
+}
+
+.nav-bar__menu-btn:active {
+  transform: translateY(-50%);
 }
 
 .nav-bar__menu-btn:focus-visible,
@@ -206,7 +211,7 @@
 
 .nav-bar__menu-panel--portal {
   position: fixed;
-  z-index: 1100;
+  z-index: 900;
   max-height: calc(100dvh - 1rem);
   overflow-y: auto;
 }

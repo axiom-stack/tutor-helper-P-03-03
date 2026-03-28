@@ -428,8 +428,8 @@ export default function LessonPlanDocumentView({
                 )}
               </div>
               <div>
-                <label>المادة</label>
-                <p>{resolveHeaderValue(header, 'subject', fallback?.subject ?? undefined)}</p>
+                <label>الحصة</label>
+                <p>{resolveHeaderValue(header, 'time', undefined)}</p>
               </div>
               <div>
                 <label>الصف</label>

@@ -6,11 +6,21 @@ interface GuardProps {
   children: ReactNode;
 }
 
+function RouteLoadingScreen() {
+  return (
+    <div className="ui-loading-screen" aria-busy="true" aria-live="polite">
+      <div className="ui-loading-shell">
+        <span className="ui-spinner" aria-hidden />
+      </div>
+    </div>
+  );
+}
+
 export function RequireAuth({ children }: GuardProps) {
   const { isLoading, isAuthenticated } = useAuth();
 
   if (isLoading) {
-    return null;
+    return <RouteLoadingScreen />;
   }
 
   if (!isAuthenticated) {
@@ -24,7 +34,7 @@ export function RequireAdmin({ children }: GuardProps) {
   const { isLoading, isAuthenticated, user } = useAuth();
 
   if (isLoading) {
-    return null;
+    return <RouteLoadingScreen />;
   }
 
   if (!isAuthenticated) {
@@ -42,7 +52,7 @@ export function RequireTeacher({ children }: GuardProps) {
   const { isLoading, isAuthenticated, user } = useAuth();
 
   if (isLoading) {
-    return null;
+    return <RouteLoadingScreen />;
   }
 
   if (!isAuthenticated) {

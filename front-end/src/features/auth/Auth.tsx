@@ -27,7 +27,29 @@ function Auth() {
   const [refreshReady, setRefreshReady] = useState(false);
 
   const navigate = useNavigate();
-  const { login, isAuthenticated, user } = useAuth();
+  const { login, isAuthenticated, isLoading, user } = useAuth();
+  const wakeNotice = serverWakingUp ? (
+    <div className="auth__wake-notice" role="status">
+      <p className="auth__wake-notice-text">
+        الخادم المجاني قيد التشغيل. يرجى تحديث الصفحة بعد 40 ثانية ثم البدء
+        باستخدام التطبيق.
+      </p>
+      <p className="auth__wake-notice-en">
+        The free server is waking up. Please refresh the page after 40 seconds,
+        then you can start using the app.
+      </p>
+      {refreshReady && (
+        <button
+          type="button"
+          className="auth__wake-refresh-btn"
+          onClick={() => window.location.reload()}
+        >
+          <MdRefresh aria-hidden />
+          تحديث الصفحة الآن / Refresh now
+        </button>
+      )}
+    </div>
+  ) : null;
 
   // Ping backend health on mount; if > 5s, show "server waking up" and allow refresh after 40s
   useEffect(() => {
@@ -60,14 +82,16 @@ function Auth() {
 
   // Redirect if already authenticated
   React.useEffect(() => {
-    if (isAuthenticated) {
-      if (user?.userRole === 'admin') {
-        navigate('/admin');
-      } else {
-        navigate('/');
-      }
+    if (isLoading || !isAuthenticated) {
+      return;
     }
-  }, [isAuthenticated, navigate, user?.userRole]);
+
+    if (user?.userRole === 'admin') {
+      navigate('/admin');
+    } else {
+      navigate('/');
+    }
+  }, [isAuthenticated, isLoading, navigate, user?.userRole]);
 
   React.useEffect(() => {
     if (error) {
@@ -76,6 +100,19 @@ function Auth() {
   }, [error]);
 
   const clearError = () => setError(null);
+
+  if (isLoading) {
+    return (
+      <div className={`auth${serverWakingUp ? ' auth--wake-notice-visible' : ''}`}>
+        {wakeNotice}
+        <div className="ui-loading-screen">
+          <div className="ui-loading-shell">
+            <span className="ui-spinner" aria-hidden />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -104,26 +141,7 @@ function Auth() {
 
   return (
     <div className={`auth${serverWakingUp ? ' auth--wake-notice-visible' : ''}`}>
-      {serverWakingUp && (
-        <div className="auth__wake-notice" role="status">
-          <p className="auth__wake-notice-text">
-            الخادم المجاني قيد التشغيل. يرجى تحديث الصفحة بعد 40 ثانية ثم البدء باستخدام التطبيق.
-          </p>
-          <p className="auth__wake-notice-en">
-            The free server is waking up. Please refresh the page after 40 seconds, then you can start using the app.
-          </p>
-          {refreshReady && (
-            <button
-              type="button"
-              className="auth__wake-refresh-btn"
-              onClick={() => window.location.reload()}
-            >
-              <MdRefresh aria-hidden />
-              تحديث الصفحة الآن / Refresh now
-            </button>
-          )}
-        </div>
-      )}
+      {wakeNotice}
       <div className="auth__container">
         <section className="auth__brand" aria-hidden>
           <div className="auth__brand-inner">

@@ -457,22 +457,17 @@ function formatDateTimeAr(iso: string): string {
   }
 }
 
-function formatQuestionCountAr(count: number): string {
-  const rules = new Intl.PluralRules('ar');
-  switch (rules.select(count)) {
-    case 'zero':
-      return `${formatArabicNumber(count)} سؤال`;
-    case 'one':
-      return 'سؤال واحد';
-    case 'two':
-      return 'سؤالان';
-    case 'few':
-      return `${formatArabicNumber(count)} أسئلة`;
-    case 'many':
-      return `${formatArabicNumber(count)} سؤالًا`;
-    default:
-      return `${formatArabicNumber(count)} سؤال`;
-  }
+function formatExamSummaryParts(exam: Pick<
+  Exam,
+  'total_questions' | 'total_marks' | 'duration_minutes'
+>): string[] {
+  return [
+    `عدد الأسئلة: ${formatArabicNumber(exam.total_questions)}`,
+    `الدرجة: ${formatArabicNumber(exam.total_marks)}`,
+    exam.duration_minutes != null
+      ? `المدة: ${formatArabicNumber(exam.duration_minutes)} د`
+      : null,
+  ].filter((part): part is string => part !== null);
 }
 
 function autoTitle(
@@ -2430,6 +2425,7 @@ export default function Quizzes() {
                         classLabel,
                         formatDateTimeAr(exam.created_at),
                       ];
+                      const summaryParts = formatExamSummaryParts(exam);
                       return (
                         <article
                           key={exam.public_id}
@@ -2471,11 +2467,27 @@ export default function Quizzes() {
                                   </Fragment>
                                 ))}
                               </div>
+                              <div
+                                className="qz__exam-summary-line"
+                                aria-label="ملخص الاختبار"
+                              >
+                                {summaryParts.map((part, index) => (
+                                  <Fragment
+                                    key={`${exam.public_id}-summary-${part}-${index}`}
+                                  >
+                                    {index > 0 ? (
+                                      <span
+                                        className="qz__meta-separator"
+                                        aria-hidden
+                                      >
+                                        |
+                                      </span>
+                                    ) : null}
+                                    <span className="qz__meta-item">{part}</span>
+                                  </Fragment>
+                                ))}
+                              </div>
                             </div>
-
-                            <span className="qz__exam-type">
-                              {formatQuestionCountAr(exam.total_questions)}
-                            </span>
                           </div>
 
                           <div className="qz__card-actions">
