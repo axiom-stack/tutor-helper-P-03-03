@@ -60,6 +60,7 @@ function buildCommonPayload({
       grade: request.grade,
       unit: request.unit,
       duration_minutes: request.duration_minutes,
+      period_order: request.period_order || null,
       class_name: request.class_name || null,
       section: request.section || null,
     },

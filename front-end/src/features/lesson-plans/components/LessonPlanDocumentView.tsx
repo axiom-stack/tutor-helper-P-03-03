@@ -275,14 +275,7 @@ export default function LessonPlanDocumentView({
               </div>
               <div>
                 <label>الحصة</label>
-                {isEditMode ? (
-                  <FieldInput
-                    value={resolvedLessonTitle === '—' ? '' : resolvedLessonTitle}
-                    onChange={handleLessonTitleChange}
-                  />
-                ) : (
-                  <p>{resolvedLessonTitle}</p>
-                )}
+                <p>{toDisplayText(header.time)}</p>
               </div>
               <div>
                 <label>العنوان</label>

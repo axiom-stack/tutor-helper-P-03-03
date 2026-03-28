@@ -20,7 +20,16 @@ import {
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
 import ConfirmActionModal from '../../components/common/ConfirmActionModal';
-import { GRADE_OPTIONS } from '../../constants/dropdown-options';
+import {
+  ACADEMIC_YEAR_OPTIONS,
+  GRADE_OPTIONS,
+  LESSON_PERIOD_COUNT_OPTIONS,
+  LESSON_DURATION_OPTIONS,
+  PERIOD_OPTIONS,
+  SEMESTER_OPTIONS,
+  SUBJECT_OPTIONS,
+  UNIT_OPTIONS,
+} from '../../constants/dropdown-options';
 import type {
   Class,
   Lesson,
@@ -51,6 +60,14 @@ import {
   updateUnit,
   type CreateLessonResponse,
 } from './teacher-curriculum-manager.services';
+import {
+  formatClassSelectLabel,
+  formatClassShortLabel,
+  isSameClassIdentity,
+  normalizeAcademicYearLabel,
+  normalizeSemesterLabel,
+  UNKNOWN_SEMESTER_LABEL,
+} from '../../utils/classDisplay';
 import './teacher-cirriculum-manager.css';
 
 export interface TeacherCirriculumManagerScope {
@@ -67,7 +84,7 @@ type EntityKind = 'class' | 'subject' | 'unit' | 'lesson';
 interface ApiErrorShape {
   response?: {
     data?: {
-      error?: string;
+      error?: string | { message?: string; code?: string };
     };
   };
   message?: string;
@@ -79,6 +96,7 @@ interface EditDraft {
   name: string;
   description: string;
   gradeLabel?: string;
+  semester?: string;
   sectionLabel?: string;
   section?: string;
   academicYear?: string;
@@ -88,6 +106,7 @@ interface EditDraft {
   file?: File | null;
   unitId?: number;
   numberOfPeriods?: number;
+  periodNumber?: number;
 }
 
 interface QuickAddDraft {
@@ -98,6 +117,7 @@ interface QuickAddDraft {
   subjectId?: number;
   unitId?: number;
   gradeLabel?: string;
+  semester?: string;
   sectionLabel?: string;
   section?: string;
   academicYear?: string;
@@ -106,6 +126,7 @@ interface QuickAddDraft {
   content?: string;
   file?: File | null;
   numberOfPeriods?: number;
+  periodNumber?: number;
 }
 
 interface DeleteRequestDraft {
@@ -127,6 +148,14 @@ function getErrorMessage(
     const backendError = parsed.response?.data?.error;
     if (typeof backendError === 'string' && backendError.trim().length > 0) {
       return backendError;
+    }
+    if (
+      backendError &&
+      typeof backendError === 'object' &&
+      typeof backendError.message === 'string' &&
+      backendError.message.trim().length > 0
+    ) {
+      return backendError.message;
     }
     if (
       typeof parsed.message === 'string' &&
@@ -187,17 +216,6 @@ function getLessonCreationMessage(result: CreateLessonResponse): string {
   return 'تم إنشاء الدرس بنجاح.';
 }
 
-function formatClassLabel(
-  classItem: Pick<Class, 'grade_label' | 'section_label'>
-): string {
-  const gradeLabel = classItem.grade_label?.trim() ?? '';
-  const sectionLabel = classItem.section_label?.trim() ?? '';
-  if (gradeLabel && sectionLabel) {
-    return `${gradeLabel} - ${sectionLabel}`;
-  }
-  return gradeLabel || sectionLabel || '—';
-}
-
 function TeacherCirriculumManager(props: {
   scope?: TeacherCirriculumManagerScope;
 }) {
@@ -209,6 +227,13 @@ function TeacherCirriculumManager(props: {
 
   const teacherId =
     scope?.role === 'admin' ? scope.selectedTeacherId : (user?.id ?? 0);
+  const preferredDefaultDuration =
+    user?.profile?.default_lesson_duration_minutes ?? 45;
+  const resolvedDefaultDuration = LESSON_DURATION_OPTIONS.includes(
+    preferredDefaultDuration as (typeof LESSON_DURATION_OPTIONS)[number]
+  )
+    ? preferredDefaultDuration
+    : 45;
 
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -222,6 +247,23 @@ function TeacherCirriculumManager(props: {
 
   const [selectedClassId, setSelectedClassId] = useState<SelectValue>('');
   const [selectedSubjectId, setSelectedSubjectId] = useState<SelectValue>('');
+  const [classSelectionMode, setClassSelectionMode] =
+    useState<ClassMode>('existing');
+  const [existingClassYearFilter, setExistingClassYearFilter] = useState('');
+  const [existingClassSemesterFilter, setExistingClassSemesterFilter] =
+    useState('');
+  const [existingClassGradeFilter, setExistingClassGradeFilter] = useState('');
+  const [newClassAcademicYear, setNewClassAcademicYear] = useState<string>(
+    ACADEMIC_YEAR_OPTIONS[0]
+  );
+  const [newClassSemester, setNewClassSemester] = useState<string>(
+    SEMESTER_OPTIONS[0]
+  );
+  const [newClassGradeLabel, setNewClassGradeLabel] = useState('');
+  const [newClassSectionLabel, setNewClassSectionLabel] = useState('');
+  const [newClassDefaultDuration, setNewClassDefaultDuration] = useState<number>(
+    () => resolvedDefaultDuration
+  );
 
   const [loading, setLoading] = useState(true);
   const [hierarchyLoading, setHierarchyLoading] = useState(false);
@@ -244,14 +286,15 @@ function TeacherCirriculumManager(props: {
     useState<SelectValue>('');
   const [creatorNewClassGradeLabel, setCreatorNewClassGradeLabel] =
     useState('');
+  const [creatorNewClassSemester, setCreatorNewClassSemester] = useState<string>(
+    SEMESTER_OPTIONS[0]
+  );
   const [creatorNewClassSectionLabel, setCreatorNewClassSectionLabel] =
     useState('');
   const [creatorNewClassAcademicYear, setCreatorNewClassAcademicYear] =
-    useState('');
+    useState<string>(ACADEMIC_YEAR_OPTIONS[0]);
   const [creatorNewClassDefaultDuration, setCreatorNewClassDefaultDuration] =
-    useState<number>(
-      () => user?.profile?.default_lesson_duration_minutes ?? 45
-    );
+    useState<number>(() => resolvedDefaultDuration);
 
   const [creatorSubjectMode, setCreatorSubjectMode] =
     useState<LevelMode>('skip');
@@ -277,6 +320,8 @@ function TeacherCirriculumManager(props: {
     useState<LessonContentType>('text');
   const [creatorLessonNumberOfPeriods, setCreatorLessonNumberOfPeriods] =
     useState<number>(1);
+  const [creatorLessonPeriodNumber, setCreatorLessonPeriodNumber] =
+    useState<number>(1);
   const [creatorLessonTextContent, setCreatorLessonTextContent] = useState('');
   const [creatorLessonFile, setCreatorLessonFile] = useState<File | null>(null);
 
@@ -289,6 +334,59 @@ function TeacherCirriculumManager(props: {
       ? null
       : (subjects.find((subjectItem) => subjectItem.id === selectedSubjectId) ??
         null);
+
+  const filteredExistingClasses = classes.filter((classItem) => {
+    if (
+      existingClassYearFilter &&
+      normalizeAcademicYearLabel(classItem.academic_year) !==
+        normalizeAcademicYearLabel(existingClassYearFilter)
+    ) {
+      return false;
+    }
+
+    if (existingClassSemesterFilter) {
+      if (
+        existingClassSemesterFilter === UNKNOWN_SEMESTER_LABEL &&
+        classItem.semester?.trim()
+      ) {
+        return false;
+      }
+
+      if (
+        existingClassSemesterFilter !== UNKNOWN_SEMESTER_LABEL &&
+        normalizeSemesterLabel(classItem.semester) !== existingClassSemesterFilter
+      ) {
+        return false;
+      }
+    }
+
+    if (
+      existingClassGradeFilter &&
+      (classItem.grade_label?.trim() ?? '') !== existingClassGradeFilter
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+
+  const existingClassYearOptions = Array.from(
+    new Set([
+      ...ACADEMIC_YEAR_OPTIONS,
+      ...classes
+        .map((classItem) => normalizeAcademicYearLabel(classItem.academic_year))
+        .filter((value) => value.trim().length > 0),
+    ])
+  );
+
+  const duplicateNewClass = classes.find((classItem) =>
+    isSameClassIdentity(classItem, {
+      academicYear: newClassAcademicYear,
+      semester: newClassSemester,
+      gradeLabel: newClassGradeLabel,
+      sectionLabel: newClassSectionLabel,
+    })
+  );
 
   const subjectsForSelectedClass =
     selectedClassId === ''
@@ -309,6 +407,15 @@ function TeacherCirriculumManager(props: {
     0
   );
 
+  const isNewClassFormValid =
+    newClassAcademicYear.trim().length > 0 &&
+    newClassSemester.trim().length > 0 &&
+    newClassGradeLabel.trim().length > 0 &&
+    newClassSectionLabel.trim().length > 0 &&
+    Number.isInteger(newClassDefaultDuration) &&
+    newClassDefaultDuration > 0 &&
+    !duplicateNewClass;
+
   useEffect(() => {
     if (error) {
       toast.error(error);
@@ -328,6 +435,7 @@ function TeacherCirriculumManager(props: {
       }
     } else if (
       !creatorNewClassGradeLabel.trim() ||
+      !creatorNewClassSemester.trim() ||
       !creatorNewClassSectionLabel.trim() ||
       !creatorNewClassAcademicYear.trim() ||
       !Number.isInteger(creatorNewClassDefaultDuration) ||
@@ -362,6 +470,8 @@ function TeacherCirriculumManager(props: {
 
     if (
       !creatorLessonName.trim() ||
+      !Number.isInteger(creatorLessonPeriodNumber) ||
+      creatorLessonPeriodNumber <= 0 ||
       !Number.isInteger(creatorLessonNumberOfPeriods) ||
       creatorLessonNumberOfPeriods <= 0
     ) {
@@ -392,6 +502,7 @@ function TeacherCirriculumManager(props: {
     if (quickAddDraft.kind === 'class') {
       return Boolean(
         quickAddDraft.gradeLabel?.trim() &&
+        quickAddDraft.semester?.trim() &&
         quickAddDraft.sectionLabel?.trim() &&
         quickAddDraft.academicYear?.trim() &&
         Number.isInteger(quickAddDraft.defaultDurationMinutes) &&
@@ -411,6 +522,8 @@ function TeacherCirriculumManager(props: {
       if (
         !quickAddDraft.name.trim() ||
         !quickAddDraft.unitId ||
+        !Number.isInteger(quickAddDraft.periodNumber) ||
+        Number(quickAddDraft.periodNumber) <= 0 ||
         !Number.isInteger(quickAddDraft.numberOfPeriods) ||
         Number(quickAddDraft.numberOfPeriods) <= 0
       ) {
@@ -519,11 +632,10 @@ function TeacherCirriculumManager(props: {
     setCreatorClassMode('existing');
     setCreatorExistingClassId('');
     setCreatorNewClassGradeLabel('');
+    setCreatorNewClassSemester(SEMESTER_OPTIONS[0]);
     setCreatorNewClassSectionLabel('');
-    setCreatorNewClassAcademicYear('');
-    setCreatorNewClassDefaultDuration(
-      user?.profile?.default_lesson_duration_minutes ?? 45
-    );
+    setCreatorNewClassAcademicYear(ACADEMIC_YEAR_OPTIONS[0]);
+    setCreatorNewClassDefaultDuration(resolvedDefaultDuration);
     setCreatorSubjectMode('skip');
     setCreatorExistingSubjectId('');
     setCreatorNewSubjectName('');
@@ -538,6 +650,7 @@ function TeacherCirriculumManager(props: {
     setCreatorLessonDescription('');
     setCreatorLessonContentType('text');
     setCreatorLessonNumberOfPeriods(1);
+    setCreatorLessonPeriodNumber(1);
     setCreatorLessonTextContent('');
     setCreatorLessonFile(null);
   };
@@ -690,6 +803,7 @@ function TeacherCirriculumManager(props: {
   const handleClassChange = (nextValue: SelectValue) => {
     setError(null);
     setSuccess(null);
+    setClassSelectionMode('existing');
     setSelectedClassId(nextValue);
     setSelectedSubjectId('');
     clearHierarchy();
@@ -699,6 +813,47 @@ function TeacherCirriculumManager(props: {
     setError(null);
     setSuccess(null);
     setSelectedSubjectId(nextValue);
+  };
+
+  const handleCreateClassFromSelector = async () => {
+    if (!teacherId) {
+      setError('المعلم غير معروف. سجل الدخول مرة أخرى.');
+      return;
+    }
+
+    if (duplicateNewClass) {
+      setError('هذا الصف محفوظ مسبقاً بنفس بيانات العام والفصل والشعبة.');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await createClass({
+        grade_label: newClassGradeLabel.trim(),
+        semester: newClassSemester.trim(),
+        section_label: newClassSectionLabel.trim(),
+        section: 'أ',
+        academic_year: normalizeAcademicYearLabel(newClassAcademicYear),
+        default_duration_minutes: newClassDefaultDuration,
+        teacher_id: teacherId,
+      });
+
+      await refreshBaseData();
+      setExistingClassYearFilter(normalizeAcademicYearLabel(newClassAcademicYear));
+      setExistingClassSemesterFilter(newClassSemester);
+      setExistingClassGradeFilter(newClassGradeLabel);
+      setClassSelectionMode('existing');
+      handleClassChange(response.class.id);
+      setNewClassSectionLabel('');
+      setSuccess('تم إنشاء الصف والشعبة بنجاح.');
+    } catch (createError: unknown) {
+      setError(getErrorMessage(createError, 'تعذّر إنشاء الصف.'));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggleUnitExpansion = (unitId: number) => {
@@ -714,17 +869,12 @@ function TeacherCirriculumManager(props: {
   };
 
   const openQuickAddClass = () => {
-    setQuickAddDraft({
-      kind: 'class',
-      name: '',
-      description: '',
-      gradeLabel: '',
-      sectionLabel: '',
-      section: 'أ',
-      academicYear: '',
-      defaultDurationMinutes:
-        user?.profile?.default_lesson_duration_minutes ?? 45,
-    });
+    setClassSelectionMode('new');
+    setNewClassAcademicYear(ACADEMIC_YEAR_OPTIONS[0]);
+    setNewClassSemester(SEMESTER_OPTIONS[0]);
+    setNewClassGradeLabel('');
+    setNewClassSectionLabel('');
+    setNewClassDefaultDuration(resolvedDefaultDuration);
   };
 
   const openQuickAddSubject = (classId: number) => {
@@ -754,6 +904,7 @@ function TeacherCirriculumManager(props: {
       contentType: 'text',
       content: '',
       file: null,
+      periodNumber: 1,
       numberOfPeriods: 1,
     });
   };
@@ -775,9 +926,12 @@ function TeacherCirriculumManager(props: {
       if (quickAddDraft.kind === 'class') {
         await createClass({
           grade_label: quickAddDraft.gradeLabel?.trim() ?? '',
+          semester: quickAddDraft.semester?.trim() ?? '',
           section_label: quickAddDraft.sectionLabel?.trim() ?? '',
           section: quickAddDraft.section?.trim() || 'أ',
-          academic_year: quickAddDraft.academicYear?.trim() ?? '',
+          academic_year: normalizeAcademicYearLabel(
+            quickAddDraft.academicYear?.trim() ?? ''
+          ),
           default_duration_minutes: quickAddDraft.defaultDurationMinutes ?? 45,
           teacher_id: teacherId,
         });
@@ -826,6 +980,7 @@ function TeacherCirriculumManager(props: {
             content: quickAddDraft.content?.trim() ?? '',
             description: quickAddDraft.description.trim(),
             name: quickAddDraft.name.trim(),
+            period_number: quickAddDraft.periodNumber ?? 1,
             number_of_periods: quickAddDraft.numberOfPeriods ?? 1,
             teacher_id: teacherId,
             unit_id: quickAddDraft.unitId,
@@ -843,6 +998,7 @@ function TeacherCirriculumManager(props: {
             file: quickAddDraft.file as File,
             description: quickAddDraft.description.trim(),
             name: quickAddDraft.name.trim(),
+            period_number: quickAddDraft.periodNumber ?? 1,
             number_of_periods: quickAddDraft.numberOfPeriods ?? 1,
             teacher_id: teacherId,
             unit_id: quickAddDraft.unitId,
@@ -872,6 +1028,7 @@ function TeacherCirriculumManager(props: {
       name: '',
       description: '',
       gradeLabel: selectedClass.grade_label,
+      semester: selectedClass.semester ?? SEMESTER_OPTIONS[0],
       sectionLabel: selectedClass.section_label,
       section: selectedClass.section,
       academicYear: selectedClass.academic_year,
@@ -910,6 +1067,7 @@ function TeacherCirriculumManager(props: {
       content: lessonItem.content,
       file: null,
       unitId: lessonItem.unit_id,
+      periodNumber: Number(lessonItem.period_number ?? 1),
       numberOfPeriods: Number(lessonItem.number_of_periods ?? 1),
     });
   };
@@ -932,6 +1090,9 @@ function TeacherCirriculumManager(props: {
         if (!editDraft.gradeLabel?.trim()) {
           throw new Error('الصف مطلوب.');
         }
+        if (!editDraft.semester?.trim()) {
+          throw new Error('الفصل الدراسي مطلوب.');
+        }
         if (!editDraft.sectionLabel?.trim()) {
           throw new Error('الشعبة مطلوبة.');
         }
@@ -950,9 +1111,12 @@ function TeacherCirriculumManager(props: {
       if (editDraft.kind === 'class') {
         const response = await updateClass(editDraft.id, {
           grade_label: editDraft.gradeLabel?.trim() ?? '',
+          semester: editDraft.semester?.trim() ?? '',
           section_label: editDraft.sectionLabel?.trim() ?? '',
           section: editDraft.section?.trim() || 'أ',
-          academic_year: editDraft.academicYear?.trim() ?? '',
+          academic_year: normalizeAcademicYearLabel(
+            editDraft.academicYear?.trim() ?? ''
+          ),
           default_duration_minutes: editDraft.defaultDurationMinutes ?? 45,
         });
         setClasses((previous) =>
@@ -991,6 +1155,12 @@ function TeacherCirriculumManager(props: {
           throw new Error('اختر وحدة للدرس.');
         }
         if (
+          !Number.isInteger(editDraft.periodNumber) ||
+          Number(editDraft.periodNumber) <= 0
+        ) {
+          throw new Error('ترتيب الحصة يجب أن يكون رقمًا صحيحًا موجبًا.');
+        }
+        if (
           !Number.isInteger(editDraft.numberOfPeriods) ||
           Number(editDraft.numberOfPeriods) <= 0
         ) {
@@ -1007,6 +1177,7 @@ function TeacherCirriculumManager(props: {
             content_type: 'text',
             content: editDraft.content,
             unit_id: editDraft.unitId,
+            period_number: Number(editDraft.periodNumber),
             number_of_periods: Number(editDraft.numberOfPeriods),
           });
         } else {
@@ -1023,6 +1194,7 @@ function TeacherCirriculumManager(props: {
             content_type: lessonContentType,
             file: editDraft.file as File,
             unit_id: editDraft.unitId,
+            period_number: Number(editDraft.periodNumber),
             number_of_periods: Number(editDraft.numberOfPeriods),
           });
         }
@@ -1134,6 +1306,9 @@ function TeacherCirriculumManager(props: {
         if (!creatorNewClassGradeLabel.trim()) {
           throw new Error('يرجى إدخال الصف.');
         }
+        if (!creatorNewClassSemester.trim()) {
+          throw new Error('يرجى اختيار الفصل الدراسي.');
+        }
         if (!creatorNewClassSectionLabel.trim()) {
           throw new Error('يرجى إدخال الشعبة.');
         }
@@ -1149,9 +1324,12 @@ function TeacherCirriculumManager(props: {
 
         const classResponse = await createClass({
           grade_label: creatorNewClassGradeLabel.trim(),
+          semester: creatorNewClassSemester.trim(),
           section_label: creatorNewClassSectionLabel.trim(),
           section: 'أ',
-          academic_year: creatorNewClassAcademicYear.trim(),
+          academic_year: normalizeAcademicYearLabel(
+            creatorNewClassAcademicYear.trim()
+          ),
           default_duration_minutes: creatorNewClassDefaultDuration,
           teacher_id: teacherId,
         });
@@ -1234,6 +1412,12 @@ function TeacherCirriculumManager(props: {
           throw new Error('يرجى إدخال اسم الدرس.');
         }
         if (
+          !Number.isInteger(creatorLessonPeriodNumber) ||
+          creatorLessonPeriodNumber <= 0
+        ) {
+          throw new Error('يرجى اختيار الحصة.');
+        }
+        if (
           !Number.isInteger(creatorLessonNumberOfPeriods) ||
           creatorLessonNumberOfPeriods <= 0
         ) {
@@ -1249,6 +1433,7 @@ function TeacherCirriculumManager(props: {
             content: creatorLessonTextContent.trim(),
             description: creatorLessonDescription.trim(),
             name: creatorLessonName.trim(),
+            period_number: creatorLessonPeriodNumber,
             number_of_periods: creatorLessonNumberOfPeriods,
             teacher_id: teacherId,
             unit_id: resolvedUnitId,
@@ -1267,6 +1452,7 @@ function TeacherCirriculumManager(props: {
             description: creatorLessonDescription.trim(),
             file: creatorLessonFile as File,
             name: creatorLessonName.trim(),
+            period_number: creatorLessonPeriodNumber,
             number_of_periods: creatorLessonNumberOfPeriods,
             teacher_id: teacherId,
             unit_id: resolvedUnitId,
@@ -1344,7 +1530,7 @@ function TeacherCirriculumManager(props: {
                     onClick={openQuickAddClass}
                   >
                     <MdAdd aria-hidden />
-                    إضافة صف
+                    إنشاء صف جديد
                   </button>
                   <button
                     type="button"
@@ -1365,23 +1551,213 @@ function TeacherCirriculumManager(props: {
                   </button>
                 </div>
               </div>
-              <select
-                id="active-class"
-                aria-label="اختيار الصف"
-                value={selectedClassId}
-                onChange={(event) =>
-                  handleClassChange(
-                    event.target.value ? Number(event.target.value) : ''
-                  )
-                }
-              >
-                <option value="">اختر الصف</option>
-                {classes.map((classItem) => (
-                  <option key={classItem.id} value={classItem.id}>
-                    {formatClassLabel(classItem)}
-                  </option>
-                ))}
-              </select>
+              <div className="tcm2__mode-toggle">
+                <button
+                  type="button"
+                  className={
+                    classSelectionMode === 'existing' ? 'tcm2__mode-active' : ''
+                  }
+                  onClick={() => setClassSelectionMode('existing')}
+                >
+                  اختيار صف محفوظ
+                </button>
+                <button
+                  type="button"
+                  className={
+                    classSelectionMode === 'new' ? 'tcm2__mode-active' : ''
+                  }
+                  onClick={() => setClassSelectionMode('new')}
+                >
+                  إنشاء صف جديد
+                </button>
+              </div>
+
+              {classSelectionMode === 'existing' ? (
+                <>
+                  <div className="tcm2__inline-grid">
+                    <div className="tcm2__field">
+                      <label htmlFor="class-year-filter">العام الدراسي</label>
+                      <select
+                        id="class-year-filter"
+                        value={existingClassYearFilter}
+                        onChange={(event) =>
+                          setExistingClassYearFilter(event.target.value)
+                        }
+                      >
+                        <option value="">الكل</option>
+                        {existingClassYearOptions.map((yearOption) => (
+                          <option key={yearOption} value={yearOption}>
+                            {yearOption}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="tcm2__field">
+                      <label htmlFor="class-semester-filter">الفصل الدراسي</label>
+                      <select
+                        id="class-semester-filter"
+                        value={existingClassSemesterFilter}
+                        onChange={(event) =>
+                          setExistingClassSemesterFilter(event.target.value)
+                        }
+                      >
+                        <option value="">الكل</option>
+                        {SEMESTER_OPTIONS.map((semesterOption) => (
+                          <option key={semesterOption} value={semesterOption}>
+                            {semesterOption}
+                          </option>
+                        ))}
+                        <option value={UNKNOWN_SEMESTER_LABEL}>
+                          غير محدد (بيانات قديمة)
+                        </option>
+                      </select>
+                    </div>
+                    <div className="tcm2__field">
+                      <label htmlFor="class-grade-filter">الصف</label>
+                      <select
+                        id="class-grade-filter"
+                        value={existingClassGradeFilter}
+                        onChange={(event) =>
+                          setExistingClassGradeFilter(event.target.value)
+                        }
+                      >
+                        <option value="">الكل</option>
+                        {GRADE_OPTIONS.map((gradeOption) => (
+                          <option key={gradeOption} value={gradeOption}>
+                            {gradeOption}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <select
+                    id="active-class"
+                    aria-label="اختيار الصف"
+                    value={selectedClassId}
+                    onChange={(event) =>
+                      handleClassChange(
+                        event.target.value ? Number(event.target.value) : ''
+                      )
+                    }
+                  >
+                    <option value="">اختر الصف</option>
+                    {filteredExistingClasses.map((classItem) => (
+                      <option key={classItem.id} value={classItem.id}>
+                        {formatClassSelectLabel(classItem)}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              ) : (
+                <div className="tcm2__step tcm2__step--compact">
+                  <h3>إنشاء صف جديد</h3>
+                  <div className="tcm2__inline-grid">
+                    <div className="tcm2__field">
+                      <label htmlFor="new-class-year">1. العام الدراسي *</label>
+                      <select
+                        id="new-class-year"
+                        value={newClassAcademicYear}
+                        onChange={(event) =>
+                          setNewClassAcademicYear(event.target.value)
+                        }
+                      >
+                        {ACADEMIC_YEAR_OPTIONS.map((yearOption) => (
+                          <option key={yearOption} value={yearOption}>
+                            {yearOption}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="tcm2__field">
+                      <label htmlFor="new-class-semester">
+                        2. الفصل الدراسي *
+                      </label>
+                      <select
+                        id="new-class-semester"
+                        value={newClassSemester}
+                        onChange={(event) => setNewClassSemester(event.target.value)}
+                      >
+                        {SEMESTER_OPTIONS.map((semesterOption) => (
+                          <option key={semesterOption} value={semesterOption}>
+                            {semesterOption}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="tcm2__field">
+                      <label htmlFor="new-class-grade">3. الصف *</label>
+                      <select
+                        id="new-class-grade"
+                        value={newClassGradeLabel}
+                        onChange={(event) => setNewClassGradeLabel(event.target.value)}
+                      >
+                        <option value="">اختر الصف</option>
+                        {GRADE_OPTIONS.map((gradeOption) => (
+                          <option key={gradeOption} value={gradeOption}>
+                            {gradeOption}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="tcm2__field">
+                      <label htmlFor="new-class-section">4. الشعبة *</label>
+                      <input
+                        id="new-class-section"
+                        type="text"
+                        value={newClassSectionLabel}
+                        onChange={(event) =>
+                          setNewClassSectionLabel(event.target.value)
+                        }
+                        placeholder="مثال: أ"
+                      />
+                    </div>
+                    <div className="tcm2__field">
+                      <label htmlFor="new-class-duration">
+                        مدة الحصة الافتراضية (دقيقة)
+                      </label>
+                      <select
+                        id="new-class-duration"
+                        value={newClassDefaultDuration}
+                        onChange={(event) =>
+                          setNewClassDefaultDuration(Number(event.target.value))
+                        }
+                      >
+                        {LESSON_DURATION_OPTIONS.map((durationOption) => (
+                          <option key={durationOption} value={durationOption}>
+                            {durationOption} دقيقة
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {duplicateNewClass ? (
+                    <p className="tcm2__warning">
+                      هذا الصف موجود بالفعل: {formatClassSelectLabel(duplicateNewClass)}
+                    </p>
+                  ) : null}
+
+                  <div className="tcm2__form-actions">
+                    <button
+                      type="button"
+                      onClick={() => setClassSelectionMode('existing')}
+                      disabled={saving}
+                    >
+                      رجوع إلى الصفوف المحفوظة
+                    </button>
+                    <button
+                      type="button"
+                      className="tcm2__primary"
+                      onClick={() => void handleCreateClassFromSelector()}
+                      disabled={saving || !isNewClassFormValid}
+                    >
+                      {saving && <span className="ui-button-spinner" aria-hidden />}
+                      {saving ? 'جارٍ الحفظ...' : 'حفظ الصف'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="tcm2__field">
@@ -1429,15 +1805,18 @@ function TeacherCirriculumManager(props: {
               <div>
                 <h3>
                   <MdSchool aria-hidden />
-                  {formatClassLabel(selectedClass)}
+                  {formatClassShortLabel(selectedClass)}
                 </h3>
                 <p>
                   الصف: {selectedClass.grade_label} | الشعبة:{' '}
-                  {selectedClass.section_label}
+                  {selectedClass.section_label} | الفصل:{' '}
+                  {normalizeSemesterLabel(selectedClass.semester)}
                 </p>
                 <p>
-                  العام الدراسي: {selectedClass.academic_year} | المدة
-                  الافتراضية: {selectedClass.default_duration_minutes} دقيقة
+                  العام الدراسي:{' '}
+                  {normalizeAcademicYearLabel(selectedClass.academic_year)} |
+                  المدة الافتراضية: {selectedClass.default_duration_minutes}{' '}
+                  دقيقة
                 </p>
               </div>
               <div className="tcm2__meta-actions">
@@ -1735,28 +2114,64 @@ function TeacherCirriculumManager(props: {
                       <option value="">اختر الصف</option>
                       {classes.map((classItem) => (
                         <option key={classItem.id} value={classItem.id}>
-                          {formatClassLabel(classItem)}
+                          {formatClassSelectLabel(classItem)}
                         </option>
                       ))}
                     </select>
                   </div>
                 ) : (
                   <div className="tcm2__inline-grid">
-                <div className="tcm2__field">
-                  <label htmlFor="creator-new-class-grade-label">الصف *</label>
-                  <select
-                    id="creator-new-class-grade-label"
-                    value={creatorNewClassGradeLabel}
-                    onChange={(event) =>
-                      setCreatorNewClassGradeLabel(event.target.value)
-                    }
-                  >
-                    <option value="">اختر الصف</option>
-                    {GRADE_OPTIONS.map((label) => (
-                      <option key={label} value={label}>
-                        {label}
-                      </option>
-                    ))}
+                    <div className="tcm2__field">
+                      <label htmlFor="creator-new-class-academic-year">
+                        العام الدراسي *
+                      </label>
+                      <select
+                        id="creator-new-class-academic-year"
+                        value={creatorNewClassAcademicYear}
+                        onChange={(event) =>
+                          setCreatorNewClassAcademicYear(event.target.value)
+                        }
+                      >
+                        {ACADEMIC_YEAR_OPTIONS.map((yearOption) => (
+                          <option key={yearOption} value={yearOption}>
+                            {yearOption}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="tcm2__field">
+                      <label htmlFor="creator-new-class-semester">
+                        الفصل الدراسي *
+                      </label>
+                      <select
+                        id="creator-new-class-semester"
+                        value={creatorNewClassSemester}
+                        onChange={(event) =>
+                          setCreatorNewClassSemester(event.target.value)
+                        }
+                      >
+                        {SEMESTER_OPTIONS.map((semesterOption) => (
+                          <option key={semesterOption} value={semesterOption}>
+                            {semesterOption}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="tcm2__field">
+                      <label htmlFor="creator-new-class-grade-label">الصف *</label>
+                      <select
+                        id="creator-new-class-grade-label"
+                        value={creatorNewClassGradeLabel}
+                        onChange={(event) =>
+                          setCreatorNewClassGradeLabel(event.target.value)
+                        }
+                      >
+                        <option value="">اختر الصف</option>
+                        {GRADE_OPTIONS.map((label) => (
+                          <option key={label} value={label}>
+                            {label}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div className="tcm2__field">
@@ -1773,19 +2188,6 @@ function TeacherCirriculumManager(props: {
                       />
                     </div>
                     <div className="tcm2__field">
-                      <label htmlFor="creator-new-class-academic-year">
-                        العام الدراسي *
-                      </label>
-                      <input
-                        id="creator-new-class-academic-year"
-                        type="text"
-                        value={creatorNewClassAcademicYear}
-                        onChange={(event) =>
-                          setCreatorNewClassAcademicYear(event.target.value)
-                        }
-                      />
-                    </div>
-                    <div className="tcm2__field">
                       <label htmlFor="creator-new-class-default-duration">
                         مدة الحصة الافتراضية (دقيقة) *
                       </label>
@@ -1798,7 +2200,7 @@ function TeacherCirriculumManager(props: {
                           )
                         }
                       >
-                        {[30, 35, 40, 45, 50, 60, 90].map((d) => (
+                        {LESSON_DURATION_OPTIONS.map((d) => (
                           <option key={d} value={d}>
                             {d} دقيقة
                           </option>
@@ -1870,14 +2272,20 @@ function TeacherCirriculumManager(props: {
                       <label htmlFor="creator-new-subject-name">
                         اسم المادة *
                       </label>
-                      <input
+                      <select
                         id="creator-new-subject-name"
-                        type="text"
                         value={creatorNewSubjectName}
                         onChange={(event) =>
                           setCreatorNewSubjectName(event.target.value)
                         }
-                      />
+                      >
+                        <option value="">اختر المادة</option>
+                        {SUBJECT_OPTIONS.map((subjectOption) => (
+                          <option key={subjectOption} value={subjectOption}>
+                            {subjectOption}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div className="tcm2__field">
                       <label htmlFor="creator-new-subject-description">
@@ -1961,14 +2369,20 @@ function TeacherCirriculumManager(props: {
                       <label htmlFor="creator-new-unit-name">
                         اسم الوحدة *
                       </label>
-                      <input
+                      <select
                         id="creator-new-unit-name"
-                        type="text"
                         value={creatorNewUnitName}
                         onChange={(event) =>
                           setCreatorNewUnitName(event.target.value)
                         }
-                      />
+                      >
+                        <option value="">اختر الوحدة</option>
+                        {UNIT_OPTIONS.map((unitOption) => (
+                          <option key={unitOption} value={unitOption}>
+                            {unitOption}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div className="tcm2__field">
                       <label htmlFor="creator-new-unit-description">
@@ -2032,20 +2446,44 @@ function TeacherCirriculumManager(props: {
                         />
                       </div>
                       <div className="tcm2__field">
+                        <label htmlFor="creator-lesson-period-number">
+                          الحصة *
+                        </label>
+                        <select
+                          id="creator-lesson-period-number"
+                          value={creatorLessonPeriodNumber}
+                          onChange={(event) =>
+                            setCreatorLessonPeriodNumber(
+                              Number(event.target.value)
+                            )
+                          }
+                        >
+                          {PERIOD_OPTIONS.map((periodOption, index) => (
+                            <option key={periodOption} value={index + 1}>
+                              {periodOption}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="tcm2__field">
                         <label htmlFor="creator-lesson-periods">
                           عدد الحصص *
                         </label>
-                        <input
+                        <select
                           id="creator-lesson-periods"
-                          type="number"
-                          min={1}
                           value={creatorLessonNumberOfPeriods}
                           onChange={(event) =>
                             setCreatorLessonNumberOfPeriods(
                               Number(event.target.value)
                             )
                           }
-                        />
+                        >
+                          {LESSON_PERIOD_COUNT_OPTIONS.map((periodCount) => (
+                            <option key={periodCount} value={periodCount}>
+                              {periodCount}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     </div>
 
@@ -2174,7 +2612,7 @@ function TeacherCirriculumManager(props: {
             <p className="tcm2__required-note">الحقول التي عليها * مطلوبة.</p>
             {quickAddDraft.kind === 'class' && (
               <p className="tcm2__helper-note">
-                ملاحظة: اختر الصف ثم أكمل بيانات الشعبة والعام الدراسي.
+                ملاحظة: اختر العام والفصل والصف ثم أكمل بيانات الشعبة.
               </p>
             )}
 
@@ -2182,21 +2620,67 @@ function TeacherCirriculumManager(props: {
               <>
                 <div className="tcm2__field">
                   <label htmlFor="quick-add-name">الاسم *</label>
-                  <input
-                    id="quick-add-name"
-                    type="text"
-                    value={quickAddDraft.name}
-                    onChange={(event) =>
-                      setQuickAddDraft((previous) =>
-                        previous
-                          ? {
-                              ...previous,
-                              name: event.target.value,
-                            }
-                          : previous
-                      )
-                    }
-                  />
+                  {quickAddDraft.kind === 'subject' ? (
+                    <select
+                      id="quick-add-name"
+                      value={quickAddDraft.name}
+                      onChange={(event) =>
+                        setQuickAddDraft((previous) =>
+                          previous
+                            ? {
+                                ...previous,
+                                name: event.target.value,
+                              }
+                            : previous
+                        )
+                      }
+                    >
+                      <option value="">اختر المادة</option>
+                      {SUBJECT_OPTIONS.map((subjectOption) => (
+                        <option key={subjectOption} value={subjectOption}>
+                          {subjectOption}
+                        </option>
+                      ))}
+                    </select>
+                  ) : quickAddDraft.kind === 'unit' ? (
+                    <select
+                      id="quick-add-name"
+                      value={quickAddDraft.name}
+                      onChange={(event) =>
+                        setQuickAddDraft((previous) =>
+                          previous
+                            ? {
+                                ...previous,
+                                name: event.target.value,
+                              }
+                            : previous
+                        )
+                      }
+                    >
+                      <option value="">اختر الوحدة</option>
+                      {UNIT_OPTIONS.map((unitOption) => (
+                        <option key={unitOption} value={unitOption}>
+                          {unitOption}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      id="quick-add-name"
+                      type="text"
+                      value={quickAddDraft.name}
+                      onChange={(event) =>
+                        setQuickAddDraft((previous) =>
+                          previous
+                            ? {
+                                ...previous,
+                                name: event.target.value,
+                              }
+                            : previous
+                        )
+                      }
+                    />
+                  )}
                 </div>
 
                 <div className="tcm2__field">
@@ -2222,6 +2706,52 @@ function TeacherCirriculumManager(props: {
 
             {quickAddDraft.kind === 'class' && (
               <div className="tcm2__inline-grid">
+                <div className="tcm2__field">
+                  <label htmlFor="quick-add-class-year">العام الدراسي *</label>
+                  <select
+                    id="quick-add-class-year"
+                    value={quickAddDraft.academicYear ?? ACADEMIC_YEAR_OPTIONS[0]}
+                    onChange={(event) =>
+                      setQuickAddDraft((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              academicYear: event.target.value,
+                            }
+                          : previous
+                      )
+                    }
+                  >
+                    {ACADEMIC_YEAR_OPTIONS.map((yearOption) => (
+                      <option key={yearOption} value={yearOption}>
+                        {yearOption}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="tcm2__field">
+                  <label htmlFor="quick-add-class-semester">الفصل الدراسي *</label>
+                  <select
+                    id="quick-add-class-semester"
+                    value={quickAddDraft.semester ?? SEMESTER_OPTIONS[0]}
+                    onChange={(event) =>
+                      setQuickAddDraft((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              semester: event.target.value,
+                            }
+                          : previous
+                      )
+                    }
+                  >
+                    {SEMESTER_OPTIONS.map((semesterOption) => (
+                      <option key={semesterOption} value={semesterOption}>
+                        {semesterOption}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <div className="tcm2__field">
                   <label htmlFor="quick-add-class-grade">الصف *</label>
                   <select
@@ -2265,24 +2795,6 @@ function TeacherCirriculumManager(props: {
                   />
                 </div>
                 <div className="tcm2__field">
-                  <label htmlFor="quick-add-class-year">العام الدراسي *</label>
-                  <input
-                    id="quick-add-class-year"
-                    type="text"
-                    value={quickAddDraft.academicYear ?? ''}
-                    onChange={(event) =>
-                      setQuickAddDraft((previous) =>
-                        previous
-                          ? {
-                              ...previous,
-                              academicYear: event.target.value,
-                            }
-                          : previous
-                      )
-                    }
-                  />
-                </div>
-                <div className="tcm2__field">
                   <label htmlFor="quick-add-class-duration">
                     مدة الحصة الافتراضية (دقيقة) *
                   </label>
@@ -2302,7 +2814,7 @@ function TeacherCirriculumManager(props: {
                       )
                     }
                   >
-                    {[30, 35, 40, 45, 50, 60, 90].map((d) => (
+                    {LESSON_DURATION_OPTIONS.map((d) => (
                       <option key={d} value={d}>
                         {d} دقيقة
                       </option>
@@ -2315,11 +2827,32 @@ function TeacherCirriculumManager(props: {
             {quickAddDraft.kind === 'lesson' && (
               <>
                 <div className="tcm2__field">
+                  <label htmlFor="quick-add-lesson-period-number">الحصة *</label>
+                  <select
+                    id="quick-add-lesson-period-number"
+                    value={quickAddDraft.periodNumber ?? 1}
+                    onChange={(event) =>
+                      setQuickAddDraft((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              periodNumber: Number(event.target.value),
+                            }
+                          : previous
+                      )
+                    }
+                  >
+                    {PERIOD_OPTIONS.map((periodOption, index) => (
+                      <option key={periodOption} value={index + 1}>
+                        {periodOption}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="tcm2__field">
                   <label htmlFor="quick-add-lesson-periods">عدد الحصص *</label>
-                  <input
+                  <select
                     id="quick-add-lesson-periods"
-                    type="number"
-                    min={1}
                     value={quickAddDraft.numberOfPeriods ?? 1}
                     onChange={(event) =>
                       setQuickAddDraft((previous) =>
@@ -2331,7 +2864,13 @@ function TeacherCirriculumManager(props: {
                           : previous
                       )
                     }
-                  />
+                  >
+                    {LESSON_PERIOD_COUNT_OPTIONS.map((periodCount) => (
+                      <option key={periodCount} value={periodCount}>
+                        {periodCount}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="tcm2__field">
@@ -2536,13 +3075,14 @@ function TeacherCirriculumManager(props: {
 
                 <div className="tcm2__inline-grid">
                   <div className="tcm2__field">
-                    <label htmlFor="edit-class-academic-year">
-                      العام الدراسي
-                    </label>
-                    <input
+                    <label htmlFor="edit-class-academic-year">العام الدراسي</label>
+                    <select
                       id="edit-class-academic-year"
-                      type="text"
-                      value={editDraft.academicYear ?? ''}
+                      value={
+                        editDraft.academicYear
+                          ? normalizeAcademicYearLabel(editDraft.academicYear)
+                          : ACADEMIC_YEAR_OPTIONS[0]
+                      }
                       onChange={(event) =>
                         setEditDraft((previous) =>
                           previous
@@ -2553,7 +3093,36 @@ function TeacherCirriculumManager(props: {
                             : previous
                         )
                       }
-                    />
+                    >
+                      {ACADEMIC_YEAR_OPTIONS.map((yearOption) => (
+                        <option key={yearOption} value={yearOption}>
+                          {yearOption}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="tcm2__field">
+                    <label htmlFor="edit-class-semester">الفصل الدراسي</label>
+                    <select
+                      id="edit-class-semester"
+                      value={editDraft.semester ?? SEMESTER_OPTIONS[0]}
+                      onChange={(event) =>
+                        setEditDraft((previous) =>
+                          previous
+                            ? {
+                                ...previous,
+                                semester: event.target.value,
+                              }
+                            : previous
+                        )
+                      }
+                    >
+                      {SEMESTER_OPTIONS.map((semesterOption) => (
+                        <option key={semesterOption} value={semesterOption}>
+                          {semesterOption}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="tcm2__field">
                     <label htmlFor="edit-class-default-duration">
@@ -2572,10 +3141,10 @@ function TeacherCirriculumManager(props: {
                                 ),
                               }
                             : previous
-                        )
-                      }
-                    >
-                      {[30, 35, 40, 45, 50, 60, 90].map((d) => (
+                      )
+                    }
+                  >
+                      {LESSON_DURATION_OPTIONS.map((d) => (
                         <option key={d} value={d}>
                           {d} دقيقة
                         </option>
@@ -2687,11 +3256,32 @@ function TeacherCirriculumManager(props: {
                 )}
 
                 <div className="tcm2__field">
+                  <label htmlFor="edit-lesson-period-number">الحصة *</label>
+                  <select
+                    id="edit-lesson-period-number"
+                    value={editDraft.periodNumber ?? 1}
+                    onChange={(event) =>
+                      setEditDraft((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              periodNumber: Number(event.target.value),
+                            }
+                          : previous
+                      )
+                    }
+                  >
+                    {PERIOD_OPTIONS.map((periodOption, index) => (
+                      <option key={periodOption} value={index + 1}>
+                        {periodOption}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="tcm2__field">
                   <label htmlFor="edit-lesson-periods">عدد الحصص *</label>
-                  <input
+                  <select
                     id="edit-lesson-periods"
-                    type="number"
-                    min={1}
                     value={editDraft.numberOfPeriods ?? 1}
                     onChange={(event) =>
                       setEditDraft((previous) =>
@@ -2703,7 +3293,13 @@ function TeacherCirriculumManager(props: {
                           : previous
                       )
                     }
-                  />
+                  >
+                    {LESSON_PERIOD_COUNT_OPTIONS.map((periodCount) => (
+                      <option key={periodCount} value={periodCount}>
+                        {periodCount}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </>
             )}

@@ -32,6 +32,7 @@ export async function createLesson(req, res) {
       unit_id,
       content,
       content_type,
+      period_number,
       number_of_periods,
       id: teacher_id,
     } = req.body;
@@ -39,6 +40,8 @@ export async function createLesson(req, res) {
 
     const parsedUnitId = Number(unit_id);
     const parsedTeacherId = Number(teacher_id);
+    const parsedPeriodNumber =
+      period_number === undefined ? 1 : Number(period_number);
     const parsedNumberOfPeriods =
       number_of_periods === undefined ? 1 : Number(number_of_periods);
     const normalizedContentType = content_type?.toLowerCase();
@@ -66,6 +69,14 @@ export async function createLesson(req, res) {
     }
     if (!content_type) {
       return res.status(400).json({ error: "content_type is required" });
+    }
+    if (
+      !Number.isInteger(parsedPeriodNumber) ||
+      parsedPeriodNumber <= 0
+    ) {
+      return res.status(400).json({
+        error: "period_number must be a positive integer",
+      });
     }
     if (
       !Number.isInteger(parsedNumberOfPeriods) ||
@@ -201,13 +212,14 @@ export async function createLesson(req, res) {
     }
 
     const createdLesson = await turso.execute({
-      sql: "INSERT INTO Lessons (name, description, unit_id, teacher_id, content, number_of_periods) VALUES (?, ?, ?, ?, ?, ?)",
+      sql: "INSERT INTO Lessons (name, description, unit_id, teacher_id, content, period_number, number_of_periods) VALUES (?, ?, ?, ?, ?, ?, ?)",
       args: [
         normalizedName,
         finalDescription,
         parsedUnitId,
         parsedTeacherId,
         finalContent,
+        parsedPeriodNumber,
         parsedNumberOfPeriods,
       ],
     });
@@ -359,6 +371,7 @@ export async function updateLessonByLessonId(req, res) {
       content,
       content_type,
       unit_id,
+      period_number,
       number_of_periods,
     } = req.body;
     const { id: userId, role: userRole } = req.user;
@@ -396,6 +409,7 @@ export async function updateLessonByLessonId(req, res) {
 
     let targetUnitId = lesson.rows[0].unit_id;
     let targetDescription = lesson.rows[0].description ?? null;
+    let targetPeriodNumber = Number(lesson.rows[0].period_number ?? 1);
     let targetNumberOfPeriods = Number(lesson.rows[0].number_of_periods ?? 1);
 
     if (hasDescription) {
@@ -458,6 +472,18 @@ export async function updateLessonByLessonId(req, res) {
       }
 
       targetNumberOfPeriods = parsedNumberOfPeriods;
+    }
+
+    if (period_number !== undefined) {
+      const parsedPeriodNumber = Number(period_number);
+
+      if (!Number.isInteger(parsedPeriodNumber) || parsedPeriodNumber <= 0) {
+        return res.status(400).json({
+          error: "period_number must be a positive integer",
+        });
+      }
+
+      targetPeriodNumber = parsedPeriodNumber;
     }
 
     let finalContent = null;
@@ -569,12 +595,13 @@ export async function updateLessonByLessonId(req, res) {
     }
 
     await turso.execute({
-      sql: "UPDATE Lessons SET name = ?, description = ?, content = ?, unit_id = ?, number_of_periods = ? WHERE id = ?",
+      sql: "UPDATE Lessons SET name = ?, description = ?, content = ?, unit_id = ?, period_number = ?, number_of_periods = ? WHERE id = ?",
       args: [
         normalizedName,
         targetDescription,
         finalContent,
         targetUnitId,
+        targetPeriodNumber,
         targetNumberOfPeriods,
         lessonId,
       ],

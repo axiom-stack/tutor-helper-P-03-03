@@ -57,6 +57,7 @@ const request = {
   grade: "الصف التاسع",
   unit: "الوحدة الاولى",
   duration_minutes: 45,
+  period_order: "الثالثة",
   class_name: "الصف التاسع",
   section: "أ",
 };
@@ -79,6 +80,7 @@ test("Prompt 1 traditional includes strict string-only shape contract", () => {
   assert.match(prompt.systemPrompt, /assessment must be an array of plain Arabic strings only/u);
   assert.match(prompt.systemPrompt, /Default to 3 learning_outcomes/u);
   assert.match(prompt.systemPrompt, /Prefer same-order semantic linkage/u);
+  assert.equal(payload.lesson_metadata.period_order, "الثالثة");
   assert.equal(payload.traditional_shape_contract.top_level_shape.activities, "array of strings");
   assert.equal(
     payload.traditional_shape_contract.valid_item_examples.activity,
@@ -176,6 +178,7 @@ test("Prompt 2 active includes anti-partial-output contract", () => {
   assert.match(prompt.systemPrompt, /never return a partial object such as header only/u);
   assert.match(prompt.systemPrompt, /leading objective verb should map clearly to one Bloom level only/u);
   assert.match(prompt.systemPrompt, /Select suitable active-learning strategies from the allowed bank/u);
+  assert.equal(payload.inputs.lesson_metadata.period_order, "الثالثة");
   assert.equal(payload.active_repair_contract.top_level_shape.lesson_flow, "array of objects");
   assert.equal(payload.active_repair_contract.valid_row_example.activity_type, "intro");
   assert.equal(prompt.userPrompt.includes("\n"), false);

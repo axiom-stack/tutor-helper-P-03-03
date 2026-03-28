@@ -412,9 +412,23 @@
   gap: var(--space-sm);
 }
 
+.tcm2__step--compact {
+  background: rgba(15, 23, 42, 0.02);
+}
+
 .tcm2__step h3 {
   margin: 0;
   font-size: var(--text-md);
+}
+
+.tcm2__warning {
+  margin: 0;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  background: rgba(245, 158, 11, 0.12);
+  color: #92400e;
+  font-size: var(--text-xs);
 }
 
 .tcm2__mode-toggle {

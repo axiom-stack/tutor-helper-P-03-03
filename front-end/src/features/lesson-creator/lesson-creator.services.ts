@@ -19,6 +19,7 @@ export interface GeneratePlanRequest {
   unit: string;
   duration_minutes: number;
   plan_type: PlanType;
+  period_order?: string | null;
   preparation_type?: PreparationType | null;
   class_id?: number;
   class_name?: string;

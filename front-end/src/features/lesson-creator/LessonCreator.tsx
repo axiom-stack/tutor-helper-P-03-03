@@ -6,7 +6,6 @@ import {
   MdClose,
   MdEdit,
   MdHourglassTop,
-  MdMenuBook,
   MdSave,
   MdViewTimeline,
 } from 'react-icons/md';
@@ -15,6 +14,7 @@ import ExportFormatModal from '../../components/common/ExportFormatModal';
 import { useAuth } from '../../context/AuthContext';
 import {
   LESSON_DURATION_OPTIONS,
+  PERIOD_OPTIONS,
   PLAN_TYPE_OPTIONS,
 } from '../../constants/dropdown-options';
 import type { Class, Lesson, Subject, Unit } from '../../types';
@@ -44,6 +44,11 @@ import {
 import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel';
 import { getRefinementTargetOptions } from '../refinements/refinementTargets';
 import { getLocalizedAiLimitMessage } from '../../utils/apiErrors';
+import {
+  formatClassSelectLabel,
+  normalizeAcademicYearLabel,
+  normalizeSemesterLabel,
+} from '../../utils/classDisplay';
 import './lesson-creator.css';
 
 type SelectValue = number | '';
@@ -66,8 +71,6 @@ type GenerationState =
 
 type TimelineStatus = 'pending' | 'active' | 'done' | 'error';
 
-type StepState = 'inactive' | 'active' | 'done';
-
 interface ApiErrorShape {
   response?: {
     data?: GeneratePlanErrorResponse | { error?: string };
@@ -79,7 +82,7 @@ const TIMELINE_STEPS = [
   'استرجاع محتوى الدرس',
   'توليد المسودة الأولية',
   'تحسين الخطة تربويًا',
-  'التحقق من الخطة وحفظها',
+  'التحقق من عرض الخطة وتنسيقها',
 ] as const;
 
 function getErrorMessage(
@@ -152,7 +155,6 @@ function LessonCreator() {
   const unitsRequestIdRef = useRef(0);
   const lessonsRequestIdRef = useRef(0);
   const timelineTimersRef = useRef<number[]>([]);
-  const timelineCardRef = useRef<HTMLDivElement>(null);
 
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -163,6 +165,7 @@ function LessonCreator() {
   const [selectedSubjectId, setSelectedSubjectId] = useState<SelectValue>('');
   const [selectedUnitId, setSelectedUnitId] = useState<SelectValue>('');
   const [selectedLessonId, setSelectedLessonId] = useState<SelectValue>('');
+  const [selectedPeriodOrder, setSelectedPeriodOrder] = useState('');
 
   const [planType, setPlanType] = useState<PlanType>(
     () => user?.profile?.default_plan_type ?? 'traditional'
@@ -185,6 +188,7 @@ function LessonCreator() {
   const [generationError, setGenerationError] = useState<string | null>(null);
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
   const [generationState, setGenerationState] =
     useState<GenerationState>('idle');
   const [activeTimelineIndex, setActiveTimelineIndex] = useState(0);
@@ -206,6 +210,7 @@ function LessonCreator() {
   const defaultPlanType = user?.profile?.default_plan_type ?? 'traditional';
 
   const resetGeneratedState = () => {
+    clearTimelineTimers();
     setGeneratedPlan(null);
     setQueuedPlanNotice(null);
     setGenerationError(null);
@@ -216,6 +221,7 @@ function LessonCreator() {
     setIsExportModalOpen(false);
     setIsExportingPlan(false);
     setDeleteConfirmOpen(false);
+    setIsProgressModalOpen(false);
   };
 
   const resetCreatorForm = () => {
@@ -223,6 +229,7 @@ function LessonCreator() {
     setSelectedSubjectId('');
     setSelectedUnitId('');
     setSelectedLessonId('');
+    setSelectedPeriodOrder('');
     setUnits([]);
     setLessons([]);
     setPlanType(defaultPlanType);
@@ -383,16 +390,6 @@ function LessonCreator() {
     }
   }, [generationError]);
 
-  useEffect(() => {
-    if (
-      generationState === 'success' &&
-      generatedPlan &&
-      screen === 'generated'
-    ) {
-      toast.success('تم توليد الخطة وحفظها بنجاح.');
-    }
-  }, [generationState, generatedPlan, screen]);
-
   const subjectsForSelectedClass = useMemo(() => {
     if (selectedClassId === '') {
       return [];
@@ -430,6 +427,7 @@ function LessonCreator() {
     selectedSubjectId !== '' &&
     selectedUnitId !== '' &&
     selectedLessonId !== '' &&
+    selectedPeriodOrder !== '' &&
     !isGenerating;
 
   const clearTimelineTimers = () => {
@@ -452,6 +450,13 @@ function LessonCreator() {
         setActiveTimelineIndex(3);
       }, 3200),
     ];
+  };
+
+  const dismissProgressModal = () => {
+    if (isGenerating) {
+      return;
+    }
+    setIsProgressModalOpen(false);
   };
 
   const handleClassSelect = (value: string) => {
@@ -496,6 +501,11 @@ function LessonCreator() {
     setScreen('creator');
   };
 
+  const handleClearCreator = () => {
+    resetGeneratedState();
+    resetCreatorForm();
+  };
+
   const handleGeneratePlan = async () => {
     if (!canGenerate || !selectedClass || !selectedSubject || !selectedUnit) {
       return;
@@ -506,20 +516,9 @@ function LessonCreator() {
     setGeneratedPlan(null);
     setQueuedPlanNotice(null);
     setIsGenerating(true);
+    setIsProgressModalOpen(true);
     setGenerationState('fetching_content');
     setActiveTimelineIndex(0);
-
-    if (
-      typeof window !== 'undefined' &&
-      window.matchMedia('(max-width: 640px)').matches
-    ) {
-      const el = timelineCardRef.current;
-      if (el) {
-        requestAnimationFrame(() => {
-          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        });
-      }
-    }
 
     try {
       const lessonResponse = await getLessonById(Number(selectedLessonId));
@@ -573,6 +572,7 @@ function LessonCreator() {
         unit: unitName,
         duration_minutes: safeDurationMinutes,
         plan_type: planType,
+        period_order: selectedPeriodOrder,
         preparation_type: user?.profile?.preparation_type ?? null,
         class_id: selectedClass.id,
         class_name: classLabel || undefined,
@@ -585,6 +585,7 @@ function LessonCreator() {
         setGenerationState('idle');
         setActiveTimelineIndex(0);
         setGeneratedPlan(null);
+        setIsProgressModalOpen(false);
         setScreen('creator');
       } else {
         setGeneratedPlan(generated as GeneratedPlanResponse);
@@ -592,7 +593,14 @@ function LessonCreator() {
         setActiveTimelineIndex(3);
         setPlanDraft(null);
         setIsEditingPlan(false);
-        setScreen('generated');
+        clearTimelineTimers();
+        timelineTimersRef.current = [
+          window.setTimeout(() => {
+            setIsProgressModalOpen(false);
+            setScreen('confirmation');
+          }, 900),
+        ];
+        toast.success('تم توليد الخطة وحفظها بنجاح.');
       }
     } catch (error: unknown) {
       clearTimelineTimers();
@@ -743,29 +751,6 @@ function LessonCreator() {
     resetCreatorForm();
   };
 
-  const handleOpenPlanFromConfirmation = () => {
-    setScreen('generated');
-  };
-
-  const getStepState = (step: 1 | 2 | 3 | 4): StepState => {
-    if (step === 1) {
-      return selectedClassId !== '' ? 'done' : 'active';
-    }
-
-    if (step === 2) {
-      if (selectedClassId === '') return 'inactive';
-      return selectedSubjectId !== '' ? 'done' : 'active';
-    }
-
-    if (step === 3) {
-      if (selectedSubjectId === '') return 'inactive';
-      return selectedUnitId !== '' ? 'done' : 'active';
-    }
-
-    if (selectedUnitId === '') return 'inactive';
-    return selectedLessonId !== '' ? 'done' : 'active';
-  };
-
   const getTimelineStatus = (index: number): TimelineStatus => {
     if (generationState === 'idle') {
       return 'pending';
@@ -812,7 +797,7 @@ function LessonCreator() {
     }
 
     if (generationState === 'validating_saving_estimated') {
-      return 'جارٍ التحقق من الخطة وحفظها...';
+      return 'جارٍ التحقق من عرض الخطة وتنسيقها...';
     }
 
     if (generationState === 'success') {
@@ -823,7 +808,7 @@ function LessonCreator() {
       return generationError ?? 'تعذر إكمال العملية.';
     }
 
-    return 'اختر بيانات الدرس واضغط على توليد الخطة.';
+    return 'اختر بيانات الدرس واضغط على إنشاء.';
   })();
 
   const generatedLessonTitle = (() => {
@@ -893,183 +878,108 @@ function LessonCreator() {
             </p>
           ) : null}
 
-          <div className="lcp__layout">
-            <section className="lcp__preview" aria-live="polite">
-              <div ref={timelineCardRef} className="lcp__timeline-card">
-                <div className="lcp__timeline-head">
-                  <h2>
-                    <MdViewTimeline aria-hidden />
-                    حالة التنفيذ
-                  </h2>
-                  {isGenerating ? (
-                    <span className="lcp__timeline-badge">
-                      <MdHourglassTop aria-hidden />
-                      جارٍ التنفيذ
-                    </span>
-                  ) : null}
-                  {generationState === 'success' ? (
-                    <span className="lcp__timeline-badge lcp__timeline-badge--success">
-                      <MdCheckCircle aria-hidden />
-                      اكتمل
-                    </span>
-                  ) : null}
-                </div>
-                <p className="lcp__timeline-summary">{timelineSummary}</p>
+          <section className="lcp__classic-wrap" aria-live="polite">
+            <article className="lcp__classic-card">
+              <h2>إنشاء خطة درس</h2>
 
-                <ul className="lcp__timeline-list">
-                  {TIMELINE_STEPS.map((step, index) => {
-                    const status = getTimelineStatus(index);
-                    return (
-                      <li
-                        key={step}
-                        className={`lcp__timeline-item lcp__timeline-item--${status}`}
-                      >
-                        <span className="lcp__timeline-dot" aria-hidden />
-                        <span>{step}</span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-
-              <div className="lcp__empty">
-                <MdMenuBook className="lcp__empty-icon" aria-hidden />
-                <h3>لم يتم توليد أي خطة بعد</h3>
-                <p>
-                  اختر الصف والمادة والوحدة والدرس من اللوحة اليمنى ثم اضغط على
-                  "توليد الخطة".
-                </p>
-              </div>
-            </section>
-
-            <aside className="lcp__controls">
-              <h2>توليد الخطة بالذكاء الاصطناعي</h2>
-              <p>
-                أكمل الخطوات بالترتيب، ثم اختر نوع الخطة والزمن واضغط توليد.
-              </p>
-
-              <div className="lcp__steps">
-                <div className={`lcp__step lcp__step--${getStepState(1)}`}>
-                  <div className="lcp__step-index">1</div>
-                  <div className="lcp__step-content">
-                    <label htmlFor="lcp-class-select">الصف الدراسي</label>
-                    <select
-                      id="lcp-class-select"
-                      value={selectedClassId}
-                      onChange={(event) =>
-                        handleClassSelect(event.target.value)
-                      }
-                      disabled={initialLoading || isGenerating}
-                    >
+              <ol className="lcp__classic-list">
+                <li className="lcp__classic-row">
+                  <label htmlFor="lcp-class-select">حدد الصف</label>
+                  <small className="lcp__classic-note">
+                    (قائمة الصفوف المسندة من قبل إدارة المنهج)
+                  </small>
+                  <select
+                    id="lcp-class-select"
+                    value={selectedClassId}
+                    onChange={(event) => handleClassSelect(event.target.value)}
+                    disabled={initialLoading || isGenerating}
+                  >
                       <option value="">اختر الصف...</option>
                       {classes.map((classItem) => (
                         <option key={classItem.id} value={classItem.id}>
-                          {[classItem.grade_label, classItem.section_label]
-                            .map((value) => value?.trim() ?? '')
-                            .filter(Boolean)
-                            .join(' - ')}
+                          {formatClassSelectLabel(classItem)}
                         </option>
                       ))}
                     </select>
-                  </div>
-                </div>
+                </li>
 
-                <div className={`lcp__step lcp__step--${getStepState(2)}`}>
-                  <div className="lcp__step-index">2</div>
-                  <div className="lcp__step-content">
-                    <label htmlFor="lcp-subject-select">المادة</label>
-                    <select
-                      id="lcp-subject-select"
-                      value={selectedSubjectId}
-                      onChange={(event) =>
-                        handleSubjectSelect(event.target.value)
-                      }
-                      disabled={selectedClassId === '' || isGenerating}
-                    >
-                      <option value="">اختر المادة...</option>
-                      {subjectsForSelectedClass.map((subjectItem) => (
-                        <option key={subjectItem.id} value={subjectItem.id}>
-                          {subjectItem.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className={`lcp__step lcp__step--${getStepState(3)}`}>
-                  <div className="lcp__step-index">3</div>
-                  <div className="lcp__step-content">
-                    <label htmlFor="lcp-unit-select">الوحدة</label>
-                    <select
-                      id="lcp-unit-select"
-                      value={selectedUnitId}
-                      onChange={(event) => handleUnitSelect(event.target.value)}
-                      disabled={
-                        selectedSubjectId === '' || unitsLoading || isGenerating
-                      }
-                    >
-                      <option value="">اختر الوحدة...</option>
-                      {units.map((unitItem) => (
-                        <option key={unitItem.id} value={unitItem.id}>
-                          {unitItem.name}
-                        </option>
-                      ))}
-                    </select>
-                    {unitsLoading ? (
-                      <small>جارٍ تحميل وحدات المادة...</small>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className={`lcp__step lcp__step--${getStepState(4)}`}>
-                  <div className="lcp__step-index">4</div>
-                  <div className="lcp__step-content">
-                    <label htmlFor="lcp-lesson-select">الدرس</label>
-                    <select
-                      id="lcp-lesson-select"
-                      value={selectedLessonId}
-                      onChange={(event) =>
-                        handleLessonSelect(event.target.value)
-                      }
-                      disabled={
-                        selectedUnitId === '' || lessonsLoading || isGenerating
-                      }
-                    >
-                      <option value="">اختر الدرس...</option>
-                      {lessons.map((lessonItem) => (
-                        <option key={lessonItem.id} value={lessonItem.id}>
-                          {lessonItem.name}
-                        </option>
-                      ))}
-                    </select>
-                    {lessonsLoading ? (
-                      <small>جارٍ تحميل دروس الوحدة...</small>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-
-              <div className="lcp__options">
-                <div className="lcp__duration">
-                  <label htmlFor="lcp-plan-type">نوع الخطة</label>
+                <li className="lcp__classic-row">
+                  <label htmlFor="lcp-subject-select">حدد المادة</label>
+                  <small className="lcp__classic-note">
+                    (قائمة المواد المسندة من قبل المعلم أو إدارة المنهج)
+                  </small>
                   <select
-                    id="lcp-plan-type"
-                    value={planType}
-                    onChange={(event) =>
-                      setPlanType(event.target.value as PlanType)
-                    }
-                    disabled={selectedLessonId === '' || isGenerating}
+                    id="lcp-subject-select"
+                    value={selectedSubjectId}
+                    onChange={(event) => handleSubjectSelect(event.target.value)}
+                    disabled={selectedClassId === '' || isGenerating}
                   >
-                    {PLAN_TYPE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
+                    <option value="">اختر المادة...</option>
+                    {subjectsForSelectedClass.map((subjectItem) => (
+                      <option key={subjectItem.id} value={subjectItem.id}>
+                        {subjectItem.name}
                       </option>
                     ))}
                   </select>
-                </div>
+                </li>
 
-                <div className="lcp__duration">
-                  <label htmlFor="lcp-duration">المدة الزمنية</label>
+                <li className="lcp__classic-row">
+                  <label htmlFor="lcp-unit-select">حدد الوحدة</label>
+                  <small className="lcp__classic-note">
+                    (قائمة الوحدات المسندة من قبل المعلم أو إدارة المنهج)
+                  </small>
+                  <select
+                    id="lcp-unit-select"
+                    value={selectedUnitId}
+                    onChange={(event) => handleUnitSelect(event.target.value)}
+                    disabled={
+                      selectedSubjectId === '' || unitsLoading || isGenerating
+                    }
+                  >
+                    <option value="">اختر الوحدة...</option>
+                    {units.map((unitItem) => (
+                      <option key={unitItem.id} value={unitItem.id}>
+                        {unitItem.name}
+                      </option>
+                    ))}
+                  </select>
+                  {unitsLoading ? (
+                    <small className="lcp__classic-note-muted">
+                      جارٍ تحميل وحدات المادة...
+                    </small>
+                  ) : null}
+                </li>
+
+                <li className="lcp__classic-row">
+                  <label htmlFor="lcp-lesson-select">حدد عنوان الدرس</label>
+                  <small className="lcp__classic-note">
+                    (قائمة عناوين الدروس المسندة من قبل المعلم أو إدارة المنهج)
+                  </small>
+                  <select
+                    id="lcp-lesson-select"
+                    value={selectedLessonId}
+                    onChange={(event) => handleLessonSelect(event.target.value)}
+                    disabled={
+                      selectedUnitId === '' || lessonsLoading || isGenerating
+                    }
+                  >
+                    <option value="">اختر الدرس...</option>
+                    {lessons.map((lessonItem) => (
+                      <option key={lessonItem.id} value={lessonItem.id}>
+                        {lessonItem.name}
+                      </option>
+                    ))}
+                  </select>
+                  {lessonsLoading ? (
+                    <small className="lcp__classic-note-muted">
+                      جارٍ تحميل دروس الوحدة...
+                    </small>
+                  ) : null}
+                </li>
+
+                <li className="lcp__classic-row">
+                  <label htmlFor="lcp-duration">المدة الزمنية للحصة</label>
+                  <small className="lcp__classic-note">(قائمة منسدلة 8)</small>
                   <select
                     id="lcp-duration"
                     value={durationMinutes}
@@ -1084,8 +994,49 @@ function LessonCreator() {
                       </option>
                     ))}
                   </select>
-                </div>
+                </li>
 
+                <li className="lcp__classic-row">
+                  <label htmlFor="lcp-period-order">ترتيب الحصة</label>
+                  <small className="lcp__classic-note">
+                    (قائمة منسدلة 3)
+                  </small>
+                  <select
+                    id="lcp-period-order"
+                    value={selectedPeriodOrder}
+                    onChange={(event) => setSelectedPeriodOrder(event.target.value)}
+                    disabled={selectedLessonId === '' || isGenerating}
+                  >
+                    <option value="">اختر ترتيب الحصة...</option>
+                    {PERIOD_OPTIONS.map((period) => (
+                      <option key={period} value={period}>
+                        {period}
+                      </option>
+                    ))}
+                  </select>
+                </li>
+
+                <li className="lcp__classic-row">
+                  <label htmlFor="lcp-plan-type">نوع الخطة</label>
+                  <small className="lcp__classic-note">(قائمة منسدلة 9)</small>
+                  <select
+                    id="lcp-plan-type"
+                    value={planType}
+                    onChange={(event) =>
+                      setPlanType(event.target.value as PlanType)
+                    }
+                    disabled={selectedLessonId === '' || isGenerating}
+                  >
+                    {PLAN_TYPE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </li>
+              </ol>
+
+              <div className="lcp__classic-actions">
                 <button
                   type="button"
                   className="lcp__generate-btn"
@@ -1095,17 +1046,26 @@ function LessonCreator() {
                   {isGenerating ? (
                     <>
                       <span className="ui-button-spinner" aria-hidden />
-                      جارٍ توليد الخطة...
+                      جارٍ إنشاء الخطة...
                     </>
                   ) : generationState === 'error' ? (
-                    'إعادة المحاولة'
+                    'إعادة إنشاء'
                   ) : (
-                    'توليد الخطة'
+                    'إنشاء'
                   )}
                 </button>
+
+                <button
+                  type="button"
+                  className="lcp__clear-btn"
+                  onClick={handleClearCreator}
+                  disabled={isGenerating}
+                >
+                  مسح
+                </button>
               </div>
-            </aside>
-          </div>
+            </article>
+          </section>
         </>
       ) : screen === 'generated' && generatedPlan ? (
         <section className="lcp__generated-view" aria-live="polite">
@@ -1227,8 +1187,9 @@ function LessonCreator() {
               <p>
                 الوحدة الأولى | {selectedSubject?.name ?? '—'} | الصف:{' '}
                 {selectedClass?.grade_label ?? '—'} | الفصل:{' '}
-                {selectedClass?.semester ?? '—'} |{' '}
-                {selectedClass?.academic_year ?? '—'} |{' '}
+                {normalizeSemesterLabel(selectedClass?.semester)} |{' '}
+                {normalizeAcademicYearLabel(selectedClass?.academic_year) || '—'}{' '}
+                |{' '}
                 {toPlanTypeLabel(generatedPlan?.plan_type ?? planType)} | المدة:{' '}
                 {durationMinutes} د
               </p>
@@ -1237,7 +1198,7 @@ function LessonCreator() {
                 <button
                   type="button"
                   className="lcp__btn-save"
-                  onClick={handleOpenPlanFromConfirmation}
+                  onClick={() => setScreen('generated')}
                 >
                   عرض
                 </button>
@@ -1268,6 +1229,79 @@ function LessonCreator() {
           </div>
         </section>
       )}
+
+      {isProgressModalOpen ? (
+        <div
+          className="lcp__progress-backdrop"
+          role="presentation"
+          onClick={dismissProgressModal}
+        >
+          <section
+            className="lcp__progress-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="lcp-progress-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="lcp__timeline-head">
+              <h2 id="lcp-progress-title">
+                <MdViewTimeline aria-hidden />
+                حالة التنفيذ
+              </h2>
+              {isGenerating ? (
+                <span className="lcp__timeline-badge">
+                  <MdHourglassTop aria-hidden />
+                  جارٍ التنفيذ
+                </span>
+              ) : null}
+              {generationState === 'success' ? (
+                <span className="lcp__timeline-badge lcp__timeline-badge--success">
+                  <MdCheckCircle aria-hidden />
+                  اكتمل
+                </span>
+              ) : null}
+            </div>
+
+            <p className="lcp__timeline-summary">{timelineSummary}</p>
+
+            <ul className="lcp__timeline-list">
+              {TIMELINE_STEPS.map((step, index) => {
+                const status = getTimelineStatus(index);
+                return (
+                  <li
+                    key={step}
+                    className={`lcp__timeline-item lcp__timeline-item--${status}`}
+                  >
+                    <span className="lcp__timeline-dot" aria-hidden />
+                    <span>{step}</span>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {generationState === 'error' ? (
+              <div className="lcp__progress-actions">
+                <button
+                  type="button"
+                  className="lcp__generate-btn"
+                  onClick={() => void handleGeneratePlan()}
+                  disabled={!canGenerate || isGenerating}
+                >
+                  إعادة المحاولة
+                </button>
+                <button
+                  type="button"
+                  className="lcp__clear-btn"
+                  onClick={dismissProgressModal}
+                  disabled={isGenerating}
+                >
+                  إغلاق
+                </button>
+              </div>
+            ) : null}
+          </section>
+        </div>
+      ) : null}
 
       <ExportFormatModal
         isOpen={isExportModalOpen}

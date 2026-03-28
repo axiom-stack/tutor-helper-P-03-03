@@ -302,6 +302,47 @@ test("extracts nested plan object from wrapped Prompt 2 output", async () => {
   assert.deepEqual(result.plan_json, validPlan);
 });
 
+test("uses period_order as header.time when provided", async () => {
+  const llmResponses = [createTraditionalPlan(), createTraditionalPlan()].map((plan) => ({
+    ok: true,
+    data: plan,
+    rawText: JSON.stringify(plan),
+  }));
+
+  const service = createLessonPlanGenerationService(
+    createBaseDependencies({
+      llmClient: {
+        generateJson: async () => llmResponses.shift(),
+      },
+      repository: {
+        create: async (payload) => ({
+          db_id: 12,
+          public_id: "trd_12",
+          plan_type: payload.planType,
+          plan_json: payload.planJson,
+          validation_status: payload.validationStatus,
+          retry_occurred: Boolean(payload.retryOccurred),
+          created_at: "2026-03-09T00:00:00.000Z",
+          updated_at: "2026-03-09T00:00:00.000Z",
+        }),
+      },
+    }),
+  );
+
+  const result = await service.generate(
+    {
+      ...requestPayload,
+      period_order: "الخامسة",
+    },
+    {
+      teacherId: 2,
+      logger: { info() {}, warn() {}, error() {} },
+    },
+  );
+
+  assert.equal(result.plan_json?.header?.time, "الخامسة");
+});
+
 test("persists safe timing repair without retry", async () => {
   const savedPayloads = [];
   const prompt2Candidate = createTraditionalPlan();

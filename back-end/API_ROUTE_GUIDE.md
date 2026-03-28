@@ -138,6 +138,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```json
 {
   "grade_label": "string (required)",
+  "semester": "string (required, one of: الأول | الثاني)",
   "section_label": "string (required)",
   "section": "string (optional, defaults to 'أ')",
   "academic_year": "string (required)",
@@ -153,6 +154,7 @@ All API endpoints except login/logout require authentication via JWT token in th
   "class": {
     "id": number,
     "grade_label": string,
+    "semester": string | null,
     "section_label": string,
     "section": string,
     "academic_year": string,
@@ -167,7 +169,23 @@ All API endpoints except login/logout require authentication via JWT token in th
 
 - `201`: Created successfully
 - `400`: Missing/invalid required fields or teacher_id
+- `409`: Duplicate class identity for the same teacher (`academic_year + semester + grade_label + section_label`)
 - `500`: Internal server error
+
+**Duplicate Response Body** (409):
+
+```json
+{
+  "error": {
+    "code": "class_already_exists",
+    "message": "يوجد صف محفوظ بنفس العام الدراسي والفصل والصف والشعبة."
+  },
+  "class": {
+    "id": 12,
+    "teacher_id": 5
+  }
+}
+```
 
 ---
 
@@ -185,6 +203,7 @@ All API endpoints except login/logout require authentication via JWT token in th
     {
       "id": number,
       "grade_label": string,
+      "semester": string | null,
       "section_label": string,
       "section": string,
       "academic_year": string,
@@ -216,6 +235,7 @@ All API endpoints except login/logout require authentication via JWT token in th
   "class": {
     "id": number,
     "grade_label": string,
+    "semester": string | null,
     "section_label": string,
     "section": string,
     "academic_year": string,
@@ -249,6 +269,7 @@ All API endpoints except login/logout require authentication via JWT token in th
     {
       "id": number,
       "grade_label": string,
+      "semester": string | null,
       "section_label": string,
       "section": string,
       "academic_year": string,
@@ -277,6 +298,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```json
 {
   "grade_label": "string (required)",
+  "semester": "string (required, one of: الأول | الثاني)",
   "section_label": "string (required)",
   "section": "string (optional, defaults to 'أ')",
   "academic_year": "string (required)",
@@ -291,6 +313,7 @@ All API endpoints except login/logout require authentication via JWT token in th
   "class": {
     "id": number,
     "grade_label": string,
+    "semester": string | null,
     "section_label": string,
     "section": string,
     "academic_year": string,
@@ -305,6 +328,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 
 - `200`: Updated successfully
 - `400`: Missing/invalid required fields
+- `409`: Duplicate class identity for the same teacher (`academic_year + semester + grade_label + section_label`)
 - `403`: Unauthorized (not owner and not admin)
 - `404`: Class not found
 - `500`: Internal server error
@@ -324,6 +348,7 @@ All API endpoints except login/logout require authentication via JWT token in th
   "class": {
     "id": number,
     "grade_label": string,
+    "semester": string | null,
     "section_label": string,
     "section": string,
     "academic_year": string,
@@ -825,20 +850,22 @@ All API endpoints except login/logout require authentication via JWT token in th
 
 **Summary**: Creates a new lesson within a unit
 
-**Request Body** (Form Data):
+**Request Body**:
 
 ```json
 {
   "name": "string (required)",
   "description": "string (optional)",
   "unit_id": "number (required)",
+  "period_number": "number (optional, positive integer, defaults to 1)",
+  "number_of_periods": "number (optional, positive integer, defaults to 1)",
   "content_type": "string (required) - 'text', 'pdf', or 'word'",
   "id": "number (required) - teacher_id",
   "content": "string (required only for text content_type)"
 }
 ```
 
-**Additional**: File upload via `file` field (required for PDF/Word content_type)
+**Additional**: For `content_type: "pdf"` or `content_type: "word"`, upload file via `file` field (required).
 
 **Response Body** (201 for text, 201 for files):
 
@@ -852,6 +879,8 @@ All API endpoints except login/logout require authentication via JWT token in th
     "unit_id": number,
     "teacher_id": number,
     "content": string,
+    "period_number": number | null,
+    "number_of_periods": number,
     "created_at": string
   },
   "content_type": "text"
@@ -859,11 +888,25 @@ All API endpoints except login/logout require authentication via JWT token in th
 
 // File lessons
 {
-  "message": "Lesson created successfully",
+  "lesson": {
+    "id": number,
+    "name": string,
+    "description": string | null,
+    "unit_id": number,
+    "teacher_id": number,
+    "content": string,
+    "period_number": number | null,
+    "number_of_periods": number,
+    "created_at": string
+  },
+  "message": "Lesson created and file processed successfully.",
   "fileProcessed": true,
+  "extractionStatus": "success | partial",
+  "contentLength": number,
   "content_type": "pdf|word",
   "fileType": "string",
-  "fileName": "string"
+  "fileName": "string",
+  "warnings": ["string"]
 }
 ```
 
@@ -871,6 +914,8 @@ All API endpoints except login/logout require authentication via JWT token in th
 
 - `201`: Created successfully
 - `400`: Missing/invalid required fields, invalid content_type, or file type mismatch
+- `415`: Uploaded file type does not match the provided `content_type`
+- `422`: File provided but text extraction failed or produced no readable content
 - `403`: Unauthorized (unit not owned by teacher)
 - `404`: Unit not found
 - `500`: Internal server error
@@ -878,9 +923,9 @@ All API endpoints except login/logout require authentication via JWT token in th
 **Quirks**:
 
 - For `content_type: "text"`: Provide `content` field with lesson text
-- For `content_type: "pdf"` or `content_type: "word"`: Upload file via `file` field, content extraction is placeholder (TODO)
+- For `content_type: "pdf"` or `content_type: "word"`: Upload file via `file` field; extracted text is stored in `lesson.content`
 - File validation checks MIME type and file extension
-- PDF processing and Word processing are not yet implemented (placeholder responses)
+- Legacy `.doc` uploads are rejected; use `.docx`
 
 ---
 
@@ -902,6 +947,8 @@ All API endpoints except login/logout require authentication via JWT token in th
       "unit_id": number,
       "teacher_id": number,
       "content": string,
+      "period_number": number | null,
+      "number_of_periods": number,
       "created_at": string
     }
   ]
@@ -933,6 +980,8 @@ All API endpoints except login/logout require authentication via JWT token in th
       "unit_id": number,
       "teacher_id": number,
       "content": string,
+      "period_number": number | null,
+      "number_of_periods": number,
       "created_at": string
     }
   ]
@@ -965,6 +1014,8 @@ All API endpoints except login/logout require authentication via JWT token in th
     "unit_id": number,
     "teacher_id": number,
     "content": string,
+    "period_number": number | null,
+    "number_of_periods": number,
     "created_at": string
   }
 }
@@ -997,6 +1048,8 @@ All API endpoints except login/logout require authentication via JWT token in th
       "unit_id": number,
       "teacher_id": number,
       "content": string,
+      "period_number": number | null,
+      "number_of_periods": number,
       "created_at": string
     }
   ]
@@ -1018,11 +1071,26 @@ All API endpoints except login/logout require authentication via JWT token in th
 **Request Body**:
 
 ```json
+// Text update (JSON or multipart)
 {
   "name": "string (required)",
   "description": "string (optional)",
-  "content": "string (required)",
-  "unit_id": "number (optional)"
+  "content_type": "string (optional) - 'text'",
+  "content": "string (required for text updates)",
+  "unit_id": "number (optional)",
+  "period_number": "number (optional, positive integer)",
+  "number_of_periods": "number (optional, positive integer)"
+}
+
+// File update (multipart/form-data)
+{
+  "name": "string (required)",
+  "description": "string (optional)",
+  "content_type": "string (required) - 'pdf' or 'word'",
+  "file": "file (required for file updates)",
+  "unit_id": "number (optional)",
+  "period_number": "number (optional, positive integer)",
+  "number_of_periods": "number (optional, positive integer)"
 }
 ```
 
@@ -1030,6 +1098,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 
 - Omit `description` to keep the existing value.
 - Send `description: ""` (or whitespace) to clear it to `null`.
+- Omit `period_number` and `number_of_periods` to keep their existing values.
 
 **Response Body** (200):
 
@@ -1042,6 +1111,8 @@ All API endpoints except login/logout require authentication via JWT token in th
     "unit_id": number,
     "teacher_id": number,
     "content": string,
+    "period_number": number | null,
+    "number_of_periods": number,
     "created_at": string
   }
 }
@@ -1051,6 +1122,8 @@ All API endpoints except login/logout require authentication via JWT token in th
 
 - `200`: Updated successfully
 - `400`: Missing/invalid required fields
+- `415`: Uploaded file type does not match the provided `content_type`
+- `422`: File provided but text extraction failed or produced no readable content
 - `403`: Unauthorized (not owner and not admin, or trying to move to unowned unit)
 - `404`: Lesson or unit not found
 - `500`: Internal server error
@@ -1074,6 +1147,8 @@ All API endpoints except login/logout require authentication via JWT token in th
     "unit_id": number,
     "teacher_id": number,
     "content": string,
+    "period_number": number | null,
+    "number_of_periods": number,
     "created_at": string
   }
 }

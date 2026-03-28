@@ -32,6 +32,10 @@ CREATE TABLE Classes (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE UNIQUE INDEX idx_classes_teacher_unique_semester_key
+  ON Classes(teacher_id, academic_year, semester, grade_label, section_label)
+  WHERE semester IS NOT NULL;
+
 Create Table Subjects (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   class_id INTEGER NOT NULL REFERENCES Classes(id) ON DELETE CASCADE,

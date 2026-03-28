@@ -17,6 +17,7 @@ import {
   getScopedUnits,
   listTeacherScopes,
 } from '../control-dashboard/control-dashboard.services';
+import { formatClassSelectLabel, formatClassShortLabel } from '../../utils/classDisplay';
 import './control-curriculum.css';
 
 type SelectValue = number | '';
@@ -307,10 +308,7 @@ function AdminCurriculumExplorer({
             <option value="">الكل</option>
             {filteredClasses.map((classItem) => (
               <option key={classItem.id} value={classItem.id}>
-                {[classItem.grade_label, classItem.section_label]
-                  .map((value) => value?.trim() ?? '')
-                  .filter(Boolean)
-                  .join(' - ')}
+                {formatClassSelectLabel(classItem)}
               </option>
             ))}
           </select>
@@ -394,7 +392,7 @@ function AdminCurriculumExplorer({
                         <td>{subject?.name ?? '—'}</td>
                         <td>
                           {classItem
-                            ? `${classItem.grade_label} - ${classItem.section_label}`
+                            ? formatClassShortLabel(classItem)
                             : '—'}
                         </td>
                         <td>

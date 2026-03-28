@@ -1,6 +1,15 @@
 import { VALID_PLAN_TYPES } from "./types.js";
 
 const VALID_PREPARATION_TYPES = ["daily", "weekly", "other"];
+const VALID_PERIOD_ORDER_OPTIONS = [
+  "الأولى",
+  "الثانية",
+  "الثالثة",
+  "الرابعة",
+  "الخامسة",
+  "السادسة",
+  "السابعة",
+];
 
 function normalizeString(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -33,6 +42,7 @@ export function validateGeneratePlanRequest(payload) {
     unit: normalizeString(request.unit),
     duration_minutes: parsePositiveInteger(request.duration_minutes),
     plan_type: normalizeString(request.plan_type),
+    period_order: normalizeString(request.period_order) || null,
     preparation_type: VALID_PREPARATION_TYPES.includes(request.preparation_type)
       ? request.preparation_type
       : null,
@@ -79,6 +89,16 @@ export function validateGeneratePlanRequest(payload) {
     errors.push({
       field: "plan_type",
       message: `plan_type must be one of: ${VALID_PLAN_TYPES.join(", ")}`,
+    });
+  }
+
+  if (
+    normalized.period_order &&
+    !VALID_PERIOD_ORDER_OPTIONS.includes(normalized.period_order)
+  ) {
+    errors.push({
+      field: "period_order",
+      message: `period_order must be one of: ${VALID_PERIOD_ORDER_OPTIONS.join(", ")}`,
     });
   }
 

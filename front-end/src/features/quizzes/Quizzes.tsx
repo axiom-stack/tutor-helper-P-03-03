@@ -50,6 +50,11 @@ import {
   LESSON_DURATION_OPTIONS,
   SEMESTER_OPTIONS,
 } from '../../constants/dropdown-options';
+import {
+  formatClassSelectLabel,
+  normalizeAcademicYearLabel,
+  normalizeSemesterLabel,
+} from '../../utils/classDisplay';
 import './quizzes.css';
 
 type SelectValue = number | '';
@@ -171,7 +176,7 @@ export default function Quizzes() {
   const academicYearOptions = useMemo(() => {
     const years = new Set<string>();
     classes.forEach((classItem) => {
-      const year = classItem.academic_year?.trim();
+      const year = normalizeAcademicYearLabel(classItem.academic_year);
       if (year) {
         years.add(year);
       }
@@ -431,14 +436,14 @@ export default function Quizzes() {
     return classes.filter((classItem) => {
       if (
         selectedAcademicYear &&
-        classItem.academic_year !== selectedAcademicYear
+        normalizeAcademicYearLabel(classItem.academic_year) !==
+          selectedAcademicYear
       ) {
         return false;
       }
       if (
         selectedSemester &&
-        classItem.semester != null &&
-        classItem.semester !== selectedSemester
+        normalizeSemesterLabel(classItem.semester) !== selectedSemester
       ) {
         return false;
       }
@@ -1520,10 +1525,7 @@ export default function Quizzes() {
                   <option value="">اختر الصف...</option>
                   {filteredClasses.map((classItem) => (
                     <option key={classItem.id} value={classItem.id}>
-                      {[classItem.grade_label, classItem.section_label]
-                        .map((value) => value?.trim() ?? '')
-                        .filter(Boolean)
-                        .join(' - ')}
+                      {formatClassSelectLabel(classItem)}
                     </option>
                   ))}
                 </select>
@@ -1722,10 +1724,7 @@ export default function Quizzes() {
                     <option value="">الكل</option>
                     {classes.map((classItem) => (
                       <option key={classItem.id} value={classItem.id}>
-                        {[classItem.grade_label, classItem.section_label]
-                          .map((value) => value?.trim() ?? '')
-                          .filter(Boolean)
-                          .join(' - ')}
+                        {formatClassSelectLabel(classItem)}
                       </option>
                     ))}
                   </select>
@@ -1871,10 +1870,7 @@ export default function Quizzes() {
                       <option value="">الكل</option>
                       {classes.map((classItem) => (
                         <option key={classItem.id} value={classItem.id}>
-                          {[classItem.grade_label, classItem.section_label]
-                            .map((value) => value?.trim() ?? '')
-                            .filter(Boolean)
-                            .join(' - ')}
+                          {formatClassSelectLabel(classItem)}
                         </option>
                       ))}
                     </select>

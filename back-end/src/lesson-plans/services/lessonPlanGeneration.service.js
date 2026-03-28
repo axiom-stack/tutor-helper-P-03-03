@@ -973,7 +973,11 @@ export function createLessonPlanGenerationService(dependencies = {}) {
       candidatePlan.header.day = now.toLocaleDateString("ar-SA", {
         weekday: "long",
       });
-      candidatePlan.header.time = now.toLocaleTimeString("ar-SA", {
+      const normalizedPeriodOrder =
+        typeof request.period_order === "string"
+          ? request.period_order.trim()
+          : "";
+      candidatePlan.header.time = normalizedPeriodOrder || now.toLocaleTimeString("ar-SA", {
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,

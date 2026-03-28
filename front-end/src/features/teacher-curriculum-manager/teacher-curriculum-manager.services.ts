@@ -41,6 +41,7 @@ export async function updateClass(
   classId: number,
   data: {
     grade_label: string;
+    semester: string;
     section_label: string;
     section?: string;
     academic_year: string;
@@ -166,6 +167,7 @@ interface CreateLessonPayloadBase {
   description?: string;
   unit_id: number;
   teacher_id: number;
+  period_number?: number;
   number_of_periods: number;
   content_type: LessonContentType;
 }
@@ -199,6 +201,7 @@ export async function createLesson(
     const body: Record<string, unknown> = {
       name: payload.name,
       unit_id: payload.unit_id,
+      period_number: payload.period_number ?? 1,
       number_of_periods: payload.number_of_periods,
       content_type: payload.content_type,
       content: payload.content,
@@ -217,6 +220,7 @@ export async function createLesson(
     form.append('description', payload.description ?? '');
   }
   form.append('unit_id', String(payload.unit_id));
+  form.append('period_number', String(payload.period_number ?? 1));
   form.append('number_of_periods', String(payload.number_of_periods));
   form.append('content_type', payload.content_type);
   form.append('id', String(payload.teacher_id));
@@ -235,6 +239,7 @@ export async function updateLesson(
         content_type: 'text';
         content: string;
         unit_id?: number;
+        period_number?: number;
         number_of_periods?: number;
       }
     | {
@@ -243,6 +248,7 @@ export async function updateLesson(
         content_type: 'pdf' | 'word';
         file: File;
         unit_id?: number;
+        period_number?: number;
         number_of_periods?: number;
       }
 ): Promise<CreateLessonResponse> {
@@ -264,6 +270,9 @@ export async function updateLesson(
 
   if (payload.unit_id !== undefined) {
     form.append('unit_id', String(payload.unit_id));
+  }
+  if (payload.period_number !== undefined) {
+    form.append('period_number', String(payload.period_number));
   }
   if (payload.number_of_periods !== undefined) {
     form.append('number_of_periods', String(payload.number_of_periods));

@@ -502,7 +502,7 @@ export interface CreateUserData {
 }
 
 export interface CreateClassData {
-  semester?: string | null;
+  semester: string;
   grade_label: string;
   section_label: string;
   section?: string;

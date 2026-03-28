@@ -31,10 +31,29 @@ test("validateGeneratePlanRequest accepts valid lesson_id", () => {
     unit: "الأولى",
     duration_minutes: 45,
     plan_type: "traditional",
+    period_order: "الثالثة",
   });
 
   assert.equal(result.ok, true);
   assert.equal(result.value.lesson_id, 11);
+  assert.equal(result.value.period_order, "الثالثة");
+});
+
+test("validateGeneratePlanRequest rejects invalid period_order", () => {
+  const result = validateGeneratePlanRequest({
+    lesson_id: 11,
+    lesson_title: "درس",
+    lesson_content: "محتوى",
+    subject: "علوم",
+    grade: "خامس",
+    unit: "الأولى",
+    duration_minutes: 45,
+    plan_type: "traditional",
+    period_order: "العاشرة",
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.field === "period_order"));
 });
 
 test("validateUpdatePlanRequest accepts valid payload", () => {
