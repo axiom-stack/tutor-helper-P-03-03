@@ -23,7 +23,7 @@ Approximately **55–65%** of the specification appears **fully implemented** en
 - **Exams:** Generation from selected lessons; blueprint by topic weight (periods) and objective level; total questions and total marks; answer key; storage; edit; export PDF/Word; listing.
 - **Smart edit (refinements):** AI suggestions on edit (objectives, strategies, activities, assessment, resources, time, homework); analysis, better wording, alternative activities; pedagogical checks; requires internet; approval/reject flow.
 - **Offline + local DB:** IndexedDB stores plans, assignments, exams, drafts, queue, references; open/edit offline; re-generate suggestions when online.
-- **Admin/control panel:** General settings (language, educational stage, subject, default lesson time, preparation type); curriculum management; teacher management with usage tracking; plans and exams management with filters (subject, grade, quality); reports/statistics with rubric and export.
+- **Admin/control panel:** General settings (language, educational level, subject, default lesson time, preparation type); curriculum management; teacher management with usage tracking; plans and exams management with filters (subject, grade, quality); reports/statistics with rubric and export.
 - **Pedagogical validation:** Objectives (measurable, Bloom-linked, cognitive/affective/psychomotor); activity–objective link; no activity without objective; assessment–objective link; time sum = duration; strategy diversity; forbidden verbs (e.g. يفهم, يعرف) replaced.
 - **Statistics:** Plans created/edited, exams created/edited, average quality, first-pass/retry rates, assignment edit rate; quality bands (ممتاز, جيد جداً, مقبول, needs improvement); admin teacher performance and risk flags.
 
@@ -264,10 +264,10 @@ Schema per row: **Req ID** | **Parent** | **Section/Page** | **Category** | **Ty
 
 | ID | Parent | Section | Type | Original Arabic | Normalized English | Status | Evidence | Repo paths |
 |----|--------|---------|------|----------------|-------------------|--------|----------|------------|
-| REQ-ADMIN-001 | — | p.4–5 | EXPLICIT | الإعدادات العامة: اللغة (عربية–انجليزي)، المرحلة التعليمية، المادة، زمن الحصة الافتراضي | General settings: language, stage, subject, default lesson time | COMPLETE | UserProfiles, Settings.tsx | users.repository, Settings.tsx |
-| REQ-ADMIN-002 | — | p.5 | EXPLICIT | إدارة المنهج: ادخال عناوين الدروس والوحدات، ربط بصف/مادة/مرحلة | Curriculum: lesson/unit titles; link to grade, subject, stage | COMPLETE | Classes, Subjects, Units, Lessons | back-end routes classes, subjects, units, lessons |
+| REQ-ADMIN-001 | — | p.4–5 | EXPLICIT | الإعدادات العامة: اللغة (عربية–انجليزي)، المستوى التعليمي، المادة، زمن الحصة الافتراضي | General settings: language, educational level, subject, default lesson time | COMPLETE | UserProfiles, Settings.tsx | users.repository, Settings.tsx |
+| REQ-ADMIN-002 | — | p.5 | EXPLICIT | إدارة المنهج: ادخال عناوين الدروس والوحدات، ربط بصف/مادة/مستوى | Curriculum: lesson/unit titles; link to grade, subject, level | COMPLETE | Classes, Subjects, Units, Lessons | back-end routes classes, subjects, units, lessons |
 | REQ-ADMIN-003 | — | p.5–6 | EXPLICIT | إدارة الاختبارات: اختيار الدروس، عدد الاسئلة، درجة الاختبار، زمن الاختبار | Exam management: select lessons, number of questions, marks, duration | PARTIAL | Lessons, total_questions, total_marks; duration MISSING | exams requestModel |
-| REQ-ADMIN-004 | — | p.6 | EXPLICIT | إدارة المعلم: انشاء ملف، تحديد مرحلة/مادة/نوع التحضير، متابعة سجل الاستخدام، عدد الخطط، متوسط الجودة، عدد التعديلات، عدد الاختبارات، الدروس المختارة للاختبار | Teacher management: profile, stage, subject, preparation type, usage stats | COMPLETE | users.routes, listTeachersWithUsage, teacher_performance | users.controller, stats.service |
+| REQ-ADMIN-004 | — | p.6 | EXPLICIT | إدارة المعلم: انشاء ملف، تحديد صف/مادة/نوع التحضير، متابعة سجل الاستخدام، عدد الخطط، متوسط الجودة، عدد التعديلات، عدد الاختبارات، الدروس المختارة للاختبار | Teacher management: profile, grade, subject, preparation type, usage stats | COMPLETE | users.routes, listTeachersWithUsage, teacher_performance | users.controller, stats.service |
 | REQ-ADMIN-005 | — | p.6 | EXPLICIT | إدارة الخطط المولدة: عرض الكل، تصنيف حسب المادة/الصف/مستوى الجودة، الاطلاع على التفاصيل وتقييمها | Plans management: list, filter by subject/grade/quality, detail and evaluation | COMPLETE | listPlans, filters; PlansManager detail | plans.routes, PlansManager.tsx |
 | REQ-ADMIN-006 | — | p.6 | EXPLICIT | إدارة الاختبارات المولدة: عرض الكل، تصنيف، تفاصيل وتقييم | Exams management: list, filter, detail, evaluation | COMPLETE | listExams, Quizzes.tsx filters and detail | exams.routes, Quizzes.tsx |
 | REQ-ADMIN-007 | — | p.6 | EXPLICIT | التقارير والاحصائيات (مبسطة)؛ عدد الخطط، متوسط الجودة، عدد الاختبارات | Reports and statistics | COMPLETE | stats/summary, stats/export | stats.routes, Stats.tsx |
@@ -354,7 +354,7 @@ Spec lists: الإلقاء/المحاضرة، المناقشة والحوار، 
 | FEAT-014 | Export exam PDF/Word | Backend | GET /exams/:id/export | REQ-EXAM-008 | FULL | — |
 | FEAT-015 | Stats summary and export | Backend, UI | GET /stats/summary, Stats.tsx | REQ-STAT-001, REQ-STAT-004, REQ-STAT-005, REQ-ADMIN-007 | FULL | — |
 | FEAT-016 | Curriculum (classes, subjects, units, lessons) | Backend, UI | classes, subjects, units, lessons routes; ControlCurriculum, TeacherCirriculumManager | REQ-ADMIN-002, REQ-LP-003 | FULL | — |
-| FEAT-017 | Settings (language, stage, subject, default time, plan type) | Backend, UI | UserProfiles, Settings.tsx, updateMyProfile | REQ-ADMIN-001 | FULL | — |
+| FEAT-017 | Settings (language, level, subject, default time, plan type) | Backend, UI | UserProfiles, Settings.tsx, updateMyProfile | REQ-ADMIN-001 | FULL | — |
 | FEAT-018 | Teacher management (admin) | Backend, UI | users.routes teachers, TeachersManagement | REQ-ADMIN-004 | FULL | — |
 | FEAT-019 | Plans list/filter/detail | Backend, UI | listPlans, PlansManager | REQ-ADMIN-005 | FULL | — |
 | FEAT-020 | Exams list/filter/detail | Backend, UI | listExams, Quizzes | REQ-ADMIN-006 | FULL | — |
@@ -461,7 +461,7 @@ For each requirement type, the following evidence would prove compliance:
 | **Smart edit** | Refinement API and UI; target_key for objectives, strategies, activities, assessment, resources, time, homework; LLM called when online; approve/reject flow. |
 | **Pedagogical validation** | Validator checks objectives (Bloom, measurable); activity–objective link; assessment–objective link; time sum; forbidden verb replacement in normalizer. |
 | **Export/print/share** | Export handlers return PDF and DOCX for plan, assignment, exam; “Print” = export PDF + open or system print; “Share via WhatsApp” = deep link with pre-filled message; “Share via Bluetooth/direct file” = file download or Web Share API / native share. |
-| **Admin dashboard** | Settings (language, stage, subject, default time, plan type) in DB and UI; curriculum CRUD (classes, subjects, units, lessons); teacher list with usage stats; plans/exams list with filters (subject, grade, quality); stats/summary and stats/export. |
+| **Admin dashboard** | Settings (language, level, subject, default time, plan type) in DB and UI; curriculum CRUD (classes, subjects, units, lessons); teacher list with usage stats; plans/exams list with filters (subject, grade, quality); stats/summary and stats/export. |
 | **Statistics** | KPIs: plans_generated, exams_generated, assignments_generated, avg_plan_quality, first_pass_rate, retry_rate, assignment_edit_rate; optional explicit plans_modified, exams_modified; quality_band and criteria in response and report. |
 | **Objective formula** | Prompts/validator enforce structure (فعل سلوكي + محتوى + شرط/معيار); predefined verb list in constants; UI: dropdown of allowed verbs only = full compliance; backend-only replacement = partial. |
 | **No activity without objective** | Validator rejects plan where an activity has no linked objective; UI prevents adding activity without selecting objective = full. |

@@ -27,7 +27,7 @@ function normalizeLogger(logger) {
   };
 }
 
-function ensureLlmSuccess(result, stageName) {
+function ensureLlmSuccess(result, stepName) {
   if (result?.ok) return;
   const details = [
     { code: result?.errorType || "llm_error", path: "$", message: result?.message || "Unknown LLM error" },
@@ -35,7 +35,7 @@ function ensureLlmSuccess(result, stageName) {
   if (result?.status) {
     details.push({ code: "llm_http_status", path: "$", message: `Groq API status: ${result.status}` });
   }
-  throw new AssignmentPipelineError(502, "llm_generation_failed", `${stageName} failed`, details);
+  throw new AssignmentPipelineError(502, "llm_generation_failed", `${stepName} failed`, details);
 }
 
 const ASSIGNMENTS_WRAPPER_KEYS = ["assignments", "data", "output", "result"];

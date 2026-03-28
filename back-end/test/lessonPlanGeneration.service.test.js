@@ -102,7 +102,7 @@ const traditionalStrategyBank = [
 const requestPayload = {
   lesson_id: 11,
   lesson_title: "دورة الماء",
-  lesson_content: "يتناول الدرس مراحل دورة الماء: التبخر والتكاثف والهطول وأثر حرارة الشمس.",
+  lesson_content: "يتناول الدرس خطوات دورة الماء: التبخر والتكاثف والهطول وأثر حرارة الشمس.",
   subject: "علوم",
   grade: "صف خامس",
   unit: "الماء في الطبيعة",
@@ -122,11 +122,11 @@ function createTraditionalPlan() {
       duration: "45 دقائق",
     },
     intro:
-      "يمهد المعلم للدرس بسؤال عن المطر ثم يربط الإجابات بمراحل دورة الماء في الطبيعة (5 دقائق)",
+      "يمهد المعلم للدرس بسؤال عن المطر ثم يربط الإجابات بخطوات دورة الماء في الطبيعة (5 دقائق)",
     concepts: ["دورة الماء", "التبخر", "التكاثف"],
     learning_outcomes: [
-      "أن يشرح الطالب مراحل دورة الماء من خلال مخطط مبسط بدقة.",
-      "أن يرتب الطالب مراحل التبخر والتكاثف والهطول باستخدام بطاقات التسلسل بشكل صحيح.",
+      "أن يشرح الطالب خطوات دورة الماء من خلال مخطط مبسط بدقة.",
+      "أن يرتب الطالب خطوات التبخر والتكاثف والهطول باستخدام بطاقات التسلسل بشكل صحيح.",
       "أن يفسر الطالب أثر حرارة الشمس في دورة الماء شفهيا مع مثال صحيح.",
     ],
     teaching_strategies: [
@@ -135,18 +135,18 @@ function createTraditionalPlan() {
       "طريقة العرض العملي (البيان العملي)",
     ],
     activities: [
-      "يناقش الطلاب مع المعلم فكرة دورة الماء ويراجعون صور المراحل على السبورة وفق طريقة المناقشة والحوار (14 دقائق)",
+      "يناقش الطلاب مع المعلم فكرة دورة الماء ويراجعون صور الخطوات على السبورة وفق طريقة المناقشة والحوار (14 دقائق)",
       "يرتب الطلاب بطاقات التبخر والتكاثف والهطول في مجموعات صغيرة باستخدام لوحة التسلسل وفق استراتيجية التعلم التعاوني (13 دقائق)",
       "ينفذ الطلاب نشاطا عمليا يوضح أثر حرارة الشمس في التبخر داخل كأس ماء وفق طريقة العرض العملي (البيان العملي) (9 دقائق)",
     ],
     learning_resources: ["السبورة", "بطاقات التسلسل", "كأس ماء"],
     assessment: [
-      "اختيار متعدد: ما الترتيب الصحيح لمراحل دورة الماء؟ (4 دقائق)",
+      "اختيار متعدد: ما الترتيب الصحيح لخطوات دورة الماء؟ (4 دقائق)",
       "سؤال مفتوح: فسر أثر حرارة الشمس في التبخر.",
       "إملاء الفراغ: يحدث ____ عندما يبرد بخار الماء.",
     ],
     homework:
-      "يرسم الطالب مخطط دورة الماء ويكتب تحت كل مرحلة مثالاً من حياته اليومية.",
+      "يرسم الطالب مخطط دورة الماء ويكتب تحت كل خطوة مثالاً من حياته اليومية.",
     source: "كتاب العلوم",
   };
 }
@@ -307,14 +307,14 @@ test("persists safe timing repair without retry", async () => {
   const prompt2Candidate = createTraditionalPlan();
   prompt2Candidate.header.duration = "12 دقيقة";
   prompt2Candidate.intro =
-    "يمهد المعلم للدرس بسؤال عن المطر ثم يربط الإجابات بمراحل دورة الماء في الطبيعة (1 دقيقة)";
+    "يمهد المعلم للدرس بسؤال عن المطر ثم يربط الإجابات بخطوات دورة الماء في الطبيعة (1 دقيقة)";
   prompt2Candidate.activities = [
-    "يناقش الطلاب مع المعلم فكرة دورة الماء ويراجعون صور المراحل على السبورة وفق طريقة المناقشة والحوار (2 دقائق) (6 دقائق)",
+    "يناقش الطلاب مع المعلم فكرة دورة الماء ويراجعون صور الخطوات على السبورة وفق طريقة المناقشة والحوار (2 دقائق) (6 دقائق)",
     "يرتب الطلاب بطاقات التبخر والتكاثف والهطول في مجموعات صغيرة باستخدام لوحة التسلسل وفق استراتيجية التعلم التعاوني (2 دقائق)",
     "ينفذ الطلاب نشاطا عمليا يوضح أثر حرارة الشمس في التبخر داخل كأس ماء وفق طريقة العرض العملي (البيان العملي) (2 دقائق)",
   ];
   prompt2Candidate.assessment[0] =
-    "اختيار متعدد (1 دقيقة): ما الترتيب الصحيح لمراحل دورة الماء؟ (2 دقائق)";
+    "اختيار متعدد (1 دقيقة): ما الترتيب الصحيح لخطوات دورة الماء؟ (2 دقائق)";
   const llmResponses = [createTraditionalPlan(), prompt2Candidate].map((plan) => ({
     ok: true,
     data: plan,
@@ -375,7 +375,7 @@ test("retries Prompt 1 once with the configured fallback model on malformed JSON
 
   const service = createLessonPlanGenerationService(
     createBaseDependencies({
-      stageModels: {
+      stepModels: {
         prompt1: "primary-prompt1-model",
         prompt1Retry: "retry-prompt1-model",
         prompt2: "primary-prompt2-model",
@@ -420,7 +420,7 @@ test("retries Prompt 2 once with the configured fallback model on malformed JSON
 
   const service = createLessonPlanGenerationService(
     createBaseDependencies({
-      stageModels: {
+      stepModels: {
         prompt1: "primary-prompt1-model",
         prompt1Retry: "retry-prompt1-model",
         prompt2: "primary-prompt2-model",
@@ -465,7 +465,7 @@ test("retries once when initial candidate is not safely repairable", async () =>
 
   const service = createLessonPlanGenerationService(
     createBaseDependencies({
-      stageModels: {
+      stepModels: {
         prompt1: "primary-prompt1-model",
         prompt1Retry: "retry-prompt1-model",
         prompt2: "primary-prompt2-model",
@@ -650,8 +650,8 @@ test("logs upstream diagnostics when retry LLM call fails", async () => {
   );
 
   assert.equal(errorLogs.length, 1);
-  assert.equal(errorLogs[0].message, "Lesson-plan LLM stage failed");
-  assert.equal(errorLogs[0].payload.stage, "Prompt 2 retry with validation errors");
+  assert.equal(errorLogs[0].message, "Lesson-plan LLM step failed");
+  assert.equal(errorLogs[0].payload.step, "Prompt 2 retry with validation errors");
   assert.equal(errorLogs[0].payload.llm_failure.status, 429);
   assert.equal(errorLogs[0].payload.llm_failure.request_id, "req_123");
   assert.equal(errorLogs[0].payload.llm_failure.upstream_error.code, "rate_limit_exceeded");

@@ -1,0 +1,2 @@
+-- Migration 014 intentionally left blank.
+-- Historical placeholder retained for migration ordering.

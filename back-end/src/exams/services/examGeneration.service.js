@@ -27,7 +27,7 @@ function normalizeLogger(logger) {
   };
 }
 
-function ensureLlmSuccess(result, stageName) {
+function ensureLlmSuccess(result, stepName) {
   if (result?.ok) return;
 
   const details = [
@@ -49,7 +49,7 @@ function ensureLlmSuccess(result, stageName) {
   throw new ExamPipelineError(
     502,
     "llm_generation_failed",
-    `${stageName} failed`,
+    `${stepName} failed`,
     details,
   );
 }

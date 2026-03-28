@@ -220,13 +220,13 @@
   color: var(--text-secondary);
 }
 
-.tm__stage-toggle {
+.tm__filter-toggle {
   display: inline-flex;
   flex-wrap: wrap;
   gap: var(--space-xs);
 }
 
-.tm__stage-pill {
+.tm__filter-pill {
   border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--surface);
@@ -241,7 +241,7 @@
     box-shadow var(--transition-fast);
 }
 
-.tm__stage-pill--active {
+.tm__filter-pill--active {
   border-color: rgba(37, 99, 235, 0.6);
   background: rgba(239, 246, 255, 0.95);
   color: var(--primary);

@@ -412,7 +412,7 @@ function pickBehavioralVerb(text, bloomVerbsGeneration = {}, lessonContext = {})
     return pickFirstAvailable(["يفسر", "يستنتج", "يوضح"]);
   }
 
-  if (/(خطوات|مراحل|اركان|أركان|سنن|ترتيب|تسلسل)/u.test(normalizedText)) {
+  if (/(خطوات|اركان|أركان|سنن|ترتيب|تسلسل)/u.test(normalizedText)) {
     return pickFirstAvailable(["يرتب", "يطبق", "يعدد"]);
   }
 
@@ -433,7 +433,7 @@ function pickBehavioralVerb(text, bloomVerbsGeneration = {}, lessonContext = {})
 
 function pickObjectiveCriterion(text) {
   const normalizedText = normalizeArabicForMatching(text);
-  if (/(ترتيب|خطوات|مراحل|سنن|وضوء|وضوء|تطبيق|ينفذ|يطبق|يصنف)/u.test(normalizedText)) {
+  if (/(ترتيب|خطوات|سنن|وضوء|وضوء|تطبيق|ينفذ|يطبق|يصنف)/u.test(normalizedText)) {
     return "بدقة";
   }
 

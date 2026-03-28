@@ -1,0 +1,2 @@
+-- Migration 019 intentionally left blank.
+-- Historical placeholder retained for migration ordering.

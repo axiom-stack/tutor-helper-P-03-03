@@ -1,0 +1,2 @@
+-- Migration 018 intentionally left blank.
+-- Historical placeholder retained for migration ordering.

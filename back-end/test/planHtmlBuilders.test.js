@@ -25,7 +25,7 @@ test("renders legacy traditional plan_json without requiring schema changes", ()
       },
       intro: "مقدمة عن دورة الماء.",
       concepts: ["دورة الماء", "التبخر", "التكاثف"],
-      learning_outcomes: ["أن يشرح الطالب مراحل دورة الماء."],
+      learning_outcomes: ["أن يشرح الطالب خطوات دورة الماء."],
       teaching_strategies: ["طريقة المناقشة والحوار"],
       activities: ["مناقشة صفية عن المطر."],
       learning_resources: ["السبورة"],

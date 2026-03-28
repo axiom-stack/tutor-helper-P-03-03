@@ -121,7 +121,7 @@ function extractPlanObject(value, expectedKeys, path = "$", depth = 0) {
   return null;
 }
 
-function normalizeGeneratedPlanOutput(rawOutput, targetSchema, logger, stageName) {
+function normalizeGeneratedPlanOutput(rawOutput, targetSchema, logger, stepName) {
   const expectedTopLevelKeys = Object.keys(targetSchema || {});
   if (expectedTopLevelKeys.length === 0) {
     return rawOutput;
@@ -135,7 +135,7 @@ function normalizeGeneratedPlanOutput(rawOutput, targetSchema, logger, stageName
 
   if (extracted.path !== "$") {
     logger.warn(
-      { stage: stageName, extracted_path: extracted.path },
+      { step: stepName, extracted_path: extracted.path },
       "LLM output contained wrapper keys; extracted nested plan object",
     );
   }
@@ -182,7 +182,7 @@ function readConfiguredModel(value) {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-export function resolveLessonPlanStageModels(env = process.env) {
+export function resolveLessonPlanStepModels(env = process.env) {
   const sharedModel = readConfiguredModel(env.GROQ_MODEL) || "llama-3.3-70b-versatile";
   const prompt1Model = readConfiguredModel(env.GROQ_PROMPT1_MODEL) || sharedModel;
   const prompt2Model = readConfiguredModel(env.GROQ_PROMPT2_MODEL) || sharedModel;
@@ -195,7 +195,7 @@ export function resolveLessonPlanStageModels(env = process.env) {
   };
 }
 
-function buildLlmFailureDetails(result, stageName) {
+function buildLlmFailureDetails(result, stepName) {
   const details = [
     {
       code: result?.errorType || "llm_error",
@@ -203,9 +203,9 @@ function buildLlmFailureDetails(result, stageName) {
       message: result?.message || "Unknown LLM error",
     },
     {
-      code: "llm_stage",
+      code: "llm_step",
       path: "$",
-      message: `Stage: ${stageName}`,
+      message: `Step: ${stepName}`,
     },
   ];
 
@@ -276,9 +276,9 @@ function buildLlmFailureDetails(result, stageName) {
   return details;
 }
 
-function buildLlmFailureLogContext(result, stageName, prompt, extraContext = {}) {
+function buildLlmFailureLogContext(result, stepName, prompt, extraContext = {}) {
   return {
-    stage: stageName,
+    step: stepName,
     ...extraContext,
     llm_failure: {
       error_type: result?.errorType || null,
@@ -297,30 +297,30 @@ function buildLlmFailureLogContext(result, stageName, prompt, extraContext = {})
   };
 }
 
-function ensureLlmSuccess(result, stageName, logger, prompt, extraContext = {}) {
+function ensureLlmSuccess(result, stepName, logger, prompt, extraContext = {}) {
   if (result?.ok) {
     return;
   }
 
   logger?.error?.(
-    buildLlmFailureLogContext(result, stageName, prompt, extraContext),
-    "Lesson-plan LLM stage failed",
+    buildLlmFailureLogContext(result, stepName, prompt, extraContext),
+    "Lesson-plan LLM step failed",
   );
 
   throw new LessonPlanPipelineError(
     502,
     "llm_generation_failed",
-    `${stageName} failed`,
-    buildLlmFailureDetails(result, stageName),
+    `${stepName} failed`,
+    buildLlmFailureDetails(result, stepName),
   );
 }
 
-function buildJsonRecoveryPrompt(prompt, failureResult, stageName) {
+function buildJsonRecoveryPrompt(prompt, failureResult, stepName) {
   const failureMessage = failureResult?.message || "Unknown LLM error";
   const failureType = failureResult?.errorType || "llm_error";
   const userPrompt = typeof prompt?.userPrompt === "string" ? prompt.userPrompt : "";
   const isPrompt2 =
-    /Prompt 2/iu.test(stageName) ||
+    /Prompt 2/iu.test(stepName) ||
     userPrompt.includes("\"draft_plan_json\"") ||
     userPrompt.includes("\"validation_errors\"");
   const isTraditional =
@@ -340,7 +340,7 @@ function buildJsonRecoveryPrompt(prompt, failureResult, stageName) {
     "Use strict JSON syntax with double-quoted keys and strings only.",
     "Do not use trailing commas.",
   ].join(" ");
-  const stageSpecificReminder = [
+  const stepSpecificReminder = [
     isPrompt2
       ? "Prompt 2 retry rule: output the repaired lesson-plan object itself only and never return wrapper keys such as task, inputs, draft_plan_json, validation_errors, or metadata."
       : "Prompt 1 retry rule: follow the requested schema exactly and do not invent wrapper keys, commentary, or prose outside the JSON object.",
@@ -359,13 +359,13 @@ function buildJsonRecoveryPrompt(prompt, failureResult, stageName) {
 
   return {
     ...prompt,
-    systemPrompt: [prompt?.systemPrompt || "", strictJsonReminder, stageSpecificReminder]
+    systemPrompt: [prompt?.systemPrompt || "", strictJsonReminder, stepSpecificReminder]
       .filter(Boolean)
       .join("\n\n"),
     userPrompt: [
       prompt?.userPrompt || "",
-      `Retry context for ${stageName}: the previous attempt failed with ${failureType}. ${failureMessage}`,
-      stageSpecificReminder,
+      `Retry context for ${stepName}: the previous attempt failed with ${failureType}. ${failureMessage}`,
+      stepSpecificReminder,
       "Return the corrected response now as JSON only.",
     ]
       .filter(Boolean)
@@ -548,10 +548,10 @@ function applyDeterministicValidationRecovery(planCandidate, planType, validatio
   };
 }
 
-async function generateStageWithFallback({
+async function generateStepWithFallback({
   llmClient,
   prompt,
-  stageName,
+  stepName,
   logger,
   primaryModel,
   fallbackModel = null,
@@ -570,7 +570,7 @@ async function generateStageWithFallback({
   }
 
   if (!fallbackModel) {
-    ensureLlmSuccess(initialResult, stageName, logger, prompt, {
+    ensureLlmSuccess(initialResult, stepName, logger, prompt, {
       ...extraContext,
       model_selection: {
         initial: primaryModel,
@@ -581,7 +581,7 @@ async function generateStageWithFallback({
 
   logger?.warn?.(
     {
-      stage: stageName,
+      step: stepName,
       ...extraContext,
       model_selection: {
         initial: primaryModel,
@@ -594,16 +594,16 @@ async function generateStageWithFallback({
         request_id: initialResult?.requestId || null,
       },
     },
-    "Lesson-plan LLM stage failed on first attempt; retrying once with fallback model",
+    "Lesson-plan LLM step failed on first attempt; retrying once with fallback model",
   );
 
-  const retryPrompt = buildJsonRecoveryPrompt(prompt, initialResult, stageName);
+  const retryPrompt = buildJsonRecoveryPrompt(prompt, initialResult, stepName);
   const retryResult = await llmClient.generateJson({
     ...retryPrompt,
     model: fallbackModel,
   });
 
-  ensureLlmSuccess(retryResult, `${stageName} fallback retry`, logger, retryPrompt, {
+  ensureLlmSuccess(retryResult, `${stepName} fallback retry`, logger, retryPrompt, {
     ...extraContext,
     model_selection: {
       initial: primaryModel,
@@ -615,13 +615,13 @@ async function generateStageWithFallback({
 
   logger?.info?.(
     {
-      stage: stageName,
+      step: stepName,
       ...extraContext,
       recovered_with_retry_model: fallbackModel,
       initial_error_type: initialResult?.errorType || null,
       initial_error_message: initialResult?.message || null,
     },
-    "Lesson-plan LLM stage recovered on fallback model",
+    "Lesson-plan LLM step recovered on fallback model",
   );
 
   return {
@@ -675,7 +675,7 @@ export function createLessonPlanGenerationService(dependencies = {}) {
   const prompt1Builder = dependencies.prompt1Builder || buildPrompt1DraftGenerator;
   const prompt2Builder = dependencies.prompt2Builder || buildPrompt2PedagogicalTuner;
   const llmClient = dependencies.llmClient || createGroqClient();
-  const stageModels = dependencies.stageModels || resolveLessonPlanStageModels();
+  const stepModels = dependencies.stepModels || resolveLessonPlanStepModels();
   const normalizer = dependencies.normalizer || normalizeLessonPlan;
   const validator = dependencies.validator || validateLessonPlan;
   const repository = dependencies.repository || createLessonPlansRepository();
@@ -724,7 +724,7 @@ export function createLessonPlanGenerationService(dependencies = {}) {
           plan_type: request.plan_type,
           class_name: className,
           section,
-          stage_models: stageModels,
+          step_models: stepModels,
         },
         "lesson plan generation request received",
       );
@@ -740,21 +740,21 @@ export function createLessonPlanGenerationService(dependencies = {}) {
 
       let retryOccurred = false;
 
-      const prompt1Stage = await generateStageWithFallback({
+      const prompt1Step = await generateStepWithFallback({
         llmClient,
         prompt: prompt1,
-        stageName: "Prompt 1 draft generation",
+        stepName: "Prompt 1 draft generation",
         logger,
-        primaryModel: stageModels.prompt1,
-        fallbackModel: stageModels.prompt1Retry,
+        primaryModel: stepModels.prompt1,
+        fallbackModel: stepModels.prompt1Retry,
         extraContext: {
           lesson_id: request.lesson_id,
           plan_type: request.plan_type,
           attempt: "initial",
         },
       });
-      retryOccurred = retryOccurred || prompt1Stage.retryOccurred;
-      const draftResult = prompt1Stage.result;
+      retryOccurred = retryOccurred || prompt1Step.retryOccurred;
+      const draftResult = prompt1Step.result;
       ensureLlmSuccess(draftResult, "Prompt 1 draft generation", logger, prompt1, {
         lesson_id: request.lesson_id,
         plan_type: request.plan_type,
@@ -778,21 +778,21 @@ export function createLessonPlanGenerationService(dependencies = {}) {
         targetSchema,
       });
 
-      const prompt2Stage = await generateStageWithFallback({
+      const prompt2Step = await generateStepWithFallback({
         llmClient,
         prompt: prompt2Initial,
-        stageName: "Prompt 2 pedagogical tuning",
+        stepName: "Prompt 2 pedagogical tuning",
         logger,
-        primaryModel: stageModels.prompt2,
-        fallbackModel: stageModels.prompt2Retry,
+        primaryModel: stepModels.prompt2,
+        fallbackModel: stepModels.prompt2Retry,
         extraContext: {
           lesson_id: request.lesson_id,
           plan_type: request.plan_type,
           attempt: "initial",
         },
       });
-      retryOccurred = retryOccurred || prompt2Stage.retryOccurred;
-      const tunedResult = prompt2Stage.result;
+      retryOccurred = retryOccurred || prompt2Step.retryOccurred;
+      const tunedResult = prompt2Step.result;
       ensureLlmSuccess(tunedResult, "Prompt 2 pedagogical tuning", logger, prompt2Initial, {
         lesson_id: request.lesson_id,
         plan_type: request.plan_type,
@@ -843,7 +843,7 @@ export function createLessonPlanGenerationService(dependencies = {}) {
           logger.info(
             {
               repair_summary: result.repairSummary,
-              stage: result?.isValid ? "validation_passed_after_safe_repairs" : "validation_failed_after_safe_repairs",
+              step: result?.isValid ? "validation_passed_after_safe_repairs" : "validation_failed_after_safe_repairs",
             },
             "lesson plan safe repairs applied before validation",
           );
@@ -869,7 +869,7 @@ export function createLessonPlanGenerationService(dependencies = {}) {
         logger.info(
           {
             recovery_summary: recoveryAttempt.recoverySummary,
-            stage: "deterministic_validation_recovery_applied",
+            step: "deterministic_validation_recovery_applied",
           },
           "lesson plan deterministic recovery applied before retry",
         );
@@ -912,7 +912,7 @@ export function createLessonPlanGenerationService(dependencies = {}) {
 
         const retryResult = await llmClient.generateJson({
           ...prompt2Retry,
-          model: stageModels.prompt2Retry,
+          model: stepModels.prompt2Retry,
         });
         ensureLlmSuccess(
           retryResult,

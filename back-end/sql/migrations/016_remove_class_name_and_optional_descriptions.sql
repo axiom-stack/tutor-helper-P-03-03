@@ -27,7 +27,6 @@ DROP TABLE IF EXISTS Classes_new;
 CREATE TABLE Classes_new (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   grade_label TEXT NOT NULL,
-  stage TEXT,
   section_label TEXT NOT NULL,
   section TEXT NOT NULL DEFAULT 'أ',
   academic_year TEXT NOT NULL,
@@ -152,7 +151,6 @@ CREATE TABLE ExamLessons_new (
 INSERT INTO Classes_new (
   id,
   grade_label,
-  stage,
   section_label,
   section,
   academic_year,
@@ -163,7 +161,6 @@ INSERT INTO Classes_new (
 SELECT
   id,
   grade_label,
-  stage,
   section_label,
   section,
   academic_year,
