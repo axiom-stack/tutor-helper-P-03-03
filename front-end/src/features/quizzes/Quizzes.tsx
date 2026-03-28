@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Link, useLocation, useNavigate } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import {
   MdAutoAwesome,
   MdClose,
@@ -71,24 +71,60 @@ interface ExamDraft {
   questions: ExamQuestion[];
 }
 
-const PAPER_ORDINAL_WORDS: Record<number, string> = {
-  1: 'الأول',
-  2: 'الثاني',
-  3: 'الثالث',
-  4: 'الرابع',
-  5: 'الخامس',
-  6: 'السادس',
-  7: 'السابع',
-  8: 'الثامن',
-  9: 'التاسع',
-  10: 'العاشر',
-};
+const PAPER_SECTION_GROUPS = [
+  {
+    id: 'true_false',
+    title: 'أجب بنعم أو لا',
+    questionTypes: ['true_false'] as const,
+  },
+  {
+    id: 'mcq',
+    title: 'اختر الإجابة الصحيحة',
+    questionTypes: ['multiple_choice'] as const,
+  },
+  {
+    id: 'written',
+    title: 'أجب عن الأسئلة الآتية',
+    questionTypes: ['fill_blank', 'open_ended'] as const,
+  },
+] as const;
 
 const PAPER_OPTION_LABELS = ['أ', 'ب', 'ج', 'د'];
 
-function formatPaperOrdinal(value: number): string {
-  const normalized = Math.max(1, Math.trunc(value));
-  return PAPER_ORDINAL_WORDS[normalized] ?? `رقم ${normalized}`;
+const ARABIC_DIGIT_MAP: Record<string, string> = {
+  0: '٠',
+  1: '١',
+  2: '٢',
+  3: '٣',
+  4: '٤',
+  5: '٥',
+  6: '٦',
+  7: '٧',
+  8: '٨',
+  9: '٩',
+};
+
+type PaperQuestion = ExamQuestion & {
+  displayNumber: number;
+};
+
+interface PaperQuestionSection {
+  id: string;
+  title: string;
+  questionTypes: ExamQuestion['question_type'][];
+  questions: PaperQuestion[];
+}
+
+function formatArabicNumber(value: number): string {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return '—';
+  }
+  return new Intl.NumberFormat('ar-SA').format(number);
+}
+
+function toArabicDigits(value: string | number | null | undefined): string {
+  return String(value ?? '').replace(/\d/g, (digit) => ARABIC_DIGIT_MAP[digit] ?? digit);
 }
 
 function splitPaperLines(value: string | null | undefined): string[] {
@@ -106,31 +142,73 @@ function normalizePaperGradeLabel(value: string | null | undefined): string {
 
   const firstPart = text.split(' - ')[0]?.trim() ?? text;
   if (firstPart.startsWith('الصف ')) {
-    return firstPart;
+    return toArabicDigits(firstPart);
   }
   if (firstPart.startsWith('صف ')) {
-    return `الصف ${firstPart.slice(4).trim()}`;
+    return `الصف ${toArabicDigits(firstPart.slice(4).trim())}`;
   }
   if (firstPart === 'صف') {
     return 'الصف';
   }
-  return `الصف ${firstPart}`;
+  return toArabicDigits(`الصف ${firstPart}`);
 }
 
-function getPaperQuestionInstruction(
-  questionType: ExamQuestion['question_type']
-): string {
-  switch (questionType) {
-    case 'multiple_choice':
-      return 'اختر الإجابة الصحيحة';
-    case 'true_false':
-      return 'أجب بلا أو نعم';
-    case 'fill_blank':
-      return 'أجب عن الأسئلة الآتية';
-    case 'open_ended':
-    default:
-      return 'أجب عن الأسئلة الآتية';
-  }
+function groupPaperQuestions(questions: ExamQuestion[]): PaperQuestionSection[] {
+  const normalizedQuestions = questions.map((question) => ({ ...question }));
+  const sections: PaperQuestionSection[] = [];
+  const knownTypes = new Set<ExamQuestion['question_type']>();
+
+  PAPER_SECTION_GROUPS.forEach((group) => {
+    group.questionTypes.forEach((questionType) => knownTypes.add(questionType));
+    const sectionQuestions = normalizedQuestions.filter((question) =>
+      group.questionTypes.some(
+        (questionType) => questionType === question.question_type,
+      ),
+    );
+
+    if (!sectionQuestions.length) {
+      return;
+    }
+
+    sections.push({
+      id: group.id,
+      title: group.title,
+      questionTypes: [...group.questionTypes],
+      questions: sectionQuestions.map((question, index) => ({
+        ...question,
+        displayNumber: index + 1,
+      })),
+    });
+  });
+
+  const unknownTypes = Array.from(
+    new Set(
+      normalizedQuestions
+        .map((question) => question.question_type)
+        .filter((questionType) => !knownTypes.has(questionType)),
+    ),
+  );
+
+  unknownTypes.forEach((questionType) => {
+    const sectionQuestions = normalizedQuestions.filter(
+      (question) => question.question_type === questionType,
+    );
+    if (!sectionQuestions.length) {
+      return;
+    }
+
+    sections.push({
+      id: `other_${questionType}`,
+      title: 'أجب عن الأسئلة الآتية',
+      questionTypes: [questionType],
+      questions: sectionQuestions.map((question, index) => ({
+        ...question,
+        displayNumber: index + 1,
+      })),
+    });
+  });
+
+  return sections;
 }
 
 function getPaperAnswerLineCount(
@@ -146,29 +224,26 @@ function getPaperAnswerLineCount(
   }
 }
 
-function PaperQuestionSection({
+function PaperQuestionCard({
   question,
 }: {
-  question: ExamQuestion;
+  question: PaperQuestion;
 }) {
   const promptLines = splitPaperLines(question.question_text);
-  const questionNumber = Number.isFinite(question.question_number)
-    ? question.question_number
-    : 1;
+  const questionNumber = formatArabicNumber(
+    question.displayNumber ?? question.question_number ?? 1,
+  );
   const marksLabel =
-    Number.isFinite(question.marks) && question.marks > 0
-      ? `${question.marks}`
+    Number.isFinite(question.marks)
+      ? formatArabicNumber(question.marks)
       : '—';
 
   return (
-    <article className={`qz__paper-question qz__paper-question--${question.question_type}`}>
+    <article
+      className={`qz__paper-question qz__paper-question--${question.question_type}`}
+    >
       <header className="qz__paper-question-header">
-        <span className="qz__paper-question-tag">
-          السؤال {formatPaperOrdinal(questionNumber)}
-        </span>
-        <span className="qz__paper-question-instruction">
-          {getPaperQuestionInstruction(question.question_type)}
-        </span>
+        <span className="qz__paper-question-tag">السؤال {questionNumber}</span>
         <span className="qz__paper-question-marks">
           الدرجة {marksLabel}
         </span>
@@ -180,9 +255,11 @@ function PaperQuestionSection({
             {promptLines.map((line, index) => (
               <li key={`${question.slot_id}-line-${index}`}>
                 <span className="qz__paper-question-line-index">
-                  {index + 1}.
+                  {formatArabicNumber(index + 1)}.
                 </span>
-                <span className="qz__paper-question-line-text">{line}</span>
+                <span className="qz__paper-question-line-text">
+                  {toArabicDigits(line)}
+                </span>
                 {question.question_type === 'true_false' ? (
                   <span className="qz__paper-blank" aria-hidden="true">
                     ( )
@@ -193,7 +270,7 @@ function PaperQuestionSection({
           </ol>
         ) : promptLines.length === 1 ? (
           <p className="qz__paper-question-text">
-            <span>{promptLines[0]}</span>
+            <span>{toArabicDigits(promptLines[0])}</span>
             {question.question_type === 'true_false' ? (
               <span className="qz__paper-blank" aria-hidden="true">
                 ( )
@@ -209,9 +286,11 @@ function PaperQuestionSection({
             {question.options.map((option, index) => (
               <li key={`${question.slot_id}-option-${index}`}>
                 <span className="qz__paper-option-label">
-                  {PAPER_OPTION_LABELS[index] ?? index + 1} -
+                  {PAPER_OPTION_LABELS[index] ?? formatArabicNumber(index + 1)} -
                 </span>
-                <span className="qz__paper-option-text">{option}</span>
+                <span className="qz__paper-option-text">
+                  {toArabicDigits(option)}
+                </span>
               </li>
             ))}
           </ul>
@@ -234,8 +313,8 @@ function PaperQuestionSection({
           </div>
         ) : null}
 
-        {question.question_type === 'fill_blank' ||
-        question.question_type === 'open_ended' ? (
+        {(question.question_type === 'fill_blank' ||
+          question.question_type === 'open_ended') ? (
           <div
             className={`qz__paper-answer-lines qz__paper-answer-lines--${question.question_type}`}
           >
@@ -252,6 +331,23 @@ function PaperQuestionSection({
         ) : null}
       </div>
     </article>
+  );
+}
+
+function PaperSectionBlock({
+  section,
+}: {
+  section: PaperQuestionSection;
+}) {
+  return (
+    <section className="qz__paper-section">
+      <h2 className="qz__paper-section-title">{toArabicDigits(section.title)}</h2>
+      <div className="qz__paper-section-questions">
+        {section.questions.map((question) => (
+          <PaperQuestionCard key={question.slot_id} question={question} />
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -276,6 +372,8 @@ function ExamPaperSheet({
   totalMarks,
   questions,
 }: ExamPaperSheetProps) {
+  const sections = useMemo(() => groupPaperQuestions(questions), [questions]);
+
   return (
     <section className="qz__paper-shell" aria-label="ورقة الاختبار">
       <div className="qz__paper-page">
@@ -289,11 +387,13 @@ function ExamPaperSheet({
           </div>
 
           <div className="qz__paper-header-cell qz__paper-header-cell--center">
-            <div className="qz__paper-header-title">{title}</div>
-            <div className="qz__paper-header-line">{classLabel}</div>
+            <div className="qz__paper-header-title">{toArabicDigits(title)}</div>
             <div className="qz__paper-header-line">
-              {semesterLabel}
-              {academicYearLabel ? ` (${academicYearLabel})` : ''}
+              {toArabicDigits(classLabel)}
+            </div>
+            <div className="qz__paper-header-line">
+              {toArabicDigits(semesterLabel)}
+              {academicYearLabel ? ` (${toArabicDigits(academicYearLabel)})` : ''}
             </div>
           </div>
 
@@ -306,8 +406,8 @@ function ExamPaperSheet({
               )}
             </div>
             <div className="qz__paper-school-lines">
-              <div>مدرسة: {schoolName}</div>
-              <div>الدرجة الكلية: {totalMarks}</div>
+              <div>مدرسة: {toArabicDigits(schoolName)}</div>
+              <div>الدرجة الكلية: {formatArabicNumber(totalMarks)}</div>
             </div>
           </div>
         </header>
@@ -325,11 +425,11 @@ function ExamPaperSheet({
         </div>
 
         <div className="qz__paper-sections">
-          {questions.length > 0 ? (
-            questions.map((question) => (
-              <PaperQuestionSection
-                key={question.slot_id}
-                question={question}
+          {sections.length > 0 ? (
+            sections.map((section) => (
+              <PaperSectionBlock
+                key={section.id}
+                section={section}
               />
             ))
           ) : (
@@ -361,17 +461,17 @@ function formatQuestionCountAr(count: number): string {
   const rules = new Intl.PluralRules('ar');
   switch (rules.select(count)) {
     case 'zero':
-      return '0 سؤال';
+      return `${formatArabicNumber(count)} سؤال`;
     case 'one':
       return 'سؤال واحد';
     case 'two':
       return 'سؤالان';
     case 'few':
-      return `${count} أسئلة`;
+      return `${formatArabicNumber(count)} أسئلة`;
     case 'many':
-      return `${count} سؤالًا`;
+      return `${formatArabicNumber(count)} سؤالًا`;
     default:
-      return `${count} سؤال`;
+      return `${formatArabicNumber(count)} سؤال`;
   }
 }
 
@@ -435,10 +535,12 @@ export default function Quizzes() {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const { examId: examIdParam } = useParams();
   const { lastSyncAt } = useOffline();
   const isAdmin = user?.userRole === 'admin';
   const isTeacher = user?.userRole === 'teacher';
   const isCreateRoute = location.pathname === '/quizzes/create';
+  const selectedExamIdFromRoute = examIdParam?.trim() ?? '';
 
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -1008,7 +1110,7 @@ export default function Quizzes() {
     }
   };
 
-  const handleLoadExamDetails = async (examId: string) => {
+  const handleLoadExamDetails = useCallback(async (examId: string) => {
     if (isEditingExam) {
       toast.error('احفظ تعديلات الاختبار الحالي أو ألغها قبل فتح اختبار آخر.');
       return;
@@ -1024,7 +1126,25 @@ export default function Quizzes() {
     } finally {
       setIsExamLoading(false);
     }
-  };
+  }, [isEditingExam]);
+
+  useEffect(() => {
+    if (!selectedExamIdFromRoute || isCreateRoute || isEditingExam) {
+      return;
+    }
+
+    if (selectedExam?.public_id === selectedExamIdFromRoute) {
+      return;
+    }
+
+    void handleLoadExamDetails(selectedExamIdFromRoute);
+  }, [
+    handleLoadExamDetails,
+    isCreateRoute,
+    isEditingExam,
+    selectedExam?.public_id,
+    selectedExamIdFromRoute,
+  ]);
 
   const requestDeleteExam = (examId: string) => {
     if (isEditingExam) {
@@ -1345,15 +1465,15 @@ export default function Quizzes() {
                 />
               ) : (
                 <div className="qz__details-title">
-                  <h4>{selectedExam.title}</h4>
+                  <h4>{toArabicDigits(selectedExam.title)}</h4>
                   <SyncStatusBadge status={selectedExam.sync_status} />
                 </div>
               )}
               <p>
-                {selectedExam.total_questions} سؤال | {selectedExam.total_marks}{' '}
+                {formatArabicNumber(selectedExam.total_questions)} سؤال | {formatArabicNumber(selectedExam.total_marks)}{' '}
                 درجة
                 {selectedExam.duration_minutes != null
-                  ? ` | مدة: ${selectedExam.duration_minutes} دقيقة`
+                  ? ` | مدة: ${formatArabicNumber(selectedExam.duration_minutes)} دقيقة`
                   : ''}
               </p>
             </div>
@@ -1558,7 +1678,7 @@ export default function Quizzes() {
                                     key={`${question.slot_id}-correct-${index}`}
                                     value={index}
                                   >
-                                    الخيار {index + 1}
+                                    الخيار {formatArabicNumber(index + 1)}
                                   </option>
                                 ))}
                               </select>
@@ -1569,7 +1689,7 @@ export default function Quizzes() {
                                   key={`${question.slot_id}-opt-edit-${index}`}
                                   className="qz__option-edit-row"
                                 >
-                                  <span>{index + 1}</span>
+                                  <span>{formatArabicNumber(index + 1)}</span>
                                   <input
                                     type="text"
                                     className="qz__edit-input"
@@ -1797,12 +1917,12 @@ export default function Quizzes() {
               <span>←</span>
               <span className="qz__breadcrumb-current">تفاصيل الاختبار</span>
             </nav>
-            <h1>{selectedExam.title}</h1>
+            <h1>{toArabicDigits(selectedExam.title)}</h1>
             <p>
-              {selectedExam.total_questions} سؤال | {selectedExam.total_marks}{' '}
+              {formatArabicNumber(selectedExam.total_questions)} سؤال | {formatArabicNumber(selectedExam.total_marks)}{' '}
               درجة
               {selectedExam.duration_minutes != null
-                ? ` | مدة: ${selectedExam.duration_minutes} دقيقة`
+                ? ` | مدة: ${formatArabicNumber(selectedExam.duration_minutes)} دقيقة`
                 : ''}
             </p>
           </div>
@@ -1920,7 +2040,7 @@ export default function Quizzes() {
 
             <section className="qz__setup-card qz__setup-card--foundation">
               <div className="qz__setup-card-header" aria-hidden="true">
-                <span className="qz__setup-step">01</span>
+                <span className="qz__setup-step">٠١</span>
               </div>
 
               <div className="qz__selection-grid qz__selection-grid--foundation">
@@ -1983,7 +2103,7 @@ export default function Quizzes() {
               }`}
             >
               <div className="qz__setup-card-header">
-                <span className="qz__setup-step">02</span>
+                <span className="qz__setup-step">٠٢</span>
                 <span className="qz__setup-card-icon" aria-hidden="true">
                   {isSubjectSelectionLocked ? <MdLock /> : <MdLockOpen />}
                 </span>
@@ -2110,7 +2230,9 @@ export default function Quizzes() {
                             disabled={isGenerating || isEditingExam}
                           />
                           <span>{lesson.name}</span>
-                          <small>{lesson.number_of_periods ?? 1} حصة</small>
+                          <small>
+                            {formatArabicNumber(lesson.number_of_periods ?? 1)} حصة
+                          </small>
                         </label>
                       ))
                     )}
@@ -2161,19 +2283,19 @@ export default function Quizzes() {
                     <MdCheckCircle aria-hidden />
                     <span>تم حفظ الاختبار الجديد بنجاح.</span>
                   </div>
-                  <h3>{selectedExam.title}</h3>
+                  <h3>{toArabicDigits(selectedExam.title)}</h3>
                   <p>
-                    عدد الأسئلة: {selectedExam.total_questions} | الدرجة:{' '}
-                    {selectedExam.total_marks} | المدة:{' '}
-                    {selectedExam.duration_minutes ?? durationMinutes} د
+                    عدد الأسئلة: {formatArabicNumber(selectedExam.total_questions)} | الدرجة:{' '}
+                    {formatArabicNumber(selectedExam.total_marks)} | المدة:{' '}
+                    {formatArabicNumber(selectedExam.duration_minutes ?? durationMinutes)} د
                   </p>
                   <p>
-                    العام الدراسي: {selectedAcademicYear} | الفصل الدراسي:{' '}
-                    {selectedSemester} | الصف:{' '}
-                    {selectedClass?.grade_label ?? '—'} | الشعبة:{' '}
-                    {selectedClass?.section_label ??
+                    العام الدراسي: {toArabicDigits(selectedAcademicYear)} | الفصل الدراسي:{' '}
+                    {toArabicDigits(selectedSemester)} | الصف:{' '}
+                    {toArabicDigits(selectedClass?.grade_label ?? '—')} | الشعبة:{' '}
+                    {toArabicDigits(selectedClass?.section_label ??
                       selectedClass?.section ??
-                      '—'}{' '}
+                      '—')}{' '}
                     | المادة: {selectedSubject?.name ?? '—'}
                   </p>
                   <div className="qz__confirmation-actions">

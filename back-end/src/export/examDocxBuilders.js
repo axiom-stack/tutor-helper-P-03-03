@@ -14,7 +14,11 @@ import {
   VerticalAlign,
   WidthType,
 } from "docx";
-import { buildExamExportViewModel } from "./examViewModel.js";
+import {
+  buildExamExportViewModel,
+  formatArabicNumber,
+  toArabicDigits,
+} from "./examViewModel.js";
 import { parseImageDataUrl } from "../utils/imageDataUrl.js";
 
 const RTL_OPTS = { alignment: AlignmentType.RIGHT };
@@ -36,7 +40,7 @@ const PORTRAIT_SECTION = {
 
 function heading(text, size = 28) {
   return new Paragraph({
-    children: [new TextRun({ text, bold: true, size })],
+    children: [new TextRun({ text: toArabicDigits(text), bold: true, size })],
     ...RTL_OPTS,
     ...RTL_BIDI,
     spacing: { before: 200, after: 100 },
@@ -45,7 +49,7 @@ function heading(text, size = 28) {
 
 function subheading(text) {
   return new Paragraph({
-    children: [new TextRun({ text, bold: true, size: 24 })],
+    children: [new TextRun({ text: toArabicDigits(text), bold: true, size: 24 })],
     ...RTL_OPTS,
     ...RTL_BIDI,
     spacing: { before: 160, after: 80 },
@@ -54,7 +58,7 @@ function subheading(text) {
 
 function para(text, size = 22) {
   return new Paragraph({
-    children: [new TextRun({ text: text || "—", size })],
+    children: [new TextRun({ text: toArabicDigits(text || "—"), size })],
     ...RTL_OPTS,
     ...RTL_BIDI,
     spacing: { after: 80 },
@@ -107,13 +111,13 @@ function headerCell(label, value) {
     verticalAlign: VerticalAlign.CENTER,
     children: [
       new Paragraph({
-        children: [new TextRun({ text: label, bold: true, size: 20 })],
+        children: [new TextRun({ text: toArabicDigits(label), bold: true, size: 20 })],
         ...RTL_OPTS,
         ...RTL_BIDI,
         spacing: { after: 40 },
       }),
       new Paragraph({
-        children: [new TextRun({ text: value || "—", bold: true, size: 22 })],
+        children: [new TextRun({ text: toArabicDigits(value || "—"), bold: true, size: 22 })],
         ...RTL_OPTS,
         ...RTL_BIDI,
       }),
@@ -179,11 +183,230 @@ function buildStudentInfoTable(vm) {
   });
 }
 
+function getDisplayQuestionNumber(q) {
+  return q.displayNumber ?? q.number ?? 1;
+}
+
+function buildQuestionMetaParts(q, { includeLessonName = false } = {}) {
+  const parts = [`السؤال ${formatArabicNumber(getDisplayQuestionNumber(q))}`];
+  if (q.marks != null) {
+    parts.push(`الدرجة ${formatArabicNumber(q.marks)}`);
+  }
+  if (includeLessonName && q.lessonName) {
+    parts.push(q.lessonName);
+  }
+  return parts;
+}
+
+function buildPaperQuestionChildren(q) {
+  const children = [
+    para(buildQuestionMetaParts(q, { includeLessonName: true }).join(" | "), 20),
+    new Paragraph({
+      children: [
+        new TextRun({ text: toArabicDigits(q.text ?? ""), bold: true, size: 24 }),
+      ],
+      ...RTL_OPTS,
+      ...RTL_BIDI,
+      spacing: { after: 80 },
+    }),
+  ];
+
+  if (q.type === "mcq" && Array.isArray(q.options)) {
+    for (const opt of q.options) {
+      children.push(para(`${opt.label ?? ""}) ${opt.text ?? ""}`, 22));
+    }
+  } else if (q.type === "true_false") {
+    children.push(
+      para(`( ${q.trueLabel} ) صحيح`, 22),
+      para(`( ${q.falseLabel} ) خطأ`, 22),
+    );
+  }
+
+  if (q.type === "short_answer" || q.type === "essay") {
+    const lines = q.type === "essay" ? 5 : 2;
+    for (let i = 0; i < lines; i += 1) {
+      children.push(
+        new Paragraph({
+          children: [new TextRun({ text: " ", size: 22 })],
+          border: {
+            bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+          },
+          ...RTL_OPTS,
+          ...RTL_BIDI,
+          spacing: { after: 60 },
+        }),
+      );
+    }
+  }
+
+  children.push(new Paragraph({ children: [], spacing: { after: 160 } }));
+  return children;
+}
+
+function buildAnswerKeyQuestionChildren(q) {
+  const children = [
+    para(buildQuestionMetaParts(q, { includeLessonName: true }).join(" | "), 20),
+    new Paragraph({
+      children: [
+        new TextRun({ text: toArabicDigits(q.text ?? ""), bold: true, size: 24 }),
+      ],
+      ...RTL_OPTS,
+      ...RTL_BIDI,
+      spacing: { after: 80 },
+    }),
+  ];
+
+  if (q.type === "mcq" && Array.isArray(q.options)) {
+    q.options.forEach((opt, idx) => {
+      const isCorrect =
+        typeof q.correctIndex === "number" && q.correctIndex === idx;
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `${opt.label ?? ""}) `,
+              bold: isCorrect,
+            }),
+            new TextRun({
+              text: toArabicDigits(opt.text ?? ""),
+              bold: isCorrect,
+            }),
+            ...(isCorrect
+              ? [
+                  new TextRun({
+                    text: "  (الإجابة الصحيحة)",
+                    size: 18,
+                  }),
+                ]
+              : []),
+          ],
+          ...RTL_OPTS,
+          ...RTL_BIDI,
+          spacing: { after: 40 },
+        }),
+      );
+    });
+  } else if (q.type === "true_false") {
+    const correct = q.correctAnswer === true ? "صح" : "خطأ";
+    children.push(para(`الإجابة الصحيحة: ${correct}`, 22));
+  } else if (q.type === "short_answer") {
+    children.push(
+      para(`الإجابة النموذجية: ${q.answerText ?? ""}`, 22),
+    );
+  } else if (q.type === "essay") {
+    children.push(
+      para(`ملخص الإجابة النموذجية: ${q.answerText ?? ""}`, 22),
+    );
+    if (Array.isArray(q.rubric) && q.rubric.length) {
+      children.push(subheading("معايير التصحيح"));
+      q.rubric.forEach((r) => {
+        children.push(para(`• ${r}`, 20));
+      });
+    }
+  }
+
+  children.push(new Paragraph({ children: [], spacing: { after: 160 } }));
+  return children;
+}
+
+function buildObjectiveSectionTable(section) {
+  if (section.id !== "true_false" && section.id !== "mcq") {
+    return null;
+  }
+
+  const isMcq = section.id === "mcq";
+  const answerLabels = isMcq ? ["أ", "ب", "ج", "د"] : ["صح", "خطأ"];
+
+  const headerRow = new TableRow({
+    cantSplit: true,
+    children: [
+      new TableCell({
+        borders: CELL_BORDER,
+        verticalAlign: VerticalAlign.CENTER,
+        children: [
+          new Paragraph({
+            children: [new TextRun({ text: "رقم السؤال", bold: true })],
+            alignment: AlignmentType.CENTER,
+            ...RTL_BIDI,
+          }),
+        ],
+      }),
+      ...answerLabels.map(
+        (label) =>
+          new TableCell({
+            borders: CELL_BORDER,
+            verticalAlign: VerticalAlign.CENTER,
+            children: [
+              new Paragraph({
+                children: [new TextRun({ text: label, bold: true })],
+                alignment: AlignmentType.CENTER,
+                ...RTL_BIDI,
+              }),
+            ],
+          }),
+      ),
+    ],
+  });
+
+  const dataRows = section.questions.map((q) => {
+    const cells = [
+      new TableCell({
+        borders: CELL_BORDER,
+        verticalAlign: VerticalAlign.CENTER,
+        children: [
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: formatArabicNumber(getDisplayQuestionNumber(q)),
+                size: 22,
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+            ...RTL_BIDI,
+          }),
+        ],
+      }),
+    ];
+
+    for (const _label of answerLabels) {
+      cells.push(
+        new TableCell({
+          borders: CELL_BORDER,
+          verticalAlign: VerticalAlign.CENTER,
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: " ", size: 18 })],
+              alignment: AlignmentType.CENTER,
+              ...RTL_BIDI,
+            }),
+          ],
+        }),
+      );
+    }
+
+    return new TableRow({
+      cantSplit: true,
+      children: cells,
+    });
+  });
+
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    layout: TableLayoutType.FIXED,
+    rows: [headerRow, ...dataRows],
+  });
+}
+
 export async function buildExamPaperDocx(enrichedExam) {
   const vm = buildExamExportViewModel(enrichedExam);
   const children = [];
 
-  children.push(...buildTopBanner(vm, vm.examMeta.title || "ورقة الاختبار"));
+  children.push(
+    ...buildTopBanner(
+      vm,
+      vm.examMeta.title ? toArabicDigits(vm.examMeta.title) : "ورقة الاختبار",
+    ),
+  );
 
   children.push(buildExamHeaderTable(vm));
   children.push(new Paragraph({ children: [], spacing: { after: 80 } }));
@@ -194,61 +417,11 @@ export async function buildExamPaperDocx(enrichedExam) {
     para("اقرأ الأسئلة جيدًا وأجب في الأماكن المخصصة، واستخدم نموذج الإجابات للأسئلة الموضوعية."),
   );
 
-  const section = vm.sections[0];
-  children.push(subheading("الأسئلة"));
-
-  for (const q of section.questions) {
-    const metaParts = [`السؤال رقم ${q.number}`];
-    if (q.marks != null) {
-      metaParts.push(`${q.marks} درجة`);
+  for (const section of vm.sections) {
+    children.push(subheading(section.title));
+    for (const q of section.questions) {
+      children.push(...buildPaperQuestionChildren(q));
     }
-    if (q.lessonName) {
-      metaParts.push(q.lessonName);
-    }
-
-    children.push(
-      para(metaParts.filter(Boolean).join(" | "), 20),
-      new Paragraph({
-        children: [new TextRun({ text: q.text ?? "", bold: true, size: 24 })],
-        ...RTL_OPTS,
-        ...RTL_BIDI,
-        spacing: { after: 80 },
-      }),
-    );
-
-    if (q.type === "mcq" && Array.isArray(q.options)) {
-      for (const opt of q.options) {
-        children.push(
-          para(`${opt.label ?? ""}) ${opt.text ?? ""}`, 22),
-        );
-      }
-    } else if (q.type === "true_false") {
-      children.push(
-        para(`( ${q.trueLabel} ) صحيح`, 22),
-        para(`( ${q.falseLabel} ) خطأ`, 22),
-      );
-    }
-
-    if (q.type === "short_answer" || q.type === "essay") {
-      const lines = q.type === "essay" ? 5 : 2;
-      for (let i = 0; i < lines; i += 1) {
-        children.push(
-          new Paragraph({
-            children: [new TextRun({ text: " ", size: 22 })],
-            border: {
-              bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
-            },
-            ...RTL_OPTS,
-            ...RTL_BIDI,
-            spacing: { after: 60 },
-          }),
-        );
-      }
-    }
-
-    children.push(
-      new Paragraph({ children: [], spacing: { after: 160 } }),
-    );
   }
 
   const doc = new Document({
@@ -333,108 +506,10 @@ function buildAnswerFormHeaderTable(vm) {
   return { left, right };
 }
 
-function buildAnswerFormGridTable(vm) {
-  const section = vm.sections[0];
-  const objectiveQuestions = section.questions.filter(
-    (q) => q.type === "mcq" || q.type === "true_false",
+function getObjectiveSections(vm) {
+  return vm.sections.filter(
+    (section) => section.id === "true_false" || section.id === "mcq",
   );
-
-  if (!objectiveQuestions.length) {
-    return null;
-  }
-
-  const hasMcq = objectiveQuestions.some((q) => q.type === "mcq");
-  const hasTf = objectiveQuestions.some((q) => q.type === "true_false");
-
-  const columns = ["رقم السؤال"];
-  if (hasMcq) {
-    columns.push("أ", "ب", "ج", "د");
-  }
-  if (hasTf) {
-    columns.push("صح", "خطأ");
-  }
-
-  const headerRow = new TableRow({
-    cantSplit: true,
-    children: columns.map(
-      (label) =>
-        new TableCell({
-          borders: CELL_BORDER,
-          verticalAlign: VerticalAlign.CENTER,
-          children: [
-            new Paragraph({
-              children: [new TextRun({ text: label, bold: true })],
-              alignment: AlignmentType.CENTER,
-              ...RTL_BIDI,
-            }),
-          ],
-        }),
-    ),
-  });
-
-  const dataRows = objectiveQuestions.map((q) => {
-    const cells = [];
-    cells.push(
-      new TableCell({
-        borders: CELL_BORDER,
-        verticalAlign: VerticalAlign.CENTER,
-        children: [
-          new Paragraph({
-            children: [new TextRun({ text: String(q.number ?? ""), size: 22 })],
-            alignment: AlignmentType.CENTER,
-            ...RTL_BIDI,
-          }),
-        ],
-      }),
-    );
-
-    if (hasMcq) {
-      for (const label of ["أ", "ب", "ج", "د"]) {
-        cells.push(
-          new TableCell({
-            borders: CELL_BORDER,
-            verticalAlign: VerticalAlign.CENTER,
-            children: [
-              new Paragraph({
-                children: [new TextRun({ text: " ", size: 18 })],
-                alignment: AlignmentType.CENTER,
-                ...RTL_BIDI,
-              }),
-            ],
-          }),
-        );
-      }
-    }
-
-    if (hasTf) {
-      for (const _ of ["صح", "خطأ"]) {
-        cells.push(
-          new TableCell({
-            borders: CELL_BORDER,
-            verticalAlign: VerticalAlign.CENTER,
-            children: [
-              new Paragraph({
-                children: [new TextRun({ text: " ", size: 18 })],
-                alignment: AlignmentType.CENTER,
-                ...RTL_BIDI,
-              }),
-            ],
-          }),
-        );
-      }
-    }
-
-    return new TableRow({
-      cantSplit: true,
-      children: cells,
-    });
-  });
-
-  return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    layout: TableLayoutType.FIXED,
-    rows: [headerRow, ...dataRows],
-  });
 }
 
 export async function buildExamAnswerFormDocx(enrichedExam) {
@@ -479,9 +554,15 @@ export async function buildExamAnswerFormDocx(enrichedExam) {
     para("ظلِّل دائرة واحدة فقط لكل سؤال، ولا تظلِّل أكثر من خيار واحد لنفس السؤال، ولا تكتب في المنطقة الإدارية.", 22),
   );
 
-  const grid = buildAnswerFormGridTable(vm);
-  if (grid) {
-    children.push(subheading("شبكة الإجابات"), grid);
+  const objectiveSections = getObjectiveSections(vm);
+  if (objectiveSections.length) {
+    children.push(subheading("شبكة الإجابات"));
+    for (const section of objectiveSections) {
+      const table = buildObjectiveSectionTable(section);
+      if (table) {
+        children.push(subheading(section.title), table);
+      }
+    }
   } else {
     children.push(
       para(
@@ -517,82 +598,13 @@ export async function buildExamAnswerKeyDocx(enrichedExam) {
 
   children.push(buildExamHeaderTable(vm));
 
-  const section = vm.sections[0];
   children.push(subheading("الأسئلة والإجابات النموذجية"));
 
-  for (const q of section.questions) {
-    const metaParts = [`السؤال رقم ${q.number}`];
-    if (q.marks != null) metaParts.push(`${q.marks} درجة`);
-    if (q.lessonName) metaParts.push(q.lessonName);
-
-    children.push(
-      para(metaParts.filter(Boolean).join(" | "), 20),
-      new Paragraph({
-        children: [new TextRun({ text: q.text ?? "", bold: true, size: 24 })],
-        ...RTL_OPTS,
-        ...RTL_BIDI,
-        spacing: { after: 80 },
-      }),
-    );
-
-    if (q.type === "mcq" && Array.isArray(q.options)) {
-      q.options.forEach((opt, idx) => {
-        const isCorrect =
-          typeof q.correctIndex === "number" && q.correctIndex === idx;
-        children.push(
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: `${opt.label ?? ""}) `,
-                bold: isCorrect,
-              }),
-              new TextRun({
-                text: opt.text ?? "",
-                bold: isCorrect,
-              }),
-              ...(isCorrect
-                ? [
-                    new TextRun({
-                      text: "  (الإجابة الصحيحة)",
-                      size: 18,
-                    }),
-                  ]
-                : []),
-            ],
-            ...RTL_OPTS,
-            ...RTL_BIDI,
-            spacing: { after: 40 },
-          }),
-        );
-      });
-    } else if (q.type === "true_false") {
-      const correct = q.correctAnswer === true ? "صح" : "خطأ";
-      children.push(
-        para(`الإجابة الصحيحة: ${correct}`, 22),
-      );
-    } else if (q.type === "short_answer") {
-      children.push(
-        para(
-          `الإجابة النموذجية: ${q.answerText ?? ""}`,
-          22,
-        ),
-      );
-    } else if (q.type === "essay") {
-      children.push(
-        para(
-          `ملخص الإجابة النموذجية: ${q.answerText ?? ""}`,
-          22,
-        ),
-      );
-      if (Array.isArray(q.rubric) && q.rubric.length) {
-        children.push(subheading("معايير التصحيح"));
-        q.rubric.forEach((r) => {
-          children.push(para(`• ${r}`, 20));
-        });
-      }
+  for (const section of vm.sections) {
+    children.push(subheading(section.title));
+    for (const q of section.questions) {
+      children.push(...buildAnswerKeyQuestionChildren(q));
     }
-
-    children.push(new Paragraph({ children: [], spacing: { after: 160 } }));
   }
 
   const doc = new Document({

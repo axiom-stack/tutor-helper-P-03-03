@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import {
   MdInsights,
   MdLibraryBooks,
@@ -259,13 +259,17 @@ export default function AdminDashboard() {
               <p className="ad__empty">لا توجد خطط بعد.</p>
             ) : (
               recentPlans.map((plan) => (
-                <div key={plan.public_id} className="ad__item">
+                <Link
+                  key={plan.public_id}
+                  to={`/plans/${plan.public_id}`}
+                  className="ad__item ad__item--link"
+                >
                   <strong>{plan.lesson_title}</strong>
                   <span>
                     {plan.subject} | {plan.grade}
                   </span>
                   <span>{formatDateAr(plan.created_at)}</span>
-                </div>
+                </Link>
               ))
             )}
           </div>
@@ -284,13 +288,17 @@ export default function AdminDashboard() {
               <p className="ad__empty">لا توجد اختبارات بعد.</p>
             ) : (
               recentExams.map((exam) => (
-                <div key={exam.public_id} className="ad__item">
+                <Link
+                  key={exam.public_id}
+                  to={`/quizzes/${exam.public_id}`}
+                  className="ad__item ad__item--link"
+                >
                   <strong>{exam.title}</strong>
                   <span>
                     {exam.total_questions} سؤال | {exam.total_marks} درجة
                   </span>
                   <span>{formatDateAr(exam.created_at)}</span>
-                </div>
+                </Link>
               ))
             )}
           </div>

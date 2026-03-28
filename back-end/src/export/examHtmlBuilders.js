@@ -1,4 +1,8 @@
-import { buildExamExportViewModel } from "./examViewModel.js";
+import {
+  buildExamExportViewModel,
+  formatArabicNumber,
+  toArabicDigits,
+} from "./examViewModel.js";
 import { parseImageDataUrl } from "../utils/imageDataUrl.js";
 
 const EXAM_BASE_STYLES = `
@@ -135,9 +139,24 @@ const EXAM_BASE_STYLES = `
     page-break-inside: avoid;
   }
 
+  .exam-section-title {
+    margin: 0;
+    padding: 8px 10px;
+    border: 1px solid #000000;
+    background: #ffffff;
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 800;
+  }
+
+  .exam-section-questions {
+    display: grid;
+    gap: 10px;
+  }
+
   .exam-question-header {
     display: grid;
-    grid-template-columns: 24mm minmax(0, 1fr) 24mm;
+    grid-template-columns: minmax(0, 1fr) 28mm;
     border: 1px solid #000000;
     background: #ffffff;
     align-items: center;
@@ -277,6 +296,20 @@ const EXAM_BASE_STYLES = `
     border-radius: 8px;
     padding: 10px 12px;
     background: #ffffff;
+    display: grid;
+    gap: 12px;
+  }
+
+  .answer-form-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .answer-form-section__title {
+    margin: 0 0 6px;
+    text-align: center;
+    font-size: 0.98rem;
+    font-weight: 800;
   }
 
   .answer-form-header {
@@ -448,27 +481,7 @@ function escapeHtml(str) {
     .replace(/'/g, "&#39;");
 }
 
-const QUESTION_ORDINAL_WORDS = {
-  1: "الأول",
-  2: "الثاني",
-  3: "الثالث",
-  4: "الرابع",
-  5: "الخامس",
-  6: "السادس",
-  7: "السابع",
-  8: "الثامن",
-  9: "التاسع",
-  10: "العاشر",
-};
-
 const ARABIC_OPTION_LABELS = ["أ", "ب", "ج", "د"];
-
-function formatOrdinalWord(value) {
-  const normalized = Number.isFinite(Number(value))
-    ? Math.max(1, Math.trunc(Number(value)))
-    : 1;
-  return QUESTION_ORDINAL_WORDS[normalized] || `رقم ${normalized}`;
-}
 
 function splitLines(value) {
   return (value ?? "")
@@ -494,6 +507,14 @@ function normalizeGradeLabel(value) {
   return `الصف ${text}`;
 }
 
+function escapeHtmlAr(value) {
+  return escapeHtml(toArabicDigits(value));
+}
+
+function getDisplayQuestionNumber(q) {
+  return q.displayNumber ?? q.number ?? 1;
+}
+
 function renderLogoHtml(schoolLogoUrl) {
   if (parseImageDataUrl(schoolLogoUrl)) {
     return `<img class="exam-header-logo" src="${escapeHtml(
@@ -514,7 +535,7 @@ function renderQuestionPrompt(q) {
     const blank = q.type === "true_false" ? '<span class="exam-blank">( )</span>' : "";
     return `
       <p class="exam-question-text">
-        <span>${escapeHtml(lines[0])}</span>
+        <span>${escapeHtmlAr(lines[0])}</span>
         ${blank}
       </p>
     `;
@@ -530,8 +551,8 @@ function renderQuestionPrompt(q) {
               : "";
           return `
             <li>
-              <span class="exam-question-line-index">${index + 1}.</span>
-              <span class="exam-question-line-text">${escapeHtml(line)}</span>
+              <span class="exam-question-line-index">${formatArabicNumber(index + 1)}.</span>
+              <span class="exam-question-line-text">${escapeHtmlAr(line)}</span>
               ${blank}
             </li>
           `;
@@ -551,8 +572,8 @@ function renderQuestionAnswers(q, promptLineCount = 0) {
             const text = opt.text ?? "";
             return `
               <li class="exam-option">
-                <span class="exam-option-label">${escapeHtml(label)} -</span>
-                <span class="exam-option-text">${escapeHtml(text)}</span>
+                <span class="exam-option-label">${escapeHtmlAr(label)} -</span>
+                <span class="exam-option-text">${escapeHtmlAr(text)}</span>
               </li>
             `;
           })
@@ -600,6 +621,10 @@ function renderQuestionAnswers(q, promptLineCount = 0) {
   return "";
 }
 
+function renderSectionTitle(title) {
+  return `<h2 class="exam-section-title">${escapeHtmlAr(title)}</h2>`;
+}
+
 function renderExamHeader(examMeta) {
   const {
     title,
@@ -623,12 +648,12 @@ function renderExamHeader(examMeta) {
               <div class="exam-header-ministry">محافظة عدن</div>
             </td>
             <td class="exam-header-cell exam-header-cell--center">
-              <div class="exam-header-title">${escapeHtml(
+              <div class="exam-header-title">${escapeHtmlAr(
                 title || "اختبار",
               )}</div>
-              <div class="exam-header-line">${escapeHtml(gradeLabel)}</div>
+              <div class="exam-header-line">${escapeHtmlAr(gradeLabel)}</div>
               <div class="exam-header-line">
-                الفصل الدراسي ${escapeHtml(term || "—")} (${escapeHtml(
+                الفصل الدراسي ${escapeHtmlAr(term || "—")} (${escapeHtmlAr(
                   academicYear || "—",
                 )})
               </div>
@@ -636,9 +661,9 @@ function renderExamHeader(examMeta) {
             <td class="exam-header-cell exam-header-cell--school">
               ${renderLogoHtml(schoolLogoUrl)}
               <div class="exam-header-school-lines">
-                <div>مدرسة: ${escapeHtml(schoolName || "—")}</div>
-                <div>الدرجة الكلية: ${escapeHtml(
-                  String(totalMarks ?? "—"),
+                <div>مدرسة: ${escapeHtmlAr(schoolName || "—")}</div>
+                <div>الدرجة الكلية: ${escapeHtmlAr(
+                  formatArabicNumber(totalMarks),
                 )}</div>
               </div>
             </td>
@@ -668,20 +693,12 @@ function renderStudentBlock() {
 
 function renderQuestionBlock(q) {
   const promptLines = splitLines(q.text);
+  const questionNumber = formatArabicNumber(getDisplayQuestionNumber(q));
   return `
     <article class="exam-question">
       <div class="exam-question-header">
-        <div>السؤال ${formatOrdinalWord(q.number)}</div>
-        <div>${escapeHtml(
-          q.type === "mcq"
-            ? "اختر الإجابة الصحيحة"
-            : q.type === "true_false"
-              ? "أجب بلا أو نعم"
-              : "أجب عن الأسئلة الآتية",
-        )}</div>
-        <div>${escapeHtml(
-          q.marks != null ? `الدرجة ${q.marks}` : "الدرجة —",
-        )}</div>
+        <div>السؤال ${questionNumber}</div>
+        <div>الدرجة ${escapeHtmlAr(formatArabicNumber(q.marks))}</div>
       </div>
       <div class="exam-question-body">
         ${renderQuestionPrompt(q)}
@@ -691,28 +708,166 @@ function renderQuestionBlock(q) {
   `;
 }
 
+function renderPaperSection(section) {
+  return `
+    <section class="exam-section">
+      ${renderSectionTitle(section.title)}
+      <div class="exam-section-questions">
+        ${section.questions.map(renderQuestionBlock).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderAnswerKeyQuestionBlock(q) {
+  const headerParts = [`السؤال ${formatArabicNumber(getDisplayQuestionNumber(q))}`];
+  if (q.marks != null) headerParts.push(`الدرجة ${formatArabicNumber(q.marks)}`);
+  if (q.lessonName) headerParts.push(q.lessonName);
+  const meta = headerParts.join(" | ");
+
+  let answerBlock = "";
+  if (q.type === "mcq" && Array.isArray(q.options) && q.options.length) {
+    const optionsHtml = q.options
+      .map((opt, idx) => {
+        const isCorrect =
+          typeof q.correctIndex === "number" &&
+          q.correctIndex === idx;
+        return `
+          <li style="margin-bottom:2px;">
+            <span class="question-option-label"${
+              isCorrect ? ' style="font-weight:700;text-decoration:underline;"' : ""
+            }>${escapeHtmlAr(opt.label ?? "")} -</span>
+            <span${
+              isCorrect ? ' style="font-weight:700;text-decoration:underline;"' : ""
+            }>${escapeHtmlAr(opt.text ?? "")}</span>
+            ${
+              isCorrect
+                ? '<span style="margin-right:6px;font-size:11px;font-weight:700;">(الإجابة الصحيحة)</span>'
+                : ""
+            }
+          </li>
+        `;
+      })
+      .join("");
+    answerBlock = `
+      <ul class="question-options">
+        ${optionsHtml}
+      </ul>
+    `;
+  } else if (q.type === "true_false") {
+    const correct = q.correctAnswer === true ? "صح" : "خطأ";
+    answerBlock = `
+      <p style="margin-top:6px;font-size:14px;">
+        <strong>الإجابة الصحيحة: ${escapeHtmlAr(correct)}</strong>
+      </p>
+    `;
+  } else if (q.type === "short_answer") {
+    answerBlock = `
+      <p style="margin-top:6px;font-size:14px;">
+        <strong>الإجابة النموذجية:</strong>
+        <span>${escapeHtmlAr(q.answerText ?? "")}</span>
+      </p>
+    `;
+  } else if (q.type === "essay") {
+    const rubricHtml = Array.isArray(q.rubric) && q.rubric.length
+      ? `<ul>${q.rubric
+          .map((r) => `<li>${escapeHtmlAr(r)}</li>`)
+          .join("")}</ul>`
+      : "";
+    answerBlock = `
+      <p style="margin-top:6px;font-size:14px;">
+        <strong>الإجابة النموذجية (ملخص):</strong>
+        <span>${escapeHtmlAr(q.answerText ?? "")}</span>
+      </p>
+      ${rubricHtml}
+    `;
+  }
+
+  return `
+    <article class="question-block">
+      <div class="question-header">${escapeHtmlAr(meta)}</div>
+      <div class="question-text">${escapeHtmlAr(q.text ?? "")}</div>
+      ${answerBlock}
+    </article>
+  `;
+}
+
+function renderAnswerKeySection(section) {
+  return `
+    <section class="exam-section">
+      ${renderSectionTitle(section.title)}
+      <div class="exam-section-questions">
+        ${section.questions.map(renderAnswerKeyQuestionBlock).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderAnswerFormSection(section) {
+  if (section.id !== "true_false" && section.id !== "mcq") {
+    return "";
+  }
+
+  const isMcq = section.id === "mcq";
+  const answerLabels = isMcq ? ["أ", "ب", "ج", "د"] : ["صح", "خطأ"];
+  const headerCells = [
+    "<th>رقم السؤال</th>",
+    ...answerLabels.map((label) => `<th>${escapeHtmlAr(label)}</th>`),
+  ].join("");
+
+  const rows = section.questions
+    .map((q) => {
+      const number = escapeHtmlAr(formatArabicNumber(getDisplayQuestionNumber(q)));
+      const cells = [`<td>${number}</td>`];
+
+      for (const label of answerLabels) {
+        cells.push(`
+          <td>
+            <div class="bubble-cell" aria-label="${escapeHtmlAr(
+              `س${getDisplayQuestionNumber(q)} - ${label}`,
+            )}"></div>
+          </td>
+        `);
+      }
+
+      return `<tr>${cells.join("")}</tr>`;
+    })
+    .join("");
+
+  return `
+    <article class="answer-form-section">
+      <h4 class="answer-form-section__title">${escapeHtmlAr(section.title)}</h4>
+      <table>
+        <thead>
+          <tr>${headerCells}</tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+    </article>
+  `;
+}
+
 export function buildExamPaperHtml(enrichedExam) {
   const vm = buildExamExportViewModel(enrichedExam);
   const header = renderExamHeader(vm.examMeta);
   const student = renderStudentBlock();
 
-  const section = vm.sections[0];
-  const questionsHtml = section.questions.map(renderQuestionBlock).join("");
+  const sectionsHtml = vm.sections.map(renderPaperSection).join("");
 
   return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>ورقة الاختبار - ${escapeHtml(vm.examMeta.title ?? "")}</title>
+  <title>ورقة الاختبار - ${escapeHtmlAr(vm.examMeta.title ?? "")}</title>
   <style>${EXAM_BASE_STYLES}</style>
 </head>
 <body>
   <div class="exam-page exam-sheet">
     ${header}
     ${student}
-    <section class="exam-section">
-      ${questionsHtml || "<p class=\"exam-empty\">لا توجد أسئلة.</p>"}
-    </section>
+    ${sectionsHtml || "<p class=\"exam-empty\">لا توجد أسئلة.</p>"}
     <footer class="exam-footer">انتهت الأسئلة</footer>
   </div>
 </body>
@@ -726,7 +881,7 @@ function renderAnswerFormHeader(vm) {
   return `
     <section class="answer-form-header">
       <div class="answer-form-header__meta">
-        <h2 style="margin:0 0 6px 0;font-size:18px;">${escapeHtml(
+        <h2 style="margin:0 0 6px 0;font-size:18px;">${escapeHtmlAr(
           `نموذج الإجابات${e.title ? ` - ${e.title}` : ""}`,
         )}</h2>
         <div class="answer-form-header__meta-grid">
@@ -740,7 +895,7 @@ function renderAnswerFormHeader(vm) {
           </div>
           <div class="meta-field">
             <label>${escapeHtml(meta.classLabel)}</label>
-            <span>${escapeHtml(e.className ?? "—")}</span>
+            <span>${escapeHtmlAr(e.className ?? "—")}</span>
           </div>
           <div class="meta-field">
             <label>${escapeHtml(meta.sectionLabel)}</label>
@@ -748,11 +903,11 @@ function renderAnswerFormHeader(vm) {
           </div>
           <div class="meta-field">
             <label>${escapeHtml(meta.subjectLabel)}</label>
-            <span>${escapeHtml(e.subject ?? "—")}</span>
+            <span>${escapeHtmlAr(e.subject ?? "—")}</span>
           </div>
           <div class="meta-field">
             <label>${escapeHtml(meta.dateLabel)}</label>
-            <span>${escapeHtml(e.date ?? "—")}</span>
+            <span>${escapeHtmlAr(e.date ?? "—")}</span>
           </div>
           <div class="meta-field">
             <label>${escapeHtml(meta.examNumberLabel)}</label>
@@ -760,7 +915,7 @@ function renderAnswerFormHeader(vm) {
           </div>
           <div class="meta-field">
             <label>اسم المعلم</label>
-            <span>${escapeHtml(e.teacherName ?? "—")}</span>
+            <span>${escapeHtmlAr(e.teacherName ?? "—")}</span>
           </div>
         </div>
       </div>
@@ -792,17 +947,12 @@ function renderAnswerFormInstructions() {
   `;
 }
 
-function collectObjectiveQuestions(vm) {
-  const section = vm.sections[0];
-  return section.questions.filter(
-    (q) => q.type === "mcq" || q.type === "true_false",
-  );
-}
-
 function renderAnswerFormGrid(vm) {
-  const objectiveQuestions = collectObjectiveQuestions(vm);
+  const objectiveSections = vm.sections.filter(
+    (section) => section.id === "true_false" || section.id === "mcq",
+  );
 
-  if (!objectiveQuestions.length) {
+  if (!objectiveSections.length) {
     return `
       <section class="answer-form-grid">
         <p>لا توجد أسئلة موضوعية (اختيار من متعدد أو صواب/خطأ) لعرضها في نموذج الإجابات.</p>
@@ -810,51 +960,9 @@ function renderAnswerFormGrid(vm) {
     `;
   }
 
-  const hasMcq = objectiveQuestions.some((q) => q.type === "mcq");
-  const hasTf = objectiveQuestions.some((q) => q.type === "true_false");
-
-  const mcqColumns = hasMcq ? ["أ", "ب", "ج", "د"] : [];
-  const tfColumns = hasTf ? ["صح", "خطأ"] : [];
-
-  const headerCells = [
-    "<th>رقم السؤال</th>",
-    ...mcqColumns.map((label) => `<th>${escapeHtml(label)}</th>`),
-    ...tfColumns.map((label) => `<th>${escapeHtml(label)}</th>`),
-  ].join("");
-
-  const rows = objectiveQuestions
-    .map((q) => {
-      const cells = [
-        `<td>${escapeHtml(String(q.number))}</td>`,
-        ...mcqColumns.map((label) =>
-          q.type === "mcq"
-            ? `<td><div class="bubble-cell" aria-label="${escapeHtml(
-                `س${q.number} - ${label}`,
-              )}"></div></td>`
-            : "<td></td>",
-        ),
-        ...tfColumns.map((label) =>
-          q.type === "true_false"
-            ? `<td><div class="bubble-cell" aria-label="${escapeHtml(
-                `س${q.number} - ${label}`,
-              )}"></div></td>`
-            : "<td></td>",
-        ),
-      ];
-      return `<tr>${cells.join("")}</tr>`;
-    })
-    .join("");
-
   return `
     <section class="answer-form-grid">
-      <table>
-        <thead>
-          <tr>${headerCells}</tr>
-        </thead>
-        <tbody>
-          ${rows}
-        </tbody>
-      </table>
+      ${objectiveSections.map(renderAnswerFormSection).join("")}
     </section>
   `;
 }
@@ -869,7 +977,7 @@ export function buildExamAnswerFormHtml(enrichedExam) {
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>نموذج الإجابات - ${escapeHtml(vm.examMeta.title ?? "")}</title>
+  <title>نموذج الإجابات - ${escapeHtmlAr(vm.examMeta.title ?? "")}</title>
   <style>${EXAM_BASE_STYLES}</style>
 </head>
 <body>
@@ -885,94 +993,13 @@ export function buildExamAnswerFormHtml(enrichedExam) {
 export function buildExamAnswerKeyHtml(enrichedExam) {
   const vm = buildExamExportViewModel(enrichedExam);
   const header = renderExamHeader(vm.examMeta);
-  const section = vm.sections[0];
-
-  const questionsHtml = section.questions
-    .map((q) => {
-      const headerParts = [`السؤال ${formatOrdinalWord(q.number)}`];
-      if (q.marks != null) headerParts.push(`${q.marks} درجة`);
-      if (q.lessonName) headerParts.push(q.lessonName);
-      const meta = headerParts.join(" | ");
-
-      let answerBlock = "";
-      if (q.type === "mcq" && Array.isArray(q.options) && q.options.length) {
-        const optionsHtml = q.options
-          .map((opt, idx) => {
-            const isCorrect =
-              typeof q.correctIndex === "number" &&
-              q.correctIndex === idx;
-            return `
-              <li style="margin-bottom:2px;">
-                <span class="question-option-label"${
-                  isCorrect ? ' style="font-weight:700;text-decoration:underline;"' : ""
-                }>${escapeHtml(opt.label ?? "")} -</span>
-                <span${
-                  isCorrect ? ' style="font-weight:700;text-decoration:underline;"' : ""
-                }>${escapeHtml(opt.text ?? "")}</span>
-                ${
-                  isCorrect
-                    ? '<span style="margin-right:6px;font-size:11px;font-weight:700;">(الإجابة الصحيحة)</span>'
-                    : ""
-                }
-              </li>
-            `;
-          })
-          .join("");
-        answerBlock = `
-          <ul class="question-options">
-            ${optionsHtml}
-          </ul>
-        `;
-      } else if (q.type === "true_false") {
-        const correct = q.correctAnswer === true ? "صح" : "خطأ";
-        answerBlock = `
-          <p style="margin-top:6px;font-size:14px;">
-            <strong>الإجابة الصحيحة: ${escapeHtml(correct)}</strong>
-          </p>
-        `;
-      } else if (q.type === "short_answer") {
-        answerBlock = `
-          <p style="margin-top:6px;font-size:14px;">
-            <strong>الإجابة النموذجية:</strong>
-            <span>${escapeHtml(q.answerText ?? "")}</span>
-          </p>
-        `;
-      } else if (q.type === "essay") {
-        const rubricHtml = Array.isArray(q.rubric) && q.rubric.length
-          ? `<ul>${q.rubric
-              .map((r) => `<li>${escapeHtml(r)}</li>`)
-              .join("")}</ul>`
-          : "";
-        answerBlock = `
-          <p style="margin-top:6px;font-size:14px;">
-            <strong>الإجابة النموذجية (ملخص):</strong>
-            <span>${escapeHtml(q.answerText ?? "")}</span>
-          </p>
-          ${rubricHtml}
-        `;
-      }
-
-      return `
-        <article class="question-block">
-          <div class="question-header">${escapeHtml(meta)}</div>
-          <div class="question-text">${escapeHtml(q.text ?? "")}</div>
-          ${answerBlock}
-        </article>
-      `;
-    })
-    .join("");
-
-  const sectionHtml = `
-    <section class="exam-section">
-      ${questionsHtml || "<p>لا توجد أسئلة.</p>"}
-    </section>
-  `;
+  const sectionsHtml = vm.sections.map(renderAnswerKeySection).join("");
 
   return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>نموذج الإجابات (معلم) - ${escapeHtml(vm.examMeta.title ?? "")}</title>
+  <title>نموذج الإجابات (معلم) - ${escapeHtmlAr(vm.examMeta.title ?? "")}</title>
   <style>${EXAM_BASE_STYLES}</style>
 </head>
 <body>
@@ -984,7 +1011,7 @@ export function buildExamAnswerKeyHtml(enrichedExam) {
         هذا النموذج مخصص للمعلم، ويعرض الإجابات الصحيحة لكل سؤال.
       </p>
     </section>
-    ${sectionHtml}
+    ${sectionsHtml || "<p class=\"exam-empty\">لا توجد أسئلة.</p>"}
   </div>
 </body>
 </html>`;

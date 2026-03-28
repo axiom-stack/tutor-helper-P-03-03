@@ -93,6 +93,7 @@ function App() {
             }
           />
           <Route path="/quizzes/create" element={<Quizzes />} />
+          <Route path="/quizzes/:examId" element={<Quizzes />} />
           <Route path="/quizzes" element={<Quizzes />} />
           <Route path="/curriculum" element={<ControlCurriculum />} />
           <Route path="/plans" element={<PlansManager />} />

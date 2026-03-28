@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import {
   MdInsights,
   MdLibraryBooks,
@@ -305,7 +305,11 @@ export default function ControlDashboard() {
               <p className="cd__empty">لا توجد خطط بعد.</p>
             ) : (
               recentPlans.map((plan) => (
-                <div key={plan.public_id} className="cd__preview-card">
+                <Link
+                  key={plan.public_id}
+                  to={`/plans/${plan.public_id}`}
+                  className="cd__preview-card cd__preview-card--link"
+                >
                   <strong>{plan.lesson_title}</strong>
                   <span>
                     {plan.subject} | {plan.grade}
@@ -314,7 +318,7 @@ export default function ControlDashboard() {
                     {plan.plan_type === 'traditional' ? 'تقليدية' : 'تعلم نشط'}
                   </span>
                   <span>{formatDateAr(plan.created_at)}</span>
-                </div>
+                </Link>
               ))
             )}
           </div>
@@ -337,7 +341,11 @@ export default function ControlDashboard() {
                 const classItem = classMap.get(exam.class_id);
 
                 return (
-                  <div key={exam.public_id} className="cd__preview-card">
+                  <Link
+                    key={exam.public_id}
+                    to={`/quizzes/${exam.public_id}`}
+                    className="cd__preview-card cd__preview-card--link"
+                  >
                     <strong>{exam.title}</strong>
                     <span>
                       {subject?.name ?? '—'} | {classItem?.grade_label ?? '—'}
@@ -346,7 +354,7 @@ export default function ControlDashboard() {
                       {exam.total_questions} سؤال | {exam.total_marks} درجة
                     </span>
                     <span>{formatDateAr(exam.created_at)}</span>
-                  </div>
+                  </Link>
                 );
               })
             )}

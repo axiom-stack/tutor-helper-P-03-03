@@ -36,10 +36,6 @@
   color: #fff;
   cursor: pointer;
   box-shadow: 0 10px 22px rgba(37, 99, 235, 0.24);
-  transition:
-    transform var(--transition-fast),
-    background var(--transition-fast),
-    box-shadow var(--transition-fast);
 }
 
 .nav-bar__menu-btn:hover {

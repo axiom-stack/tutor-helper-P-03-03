@@ -985,17 +985,40 @@
 
 .qz__paper-sections {
   margin-top: 0.95rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.qz__paper-section {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.qz__paper-section-title {
+  margin: 0;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid #000000;
+  background: #ffffff;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.qz__paper-section-questions {
+  display: grid;
+  gap: 0.85rem;
 }
 
 .qz__paper-question {
   break-inside: avoid;
   page-break-inside: avoid;
-  margin-bottom: 1rem;
+  margin-bottom: 0;
 }
 
 .qz__paper-question-header {
   display: grid;
-  grid-template-columns: 9rem minmax(0, 1fr) 6.5rem;
+  grid-template-columns: minmax(0, 1fr) 7.5rem;
   border: 1px solid #000000;
   background: #ffffff;
   align-items: center;
