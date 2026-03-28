@@ -59,16 +59,6 @@ async function listFromSingleTable(dbClient, planType, filters, accessContext) {
   const args = [];
 
   let joinSql = "";
-  if (filters.stage) {
-    joinSql = `
-      LEFT JOIN Lessons l ON l.id = ${tableName}.lesson_id
-      LEFT JOIN Units u ON u.id = l.unit_id
-      LEFT JOIN Subjects s ON s.id = u.subject_id
-      LEFT JOIN Classes c ON c.id = s.class_id
-    `;
-    whereClauses.push("c.stage = ?");
-    args.push(filters.stage);
-  }
 
   if (accessContext?.role !== "admin") {
     whereClauses.push(`${tableName}.teacher_id = ?`);

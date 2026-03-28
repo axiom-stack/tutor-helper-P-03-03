@@ -13,7 +13,6 @@ import {
   MdViewModule,
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
-import { useStage } from '../../context/StageContext';
 import ConfirmActionModal from '../../components/common/ConfirmActionModal';
 import type {
   Class,
@@ -45,7 +44,6 @@ import {
   updateUnit,
   type CreateLessonResponse,
 } from './teacher-curriculum-manager.services';
-import { ALLOWED_STAGES, getGradesForStage, getStageForGrade, type StageId } from '../../constants/education';
 import './teacher-cirriculum-manager.css';
 
 export interface TeacherCirriculumManagerScope {
@@ -193,7 +191,6 @@ function TeacherCirriculumManager(props: {
 }) {
   const { scope } = props;
   const { user } = useAuth();
-  const { activeStage } = useStage();
   const navigate = useNavigate();
   const hierarchyRequestIdRef = useRef(0);
   const creatorUnitsRequestIdRef = useRef(0);

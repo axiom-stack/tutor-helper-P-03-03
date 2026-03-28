@@ -1,8 +1,6 @@
 import { useEffect } from 'react';
 import { NavLink } from 'react-router';
 import { useAuth } from '../../context/AuthContext';
-import { useStage } from '../../context/StageContext';
-import { getAllowedStages } from '../../constants/education';
 import {
   ADMIN_MAIN_LINKS,
   ADMIN_SECONDARY_LINKS,
@@ -18,7 +16,6 @@ interface MobileNavDrawerProps {
 
 export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
   const { user } = useAuth();
-  const { activeStage, setActiveStage } = useStage();
 
   const mainLinks =
     user?.userRole === 'admin' ? ADMIN_MAIN_LINKS : TEACHER_MAIN_LINKS;
@@ -29,8 +26,6 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
 
   const isTeacher = user?.userRole === 'teacher';
   const isAdmin = user?.userRole === 'admin';
-  const baseStages = getAllowedStages();
-  const stages = isAdmin ? [...baseStages, 'all' as const] : baseStages;
 
   useEffect(() => {
     if (!open) return;
@@ -74,33 +69,6 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
           </button>
         </div>
         <nav className="mobile-drawer__nav">
-          {(isTeacher || isAdmin) && (
-            <div className="mobile-drawer__stage">
-              <span className="mobile-drawer__stage-label">المرحلة الحالية</span>
-              <div
-                className="mobile-drawer__stage-toggle"
-                role="radiogroup"
-                aria-label="اختيار المرحلة التعليمية"
-              >
-                {stages.map((stage) => (
-                  <button
-                    key={stage}
-                    type="button"
-                    role="radio"
-                    aria-checked={activeStage === stage}
-                    className={
-                      activeStage === stage
-                        ? 'mobile-drawer__stage-pill mobile-drawer__stage-pill--active'
-                        : 'mobile-drawer__stage-pill'
-                    }
-                    onClick={() => setActiveStage(stage as any)}
-                  >
-                    {stage === 'all' ? 'كل المراحل' : stage}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
           <ul className="mobile-drawer__list">
             {mainLinks.map(({ to, label, icon: Icon }) => (
               <li key={to} className="mobile-drawer__item">

@@ -17,7 +17,6 @@ import {
 import { enqueueOfflineAction, upsertPendingEntityAction } from '../../offline/queue';
 import { getReference, putReference } from '../../offline/references';
 import { isLocalOnlyId } from '../../offline/utils';
-import { GRADE_TO_STAGE_MAP } from '../../constants/education';
 
 const api = () => authAxios();
 
@@ -47,7 +46,6 @@ export interface ListAssignmentsFilters {
   lessonPlanPublicId?: string;
   lessonId?: number;
   classId?: number;
-  stage?: string;
 }
 
 type GenerateAssignmentsExtras = Pick<
@@ -108,9 +106,6 @@ export async function listAssignments(
   if (filters.classId != null) {
     params.class_id = filters.classId;
   }
-  if (filters.stage != null && filters.stage !== 'all') {
-    params.stage = filters.stage;
-  }
 
   try {
     const response = await api().get<ListAssignmentsResponse>(
@@ -137,14 +132,6 @@ export async function listAssignments(
         if (filters.classId != null && assignment.class_id !== filters.classId) {
           return false;
         }
-        if (filters.stage != null && filters.stage !== 'all') {
-          // Approximate stage locally using grade label when available.
-          const label = assignment.class_grade_label ?? '';
-          const derivedStage = GRADE_TO_STAGE_MAP[label] ?? null;
-          if (!derivedStage || derivedStage !== filters.stage) {
-            return false;
-          }
-        }
         return true;
       });
       return { assignments };
@@ -153,17 +140,9 @@ export async function listAssignments(
   }
 }
 
-export async function getMyClasses(
-  stage?: string
-): Promise<{ classes: Class[] }> {
+export async function getMyClasses(): Promise<{ classes: Class[] }> {
   try {
-    const params: Record<string, string> = {};
-    if (stage && stage !== 'all') {
-      params.stage = stage;
-    }
-    const response = await api().get<{ classes: Class[] }>('/api/classes/mine', {
-      params,
-    });
+    const response = await api().get<{ classes: Class[] }>('/api/classes/mine');
     await putReference('classes:mine', 'classes', response.data.classes ?? []);
     return response.data;
   } catch (error: unknown) {

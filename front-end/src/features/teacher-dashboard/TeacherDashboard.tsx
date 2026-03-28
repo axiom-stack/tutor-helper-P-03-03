@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../../context/AuthContext';
-import { useStage } from '../../context/StageContext';
 import {
   getMyLessons,
   getMyClasses,
@@ -35,14 +34,6 @@ type EnrichedLesson = Lesson & {
 function TeacherDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [units, setUnits] = useState<Unit[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [classes, setClasses] = useState<Class[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [, setError] = useState<string | null>(null);
-
-  const { activeStage } = useStage();
 
   useEffect(() => {
     if (!user) {
@@ -61,10 +52,10 @@ function TeacherDashboard() {
     let cancelled = false;
 
     Promise.all([
-      getMyLessons(activeStage),
-      getMyUnits(activeStage),
-      getMySubjects(activeStage),
-      getMyClasses(activeStage),
+      getMyLessons(),
+      getMyUnits(),
+      getMySubjects(),
+      getMyClasses(),
     ])
       .then(([lessonsRes, unitsRes, subjectsRes, classesRes]) => {
         if (cancelled) return;
@@ -85,7 +76,7 @@ function TeacherDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [navigate, user, activeStage]);
+  }, [navigate, user]);
 
   const enrichedLessons = useMemo((): EnrichedLesson[] => {
     const unitsById = new Map(units.map((u) => [u.id, u]));

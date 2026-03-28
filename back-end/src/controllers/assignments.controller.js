@@ -12,7 +12,6 @@ import { ASSIGNMENT_PUBLIC_ID_PREFIX } from "../assignments/types.js";
 import { createArtifactRevisionsRepository } from "../refinements/repositories/artifactRevisions.repository.js";
 import { REVISION_SOURCES } from "../refinements/types.js";
 import { insertAuditLog } from "../audit/auditLog.js";
-import { normalizeStage } from "../utils/education.js";
 
 function isValidAssignmentId(publicId) {
   return (
@@ -165,19 +164,6 @@ export function createAssignmentsController(dependencies = {}) {
           if (Number.isInteger(n) && n > 0) {
             filters.class_id = n;
           }
-        }
-
-        if (req.query.stage != null && req.query.stage !== "") {
-          const normalized = normalizeStage(req.query.stage);
-          if (!normalized) {
-            return res.status(400).json({
-              error: {
-                code: "invalid_stage",
-                message: "Invalid stage filter. Allowed values: ابتدائي، اعدادي، ثانوي.",
-              },
-            });
-          }
-          filters.stage = normalized;
         }
 
         const assignments = await assignmentsRepository.list(filters, {

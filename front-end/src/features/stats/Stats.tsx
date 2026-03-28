@@ -17,7 +17,6 @@ import type {
 } from '../../types';
 import { exportStatsPdf, getStatsSummary } from './stats.services';
 import './stats.css';
-import { useStage } from '../../context/StageContext';
 
 const PERIOD_OPTIONS: Array<{ value: StatsPeriod; label: string }> = [
   { value: 'all', label: 'كل الفترات' },
@@ -263,7 +262,7 @@ export default function Stats() {
   const filters = useMemo<StatsSummaryFilters>(() => {
     const next: StatsSummaryFilters = {
       period,
-      stage: activeStage === 'all' ? null : activeStage,
+        stage: null,
     };
 
     if (period === 'custom') {
@@ -280,7 +279,7 @@ export default function Stats() {
     }
 
     return next;
-  }, [period, customFrom, customTo, isAdmin, selectedTeacherId, activeStage]);
+  }, [period, customFrom, customTo, isAdmin, selectedTeacherId]);
 
   const customRangeError = useMemo(() => {
     if (period !== 'custom') {

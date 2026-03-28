@@ -126,7 +126,6 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```json
 {
   "grade_label": "string (required)",
-  "stage": "string (optional)",
   "section_label": "string (required)",
   "section": "string (optional, defaults to 'أ')",
   "academic_year": "string (required)",
@@ -171,7 +170,6 @@ All API endpoints except login/logout require authentication via JWT token in th
     {
       "id": number,
       "grade_label": string,
-      "stage": string | null,
       "section_label": string,
       "section": string,
       "academic_year": string,
@@ -200,7 +198,6 @@ All API endpoints except login/logout require authentication via JWT token in th
   "class": {
     "id": number,
     "grade_label": string,
-    "stage": string | null,
     "section_label": string,
     "section": string,
     "academic_year": string,
@@ -257,7 +254,6 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```json
 {
   "grade_label": "string (required)",
-  "stage": "string (optional)",
   "section_label": "string (required)",
   "section": "string (optional, defaults to 'أ')",
   "academic_year": "string (required)",
@@ -271,7 +267,6 @@ All API endpoints except login/logout require authentication via JWT token in th
   "class": {
     "id": number,
     "grade_label": string,
-    "stage": string | null,
     "section_label": string,
     "section": string,
     "academic_year": string,
@@ -302,7 +297,6 @@ All API endpoints except login/logout require authentication via JWT token in th
   "class": {
     "id": number,
     "grade_label": string,
-    "stage": string | null,
     "section_label": string,
     "section": string,
     "academic_year": string,

@@ -10,7 +10,6 @@ import {
   MdSchool,
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
-import { useStage } from '../../context/StageContext';
 import type { Class, Exam, LessonPlanRecord, Subject } from '../../types';
 import {
   getScopedClasses,
@@ -49,7 +48,6 @@ function formatDateAr(value: string): string {
 
 export default function ControlDashboard() {
   const { user } = useAuth();
-  const { activeStage } = useStage();
   const navigate = useNavigate();
 
   const [classes, setClasses] = useState<Class[]>([]);
@@ -99,7 +97,7 @@ export default function ControlDashboard() {
     setLoading(true);
     setError(null);
 
-    const stage = activeStage === 'all' ? undefined : activeStage;
+    const stage = undefined;
 
     Promise.all([
       getScopedClasses(user.userRole, stage),
@@ -133,7 +131,7 @@ export default function ControlDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [user?.userRole, activeStage]);
+  }, [user?.userRole]);
 
   const subjectMap = useMemo(() => {
     return new Map(subjects.map((subject) => [subject.id, subject]));

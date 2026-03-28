@@ -82,23 +82,10 @@ export async function createSubject(req, res) {
 export async function getSubjectsByTeacherId(req, res) {
   try {
     const { id: userId } = req.user;
-    const rawStage =
-      typeof req.query?.stage === "string" ? req.query.stage.trim() : "";
 
-    // If a stage filter is provided, restrict to subjects whose classes belong to that stage.
-    let sql = "SELECT s.* FROM Subjects s WHERE s.teacher_id = ?";
+    // Return all subjects for this teacher
+    const sql = "SELECT s.* FROM Subjects s WHERE s.teacher_id = ?";
     const args = [userId];
-
-    if (rawStage) {
-      sql = `
-        SELECT s.*
-        FROM Subjects s
-        INNER JOIN Classes c ON c.id = s.class_id
-        WHERE s.teacher_id = ?
-          AND c.stage = ?
-      `;
-      args.push(rawStage);
-    }
 
     const subjects = await turso.execute({
       sql,
@@ -180,22 +167,9 @@ export async function getAllSubjectsInTheSystem(req, res) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
-    const rawStage =
-      typeof req.query?.stage === "string" ? req.query.stage.trim() : "";
-
-    // If a stage filter is provided, restrict to subjects whose classes belong to that stage.
-    let sql = "SELECT s.* FROM Subjects s";
+    // Return all subjects
+    const sql = "SELECT s.* FROM Subjects s";
     const args = [];
-
-    if (rawStage) {
-      sql = `
-        SELECT s.*
-        FROM Subjects s
-        INNER JOIN Classes c ON c.id = s.class_id
-        WHERE c.stage = ?
-      `;
-      args.push(rawStage);
-    }
 
     const subjects = await turso.execute({
       sql,

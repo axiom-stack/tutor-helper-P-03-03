@@ -1,7 +1,5 @@
 import { NavLink } from 'react-router';
 import { useAuth } from '../../context/AuthContext';
-import { useStage } from '../../context/StageContext';
-import { getAllowedStages, parseStages } from '../../constants/education';
 import {
   ADMIN_MAIN_LINKS,
   ADMIN_SECONDARY_LINKS,
@@ -12,7 +10,6 @@ import './sidebar.css';
 
 export function Sidebar() {
   const { user } = useAuth();
-  const { activeStage, setActiveStage } = useStage();
 
   const mainLinks =
     user?.userRole === 'admin' ? ADMIN_MAIN_LINKS : TEACHER_MAIN_LINKS;
@@ -24,42 +21,9 @@ export function Sidebar() {
   const isTeacher = user?.userRole === 'teacher';
   const isAdmin = user?.userRole === 'admin';
 
-  const profileStages = parseStages(user?.profile?.educational_stage ?? '');
-  const stages =
-    profileStages.length > 0 ? profileStages : getAllowedStages();
-
-  const stageOptions = isAdmin ? [...stages, 'all' as const] : stages;
-
   return (
     <aside className="sidebar" role="navigation" aria-label="القائمة الجانبية">
       <nav className="sidebar__nav">
-        {(isTeacher || isAdmin) && (
-          <div className="sidebar__stage">
-            <span className="sidebar__stage-label">المرحلة الحالية</span>
-            <div
-              className="sidebar__stage-toggle"
-              role="radiogroup"
-              aria-label="اختيار المرحلة التعليمية"
-            >
-              {stageOptions.map((stage) => (
-                <button
-                  key={stage}
-                  type="button"
-                  role="radio"
-                  aria-checked={activeStage === stage}
-                  className={
-                    activeStage === stage
-                      ? 'sidebar__stage-pill sidebar__stage-pill--active'
-                      : 'sidebar__stage-pill'
-                  }
-                  onClick={() => setActiveStage(stage as any)}
-                >
-                  {stage === 'all' ? 'كل المراحل' : stage}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
         <ul className="sidebar__list">
           {mainLinks.map(({ to, label, icon: Icon }) => (
             <li key={to} className="sidebar__item">

@@ -29,7 +29,6 @@ import {
   type GeneratedPlanResponse,
   type PlanType,
 } from './lesson-creator.services';
-import { useStage } from '../../context/StageContext';
 import LessonPlanDocumentView from '../lesson-plans/components/LessonPlanDocumentView';
 import {
   toPlanTypeLabel,
@@ -284,7 +283,7 @@ function LessonCreator() {
     return () => {
       cancelled = true;
     };
-  }, [activeStage, user?.id, user?.userRole]);
+  }, [user?.id, user?.userRole]);
 
   useEffect(() => {
     if (selectedSubjectId === '') {

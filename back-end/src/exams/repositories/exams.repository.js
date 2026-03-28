@@ -171,11 +171,6 @@ export function createExamsRepository(dbClient = turso) {
       const args = [];
 
       let joinSql = "";
-      if (filters.stage != null) {
-        joinSql = `INNER JOIN Classes c ON c.id = ${EXAMS_TABLE}.class_id`;
-        whereClauses.push("c.stage = ?");
-        args.push(filters.stage);
-      }
 
       if (accessContext?.role !== "admin") {
         whereClauses.push(`${EXAMS_TABLE}.teacher_id = ?`);

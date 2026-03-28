@@ -36,7 +36,7 @@ import {
   exportExam,
   updateExam,
 } from './quizzes.services';
-import { useStage } from '../../context/StageContext';
+
 import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel';
 import { getRefinementTargetOptions } from '../refinements/refinementTargets';
 import { LESSON_DURATION_OPTIONS, SEMESTER_OPTIONS } from '../../constants/dropdown-options';

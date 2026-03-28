@@ -216,7 +216,6 @@ export interface UserProfile {
   role: UserRole;
   user_created_at: string;
   language: 'ar' | 'en';
-  educational_stage: string | null;
   subject: string | null;
   preparation_type: PreparationType | null;
   school_name: string | null;
@@ -229,7 +228,6 @@ export interface UserProfile {
 
 export interface UserProfileUpdatePayload {
   language?: 'ar' | 'en';
-  educational_stage?: string | null;
   subject?: string | null;
   preparation_type?: PreparationType | null;
   school_name?: string | null;
@@ -264,7 +262,6 @@ export interface TeacherManagementRow {
   created_at: string;
   profile: {
     language: 'ar' | 'en';
-    educational_stage: string | null;
     subject: string | null;
     preparation_type: PreparationType | null;
     school_name: string | null;

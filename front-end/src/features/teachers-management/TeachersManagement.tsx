@@ -23,7 +23,6 @@ import {
   resetTeacherPassword,
   updateTeacherProfile,
 } from '../users/users.services';
-import { getAllowedStages, type StageId } from '../../constants/education';
 import './teachers-management.css';
 
 interface EditDraft {
@@ -31,7 +30,6 @@ interface EditDraft {
   username: string;
   display_name: string;
   language: 'ar' | 'en';
-  educational_stage: string;
   subject: string;
   preparation_type: PreparationType | '';
   default_plan_type: 'traditional' | 'active_learning';
@@ -60,31 +58,6 @@ function formatDateAr(value: string): string {
   } catch {
     return value;
   }
-}
-
-function parseStages(value: string): StageId[] {
-  if (!value) return [];
-  const raw = value
-    .split(/[,،]/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  const allowed = new Set<StageId>(getAllowedStages());
-  const result: StageId[] = [];
-
-  for (const part of raw) {
-    if (allowed.has(part as StageId) && !result.includes(part as StageId)) {
-      result.push(part as StageId);
-    }
-  }
-
-  return result;
-}
-
-function formatStagesForStorage(stages: StageId[]): string {
-  if (!stages.length) return '';
-  // Use Arabic comma for nicer display
-  return stages.join('، ');
 }
 
 function toEditDraft(teacher: TeacherManagementRow): EditDraft {

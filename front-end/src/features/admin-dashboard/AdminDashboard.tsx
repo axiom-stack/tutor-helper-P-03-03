@@ -10,7 +10,6 @@ import {
   MdSettings,
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
-import { useStage } from '../../context/StageContext';
 import type { Exam, LessonPlanRecord, TeacherManagementRow } from '../../types';
 import { listTeachers } from '../users/users.services';
 import { getScopedClasses, getScopedSubjects, listScopedExams, listScopedPlans } from '../control-dashboard/control-dashboard.services';
@@ -39,7 +38,6 @@ function formatDateAr(value: string): string {
 
 export default function AdminDashboard() {
   const { user } = useAuth();
-  const { activeStage } = useStage();
   const navigate = useNavigate();
 
   const [teachers, setTeachers] = useState<TeacherManagementRow[]>([]);
@@ -54,10 +52,10 @@ export default function AdminDashboard() {
 
     Promise.all([
       listTeachers(),
-      listScopedPlans(activeStage === 'all' ? undefined : activeStage),
-      listScopedExams(activeStage === 'all' ? undefined : activeStage),
-      getScopedClasses('admin', activeStage === 'all' ? undefined : activeStage),
-      getScopedSubjects('admin', activeStage === 'all' ? undefined : activeStage),
+      listScopedPlans(),
+      listScopedExams(),
+      getScopedClasses('admin'),
+      getScopedSubjects('admin'),
     ])
       .then(([teachersResponse, plansResponse, examsResponse]) => {
         if (cancelled) {
@@ -82,7 +80,7 @@ export default function AdminDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [activeStage]);
+  }, []);
 
   const teacherCount = teachers.length;
   const recentPlans = useMemo(

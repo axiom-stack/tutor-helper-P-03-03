@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
-import { useStage } from '../../context/StageContext';
+
 import type { Class, Lesson, Subject, TeacherManagementRow, Unit } from '../../types';
 import TeacherCirriculumManager from '../teacher-curriculum-manager/TeacherCirriculumManager';
 import {
@@ -86,7 +86,6 @@ function AdminCurriculumExplorer({
 }: {
   onSelectTeacherToManage: (teacherId: number | '') => void;
 }) {
-  const { activeStage } = useStage();
   const [teachers, setTeachers] = useState<TeacherManagementRow[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -115,10 +114,10 @@ function AdminCurriculumExplorer({
 
     Promise.all([
       listTeacherScopes(),
-      getScopedClasses('admin', activeStage),
-      getScopedSubjects('admin', activeStage),
-      getScopedUnits('admin', activeStage),
-      getScopedLessons('admin', activeStage),
+      getScopedClasses('admin'),
+      getScopedSubjects('admin'),
+      getScopedUnits('admin'),
+      getScopedLessons('admin'),
     ])
       .then(([teachersResponse, classesResponse, subjectsResponse, unitsResponse, lessonsResponse]) => {
         if (cancelled) {
@@ -148,7 +147,7 @@ function AdminCurriculumExplorer({
       cancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, [activeStage]);
+  }, []);
 
   const classesMap = useMemo(() => {
     return new Map(classes.map((classItem) => [classItem.id, classItem]));

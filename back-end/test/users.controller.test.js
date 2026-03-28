@@ -91,7 +91,6 @@ test("updateTeacherProfile updates a teacher profile for admin", async () => {
         username: "teacher_5",
         role: "teacher",
         language: updates.language,
-        educational_stage: updates.educational_stage ?? null,
         subject: updates.subject ?? null,
         preparation_type: updates.preparation_type ?? null,
         default_lesson_duration_minutes:
@@ -106,7 +105,6 @@ test("updateTeacherProfile updates a teacher profile for admin", async () => {
     params: { teacherId: "5" },
     body: {
       language: "en",
-      educational_stage: "Grade 9",
       default_lesson_duration_minutes: 50,
     },
   };

@@ -10,7 +10,6 @@ CREATE TABLE Users (
 CREATE TABLE UserProfiles (
   user_id INTEGER PRIMARY KEY REFERENCES Users(id) ON DELETE CASCADE,
   language TEXT NOT NULL DEFAULT 'ar' CHECK(language IN ('ar', 'en')),
-  educational_stage TEXT,
   subject TEXT,
   preparation_type TEXT,
   school_name TEXT,
@@ -24,7 +23,6 @@ CREATE TABLE UserProfiles (
 CREATE TABLE Classes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   grade_label TEXT NOT NULL,
-  stage TEXT,
   semester TEXT,
   section_label TEXT NOT NULL,
   section TEXT NOT NULL DEFAULT 'أ',

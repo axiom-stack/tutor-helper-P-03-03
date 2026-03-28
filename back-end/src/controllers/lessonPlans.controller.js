@@ -213,10 +213,6 @@ export function createLessonPlansController(dependencies = {}) {
           filters.grade = String(req.query.grade).trim();
         }
 
-        if (req.query.stage) {
-          filters.stage = String(req.query.stage).trim();
-        }
-
         const plans = await lessonPlansRepository.list(filters, {
           userId: req.user.id,
           role: req.user.role,

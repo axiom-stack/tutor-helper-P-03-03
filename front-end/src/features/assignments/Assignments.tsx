@@ -29,7 +29,7 @@ import {
   listAssignments,
   updateAssignment,
 } from './assignments.services';
-import { useStage } from '../../context/StageContext';
+
 import { listPlans } from '../plans-manager/plans-manager.services';
 import type { NormalizedApiError } from '../../utils/apiErrors';
 import { normalizeApiError } from '../../utils/apiErrors';
@@ -396,7 +396,7 @@ export default function Assignments() {
         setIsRefreshing(false);
       }
     },
-    [context, isScopedView, selectedClassId, activeStage]
+    [context, isScopedView, selectedClassId]
   );
 
   useEffect(() => {
@@ -416,7 +416,7 @@ export default function Assignments() {
     }
 
     void loadAssignments();
-  }, [context, selectedClassId, user?.userRole, loadAssignments, activeStage]);
+  }, [context, selectedClassId, user?.userRole, loadAssignments]);
 
   useEffect(() => {
     if (user?.userRole !== 'teacher') {
@@ -480,7 +480,7 @@ export default function Assignments() {
     return () => {
       cancelled = true;
     };
-  }, [isScopedView, user?.userRole, activeStage]);
+  }, [isScopedView, user?.userRole]);
 
   useEffect(() => {
     if (error) {

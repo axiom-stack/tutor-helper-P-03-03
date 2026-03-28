@@ -12,7 +12,6 @@ import ConfirmActionModal from '../../components/common/ConfirmActionModal';
 import ExportFormatModal from '../../components/common/ExportFormatModal';
 import { SyncStatusBadge } from '../../components/common/SyncStatusBadge';
 import { useAuth } from '../../context/AuthContext';
-import { useStage } from '../../context/StageContext';
 import type { LessonPlanRecord, TeacherManagementRow } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
 import { clearDraft, getDraft, saveDraft } from '../../offline/drafts';
@@ -131,15 +130,13 @@ export default function PlansManager() {
     });
   }, [allPlans, planType, subject, grade]);
 
-  const { activeStage } = useStage();
-
   const loadPlans = async () => {
     const requestId = ++plansRequestIdRef.current;
     setLoading(true);
     setError(null);
 
     try {
-      const response = await listPlans({ stage: activeStage });
+      const response = await listPlans({});
 
       if (requestId !== plansRequestIdRef.current) {
         return;
@@ -176,7 +173,7 @@ export default function PlansManager() {
   useEffect(() => {
     void loadPlans();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeStage]);
+  }, []);
 
   useEffect(() => {
     if (!lastSyncAt || isEditingPlan) {

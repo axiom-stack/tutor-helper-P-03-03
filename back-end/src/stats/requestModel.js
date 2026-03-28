@@ -1,5 +1,3 @@
-import { normalizeStage } from "../utils/education.js";
-
 const VALID_PERIODS = ["all", "30d", "90d", "custom"];
 
 function formatDateOnly(date) {
@@ -84,17 +82,6 @@ export function validateStatsQuery(query = {}, user = { role: "teacher" }) {
     };
   }
 
-  const stageRaw = typeof query.stage === "string" ? query.stage.trim() : "";
-  const stage = stageRaw && stageRaw !== "all" ? normalizeStage(stageRaw) : null;
-  if (stageRaw && stageRaw !== "all" && !stage) {
-    return {
-      ok: false,
-      status: 400,
-      code: "invalid_stage",
-      message: "Invalid stage. Allowed values: ابتدائي، اعدادي، ثانوي.",
-    };
-  }
-
   if (period === "custom") {
     const dateFromRaw = typeof query.date_from === "string" ? query.date_from.trim() : "";
     const dateToRaw = typeof query.date_to === "string" ? query.date_to.trim() : "";
@@ -136,7 +123,6 @@ export function validateStatsQuery(query = {}, user = { role: "teacher" }) {
         date_from: formatDateOnly(dateFrom),
         date_to: formatDateOnly(dateTo),
         teacher_id: teacherId,
-        stage,
       },
     };
   }
@@ -150,9 +136,6 @@ export function validateStatsQuery(query = {}, user = { role: "teacher" }) {
       date_from: presetRange.date_from,
       date_to: presetRange.date_to,
       teacher_id: teacherId,
-      stage,
     },
   };
 }
-
-export const STATS_PERIODS = VALID_PERIODS;

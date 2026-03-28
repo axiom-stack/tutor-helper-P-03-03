@@ -44,7 +44,6 @@ export function buildExamExportViewModel(enrichedExam) {
     duration: enrichedExam.duration_label ?? enrichedExam.duration ?? "—",
     totalQuestions,
     totalMarks,
-    stage: enrichedExam.stage ?? null,
     term: enrichedExam.semester ?? enrichedExam.term ?? null,
     semester: enrichedExam.semester ?? enrichedExam.term ?? null,
     academicYear: enrichedExam.academic_year ?? null,

@@ -6,7 +6,6 @@ import LessonCreator from './features/lesson-creator/LessonCreator';
 import Assignments from './features/assignments/Assignments';
 import Quizzes from './features/quizzes/Quizzes';
 import { AppLayout } from './components/layout';
-import { StageProvider } from './context/StageContext';
 import { RequireAdmin, RequireAuth, RequireTeacher } from './components/routing/RouteGuards';
 import ControlDashboard from './features/control-dashboard/ControlDashboard';
 import AdminDashboard from './features/admin-dashboard/AdminDashboard';
@@ -36,9 +35,7 @@ function App() {
         <Route
           element={
             <RequireAuth>
-              <StageProvider>
-                <AppLayout />
-              </StageProvider>
+              <AppLayout />
             </RequireAuth>
           }
         >
