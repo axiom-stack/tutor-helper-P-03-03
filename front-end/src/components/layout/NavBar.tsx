@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { MdLogout, MdMenu } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
@@ -12,12 +13,17 @@ export function NavBar() {
   const navigate = useNavigate();
   const location = useLocation();
   const menuRef = useRef<HTMLElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const menuPanelRef = useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<{
+    top: number;
+    left?: number;
+    right?: number;
+  } | null>(null);
 
   const displayName = user?.display_name || user?.username || 'مستخدم';
-  const isHomePage =
-    location.pathname === '/' || location.pathname === '/teacher';
-  const showMenuButton = !isHomePage;
+  const showMenuButton = true;
   const menuItems = useMemo(
     () => getHeaderNavItems(location.pathname),
     [location.pathname]
@@ -33,6 +39,46 @@ export function NavBar() {
     setMenuOpen(false);
   }, [location.pathname]);
 
+  useLayoutEffect(() => {
+    if (!menuOpen) {
+      setMenuPosition(null);
+      return;
+    }
+
+    const updateMenuPosition = () => {
+      const button = menuButtonRef.current;
+      if (!button) {
+        return;
+      }
+
+      const rect = button.getBoundingClientRect();
+      const menuOffset = 10;
+      const top = Math.min(rect.bottom + menuOffset, window.innerHeight - 16);
+      const isRtl = document.documentElement.dir === 'rtl';
+
+      setMenuPosition(
+        isRtl
+          ? {
+              top,
+              right: Math.max(16, window.innerWidth - rect.right),
+            }
+          : {
+              top,
+              left: Math.max(16, rect.left),
+            }
+      );
+    };
+
+    updateMenuPosition();
+    window.addEventListener('resize', updateMenuPosition);
+    window.addEventListener('scroll', updateMenuPosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition);
+      window.removeEventListener('scroll', updateMenuPosition, true);
+    };
+  }, [menuOpen]);
+
   useEffect(() => {
     if (!menuOpen) {
       return;
@@ -44,7 +90,10 @@ export function NavBar() {
         return;
       }
 
-      if (!menuRef.current?.contains(target)) {
+      if (
+        !menuRef.current?.contains(target) &&
+        !menuPanelRef.current?.contains(target)
+      ) {
         setMenuOpen(false);
       }
     };
@@ -78,10 +127,11 @@ export function NavBar() {
     <header className="nav-bar" role="banner" ref={menuRef}>
       {showMenuButton ? (
         <button
+          ref={menuButtonRef}
           type="button"
           className="nav-bar__menu-btn"
           onClick={() => setMenuOpen((value) => !value)}
-          aria-label="فتح القائمة"
+          aria-label={menuOpen ? 'إغلاق القائمة' : 'فتح القائمة'}
           aria-expanded={menuOpen}
           aria-controls="header-nav-menu"
         >
@@ -89,26 +139,31 @@ export function NavBar() {
         </button>
       ) : null}
 
-      {showMenuButton && menuOpen ? (
-        <div
-          id="header-nav-menu"
-          className="nav-bar__menu-panel"
-          role="menu"
-          aria-label="القائمة الرئيسية"
-        >
-          {menuItems.map((item) => (
-            <Link
-              key={item.key}
-              to={item.path}
-              role="menuitem"
-              className="nav-bar__menu-item"
-              onClick={() => setMenuOpen(false)}
+      {showMenuButton && menuOpen && menuPosition
+        ? createPortal(
+            <div
+              ref={menuPanelRef}
+              id="header-nav-menu"
+              className="nav-bar__menu-panel nav-bar__menu-panel--portal"
+              role="menu"
+              aria-label="القائمة الرئيسية"
+              style={menuPosition}
             >
-              {item.label}
-            </Link>
-          ))}
-        </div>
-      ) : null}
+              {menuItems.map((item) => (
+                <Link
+                  key={item.key}
+                  to={item.path}
+                  role="menuitem"
+                  className="nav-bar__menu-item"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>,
+            document.body
+          )
+        : null}
 
       <div
         className={`nav-bar__content ${

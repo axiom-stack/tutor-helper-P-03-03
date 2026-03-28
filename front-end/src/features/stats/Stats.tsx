@@ -811,77 +811,144 @@ export default function Stats() {
               </section>
 
               {isAdmin && summary.admin ? (
-                <section className="st__panel">
-                  <header className="st__panel-head">
-                    <h2>أداء المعلمين</h2>
-                    <small>انقر على صف المعلم لتطبيق فلتر مباشر</small>
-                  </header>
-                  <div className="st__table-wrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>المعلم</th>
-                          <th>الخطط</th>
-                          <th>متوسط الجودة</th>
-                          <th>نجاح أول محاولة</th>
-                          <th>الاختبارات</th>
-                          <th>الواجبات</th>
-                          <th>تعديلات الواجبات</th>
-                          <th>آخر نشاط</th>
-                          <th>مخاطر</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {summary.admin.teacher_performance.length === 0 ? (
-                          <tr>
-                            <td colSpan={9} className="st__table-empty">
-                              لا توجد بيانات معلمين ضمن النطاق الحالي.
-                            </td>
-                          </tr>
+                <>
+                  <section className="st__admin-grid" aria-label="ملخص الإدارة">
+                    <article className="st__panel">
+                      <header className="st__panel-head">
+                        <h2>أفضل المعلمين</h2>
+                        <small>أعلى إنتاج وجودة في النطاق الحالي</small>
+                      </header>
+                      <ul className="st__summary-list">
+                        {summary.admin.top_teachers.length === 0 ? (
+                          <li className="st__summary-empty">
+                            لا توجد بيانات كافية لعرض أفضل المعلمين.
+                          </li>
                         ) : (
-                          summary.admin.teacher_performance.map((row) => (
-                            <tr
-                              key={row.teacher_id}
-                              className={
-                                selectedTeacherId === String(row.teacher_id)
-                                  ? 'st__row--active'
-                                  : ''
-                              }
-                              onClick={() =>
-                                setSelectedTeacherId(String(row.teacher_id))
-                              }
-                            >
-                              <td>{row.display_name || row.username}</td>
-                              <td>{formatNumber(row.plans_generated)}</td>
-                              <td>{formatNumber(row.avg_plan_quality)}</td>
-                              <td>{formatPercent(row.first_pass_rate)}</td>
-                              <td>{formatNumber(row.exams_generated)}</td>
-                              <td>{formatNumber(row.assignments_generated)}</td>
-                              <td>{formatNumber(row.edited_assignments)}</td>
-                              <td>{formatDateTime(row.last_activity_at)}</td>
-                              <td>
-                                {row.risk_flags.length === 0 ? (
-                                  <span className="st__risk-badge st__risk-badge--safe">
-                                    مستقر
-                                  </span>
-                                ) : (
-                                  row.risk_flags.map((flag) => (
-                                    <span
-                                      key={`${row.teacher_id}-${flag}`}
-                                      className="st__risk-badge st__risk-badge--risk"
-                                    >
-                                      {getRiskLabel(flag)}
-                                    </span>
-                                  ))
-                                )}
-                              </td>
-                            </tr>
+                          summary.admin.top_teachers.map((teacher) => (
+                            <li key={teacher.teacher_id} className="st__summary-item">
+                              <div className="st__summary-item-main">
+                                <strong>{teacher.display_name || teacher.username}</strong>
+                                <span>
+                                  {formatNumber(teacher.plans_generated)} خطة | جودة{' '}
+                                  {formatNumber(teacher.avg_plan_quality)}
+                                </span>
+                              </div>
+                              <span className="st__summary-badge">Top</span>
+                            </li>
                           ))
                         )}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
+                      </ul>
+                    </article>
+
+                    <article className="st__panel">
+                      <header className="st__panel-head">
+                        <h2>المعلمون المعرضون للمخاطر</h2>
+                        <small>أولوية المتابعة والدعم</small>
+                      </header>
+                      <ul className="st__summary-list">
+                        {summary.admin.at_risk_teachers.length === 0 ? (
+                          <li className="st__summary-empty">
+                            لا توجد إشارات خطر واضحة في النطاق الحالي.
+                          </li>
+                        ) : (
+                          summary.admin.at_risk_teachers.map((teacher) => (
+                            <li key={teacher.teacher_id} className="st__summary-item">
+                              <div className="st__summary-item-main">
+                                <strong>{teacher.display_name || teacher.username}</strong>
+                                <span>
+                                  {formatNumber(teacher.plans_generated)} خطة | جودة{' '}
+                                  {formatNumber(teacher.avg_plan_quality)}
+                                </span>
+                              </div>
+                              <div className="st__summary-flags" aria-label="مؤشرات الخطر">
+                                {teacher.risk_flags.map((flag) => (
+                                  <span
+                                    key={`${teacher.teacher_id}-${flag}`}
+                                    className="st__risk-badge st__risk-badge--risk"
+                                  >
+                                    {getRiskLabel(flag)}
+                                  </span>
+                                ))}
+                              </div>
+                            </li>
+                          ))
+                        )}
+                      </ul>
+                    </article>
+                  </section>
+
+                  <section className="st__panel">
+                    <header className="st__panel-head">
+                      <h2>أداء المعلمين</h2>
+                      <small>انقر على صف المعلم لتطبيق فلتر مباشر</small>
+                    </header>
+                    <div className="st__table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>المعلم</th>
+                            <th>الخطط</th>
+                            <th>متوسط الجودة</th>
+                            <th>نجاح أول محاولة</th>
+                            <th>الاختبارات</th>
+                            <th>الواجبات</th>
+                            <th>تعديلات الواجبات</th>
+                            <th>آخر نشاط</th>
+                            <th>مخاطر</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {summary.admin.teacher_performance.length === 0 ? (
+                            <tr>
+                              <td colSpan={9} className="st__table-empty">
+                                لا توجد بيانات معلمين ضمن النطاق الحالي.
+                              </td>
+                            </tr>
+                          ) : (
+                            summary.admin.teacher_performance.map((row) => (
+                              <tr
+                                key={row.teacher_id}
+                                className={
+                                  selectedTeacherId === String(row.teacher_id)
+                                    ? 'st__row--active'
+                                    : ''
+                                }
+                                onClick={() =>
+                                  setSelectedTeacherId(String(row.teacher_id))
+                                }
+                              >
+                                <td>{row.display_name || row.username}</td>
+                                <td>{formatNumber(row.plans_generated)}</td>
+                                <td>{formatNumber(row.avg_plan_quality)}</td>
+                                <td>{formatPercent(row.first_pass_rate)}</td>
+                                <td>{formatNumber(row.exams_generated)}</td>
+                                <td>{formatNumber(row.assignments_generated)}</td>
+                                <td>{formatNumber(row.edited_assignments)}</td>
+                                <td>{formatDateTime(row.last_activity_at)}</td>
+                                <td>
+                                  {row.risk_flags.length === 0 ? (
+                                    <span className="st__risk-badge st__risk-badge--safe">
+                                      مستقر
+                                    </span>
+                                  ) : (
+                                    row.risk_flags.map((flag) => (
+                                      <span
+                                        key={`${row.teacher_id}-${flag}`}
+                                        className="st__risk-badge st__risk-badge--risk"
+                                      >
+                                        {getRiskLabel(flag)}
+                                      </span>
+                                    ))
+                                  )}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+                </>
               ) : null}
 
               {!isAdmin ? (

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
+import { useAuth } from './context/AuthContext';
 import {
   getDisplayLanguageFromCookie,
   ensureGoogleTranslation,
@@ -22,6 +23,16 @@ import PlanViewerPage from './features/plans-manager/PlanViewerPage';
 import Settings from './features/settings/Settings';
 import TeachersManagement from './features/teachers-management/TeachersManagement';
 import Stats from './features/stats/Stats';
+
+function HomeRoute() {
+  const { user } = useAuth();
+
+  if (user?.userRole === 'admin') {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return <ControlDashboard />;
+}
 
 function App() {
   useEffect(() => {
@@ -47,7 +58,7 @@ function App() {
             </RequireAuth>
           }
         >
-          <Route path="/" element={<ControlDashboard />} />
+          <Route path="/" element={<HomeRoute />} />
           <Route path="/teacher" element={<Navigate to="/" replace />} />
           <Route
             path="/admin"

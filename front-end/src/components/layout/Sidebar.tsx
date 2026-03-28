@@ -8,7 +8,11 @@ import {
 } from './nav-links';
 import './sidebar.css';
 
-export function Sidebar() {
+interface SidebarProps {
+  variant?: 'teacher' | 'admin';
+}
+
+export function Sidebar({ variant = 'teacher' }: SidebarProps) {
   const { user } = useAuth();
 
   const mainLinks =
@@ -17,9 +21,26 @@ export function Sidebar() {
     user?.userRole === 'admin'
       ? ADMIN_SECONDARY_LINKS
       : TEACHER_SECONDARY_LINKS;
+  const displayName = user?.display_name || user?.username || 'مستخدم';
+  const isAdminSidebar = variant === 'admin';
 
   return (
-    <aside className="sidebar" role="navigation" aria-label="القائمة الجانبية">
+    <aside
+      className={`sidebar sidebar--${variant}`}
+      role="navigation"
+      aria-label={isAdminSidebar ? 'القائمة الإدارية' : 'القائمة الجانبية'}
+    >
+      {isAdminSidebar ? (
+        <div className="sidebar__header">
+          <span className="sidebar__eyebrow">مساحة الإدارة</span>
+          <strong className="sidebar__title">مركز التحكم</strong>
+          <p className="sidebar__desc">
+            {displayName}، استخدم هذه المساحة لمتابعة المعلمين والمنهج
+            والتقارير من مكان واحد.
+          </p>
+        </div>
+      ) : null}
+
       <nav className="sidebar__nav">
         <ul className="sidebar__list">
           {mainLinks.map(({ to, label, icon: Icon }) => (
@@ -38,25 +59,29 @@ export function Sidebar() {
           ))}
         </ul>
 
-        <div className="sidebar__divider-wrap">
-          <hr className="sidebar__divider" />
-        </div>
+        {secondaryLinks.length > 0 ? (
+          <>
+            <div className="sidebar__divider-wrap">
+              <hr className="sidebar__divider" />
+            </div>
 
-        <ul className="sidebar__list">
-          {secondaryLinks.map(({ to, label, icon: Icon }) => (
-            <li key={to} className="sidebar__item">
-              <NavLink
-                to={to}
-                className={({ isActive }) =>
-                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
-                }
-              >
-                <Icon className="sidebar__link-icon" aria-hidden />
-                <span>{label}</span>
-              </NavLink>
-            </li>
-          ))}
-        </ul>
+            <ul className="sidebar__list">
+              {secondaryLinks.map(({ to, label, icon: Icon }) => (
+                <li key={to} className="sidebar__item">
+                  <NavLink
+                    to={to}
+                    className={({ isActive }) =>
+                      `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                    }
+                  >
+                    <Icon className="sidebar__link-icon" aria-hidden />
+                    <span>{label}</span>
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
       </nav>
     </aside>
   );

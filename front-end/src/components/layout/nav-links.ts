@@ -2,12 +2,11 @@ import type { ComponentType } from 'react';
 import {
   MdHome,
   MdMenuBook,
-  MdAssignment,
   MdQuiz,
   MdSchool,
-  MdSettings,
   MdGroup,
   MdInsights,
+  MdSettings,
 } from 'react-icons/md';
 
 export type SidebarLink = {
@@ -18,27 +17,25 @@ export type SidebarLink = {
 
 export const TEACHER_MAIN_LINKS: SidebarLink[] = [
   { to: '/', label: 'الرئيسية', icon: MdHome },
-  { to: '/lessons', label: 'إنشاء الخطط', icon: MdMenuBook },
-  { to: '/plans', label: 'الخطط المولدة', icon: MdMenuBook },
-  { to: '/assignments', label: 'الواجبات', icon: MdAssignment },
-  { to: '/quizzes', label: 'الاختبارات', icon: MdQuiz },
-  { to: '/curriculum', label: 'المنهج الدراسي', icon: MdSchool },
-  { to: '/settings', label: 'الإعدادات', icon: MdSettings },
+  { to: '/curriculum', label: 'إدارة المنهج', icon: MdSchool },
+  { to: '/lessons', label: 'إنشاء خطة درس', icon: MdMenuBook },
+  { to: '/quizzes/create', label: 'إنشاء اختبار', icon: MdQuiz },
+  { to: '/plans', label: 'مكتبة الخطط', icon: MdMenuBook },
+  { to: '/quizzes', label: 'مكتبة الاختبارات', icon: MdQuiz },
+  { to: '/stats', label: 'التقارير والأداء', icon: MdInsights },
 ];
 
 export const ADMIN_MAIN_LINKS: SidebarLink[] = [
-  { to: '/', label: 'الرئيسية', icon: MdHome },
+  { to: '/admin', label: 'لوحة الإدارة', icon: MdHome },
+  { to: '/teachers', label: 'المعلمون', icon: MdGroup },
+  { to: '/curriculum', label: 'المنهج الدراسي', icon: MdSchool },
   { to: '/plans', label: 'الخطط المولدة', icon: MdMenuBook },
   { to: '/quizzes', label: 'الاختبارات', icon: MdQuiz },
-  { to: '/curriculum', label: 'المنهج الدراسي', icon: MdSchool },
-  { to: '/settings', label: 'الإعدادات', icon: MdSettings },
 ];
 
-export const TEACHER_SECONDARY_LINKS: SidebarLink[] = [
-  { to: '/stats', label: 'الإحصائيات', icon: MdInsights },
-];
+export const TEACHER_SECONDARY_LINKS: SidebarLink[] = [];
 
 export const ADMIN_SECONDARY_LINKS: SidebarLink[] = [
-  { to: '/teachers', label: 'المعلمون', icon: MdGroup },
   { to: '/stats', label: 'الإحصائيات', icon: MdInsights },
+  { to: '/settings', label: 'الإعدادات', icon: MdSettings },
 ];

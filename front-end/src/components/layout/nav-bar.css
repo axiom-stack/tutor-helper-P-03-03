@@ -197,9 +197,6 @@
 }
 
 .nav-bar__menu-panel {
-  position: absolute;
-  inset-inline-start: var(--space-lg);
-  top: calc(var(--topbar-height) - 0.2rem);
   width: min(18rem, calc(100vw - 2rem));
   display: grid;
   gap: 0.25rem;
@@ -209,6 +206,13 @@
   background: rgba(255, 255, 255, 0.99);
   box-shadow: 0 18px 48px rgba(15, 23, 42, 0.14);
   backdrop-filter: blur(16px);
+}
+
+.nav-bar__menu-panel--portal {
+  position: fixed;
+  z-index: 1100;
+  max-height: calc(100dvh - 1rem);
+  overflow-y: auto;
 }
 
 .nav-bar__menu-item {

@@ -12,9 +12,14 @@ import './mobile-nav-drawer.css';
 interface MobileNavDrawerProps {
   open: boolean;
   onClose: () => void;
+  variant?: 'teacher' | 'admin';
 }
 
-export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
+export function MobileNavDrawer({
+  open,
+  onClose,
+  variant = 'teacher',
+}: MobileNavDrawerProps) {
   const { user } = useAuth();
 
   const mainLinks =
@@ -23,6 +28,8 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
     user?.userRole === 'admin'
       ? ADMIN_SECONDARY_LINKS
       : TEACHER_SECONDARY_LINKS;
+  const isAdminDrawer = variant === 'admin';
+  const displayName = user?.display_name || user?.username || 'مستخدم';
 
   useEffect(() => {
     if (!open) return;
@@ -41,10 +48,11 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
 
   return (
     <div
-      className="mobile-drawer mobile-drawer--open"
+      className={`mobile-drawer mobile-drawer--${variant} mobile-drawer--open`}
       role="dialog"
       aria-modal="true"
-      aria-label="القائمة الرئيسية"
+      aria-label={isAdminDrawer ? 'قائمة الإدارة' : 'القائمة الرئيسية'}
+      id="admin-navigation-drawer"
     >
       <div
         className="mobile-drawer__backdrop"
@@ -55,7 +63,19 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
       />
       <aside className="mobile-drawer__panel">
         <div className="mobile-drawer__header">
-          <span className="mobile-drawer__title">القائمة</span>
+          <div className="mobile-drawer__header-copy">
+            <span className="mobile-drawer__eyebrow">
+              {isAdminDrawer ? 'لوحة الإدارة' : 'القائمة'}
+            </span>
+            <span className="mobile-drawer__title">
+              {isAdminDrawer ? 'قائمة التحكم السريعة' : 'قائمة المعلم'}
+            </span>
+            {isAdminDrawer ? (
+              <span className="mobile-drawer__subtitle">
+                مرحباً {displayName}، اختر وجهتك التالية.
+              </span>
+            ) : null}
+          </div>
           <button
             type="button"
             className="mobile-drawer__close"
@@ -83,25 +103,29 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
               </li>
             ))}
           </ul>
-          <div className="mobile-drawer__divider-wrap">
-            <hr className="mobile-drawer__divider" />
-          </div>
-          <ul className="mobile-drawer__list">
-            {secondaryLinks.map(({ to, label, icon: Icon }) => (
-              <li key={to} className="mobile-drawer__item">
-                <NavLink
-                  to={to}
-                  className={({ isActive }) =>
-                    `mobile-drawer__link ${isActive ? 'mobile-drawer__link--active' : ''}`
-                  }
-                  onClick={onClose}
-                >
-                  <Icon className="mobile-drawer__link-icon" aria-hidden />
-                  <span>{label}</span>
-                </NavLink>
-              </li>
-            ))}
-          </ul>
+          {secondaryLinks.length > 0 ? (
+            <>
+              <div className="mobile-drawer__divider-wrap">
+                <hr className="mobile-drawer__divider" />
+              </div>
+              <ul className="mobile-drawer__list">
+                {secondaryLinks.map(({ to, label, icon: Icon }) => (
+                  <li key={to} className="mobile-drawer__item">
+                    <NavLink
+                      to={to}
+                      className={({ isActive }) =>
+                        `mobile-drawer__link ${isActive ? 'mobile-drawer__link--active' : ''}`
+                      }
+                      onClick={onClose}
+                    >
+                      <Icon className="mobile-drawer__link-icon" aria-hidden />
+                      <span>{label}</span>
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
         </nav>
       </aside>
     </div>

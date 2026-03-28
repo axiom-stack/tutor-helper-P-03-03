@@ -49,6 +49,10 @@ export function RequireTeacher({ children }: GuardProps) {
     return <Navigate to="/authentication" replace />;
   }
 
+  if (user?.userRole === 'admin') {
+    return <Navigate to="/admin" replace />;
+  }
+
   if (user?.userRole !== 'teacher') {
     return <Navigate to="/" replace />;
   }

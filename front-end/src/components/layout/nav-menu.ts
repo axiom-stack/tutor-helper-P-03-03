@@ -3,9 +3,11 @@ export type HeaderNavKey =
   | 'curriculum'
   | 'lesson_create'
   | 'exam_create'
+  | 'assignments'
   | 'plan_library'
   | 'exam_library'
-  | 'reports';
+  | 'reports'
+  | 'settings';
 
 export interface HeaderNavItem {
   key: HeaderNavKey;
@@ -13,7 +15,7 @@ export interface HeaderNavItem {
   path: string;
 }
 
-const HEADER_NAV_ITEMS: HeaderNavItem[] = [
+const TEACHER_HEADER_NAV_ITEMS: HeaderNavItem[] = [
   { key: 'home', label: 'الرئيسية', path: '/' },
   { key: 'curriculum', label: 'إدارة المنهج', path: '/curriculum' },
   { key: 'lesson_create', label: 'إنشاء خطة درس', path: '/lessons' },
@@ -32,18 +34,21 @@ function getCurrentHeaderKey(pathname: string): HeaderNavKey | null {
   if (normalizedPath === '/curriculum') return 'curriculum';
   if (normalizedPath === '/lessons') return 'lesson_create';
   if (normalizedPath === '/quizzes/create') return 'exam_create';
+  if (normalizedPath === '/assignments' || normalizedPath.startsWith('/assignments/')) {
+    return 'assignments';
+  }
   if (normalizedPath === '/plans' || normalizedPath.startsWith('/plans/')) {
     return 'plan_library';
   }
   if (normalizedPath === '/quizzes') return 'exam_library';
   if (normalizedPath === '/stats') return 'reports';
+  if (normalizedPath === '/settings') return 'settings';
   return null;
 }
 
 export function getHeaderNavItems(pathname: string): HeaderNavItem[] {
-  const currentKey = getCurrentHeaderKey(pathname);
-
-  return HEADER_NAV_ITEMS.filter((item) => item.key === 'home' || item.key !== currentKey);
+  void pathname;
+  return TEACHER_HEADER_NAV_ITEMS;
 }
 
 export function getHeaderNavPathLabel(pathname: string): string | null {

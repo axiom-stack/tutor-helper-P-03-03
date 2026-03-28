@@ -10,7 +10,13 @@ import {
   MdSettings,
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
-import type { Exam, LessonPlanRecord, TeacherManagementRow } from '../../types';
+import type {
+  Class,
+  Exam,
+  LessonPlanRecord,
+  Subject,
+  TeacherManagementRow,
+} from '../../types';
 import { listTeachers } from '../users/users.services';
 import {
   getScopedClasses,
@@ -46,6 +52,8 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
 
   const [teachers, setTeachers] = useState<TeacherManagementRow[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [plans, setPlans] = useState<LessonPlanRecord[]>([]);
   const [exams, setExams] = useState<Exam[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,15 +70,25 @@ export default function AdminDashboard() {
       getScopedClasses('admin'),
       getScopedSubjects('admin'),
     ])
-      .then(([teachersResponse, plansResponse, examsResponse]) => {
-        if (cancelled) {
-          return;
-        }
+      .then(
+        ([
+          teachersResponse,
+          plansResponse,
+          examsResponse,
+          classesResponse,
+          subjectsResponse,
+        ]) => {
+          if (cancelled) {
+            return;
+          }
 
-        setTeachers(teachersResponse.teachers ?? []);
-        setPlans(plansResponse.plans ?? []);
-        setExams(examsResponse.exams ?? []);
-      })
+          setTeachers(teachersResponse.teachers ?? []);
+          setPlans(plansResponse.plans ?? []);
+          setExams(examsResponse.exams ?? []);
+          setClasses(classesResponse.classes ?? []);
+          setSubjects(subjectsResponse.subjects ?? []);
+        }
+      )
       .catch(() => {
         if (!cancelled) {
           toast.error('تعذر تحميل لوحة المدير.');
@@ -88,6 +106,8 @@ export default function AdminDashboard() {
   }, []);
 
   const teacherCount = teachers.length;
+  const classCount = classes.length;
+  const subjectCount = subjects.length;
   const recentPlans = useMemo(
     () =>
       [...plans]
@@ -179,15 +199,23 @@ export default function AdminDashboard() {
           </p>
         </div>
 
-        <div className="ad__stats">
-          <div>
-            <span>المعلمين</span>
-            <strong>{teacherCount}</strong>
-          </div>
-          <div>
-            <span>الخطط</span>
-            <strong>{plans.length}</strong>
-          </div>
+      <div className="ad__stats">
+        <div>
+          <span>المعلمين</span>
+          <strong>{teacherCount}</strong>
+        </div>
+        <div>
+          <span>الصفوف</span>
+          <strong>{classCount}</strong>
+        </div>
+        <div>
+          <span>المواد</span>
+          <strong>{subjectCount}</strong>
+        </div>
+        <div>
+          <span>الخطط</span>
+          <strong>{plans.length}</strong>
+        </div>
           <div>
             <span>الاختبارات</span>
             <strong>{exams.length}</strong>

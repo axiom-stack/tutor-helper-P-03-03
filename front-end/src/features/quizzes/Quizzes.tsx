@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Link, useLocation, useNavigate } from 'react-router';
 import {
@@ -9,7 +9,6 @@ import {
   MdCheckCircle,
   MdLock,
   MdLockOpen,
-  MdQuiz,
   MdRefresh,
   MdSave,
 } from 'react-icons/md';
@@ -83,6 +82,24 @@ function formatDateTimeAr(iso: string): string {
     });
   } catch {
     return iso;
+  }
+}
+
+function formatQuestionCountAr(count: number): string {
+  const rules = new Intl.PluralRules('ar');
+  switch (rules.select(count)) {
+    case 'zero':
+      return '0 سؤال';
+    case 'one':
+      return 'سؤال واحد';
+    case 'two':
+      return 'سؤالان';
+    case 'few':
+      return `${count} أسئلة`;
+    case 'many':
+      return `${count} سؤالًا`;
+    default:
+      return `${count} سؤال`;
   }
 }
 
@@ -174,8 +191,6 @@ export default function Quizzes() {
 
   const [filterSubjectId, setFilterSubjectId] = useState<SelectValue>('');
   const [filterClassId, setFilterClassId] = useState<SelectValue>('');
-  const [filterDateFrom, setFilterDateFrom] = useState('');
-  const [filterDateTo, setFilterDateTo] = useState('');
   const academicYearOptions = useMemo(() => {
     const years = new Set<string>();
     classes.forEach((classItem) => {
@@ -224,24 +239,14 @@ export default function Quizzes() {
   const loadExams = useCallback(async () => {
     setIsListLoading(true);
     try {
-      const response = await listExams({
-        subject_id: filterSubjectId === '' ? undefined : filterSubjectId,
-        class_id: filterClassId === '' ? undefined : filterClassId,
-        date_from: filterDateFrom || undefined,
-        date_to: filterDateTo || undefined,
-      });
+      const response = await listExams();
       setExams((response.exams ?? []) as OfflineExamRecord[]);
     } catch (loadError: unknown) {
       setError(normalizeApiError(loadError, 'فشل تحميل قائمة الاختبارات.'));
     } finally {
       setIsListLoading(false);
     }
-  }, [
-    filterClassId,
-    filterDateFrom,
-    filterDateTo,
-    filterSubjectId,
-  ]);
+  }, []);
 
   useEffect(() => {
     if (!lastSyncAt || isEditingExam) {
@@ -471,6 +476,18 @@ export default function Quizzes() {
       ) ?? null,
     [selectedSubjectId, subjectsForSelectedClass]
   );
+
+  const filteredExams = useMemo(() => {
+    return exams.filter((exam) => {
+      if (filterSubjectId !== '' && exam.subject_id !== filterSubjectId) {
+        return false;
+      }
+      if (filterClassId !== '' && exam.class_id !== filterClassId) {
+        return false;
+      }
+      return true;
+    });
+  }, [exams, filterClassId, filterSubjectId]);
 
   const isSubjectSelectionLocked =
     selectedAcademicYear === '' ||
@@ -852,6 +869,16 @@ export default function Quizzes() {
 
   const handleCreateNewExam = () => {
     resetCreateExamState();
+  };
+
+  const handleBackToLibrary = () => {
+    if (selectedExam) {
+      setExamDraft(null);
+      setIsEditingExam(false);
+      setIsSavingExam(false);
+      setDraftRecoveredNotice(null);
+      setSelectedExam(null);
+    }
   };
 
   const handleCancelEditingExam = () => {
@@ -1428,6 +1455,82 @@ export default function Quizzes() {
     );
   }
 
+  if (!isCreateRoute && selectedExam) {
+    return (
+      <div className="qz ui-loaded">
+        <header className="qz__header page-header">
+          <div>
+            <nav className="qz__breadcrumb" aria-label="breadcrumb">
+              <button
+                type="button"
+                className="qz__breadcrumb-button"
+                onClick={handleBackToLibrary}
+              >
+                مكتبة الاختبارات
+              </button>
+              <span>←</span>
+              <span className="qz__breadcrumb-current">تفاصيل الاختبار</span>
+            </nav>
+            <h1>{selectedExam.title}</h1>
+            <p>
+              {selectedExam.total_questions} سؤال | {selectedExam.total_marks}{' '}
+              درجة
+              {selectedExam.duration_minutes != null
+                ? ` | مدة: ${selectedExam.duration_minutes} دقيقة`
+                : ''}
+            </p>
+          </div>
+        </header>
+
+        {draftRecoveredNotice ? (
+          <p className="ui-inline-notice ui-inline-notice--info">
+            {draftRecoveredNotice}
+          </p>
+        ) : null}
+
+        <section className="qz__content qz__detail-page" aria-live="polite">
+          <button
+            type="button"
+            className="qz__detail-back-btn qz__btn-edit"
+            onClick={handleBackToLibrary}
+          >
+            العودة إلى المكتبة
+          </button>
+          {examDetailsView}
+        </section>
+
+        <ExportFormatModal
+          isOpen={exportFormatOpen}
+          title={
+            exportTargetType === 'answer_key'
+              ? 'تصدير نموذج الإجابات'
+              : 'تصدير نموذج الاختبار'
+          }
+          onClose={() => setExportFormatOpen(false)}
+          isSubmitting={isExportingExam}
+          onConfirm={({ format }) => void handleExportSelectedExam(format)}
+        />
+
+        <ConfirmActionModal
+          isOpen={Boolean(deleteExamRequest)}
+          title="تأكيد حذف الاختبار"
+          message="سيتم حذف الاختبار نهائيًا. لا يمكن التراجع بعد الحذف."
+          endpoint={deleteExamRequest?.endpoint ?? '/api/exams'}
+          payload={deleteExamRequest?.payload}
+          isLoading={isDeleting}
+          onCancel={() => setDeleteExamRequest(null)}
+          onConfirm={async () => {
+            if (!deleteExamRequest) {
+              return;
+            }
+            await handleDeleteExam(deleteExamRequest.examId);
+            setDeleteExamRequest(null);
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="qz ui-loaded">
       <header className="qz__header page-header">
@@ -1457,7 +1560,7 @@ export default function Quizzes() {
       ) : null}
 
       <div
-        className={`qz__layout ${isCreateRoute ? 'qz__layout--creator' : isAdmin ? 'qz__layout--admin' : ''}`}
+        className={`qz__layout ${isCreateRoute ? 'qz__layout--creator' : 'qz__layout--admin'}`}
       >
         {isCreateRoute && examScreen === 'creator' ? (
           <aside className="qz__panel">
@@ -1759,26 +1862,6 @@ export default function Quizzes() {
                     ))}
                   </select>
                 </div>
-                <div className="qz__field">
-                  <label htmlFor="qz-filter-from">من تاريخ</label>
-                  <input
-                    id="qz-filter-from"
-                    type="date"
-                    value={filterDateFrom}
-                    onChange={(event) => setFilterDateFrom(event.target.value)}
-                    disabled={isEditingExam}
-                  />
-                </div>
-                <div className="qz__field">
-                  <label htmlFor="qz-filter-to">إلى تاريخ</label>
-                  <input
-                    id="qz-filter-to"
-                    type="date"
-                    value={filterDateTo}
-                    onChange={(event) => setFilterDateTo(event.target.value)}
-                    disabled={isEditingExam}
-                  />
-                </div>
               </div>
               <button
                 type="button"
@@ -1907,30 +1990,8 @@ export default function Quizzes() {
                           {formatClassSelectLabel(classItem)}
                         </option>
                       ))}
-                    </select>
-                  </div>
-                  <div className="qz__field">
-                    <label htmlFor="qz-filter-from">من تاريخ</label>
-                    <input
-                      id="qz-filter-from"
-                      type="date"
-                      value={filterDateFrom}
-                      onChange={(event) =>
-                        setFilterDateFrom(event.target.value)
-                      }
-                      disabled={isEditingExam}
-                    />
-                  </div>
-                  <div className="qz__field">
-                    <label htmlFor="qz-filter-to">إلى تاريخ</label>
-                    <input
-                      id="qz-filter-to"
-                      type="date"
-                      value={filterDateTo}
-                      onChange={(event) => setFilterDateTo(event.target.value)}
-                      disabled={isEditingExam}
-                    />
-                  </div>
+                      </select>
+                    </div>
                 </div>
                 <button
                   type="button"
@@ -1948,18 +2009,40 @@ export default function Quizzes() {
 
               <div className="qz__archive-and-details">
                 <div className="qz__archive">
-                  <h3>الاختبارات المحفوظة ({exams.length})</h3>
+                  <div className="qz__archive-head">
+                    <div>
+                      <h3>الاختبارات المحفوظة ({filteredExams.length})</h3>
+                      <p>عرض مركّز وسريع للاختبارات المحفوظة حديثًا.</p>
+                    </div>
+                    <span className="qz__archive-count">
+                      {filteredExams.length}
+                    </span>
+                  </div>
                   {isListLoading ? (
                     <p>جارٍ تحميل الاختبارات...</p>
-                  ) : exams.length === 0 ? (
+                  ) : filteredExams.length === 0 ? (
                     <p>لا توجد اختبارات محفوظة.</p>
                   ) : (
-                    exams.map((exam) => {
+                    filteredExams.map((exam) => {
                       const subject = subjectsById.get(exam.subject_id);
                       const classItem = classesById.get(exam.class_id);
                       const isActive =
                         selectedExam?.public_id === exam.public_id;
                       const canExportExam = !isLocalOnlyId(exam.public_id);
+                      const classLabel = classItem
+                        ? [
+                            classItem.grade_label,
+                            classItem.section_label,
+                          ]
+                            .map((value) => value?.trim() ?? '')
+                            .filter(Boolean)
+                            .join(' - ')
+                        : `صف #${exam.class_id}`;
+                      const metadataParts = [
+                        subject?.name ?? `مادة #${exam.subject_id}`,
+                        classLabel,
+                        formatDateTimeAr(exam.created_at),
+                      ];
                       return (
                         <article
                           key={exam.public_id}
@@ -1967,44 +2050,46 @@ export default function Quizzes() {
                             isActive ? 'qz__exam-card--active' : ''
                           }`}
                         >
-                          <button
-                            type="button"
-                            className="qz__exam-open"
-                            onClick={() =>
-                              void handleLoadExamDetails(exam.public_id)
-                            }
-                            disabled={isExamLoading || isEditingExam}
-                          >
-                            {isExamLoading && isActive ? (
-                              <span className="ui-button-spinner" aria-hidden />
-                            ) : (
-                              <MdQuiz aria-hidden />
-                            )}
-                            <div>
-                              <h4>{exam.title}</h4>
-                              <p>
-                                {subject?.name ?? `مادة #${exam.subject_id}`} |{' '}
-                                {(classItem
-                                  ? [
-                                      classItem.grade_label,
-                                      classItem.section_label,
-                                    ]
-                                      .map((value) => value?.trim() ?? '')
-                                      .filter(Boolean)
-                                      .join(' - ')
-                                  : null) ?? `صف #${exam.class_id}`}
-                              </p>
-                              <small>
-                                {exam.total_questions} سؤال | {exam.total_marks}{' '}
-                                درجة
-                                {exam.duration_minutes != null
-                                  ? ` | ${exam.duration_minutes} دقيقة`
-                                  : ''}
-                              </small>
-                              <small>{formatDateTimeAr(exam.created_at)}</small>
-                              <SyncStatusBadge status={exam.sync_status} />
+                          <div className="qz__exam-topline">
+                            <div className="qz__exam-heading">
+                              <h4>
+                                <button
+                                  type="button"
+                                  className="qz__exam-title-button"
+                                  onClick={() =>
+                                    void handleLoadExamDetails(exam.public_id)
+                                  }
+                                  disabled={isExamLoading || isEditingExam}
+                                >
+                                  {exam.title}
+                                </button>
+                              </h4>
+                              <div
+                                className="qz__exam-meta-line"
+                                aria-label="تفاصيل الاختبار"
+                              >
+                                {metadataParts.map((part, index) => (
+                                  <Fragment
+                                    key={`${exam.public_id}-${part}-${index}`}
+                                  >
+                                    {index > 0 ? (
+                                      <span
+                                        className="qz__meta-separator"
+                                        aria-hidden
+                                      >
+                                        |
+                                      </span>
+                                    ) : null}
+                                    <span className="qz__meta-item">{part}</span>
+                                  </Fragment>
+                                ))}
+                              </div>
                             </div>
-                          </button>
+
+                            <span className="qz__exam-type">
+                              {formatQuestionCountAr(exam.total_questions)}
+                            </span>
+                          </div>
 
                           <div className="qz__card-actions">
                             <button
@@ -2042,7 +2127,6 @@ export default function Quizzes() {
                   )}
                 </div>
 
-                {examDetailsView}
               </div>
             </section>
           ) : null}

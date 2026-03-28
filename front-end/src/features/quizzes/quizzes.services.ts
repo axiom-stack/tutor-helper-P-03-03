@@ -51,13 +51,6 @@ interface DeleteExamResponse {
   exam: Exam;
 }
 
-export interface ListExamsFilters {
-  subject_id?: number;
-  class_id?: number;
-  date_from?: string;
-  date_to?: string;
-}
-
 export async function getMyClasses(): Promise<{ classes: Class[] }> {
   try {
     const response = await api().get<{ classes: Class[] }>('/api/classes/mine');
@@ -182,47 +175,15 @@ export async function generateExam(
   }
 }
 
-export async function listExams(
-  filters: ListExamsFilters = {}
-): Promise<ListExamsResponse> {
-  const params: Record<string, string | number> = {};
-
-  if (filters.subject_id != null) {
-    params.subject_id = filters.subject_id;
-  }
-  if (filters.class_id != null) {
-    params.class_id = filters.class_id;
-  }
-  if (filters.date_from) {
-    params.date_from = filters.date_from;
-  }
-  if (filters.date_to) {
-    params.date_to = filters.date_to;
-  }
-
+export async function listExams(): Promise<ListExamsResponse> {
   try {
-    const response = await api().get<ListExamsResponse>('/api/exams', { params });
+    const response = await api().get<ListExamsResponse>('/api/exams');
     await cacheExams(response.data.exams ?? []);
     return response.data;
   } catch (error: unknown) {
     if (isOfflineError(error)) {
       const cached = await getCachedExams();
-      const exams = cached.filter((exam) => {
-        if (filters.subject_id != null && exam.subject_id !== filters.subject_id) {
-          return false;
-        }
-        if (filters.class_id != null && exam.class_id !== filters.class_id) {
-          return false;
-        }
-        if (filters.date_from && exam.created_at.slice(0, 10) < filters.date_from) {
-          return false;
-        }
-        if (filters.date_to && exam.created_at.slice(0, 10) > filters.date_to) {
-          return false;
-        }
-        return true;
-      });
-      return { exams };
+      return { exams: cached };
     }
     throw normalizeApiError(error, 'فشل تحميل قائمة الاختبارات.');
   }
