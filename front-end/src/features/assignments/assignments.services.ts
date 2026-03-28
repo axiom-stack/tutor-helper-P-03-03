@@ -49,7 +49,6 @@ export interface ListAssignmentsFilters {
   lessonPlanPublicId?: string;
   lessonId?: number;
   classId?: number;
-  stage?: string;
 }
 
 type GenerateAssignmentsExtras = Pick<
@@ -151,17 +150,9 @@ export async function listAssignments(
   }
 }
 
-export async function getMyClasses(
-  stage?: string
-): Promise<{ classes: Class[] }> {
+export async function getMyClasses(): Promise<{ classes: Class[] }> {
   try {
-    const params: Record<string, string> = {};
-    if (stage && stage !== 'all') {
-      params.stage = stage;
-    }
-    const response = await api().get<{ classes: Class[] }>('/api/classes/mine', {
-      params,
-    });
+    const response = await api().get<{ classes: Class[] }>('/api/classes/mine');
     await putReference('classes:mine', 'classes', response.data.classes ?? []);
     return response.data;
   } catch (error: unknown) {

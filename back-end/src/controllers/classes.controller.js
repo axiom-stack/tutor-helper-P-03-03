@@ -96,8 +96,6 @@ export async function createClass(req, res) {
 export async function getClassesByTeacherId(req, res) {
   try {
     const { id: userId } = req.user;
-    const rawStage =
-
     const classes = await turso.execute({
       sql: `SELECT * FROM Classes WHERE teacher_id = ?`,
       args: [userId]
@@ -191,13 +189,6 @@ export async function getAllClassesInTheSystem(req, res) {
 
     const finalSection =
       normalized.section || normalizeString(returnedClass.rows[0]?.section) || "أ";
-
-    // Compute stage based on updated grade_label, with optional explicit stage.
-    const requestedStage =
-      typeof req.body?.stage === "string" ? req.body.stage.trim() : null;
-
-    // Stage is no longer used; grade_label is the only organizational reference
-    // Validate that grade_label is supported
 
     await turso.execute({
       sql: `

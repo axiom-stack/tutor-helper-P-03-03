@@ -16,16 +16,9 @@ const api = () => authAxios();
 
 // ——— Classes ———
 export async function getMyClasses(
-  stage?: string
 ): Promise<{ classes: Class[] }> {
   try {
-    const params: Record<string, string> = {};
-    if (stage && stage !== 'all') {
-      params.stage = stage;
-    }
-    const response = await api().get<{ classes: Class[] }>('/api/classes/mine', {
-      params,
-    });
+    const response = await api().get<{ classes: Class[] }>('/api/classes/mine');
     await putReference('classes:mine', 'classes', response.data.classes ?? []);
     return response.data;
   } catch (error: unknown) {
@@ -47,7 +40,6 @@ export async function createClass(
 export async function updateClass(
   classId: number,
   data: {
-    stage?: string;
     grade_label: string;
     section_label: string;
     section?: string;
@@ -66,17 +58,9 @@ export async function deleteClass(classId: number): Promise<{ class: Class }> {
 
 // ——— Subjects ———
 export async function getMySubjects(
-  stage?: string
 ): Promise<{ subjects: Subject[] }> {
   try {
-    const params: Record<string, string> = {};
-    if (stage && stage !== 'all') {
-      params.stage = stage;
-    }
-    const response = await api().get<{ subjects: Subject[] }>(
-      '/api/subjects/mine',
-      { params }
-    );
+    const response = await api().get<{ subjects: Subject[] }>('/api/subjects/mine');
     await putReference('subjects:mine', 'subjects', response.data.subjects ?? []);
     return response.data;
   } catch (error: unknown) {

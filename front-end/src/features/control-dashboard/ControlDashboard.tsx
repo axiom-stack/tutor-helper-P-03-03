@@ -103,13 +103,11 @@ export default function ControlDashboard() {
     setLoading(true);
     setError(null);
 
-    const stage = undefined;
-
     Promise.all([
-      getScopedClasses(user.userRole, stage),
-      getScopedSubjects(user.userRole, stage),
-      listScopedPlans(stage),
-      listScopedExams(stage),
+      getScopedClasses(user.userRole),
+      getScopedSubjects(user.userRole),
+      listScopedPlans(),
+      listScopedExams(),
     ])
       .then(
         ([classesResponse, subjectsResponse, plansResponse, examsResponse]) => {

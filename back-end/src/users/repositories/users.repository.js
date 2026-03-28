@@ -15,7 +15,6 @@ function toProfileRecord(row) {
     role: row.role,
     user_created_at: row.user_created_at,
     language: row.language || "ar",
-    educational_stage: row.educational_stage ?? null,
     subject: row.subject ?? null,
     preparation_type: row.preparation_type ?? null,
     school_name: row.school_name ?? null,
@@ -40,7 +39,6 @@ function toTeacherRecord(row) {
     created_at: row.created_at,
     profile: {
       language: row.language || "ar",
-      educational_stage: row.educational_stage ?? null,
       subject: row.subject ?? null,
       preparation_type: row.preparation_type ?? null,
       school_name: row.school_name ?? null,
@@ -77,7 +75,6 @@ export function createUsersRepository(dbClient = turso) {
           INSERT INTO UserProfiles (
             user_id,
             language,
-            educational_stage,
             subject,
             preparation_type,
             school_name,
@@ -85,7 +82,7 @@ export function createUsersRepository(dbClient = turso) {
             default_lesson_duration_minutes,
             default_plan_type
           )
-          SELECT ?, 'ar', NULL, NULL, NULL, NULL, NULL, 45, 'traditional'
+          SELECT ?, 'ar', NULL, NULL, NULL, NULL, 45, 'traditional'
           WHERE EXISTS (SELECT 1 FROM Users WHERE id = ?)
             AND NOT EXISTS (SELECT 1 FROM UserProfiles WHERE user_id = ?)
         `,
@@ -199,7 +196,6 @@ export function createUsersRepository(dbClient = turso) {
             u.role,
             u.created_at AS user_created_at,
             up.language,
-            up.educational_stage,
             up.subject,
             up.preparation_type,
             up.school_name,
@@ -233,11 +229,6 @@ export function createUsersRepository(dbClient = turso) {
       if (Object.prototype.hasOwnProperty.call(updates, "language")) {
         setClauses.push("language = ?");
         args.push(updates.language);
-      }
-
-      if (Object.prototype.hasOwnProperty.call(updates, "educational_stage")) {
-        setClauses.push("educational_stage = ?");
-        args.push(updates.educational_stage);
       }
 
       if (Object.prototype.hasOwnProperty.call(updates, "subject")) {
@@ -369,7 +360,6 @@ export function createUsersRepository(dbClient = turso) {
             u.role,
             u.created_at,
             COALESCE(up.language, 'ar') AS language,
-            up.educational_stage,
             up.subject,
             up.preparation_type,
             up.school_name,

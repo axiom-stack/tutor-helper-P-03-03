@@ -28,15 +28,6 @@ function buildProfileUpdates(body = {}, options = {}) {
     }
   }
 
-  if (Object.prototype.hasOwnProperty.call(body, "educational_stage")) {
-    const parsedValue = normalizeOptionalText(body.educational_stage);
-    if (Number.isNaN(parsedValue)) {
-      errors.push("educational_stage must be a string or null");
-    } else {
-      updates.educational_stage = parsedValue;
-    }
-  }
-
   if (Object.prototype.hasOwnProperty.call(body, "subject")) {
     const parsedValue = normalizeOptionalText(body.subject);
     if (Number.isNaN(parsedValue)) {

@@ -111,7 +111,6 @@ test("listTeachersWithUsage maps usage counters", async () => {
             role: "teacher",
             created_at: "2026-03-09T00:00:00.000Z",
             language: "ar",
-            educational_stage: null,
             preparation_type: null,
             default_lesson_duration_minutes: 45,
             default_plan_type: "traditional",

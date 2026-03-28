@@ -54,22 +54,13 @@ interface DeleteExamResponse {
 export interface ListExamsFilters {
   subject_id?: number;
   class_id?: number;
-  stage?: string;
   date_from?: string;
   date_to?: string;
 }
 
-export async function getMyClasses(
-  stage?: string
-): Promise<{ classes: Class[] }> {
+export async function getMyClasses(): Promise<{ classes: Class[] }> {
   try {
-    const params: Record<string, string> = {};
-    if (stage && stage !== 'all') {
-      params.stage = stage;
-    }
-    const response = await api().get<{ classes: Class[] }>('/api/classes/mine', {
-      params,
-    });
+    const response = await api().get<{ classes: Class[] }>('/api/classes/mine');
     await putReference('classes:mine', 'classes', response.data.classes ?? []);
     return response.data;
   } catch (error: unknown) {
@@ -81,17 +72,9 @@ export async function getMyClasses(
   }
 }
 
-export async function getAllClasses(
-  stage?: string
-): Promise<{ classes: Class[] }> {
+export async function getAllClasses(): Promise<{ classes: Class[] }> {
   try {
-    const params: Record<string, string> = {};
-    if (stage && stage !== 'all') {
-      params.stage = stage;
-    }
-    const response = await api().get<{ classes: Class[] }>('/api/classes', {
-      params,
-    });
+    const response = await api().get<{ classes: Class[] }>('/api/classes');
     await putReference('classes:all', 'classes', response.data.classes ?? []);
     return response.data;
   } catch (error: unknown) {
@@ -103,15 +86,9 @@ export async function getAllClasses(
   }
 }
 
-export async function getMySubjects(stage?: string): Promise<{ subjects: Subject[] }> {
+export async function getMySubjects(): Promise<{ subjects: Subject[] }> {
   try {
-    const params: Record<string, string> = {};
-    if (stage && stage !== 'all') {
-      params.stage = stage;
-    }
-    const response = await api().get<{ subjects: Subject[] }>('/api/subjects/mine', {
-      params,
-    });
+    const response = await api().get<{ subjects: Subject[] }>('/api/subjects/mine');
     await putReference('subjects:mine', 'subjects', response.data.subjects ?? []);
     return response.data;
   } catch (error: unknown) {
@@ -123,15 +100,9 @@ export async function getMySubjects(stage?: string): Promise<{ subjects: Subject
   }
 }
 
-export async function getAllSubjects(stage?: string): Promise<{ subjects: Subject[] }> {
+export async function getAllSubjects(): Promise<{ subjects: Subject[] }> {
   try {
-    const params: Record<string, string> = {};
-    if (stage && stage !== 'all') {
-      params.stage = stage;
-    }
-    const response = await api().get<{ subjects: Subject[] }>('/api/subjects', {
-      params,
-    });
+    const response = await api().get<{ subjects: Subject[] }>('/api/subjects');
     await putReference('subjects:all', 'subjects', response.data.subjects ?? []);
     return response.data;
   } catch (error: unknown) {
@@ -222,9 +193,6 @@ export async function listExams(
   if (filters.class_id != null) {
     params.class_id = filters.class_id;
   }
-  if (filters.stage != null && filters.stage !== 'all') {
-    params.stage = filters.stage;
-  }
   if (filters.date_from) {
     params.date_from = filters.date_from;
   }
@@ -244,9 +212,6 @@ export async function listExams(
           return false;
         }
         if (filters.class_id != null && exam.class_id !== filters.class_id) {
-          return false;
-        }
-        if (filters.stage && filters.stage !== 'all' && exam.stage !== filters.stage) {
           return false;
         }
         if (filters.date_from && exam.created_at.slice(0, 10) < filters.date_from) {

@@ -21,97 +21,58 @@ function scopePath(role: UserRole, path: string): string {
 }
 
 export async function getScopedClasses(
-  role: UserRole,
-  stage?: string
+  role: UserRole
 ): Promise<{ classes: Class[] }> {
-  const params: Record<string, string> = {};
-  if (stage && stage !== 'all') {
-    params.stage = stage;
-  }
   const response = await api().get<{ classes: Class[] }>(
     scopePath(role, '/api/classes'),
-    { params }
   );
   return response.data;
 }
 
 export async function getScopedSubjects(
-  role: UserRole,
-  stage?: string
+  role: UserRole
 ): Promise<{ subjects: Subject[] }> {
-  const params: Record<string, string> = {};
-  if (stage && stage !== 'all') {
-    params.stage = stage;
-  }
   const response = await api().get<{ subjects: Subject[] }>(
     scopePath(role, '/api/subjects'),
-    { params }
   );
   return response.data;
 }
 
 export async function getScopedLessons(
-  role: UserRole,
-  stage?: string
+  role: UserRole
 ): Promise<{ lessons: Lesson[] }> {
-  const params: Record<string, string> = {};
-  if (stage && stage !== 'all') {
-    params.stage = stage;
-  }
   const response = await api().get<{ lessons: Lesson[] }>(
     scopePath(role, '/api/lessons'),
-    { params }
   );
   return response.data;
 }
 
 export async function getScopedUnits(
-  role: UserRole,
-  stage?: string
+  role: UserRole
 ): Promise<{ units: Unit[] }> {
-  const params: Record<string, string> = {};
-  if (stage && stage !== 'all') {
-    params.stage = stage;
-  }
   const response = await api().get<{ units: Unit[] }>(
     scopePath(role, '/api/units'),
-    { params }
   );
   return response.data;
 }
 
-export async function listScopedPlans(stage?: string): Promise<{ plans: LessonPlanRecord[] }> {
-  const params: Record<string, string> = {};
-  if (stage && stage !== 'all') {
-    params.stage = stage;
-  }
+export async function listScopedPlans(): Promise<{ plans: LessonPlanRecord[] }> {
   const response = await api().get<{ plans: LessonPlanRecord[] }>(
     '/api/plans',
-    { params }
   );
   return response.data;
 }
 
-export async function listScopedExams(stage?: string): Promise<{ exams: Exam[] }> {
-  const params: Record<string, string> = {};
-  if (stage && stage !== 'all') {
-    params.stage = stage;
-  }
+export async function listScopedExams(): Promise<{ exams: Exam[] }> {
   const response = await api().get<{ exams: Exam[] }>(
     '/api/exams',
-    { params }
   );
   return response.data;
 }
 
-export async function listScopedAssignments(stage?: string): Promise<{ assignments: Assignment[] }> {
-  const params: Record<string, string> = {};
-  if (stage && stage !== 'all') {
-    params.stage = stage;
-  }
+export async function listScopedAssignments(): Promise<{ assignments: Assignment[] }> {
   const response = await api().get<{ assignments: Assignment[] }>(
     '/api/assignments',
-    { params }
   );
   return response.data;
 }
@@ -167,7 +128,6 @@ export interface StatsSummary {
   filters_applied: {
     scope: string;
     period: string;
-    stage?: string;
     date_from?: string | null;
     date_to?: string | null;
     teacher_id?: number | null;
@@ -215,7 +175,6 @@ export interface StatsSummary {
 
 export async function getSummary(filters: {
   period: string;
-  stage?: string;
   date_from?: string;
   date_to?: string;
   teacher_id?: number;

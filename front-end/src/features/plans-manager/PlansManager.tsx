@@ -530,7 +530,7 @@ export default function PlansManager() {
         </div>
 
         <div className="pm__field">
-          <label htmlFor="pm-grade">المرحلة/الصف</label>
+          <label htmlFor="pm-grade">الصف</label>
           <select
             id="pm-grade"
             value={grade}
@@ -797,7 +797,7 @@ export default function PlansManager() {
                     المادة: {selectedPlan.subject}
                   </span>
                   <span className="pm__chip">
-                    المرحلة: {selectedPlan.grade}
+                    الصف: {selectedPlan.grade}
                   </span>
                   <span className="pm__chip">
                     مدة الحصة: {selectedPlan.duration_minutes} دقيقة

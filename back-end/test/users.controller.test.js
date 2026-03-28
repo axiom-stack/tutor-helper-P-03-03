@@ -141,7 +141,6 @@ test("updateTeacherProfile updates username when provided", async () => {
         username: "teacher_new_name",
         role: "teacher",
         language: "ar",
-        educational_stage: null,
         subject: null,
         preparation_type: null,
         default_lesson_duration_minutes: 45,

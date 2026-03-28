@@ -96,7 +96,7 @@ function TeacherDashboard() {
             className: cls ? `${cls.grade_label} - ${cls.section_label}` : '—',
           };
         })
-        // Only keep lessons whose class exists in the current-stage class list
+        // Only keep lessons whose class exists in the current class list
         .filter((lesson) => lesson.className !== '—')
         .sort(
           (a, b) =>

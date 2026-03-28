@@ -25,7 +25,6 @@ export interface User {
 export interface Class {
   id: number;
   grade_label: string;
-  stage?: string | null;
   semester?: string | null;
   section_label: string;
   section: string;
@@ -185,7 +184,6 @@ export interface Exam {
   subject_name?: string;
   class_name?: string;
   class_grade_label?: string;
-  stage?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -207,7 +205,6 @@ export interface LessonPlanRecord {
   plan_json: Record<string, unknown> | null;
   validation_status: string;
   retry_occurred: boolean;
-  stage?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -281,7 +278,6 @@ export interface StatsSummaryFilters {
   date_from?: string;
   date_to?: string;
   teacher_id?: number | null;
-  stage?: string | null;
 }
 
 export interface StatsKpis {
@@ -506,7 +502,6 @@ export interface CreateUserData {
 }
 
 export interface CreateClassData {
-  stage?: string | null;
   semester?: string | null;
   grade_label: string;
   section_label: string;

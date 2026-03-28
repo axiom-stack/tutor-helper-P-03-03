@@ -554,7 +554,7 @@ function LessonCreator() {
         throw new Error('تعذر تحديد اسم الوحدة للتوليد.');
       }
       if (!gradeValue) {
-        throw new Error('يرجى تحديد صف يحتوي على المرحلة/الصف قبل التوليد.');
+        throw new Error('يرجى تحديد صف قبل التوليد.');
       }
       if (!Number.isInteger(safeDurationMinutes) || safeDurationMinutes <= 0) {
         throw new Error('مدة الحصة يجب أن تكون رقمًا صحيحًا موجبًا.');
