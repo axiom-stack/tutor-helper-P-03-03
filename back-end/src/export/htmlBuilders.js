@@ -326,14 +326,13 @@ export function buildPlanHtml(enrichedPlan) {
   const duration = enrichedPlan.duration_minutes
     ? `${enrichedPlan.duration_minutes} دقيقة`
     : "—";
-  const subject = escapeHtml(enrichedPlan.subject ?? extractHeaderValue(header, "subject") ?? "—");
   const grade = escapeHtml(enrichedPlan.grade ?? extractHeaderValue(header, "grade") ?? "—");
   const unit = escapeHtml(enrichedPlan.unit ?? extractHeaderValue(header, "unit") ?? "—");
   const lessonTitle = escapeHtml(enrichedPlan.lesson_title ?? enrichedPlan.lesson_name ?? extractHeaderValue(header, "lesson_title") ?? "—");
   const date = escapeHtml(extractHeaderValue(header, "date"));
   const day = escapeHtml(extractHeaderValue(header, "day"));
   const section = escapeHtml(extractHeaderValue(header, "section"));
-  const time = escapeHtml(extractHeaderValue(header, "time"));
+  const period = escapeHtml(extractHeaderValue(header, "time"));
 
   let content = "";
 
@@ -357,7 +356,7 @@ export function buildPlanHtml(enrichedPlan) {
               <div><label>اليوم</label><p>${day}</p></div>
               <div><label>الصف</label><p>${grade}</p></div>
               <div><label>الشعبة</label><p>${section}</p></div>
-              <div><label>الحصة</label><p>${time}</p></div>
+              <div><label>الحصة</label><p>${period}</p></div>
               <div><label>العنوان</label><p>${lessonTitle}</p></div>
               <div><label>الوحدة</label><p>${unit}</p></div>
               <div><label>الوقت</label><p>${duration}</p></div>
@@ -443,7 +442,7 @@ export function buildPlanHtml(enrichedPlan) {
             <div class="lpdv__active-header-grid">
               <div><label>التاريخ</label><p>${date}</p></div>
               <div><label>اليوم</label><p>${day}</p></div>
-              <div><label>المادة</label><p>${subject}</p></div>
+              <div><label>الحصة</label><p>${period}</p></div>
               <div><label>الصف</label><p>${grade}</p></div>
               <div><label>الشعبة</label><p>${section}</p></div>
               <div><label>العنوان</label><p>${lessonTitle}</p></div>

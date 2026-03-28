@@ -163,14 +163,13 @@ export async function buildPlanDocx(enrichedPlan) {
   const duration = enrichedPlan.duration_minutes
     ? `${enrichedPlan.duration_minutes} دقيقة`
     : "—";
-  const subject = enrichedPlan.subject ?? extractHeaderValue(header, "subject") ?? "—";
   const grade = enrichedPlan.grade ?? extractHeaderValue(header, "grade") ?? "—";
   const unit = enrichedPlan.unit ?? extractHeaderValue(header, "unit") ?? "—";
   const lessonTitle = enrichedPlan.lesson_title ?? enrichedPlan.lesson_name ?? extractHeaderValue(header, "lesson_title") ?? "—";
   const date = extractHeaderValue(header, "date");
   const day = extractHeaderValue(header, "day");
   const section = extractHeaderValue(header, "section");
-  const time = extractHeaderValue(header, "time");
+  const period = extractHeaderValue(header, "time");
 
   const children = [];
 
@@ -189,7 +188,7 @@ export async function buildPlanDocx(enrichedPlan) {
         new TableRow({
           cantSplit: true,
           children: [
-            headerCell("الحصة", time),
+            headerCell("الحصة", period),
             headerCell("العنوان", lessonTitle),
             headerCell("الوحدة", unit),
             headerCell("الوقت", duration),
@@ -294,7 +293,7 @@ export async function buildPlanDocx(enrichedPlan) {
           children: [
             headerCell("التاريخ", date),
             headerCell("اليوم", day),
-            headerCell("المادة", subject),
+            headerCell("الحصة", period),
             headerCell("الصف", grade),
           ],
         }),

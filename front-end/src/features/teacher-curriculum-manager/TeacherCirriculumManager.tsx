@@ -80,7 +80,6 @@ export interface TeacherCirriculumManagerScope {
 
 type SelectValue = number | '';
 type ClassMode = 'existing' | 'new';
-type LevelMode = 'skip' | 'existing' | 'new';
 type LessonMode = 'skip' | 'new';
 type EntityKind = 'class' | 'subject' | 'unit' | 'lesson';
 
@@ -2424,16 +2423,6 @@ function TeacherCirriculumManager(props: {
                           ? Number(event.target.value)
                           : '';
                         setCreatorExistingClassId(nextClassId);
-                        if (
-                          creatorExistingSubjectId !== '' &&
-                          !subjects.some(
-                            (subjectItem) =>
-                              subjectItem.id === creatorExistingSubjectId &&
-                              subjectItem.class_id === nextClassId
-                          )
-                        ) {
-                          setCreatorExistingSubjectId('');
-                        }
                       }}
                     >
                       <option value="">اختر الصف</option>
