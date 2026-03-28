@@ -118,7 +118,11 @@ export function createAssignmentsRepository(dbClient = turso) {
     },
 
     async getByPublicId(publicId, accessContext) {
-      if (!publicId || typeof publicId !== "string" || !publicId.startsWith(ASSIGNMENT_PUBLIC_ID_PREFIX)) {
+      if (
+        !publicId ||
+        typeof publicId !== "string" ||
+        !publicId.startsWith(ASSIGNMENT_PUBLIC_ID_PREFIX)
+      ) {
         return null;
       }
 
@@ -163,7 +167,8 @@ export function createAssignmentsRepository(dbClient = turso) {
         args.push(filters.class_id);
       }
 
-      const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
+      const whereSql =
+        whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
 
       const result = await dbClient.execute({
         sql: `
@@ -177,7 +182,11 @@ export function createAssignmentsRepository(dbClient = turso) {
       return result.rows.map((row) => toAssignmentRecord(row));
     },
 
-    async update(publicId, { name, description, type, content, due_date, whatsapp_message_text }, accessContext) {
+    async update(
+      publicId,
+      { name, description, type, content, due_date, whatsapp_message_text },
+      accessContext,
+    ) {
       const updates = ["updated_at = CURRENT_TIMESTAMP"];
       const updateArgs = [];
 
@@ -206,7 +215,11 @@ export function createAssignmentsRepository(dbClient = turso) {
       }
       if (whatsapp_message_text !== undefined) {
         updates.push("whatsapp_message_text = ?");
-        updateArgs.push(whatsapp_message_text === null || whatsapp_message_text === "" ? null : whatsapp_message_text);
+        updateArgs.push(
+          whatsapp_message_text === null || whatsapp_message_text === ""
+            ? null
+            : whatsapp_message_text,
+        );
       }
 
       if (updateArgs.length === 0) {

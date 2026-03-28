@@ -8,27 +8,27 @@
 
 ## 1. Route → Controller Wiring
 
-| Mount | Route | Method | Handler | Status |
-|-------|--------|--------|---------|--------|
-| `/api/auth` | `/login` | POST | login | OK |
-| `/api/auth` | `/logout` | POST | logout | OK |
-| `/api/classes` | `/` | GET | getAllClassesInTheSystem | OK (order fixed) |
-| `/api/classes` | `/` | POST | createClass | OK |
-| `/api/classes` | `/mine` | GET | getClassesByTeacherId | OK |
-| `/api/classes` | `/:classId` | GET/PUT/DELETE | get/update/delete by id | OK |
-| `/api/subjects` | `/`, `/mine`, `/class/:classId`, `/:subjectId` | various | subject.controller | OK (order fixed) |
-| `/api/units` | `/`, `/mine`, `/subject/:subjectId`, `/:unitId` | various | units.controller | OK (order fixed) |
-| `/api/lessons` | `/`, `/mine`, `/unit/:unitId`, `/:lessonId` | various | lessons.controller | OK (order fixed) |
-| `/api/generate-plan` | `/` | POST | generatePlan | OK (wired to generation service) |
-| `/api/plans` | `/` | GET | listPlans | OK |
-| `/api/plans` | `/:id` | GET | getPlanById | OK |
-| `/api/plans` | `/:id/export` | GET | exportPlanHandler | OK (defined before `/:id`) |
-| `/api/plans` | `/:id` | PUT | updatePlanById | OK |
-| `/api/assignments` | `/`, `/:id`, `/:id/export`, PUT | various | assignments.controller + export | OK |
-| `/api/exams` | `/`, `/generate`, `/:id`, etc. | various | exams.controller + export | OK |
-| `/api/users` | `/me/profile`, `/teachers`, etc. | various | users.controller | OK |
-| `/api/refinements` | `/`, `/history`, `/revisions`, `/:id`, etc. | various | refinements.controller | OK |
-| `/api/stats` | `/summary`, `/export` | GET | stats.controller | OK |
+| Mount                | Route                                           | Method         | Handler                         | Status                           |
+| -------------------- | ----------------------------------------------- | -------------- | ------------------------------- | -------------------------------- |
+| `/api/auth`          | `/login`                                        | POST           | login                           | OK                               |
+| `/api/auth`          | `/logout`                                       | POST           | logout                          | OK                               |
+| `/api/classes`       | `/`                                             | GET            | getAllClassesInTheSystem        | OK (order fixed)                 |
+| `/api/classes`       | `/`                                             | POST           | createClass                     | OK                               |
+| `/api/classes`       | `/mine`                                         | GET            | getClassesByTeacherId           | OK                               |
+| `/api/classes`       | `/:classId`                                     | GET/PUT/DELETE | get/update/delete by id         | OK                               |
+| `/api/subjects`      | `/`, `/mine`, `/class/:classId`, `/:subjectId`  | various        | subject.controller              | OK (order fixed)                 |
+| `/api/units`         | `/`, `/mine`, `/subject/:subjectId`, `/:unitId` | various        | units.controller                | OK (order fixed)                 |
+| `/api/lessons`       | `/`, `/mine`, `/unit/:unitId`, `/:lessonId`     | various        | lessons.controller              | OK (order fixed)                 |
+| `/api/generate-plan` | `/`                                             | POST           | generatePlan                    | OK (wired to generation service) |
+| `/api/plans`         | `/`                                             | GET            | listPlans                       | OK                               |
+| `/api/plans`         | `/:id`                                          | GET            | getPlanById                     | OK                               |
+| `/api/plans`         | `/:id/export`                                   | GET            | exportPlanHandler               | OK (defined before `/:id`)       |
+| `/api/plans`         | `/:id`                                          | PUT            | updatePlanById                  | OK                               |
+| `/api/assignments`   | `/`, `/:id`, `/:id/export`, PUT                 | various        | assignments.controller + export | OK                               |
+| `/api/exams`         | `/`, `/generate`, `/:id`, etc.                  | various        | exams.controller + export       | OK                               |
+| `/api/users`         | `/me/profile`, `/teachers`, etc.                | various        | users.controller                | OK                               |
+| `/api/refinements`   | `/`, `/history`, `/revisions`, `/:id`, etc.     | various        | refinements.controller          | OK                               |
+| `/api/stats`         | `/summary`, `/export`                           | GET            | stats.controller                | OK                               |
 
 All routes resolve to existing controller methods; no orphan or missing handlers.
 

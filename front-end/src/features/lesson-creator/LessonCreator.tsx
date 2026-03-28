@@ -13,7 +13,10 @@ import {
 import ConfirmActionModal from '../../components/common/ConfirmActionModal';
 import ExportFormatModal from '../../components/common/ExportFormatModal';
 import { useAuth } from '../../context/AuthContext';
-import { LESSON_DURATION_OPTIONS, PLAN_TYPE_OPTIONS } from '../../constants/dropdown-options';
+import {
+  LESSON_DURATION_OPTIONS,
+  PLAN_TYPE_OPTIONS,
+} from '../../constants/dropdown-options';
 import type { Class, Lesson, Subject, Unit } from '../../types';
 import {
   getAllClasses,
@@ -34,7 +37,10 @@ import {
   toPlanTypeLabel,
   toValidationStatusLabel,
 } from '../lesson-plans/planDisplay';
-import { deletePlanById, updatePlan } from '../plans-manager/plans-manager.services';
+import {
+  deletePlanById,
+  updatePlan,
+} from '../plans-manager/plans-manager.services';
 import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel';
 import { getRefinementTargetOptions } from '../refinements/refinementTargets';
 import { getLocalizedAiLimitMessage } from '../../utils/apiErrors';
@@ -97,7 +103,8 @@ function getErrorMessage(
         }
 
         const maybeMessage = (item as { message?: unknown }).message;
-        return typeof maybeMessage === 'string' && maybeMessage.trim().length > 0
+        return typeof maybeMessage === 'string' &&
+          maybeMessage.trim().length > 0
           ? maybeMessage.trim()
           : null;
       })
@@ -127,7 +134,10 @@ function getErrorMessage(
       }
     }
 
-    if (typeof parsed.message === 'string' && parsed.message.trim().length > 0) {
+    if (
+      typeof parsed.message === 'string' &&
+      parsed.message.trim().length > 0
+    ) {
       return parsed.message;
     }
   }
@@ -158,7 +168,8 @@ function LessonCreator() {
     () => user?.profile?.default_plan_type ?? 'traditional'
   );
   const [durationMinutes, setDurationMinutes] = useState<number>(() => {
-    const profileDuration = user?.profile?.default_lesson_duration_minutes ?? 45;
+    const profileDuration =
+      user?.profile?.default_lesson_duration_minutes ?? 45;
     return LESSON_DURATION_OPTIONS.includes(
       profileDuration as (typeof LESSON_DURATION_OPTIONS)[number]
     )
@@ -174,12 +185,12 @@ function LessonCreator() {
   const [generationError, setGenerationError] = useState<string | null>(null);
 
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generationState, setGenerationState] = useState<GenerationState>('idle');
+  const [generationState, setGenerationState] =
+    useState<GenerationState>('idle');
   const [activeTimelineIndex, setActiveTimelineIndex] = useState(0);
 
-  const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlanResponse | null>(
-    null
-  );
+  const [generatedPlan, setGeneratedPlan] =
+    useState<GeneratedPlanResponse | null>(null);
   const [queuedPlanNotice, setQueuedPlanNotice] = useState<string | null>(null);
   const [isEditingPlan, setIsEditingPlan] = useState(false);
   const [planDraft, setPlanDraft] = useState<PlanDraft | null>(null);
@@ -189,8 +200,6 @@ function LessonCreator() {
   const [isExportingPlan, setIsExportingPlan] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [isDeletingPlan, setIsDeletingPlan] = useState(false);
-
-  const { activeStage } = useStage();
 
   const defaultDurationMinutes =
     user?.profile?.default_lesson_duration_minutes ?? 45;
@@ -218,7 +227,9 @@ function LessonCreator() {
     setLessons([]);
     setPlanType(defaultPlanType);
     setDurationMinutes(
-      LESSON_DURATION_OPTIONS.includes(defaultDurationMinutes as (typeof LESSON_DURATION_OPTIONS)[number])
+      LESSON_DURATION_OPTIONS.includes(
+        defaultDurationMinutes as (typeof LESSON_DURATION_OPTIONS)[number]
+      )
         ? defaultDurationMinutes
         : 45
     );
@@ -255,8 +266,8 @@ function LessonCreator() {
         const subjectsLoader =
           user.userRole === 'admin' ? getAllSubjects : getMySubjects;
         const [classesResponse, subjectsResponse] = await Promise.all([
-          classesLoader(activeStage),
-          subjectsLoader(activeStage),
+          classesLoader(),
+          subjectsLoader(),
         ]);
 
         if (cancelled) {
@@ -308,7 +319,9 @@ function LessonCreator() {
         if (requestId !== unitsRequestIdRef.current) {
           return;
         }
-        setPageError(getErrorMessage(error, 'فشل تحميل وحدات المادة المختارة.'));
+        setPageError(
+          getErrorMessage(error, 'فشل تحميل وحدات المادة المختارة.')
+        );
       })
       .finally(() => {
         if (requestId === unitsRequestIdRef.current) {
@@ -371,7 +384,11 @@ function LessonCreator() {
   }, [generationError]);
 
   useEffect(() => {
-    if (generationState === 'success' && generatedPlan && screen === 'generated') {
+    if (
+      generationState === 'success' &&
+      generatedPlan &&
+      screen === 'generated'
+    ) {
       toast.success('تم توليد الخطة وحفظها بنجاح.');
     }
   }, [generationState, generatedPlan, screen]);
@@ -381,7 +398,9 @@ function LessonCreator() {
       return [];
     }
 
-    return subjects.filter((subjectItem) => subjectItem.class_id === selectedClassId);
+    return subjects.filter(
+      (subjectItem) => subjectItem.class_id === selectedClassId
+    );
   }, [selectedClassId, subjects]);
 
   const selectedClass = useMemo(
@@ -390,7 +409,9 @@ function LessonCreator() {
   );
 
   const selectedSubject = useMemo(
-    () => subjectsForSelectedClass.find((item) => item.id === selectedSubjectId) ?? null,
+    () =>
+      subjectsForSelectedClass.find((item) => item.id === selectedSubjectId) ??
+      null,
     [selectedSubjectId, subjectsForSelectedClass]
   );
 
@@ -488,7 +509,10 @@ function LessonCreator() {
     setGenerationState('fetching_content');
     setActiveTimelineIndex(0);
 
-    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches) {
+    if (
+      typeof window !== 'undefined' &&
+      window.matchMedia('(max-width: 640px)').matches
+    ) {
       const el = timelineCardRef.current;
       if (el) {
         requestAnimationFrame(() => {
@@ -506,11 +530,15 @@ function LessonCreator() {
         throw new Error('لا يمكن توليد الخطة لأن محتوى الدرس فارغ.');
       }
 
-      const lessonTitle = lesson?.name?.trim() || selectedLesson?.name?.trim() || '';
+      const lessonTitle =
+        lesson?.name?.trim() || selectedLesson?.name?.trim() || '';
       const subjectName = selectedSubject.name?.trim() || '';
       const unitName = selectedUnit.name?.trim() || '';
       const gradeValue = selectedClass.grade_label?.trim() || '';
-      const classLabel = [selectedClass.grade_label, selectedClass.section_label]
+      const classLabel = [
+        selectedClass.grade_label,
+        selectedClass.section_label,
+      ]
         .map((value) => value?.trim() ?? '')
         .filter(Boolean)
         .join(' - ');
@@ -570,20 +598,29 @@ function LessonCreator() {
       clearTimelineTimers();
       setGenerationState('error');
       setGenerationError(
-        getErrorMessage(error, 'فشل توليد الخطة. تحقق من البيانات وحاول مجددًا.')
+        getErrorMessage(
+          error,
+          'فشل توليد الخطة. تحقق من البيانات وحاول مجددًا.'
+        )
       );
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const buildPlanDraftFromGenerated = (plan: GeneratedPlanResponse): PlanDraft => {
-    const header = plan.plan_json?.header && typeof plan.plan_json.header === 'object' && !Array.isArray(plan.plan_json.header)
-      ? (plan.plan_json.header as Record<string, unknown>)
-      : {};
-    const lessonTitle = typeof header.lesson_title === 'string'
-      ? header.lesson_title
-      : (selectedLesson?.name ?? '');
+  const buildPlanDraftFromGenerated = (
+    plan: GeneratedPlanResponse
+  ): PlanDraft => {
+    const header =
+      plan.plan_json?.header &&
+      typeof plan.plan_json.header === 'object' &&
+      !Array.isArray(plan.plan_json.header)
+        ? (plan.plan_json.header as Record<string, unknown>)
+        : {};
+    const lessonTitle =
+      typeof header.lesson_title === 'string'
+        ? header.lesson_title
+        : (selectedLesson?.name ?? '');
     return {
       lessonTitle,
       planJson: JSON.parse(JSON.stringify(plan.plan_json ?? {})),
@@ -609,10 +646,16 @@ function LessonCreator() {
     try {
       if (isEditingPlan && planDraft) {
         const nextPlanJson = JSON.parse(JSON.stringify(planDraft.planJson));
-        const header = nextPlanJson.header && typeof nextPlanJson.header === 'object' && !Array.isArray(nextPlanJson.header)
-          ? (nextPlanJson.header as Record<string, unknown>)
-          : {};
-        nextPlanJson.header = { ...header, lesson_title: planDraft.lessonTitle };
+        const header =
+          nextPlanJson.header &&
+          typeof nextPlanJson.header === 'object' &&
+          !Array.isArray(nextPlanJson.header)
+            ? (nextPlanJson.header as Record<string, unknown>)
+            : {};
+        nextPlanJson.header = {
+          ...header,
+          lesson_title: planDraft.lessonTitle,
+        };
 
         const response = await updatePlan(generatedPlan.id, {
           lesson_title: planDraft.lessonTitle,
@@ -901,7 +944,9 @@ function LessonCreator() {
 
             <aside className="lcp__controls">
               <h2>توليد الخطة بالذكاء الاصطناعي</h2>
-              <p>أكمل الخطوات بالترتيب، ثم اختر نوع الخطة والزمن واضغط توليد.</p>
+              <p>
+                أكمل الخطوات بالترتيب، ثم اختر نوع الخطة والزمن واضغط توليد.
+              </p>
 
               <div className="lcp__steps">
                 <div className={`lcp__step lcp__step--${getStepState(1)}`}>
@@ -911,7 +956,9 @@ function LessonCreator() {
                     <select
                       id="lcp-class-select"
                       value={selectedClassId}
-                      onChange={(event) => handleClassSelect(event.target.value)}
+                      onChange={(event) =>
+                        handleClassSelect(event.target.value)
+                      }
                       disabled={initialLoading || isGenerating}
                     >
                       <option value="">اختر الصف...</option>
@@ -934,7 +981,9 @@ function LessonCreator() {
                     <select
                       id="lcp-subject-select"
                       value={selectedSubjectId}
-                      onChange={(event) => handleSubjectSelect(event.target.value)}
+                      onChange={(event) =>
+                        handleSubjectSelect(event.target.value)
+                      }
                       disabled={selectedClassId === '' || isGenerating}
                     >
                       <option value="">اختر المادة...</option>
@@ -955,7 +1004,9 @@ function LessonCreator() {
                       id="lcp-unit-select"
                       value={selectedUnitId}
                       onChange={(event) => handleUnitSelect(event.target.value)}
-                      disabled={selectedSubjectId === '' || unitsLoading || isGenerating}
+                      disabled={
+                        selectedSubjectId === '' || unitsLoading || isGenerating
+                      }
                     >
                       <option value="">اختر الوحدة...</option>
                       {units.map((unitItem) => (
@@ -964,7 +1015,9 @@ function LessonCreator() {
                         </option>
                       ))}
                     </select>
-                    {unitsLoading ? <small>جارٍ تحميل وحدات المادة...</small> : null}
+                    {unitsLoading ? (
+                      <small>جارٍ تحميل وحدات المادة...</small>
+                    ) : null}
                   </div>
                 </div>
 
@@ -975,8 +1028,12 @@ function LessonCreator() {
                     <select
                       id="lcp-lesson-select"
                       value={selectedLessonId}
-                      onChange={(event) => handleLessonSelect(event.target.value)}
-                      disabled={selectedUnitId === '' || lessonsLoading || isGenerating}
+                      onChange={(event) =>
+                        handleLessonSelect(event.target.value)
+                      }
+                      disabled={
+                        selectedUnitId === '' || lessonsLoading || isGenerating
+                      }
                     >
                       <option value="">اختر الدرس...</option>
                       {lessons.map((lessonItem) => (
@@ -985,7 +1042,9 @@ function LessonCreator() {
                         </option>
                       ))}
                     </select>
-                    {lessonsLoading ? <small>جارٍ تحميل دروس الوحدة...</small> : null}
+                    {lessonsLoading ? (
+                      <small>جارٍ تحميل دروس الوحدة...</small>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -996,7 +1055,9 @@ function LessonCreator() {
                   <select
                     id="lcp-plan-type"
                     value={planType}
-                    onChange={(event) => setPlanType(event.target.value as PlanType)}
+                    onChange={(event) =>
+                      setPlanType(event.target.value as PlanType)
+                    }
                     disabled={selectedLessonId === '' || isGenerating}
                   >
                     {PLAN_TYPE_OPTIONS.map((option) => (
@@ -1052,8 +1113,8 @@ function LessonCreator() {
             <h2>{generatedLessonTitle}</h2>
             <p>
               {toPlanTypeLabel(generatedPlan.plan_type)} |{' '}
-              {toValidationStatusLabel(generatedPlan.validation_status)} |{' '}
-              إعادة التحسين: {generatedPlan.retry_occurred ? 'نعم' : 'لا'}
+              {toValidationStatusLabel(generatedPlan.validation_status)} | إعادة
+              التحسين: {generatedPlan.retry_occurred ? 'نعم' : 'لا'}
             </p>
           </header>
 
@@ -1070,7 +1131,9 @@ function LessonCreator() {
                 onClick={() => void handleSavePlan()}
                 disabled={isSavingPlan}
               >
-                {isSavingPlan && <span className="ui-button-spinner" aria-hidden />}
+                {isSavingPlan && (
+                  <span className="ui-button-spinner" aria-hidden />
+                )}
                 <MdSave aria-hidden />
                 حفظ
               </button>
@@ -1164,7 +1227,8 @@ function LessonCreator() {
               <p>
                 الوحدة الأولى | {selectedSubject?.name ?? '—'} | الصف:{' '}
                 {selectedClass?.grade_label ?? '—'} | الفصل:{' '}
-                {selectedClass?.semester ?? '—'} | {selectedClass?.academic_year ?? '—'} |{' '}
+                {selectedClass?.semester ?? '—'} |{' '}
+                {selectedClass?.academic_year ?? '—'} |{' '}
                 {toPlanTypeLabel(generatedPlan?.plan_type ?? planType)} | المدة:{' '}
                 {durationMinutes} د
               </p>
@@ -1217,7 +1281,9 @@ function LessonCreator() {
         isOpen={deleteConfirmOpen}
         title="تأكيد حذف الخطة"
         message="سيتم حذف الخطة نهائيًا من المكتبة. لا يمكن التراجع بعد الحذف."
-        endpoint={generatedPlan?.id ? `/api/plans/${generatedPlan.id}` : '/api/plans'}
+        endpoint={
+          generatedPlan?.id ? `/api/plans/${generatedPlan.id}` : '/api/plans'
+        }
         payload={generatedPlan?.id ? { planId: generatedPlan.id } : undefined}
         isLoading={isDeletingPlan}
         confirmLabel="حذف الخطة"

@@ -1,12 +1,19 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
-import { getDisplayLanguageFromCookie, ensureGoogleTranslation } from './utils/displayLanguage';
+import {
+  getDisplayLanguageFromCookie,
+  ensureGoogleTranslation,
+} from './utils/displayLanguage';
 import Auth from './features/auth/Auth';
 import LessonCreator from './features/lesson-creator/LessonCreator';
 import Assignments from './features/assignments/Assignments';
 import Quizzes from './features/quizzes/Quizzes';
 import { AppLayout } from './components/layout';
-import { RequireAdmin, RequireAuth, RequireTeacher } from './components/routing/RouteGuards';
+import {
+  RequireAdmin,
+  RequireAuth,
+  RequireTeacher,
+} from './components/routing/RouteGuards';
 import ControlDashboard from './features/control-dashboard/ControlDashboard';
 import AdminDashboard from './features/admin-dashboard/AdminDashboard';
 import ControlCurriculum from './features/control-curriculum/ControlCurriculum';

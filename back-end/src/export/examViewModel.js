@@ -47,9 +47,11 @@ export function buildExamExportViewModel(enrichedExam) {
     term: enrichedExam.semester ?? enrichedExam.term ?? null,
     semester: enrichedExam.semester ?? enrichedExam.term ?? null,
     academicYear: enrichedExam.academic_year ?? null,
-    schoolName: enrichedExam.school_name ?? enrichedExam.institution_name ?? null,
+    schoolName:
+      enrichedExam.school_name ?? enrichedExam.institution_name ?? null,
     schoolLogoUrl: enrichedExam.school_logo_url ?? null,
-    institutionName: enrichedExam.school_name ?? enrichedExam.institution_name ?? null,
+    institutionName:
+      enrichedExam.school_name ?? enrichedExam.institution_name ?? null,
   };
 
   const studentMetaTemplate = {

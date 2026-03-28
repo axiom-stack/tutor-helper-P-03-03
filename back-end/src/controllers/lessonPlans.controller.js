@@ -26,7 +26,9 @@ function cloneJson(value) {
 }
 
 function asPlainObject(value) {
-  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value
+    : {};
 }
 
 function buildLessonPlanPayload(plan) {
@@ -79,7 +81,8 @@ export function createLessonPlansController(dependencies = {}) {
     dependencies.lessonPlansRepository || createLessonPlansRepository();
   const revisionsRepository =
     dependencies.revisionsRepository || createArtifactRevisionsRepository();
-  const knowledgeLoader = dependencies.knowledgeLoader || loadLessonPlanKnowledge;
+  const knowledgeLoader =
+    dependencies.knowledgeLoader || loadLessonPlanKnowledge;
   const resourceSelector =
     dependencies.resourceSelector || selectPlanRuntimeResources;
   const normalizer = dependencies.normalizer || normalizeLessonPlan;
@@ -311,18 +314,31 @@ export function createLessonPlansController(dependencies = {}) {
         // so older plans or clients missing new keys (e.g. time, source) still validate.
         const normalizedPlan = normalizationResult.normalizedPlan;
         const schemaHeader =
-          targetSchema?.header && typeof targetSchema.header === "object" && !Array.isArray(targetSchema.header)
+          targetSchema?.header &&
+          typeof targetSchema.header === "object" &&
+          !Array.isArray(targetSchema.header)
             ? targetSchema.header
             : {};
         const defaultHeader = Object.fromEntries(
-          Object.keys(schemaHeader).map((k) => [k, typeof schemaHeader[k] === "string" ? "" : ""]),
+          Object.keys(schemaHeader).map((k) => [
+            k,
+            typeof schemaHeader[k] === "string" ? "" : "",
+          ]),
         );
-        normalizedPlan.header = { ...defaultHeader, ...asPlainObject(normalizedPlan.header) };
+        normalizedPlan.header = {
+          ...defaultHeader,
+          ...asPlainObject(normalizedPlan.header),
+        };
         for (const key of Object.keys(targetSchema || {})) {
           if (normalizedPlan[key] === undefined) {
             const def = targetSchema[key];
             if (Array.isArray(def)) normalizedPlan[key] = [];
-            else if (typeof def === "object" && def !== null && !Array.isArray(def)) normalizedPlan[key] = {};
+            else if (
+              typeof def === "object" &&
+              def !== null &&
+              !Array.isArray(def)
+            )
+              normalizedPlan[key] = {};
             else normalizedPlan[key] = "";
           }
         }
@@ -380,7 +396,10 @@ export function createLessonPlansController(dependencies = {}) {
         await insertAuditLog({
           action: "record_edit",
           userId: req.user.id,
-          details: JSON.stringify({ artifact_type: "lesson_plan", artifact_id: updatedPlan.public_id }),
+          details: JSON.stringify({
+            artifact_type: "lesson_plan",
+            artifact_id: updatedPlan.public_id,
+          }),
           logger: req.log,
         });
 

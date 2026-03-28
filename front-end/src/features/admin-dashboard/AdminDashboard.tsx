@@ -12,7 +12,12 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import type { Exam, LessonPlanRecord, TeacherManagementRow } from '../../types';
 import { listTeachers } from '../users/users.services';
-import { getScopedClasses, getScopedSubjects, listScopedExams, listScopedPlans } from '../control-dashboard/control-dashboard.services';
+import {
+  getScopedClasses,
+  getScopedSubjects,
+  listScopedExams,
+  listScopedPlans,
+} from '../control-dashboard/control-dashboard.services';
 import './admin-dashboard.css';
 
 type AdminAction = {
@@ -84,11 +89,23 @@ export default function AdminDashboard() {
 
   const teacherCount = teachers.length;
   const recentPlans = useMemo(
-    () => [...plans].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 3),
+    () =>
+      [...plans]
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )
+        .slice(0, 3),
     [plans]
   );
   const recentExams = useMemo(
-    () => [...exams].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 3),
+    () =>
+      [...exams]
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )
+        .slice(0, 3),
     [exams]
   );
 
@@ -96,13 +113,15 @@ export default function AdminDashboard() {
     {
       path: '/teachers',
       title: 'إدارة المعلمين',
-      description: 'إنشاء الحسابات، تحديثها، إعادة ضبط كلمات المرور، والحذف المؤكد.',
+      description:
+        'إنشاء الحسابات، تحديثها، إعادة ضبط كلمات المرور، والحذف المؤكد.',
       icon: MdPeople,
     },
     {
       path: '/curriculum',
       title: 'إدارة المنهج',
-      description: 'استعراض هرم المنهج على مستوى المعلمين أو تحريره عند الحاجة.',
+      description:
+        'استعراض هرم المنهج على مستوى المعلمين أو تحريره عند الحاجة.',
       icon: MdSchool,
     },
     {
@@ -114,19 +133,22 @@ export default function AdminDashboard() {
     {
       path: '/quizzes',
       title: 'مكتبة الاختبارات',
-      description: 'تتبع الاختبارات المولدة على مستوى النظام والمراجعة السريعة لها.',
+      description:
+        'تتبع الاختبارات المولدة على مستوى النظام والمراجعة السريعة لها.',
       icon: MdQuiz,
     },
     {
       path: '/stats',
       title: 'التقارير والأداء',
-      description: 'استخراج صورة عامة عن النشاط والجودة والاستخدام على مستوى النظام.',
+      description:
+        'استخراج صورة عامة عن النشاط والجودة والاستخدام على مستوى النظام.',
       icon: MdInsights,
     },
     {
       path: '/settings',
       title: 'إعدادات الحساب',
-      description: 'ضبط اللغة والهوية البصرية وتفضيلات التحضير الخاصة بالحساب الحالي.',
+      description:
+        'ضبط اللغة والهوية البصرية وتفضيلات التحضير الخاصة بالحساب الحالي.',
       icon: MdSettings,
     },
   ];
@@ -151,7 +173,10 @@ export default function AdminDashboard() {
         <div>
           <p className="ad__eyebrow">لوحة النظام</p>
           <h1>مرحباً، {displayName}</h1>
-          <p>هذه مساحة الإشراف الشامل على المنصة، مع وصول مباشر إلى المعلمين والمحتوى.</p>
+          <p>
+            هذه مساحة الإشراف الشامل على المنصة، مع وصول مباشر إلى المعلمين
+            والمحتوى.
+          </p>
         </div>
 
         <div className="ad__stats">
@@ -174,7 +199,12 @@ export default function AdminDashboard() {
         {actions.map((action) => {
           const Icon = action.icon;
           return (
-            <button key={action.path} type="button" className="ad__action-card" onClick={() => navigate(action.path)}>
+            <button
+              key={action.path}
+              type="button"
+              className="ad__action-card"
+              onClick={() => navigate(action.path)}
+            >
               <span className="ad__action-icon" aria-hidden>
                 <Icon />
               </span>
@@ -203,7 +233,9 @@ export default function AdminDashboard() {
               recentPlans.map((plan) => (
                 <div key={plan.public_id} className="ad__item">
                   <strong>{plan.lesson_title}</strong>
-                  <span>{plan.subject} | {plan.grade}</span>
+                  <span>
+                    {plan.subject} | {plan.grade}
+                  </span>
                   <span>{formatDateAr(plan.created_at)}</span>
                 </div>
               ))
@@ -226,7 +258,9 @@ export default function AdminDashboard() {
               recentExams.map((exam) => (
                 <div key={exam.public_id} className="ad__item">
                   <strong>{exam.title}</strong>
-                  <span>{exam.total_questions} سؤال | {exam.total_marks} درجة</span>
+                  <span>
+                    {exam.total_questions} سؤال | {exam.total_marks} درجة
+                  </span>
                   <span>{formatDateAr(exam.created_at)}</span>
                 </div>
               ))

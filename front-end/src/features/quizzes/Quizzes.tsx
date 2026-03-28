@@ -14,7 +14,14 @@ import ConfirmActionModal from '../../components/common/ConfirmActionModal';
 import ExportFormatModal from '../../components/common/ExportFormatModal';
 import { SyncStatusBadge } from '../../components/common/SyncStatusBadge';
 import { useAuth } from '../../context/AuthContext';
-import type { Class, Exam, ExamQuestion, Lesson, Subject, Unit } from '../../types';
+import type {
+  Class,
+  Exam,
+  ExamQuestion,
+  Lesson,
+  Subject,
+  Unit,
+} from '../../types';
 import { QUESTION_TYPE_LABELS } from '../../types';
 import type { NormalizedApiError } from '../../utils/apiErrors';
 import { normalizeApiError } from '../../utils/apiErrors';
@@ -39,7 +46,10 @@ import {
 
 import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel';
 import { getRefinementTargetOptions } from '../refinements/refinementTargets';
-import { LESSON_DURATION_OPTIONS, SEMESTER_OPTIONS } from '../../constants/dropdown-options';
+import {
+  LESSON_DURATION_OPTIONS,
+  SEMESTER_OPTIONS,
+} from '../../constants/dropdown-options';
 import './quizzes.css';
 
 type SelectValue = number | '';
@@ -92,7 +102,10 @@ function cloneExamQuestion(question: ExamQuestion): ExamQuestion {
     rubric: question.rubric ? [...question.rubric] : undefined,
   };
 
-  if (nextQuestion.question_type === 'multiple_choice' && !nextQuestion.options) {
+  if (
+    nextQuestion.question_type === 'multiple_choice' &&
+    !nextQuestion.options
+  ) {
     nextQuestion.options = ['', '', '', ''];
   }
 
@@ -136,10 +149,14 @@ export default function Quizzes() {
   const [lessonOptions, setLessonOptions] = useState<LessonOption[]>([]);
 
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>('');
-  const [selectedSemester, setSelectedSemester] = useState<string>(SEMESTER_OPTIONS[0]);
+  const [selectedSemester, setSelectedSemester] = useState<string>(
+    SEMESTER_OPTIONS[0]
+  );
   const [selectedClassId, setSelectedClassId] = useState<SelectValue>('');
   const [selectedSubjectId, setSelectedSubjectId] = useState<SelectValue>('');
-  const [selectedLessonIds, setSelectedLessonIds] = useState<Set<number>>(new Set());
+  const [selectedLessonIds, setSelectedLessonIds] = useState<Set<number>>(
+    new Set()
+  );
   const [examTitle, setExamTitle] = useState('');
   const [isTitleTouched, setIsTitleTouched] = useState(false);
   const [totalQuestions, setTotalQuestions] = useState<number>(10);
@@ -151,7 +168,6 @@ export default function Quizzes() {
   const [filterClassId, setFilterClassId] = useState<SelectValue>('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
-  const { activeStage } = useStage();
   const academicYearOptions = useMemo(() => {
     const years = new Set<string>();
     classes.forEach((classItem) => {
@@ -161,11 +177,15 @@ export default function Quizzes() {
       }
     });
 
-    return Array.from(years).sort((left, right) => right.localeCompare(left, 'ar', { numeric: true }));
+    return Array.from(years).sort((left, right) =>
+      right.localeCompare(left, 'ar', { numeric: true })
+    );
   }, [classes]);
 
   const [exams, setExams] = useState<OfflineExamRecord[]>([]);
-  const [selectedExam, setSelectedExam] = useState<OfflineExamRecord | null>(null);
+  const [selectedExam, setSelectedExam] = useState<OfflineExamRecord | null>(
+    null
+  );
 
   const [isBootLoading, setIsBootLoading] = useState(true);
   const [isLessonsLoading, setIsLessonsLoading] = useState(false);
@@ -179,7 +199,9 @@ export default function Quizzes() {
   const [error, setError] = useState<NormalizedApiError | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [exportFormatOpen, setExportFormatOpen] = useState(false);
-  const [exportTargetType, setExportTargetType] = useState<'questions_only' | 'answer_key' | null>(null);
+  const [exportTargetType, setExportTargetType] = useState<
+    'questions_only' | 'answer_key' | null
+  >(null);
   const [isExportingExam, setIsExportingExam] = useState(false);
   const [deleteExamRequest, setDeleteExamRequest] = useState<{
     examId: string;
@@ -187,7 +209,9 @@ export default function Quizzes() {
     payload: Record<string, unknown>;
   } | null>(null);
   const [examDraft, setExamDraft] = useState<ExamDraft | null>(null);
-  const [draftRecoveredNotice, setDraftRecoveredNotice] = useState<string | null>(null);
+  const [draftRecoveredNotice, setDraftRecoveredNotice] = useState<
+    string | null
+  >(null);
 
   const loadExams = useCallback(async () => {
     setIsListLoading(true);
@@ -195,7 +219,6 @@ export default function Quizzes() {
       const response = await listExams({
         subject_id: filterSubjectId === '' ? undefined : filterSubjectId,
         class_id: filterClassId === '' ? undefined : filterClassId,
-        stage: activeStage,
         date_from: filterDateFrom || undefined,
         date_to: filterDateTo || undefined,
       });
@@ -205,7 +228,12 @@ export default function Quizzes() {
     } finally {
       setIsListLoading(false);
     }
-  }, [filterClassId, filterDateFrom, filterDateTo, filterSubjectId, activeStage]);
+  }, [
+    filterClassId,
+    filterDateFrom,
+    filterDateTo,
+    filterSubjectId,
+  ]);
 
   useEffect(() => {
     if (!lastSyncAt || isEditingExam) {
@@ -227,11 +255,11 @@ export default function Quizzes() {
       setError(null);
       try {
         const classesLoader = isAdmin
-          ? () => getAllClasses(activeStage)
-          : () => getMyClasses(activeStage);
+          ? () => getAllClasses()
+          : () => getMyClasses();
         const subjectsLoader = isAdmin
-          ? () => getAllSubjects(activeStage)
-          : () => getMySubjects(activeStage);
+          ? () => getAllSubjects()
+          : () => getMySubjects();
         const [classesResponse, subjectsResponse] = await Promise.all([
           classesLoader(),
           subjectsLoader(),
@@ -245,7 +273,9 @@ export default function Quizzes() {
         setSubjects(subjectsResponse.subjects ?? []);
       } catch (bootstrapError: unknown) {
         if (!cancelled) {
-          setError(normalizeApiError(bootstrapError, 'فشل تحميل بيانات الاختبارات.'));
+          setError(
+            normalizeApiError(bootstrapError, 'فشل تحميل بيانات الاختبارات.')
+          );
         }
       } finally {
         if (!cancelled) {
@@ -260,7 +290,7 @@ export default function Quizzes() {
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, isTeacher, loadExams, activeStage]);
+  }, [isAdmin, isTeacher, loadExams]);
 
   useEffect(() => {
     if (error) {
@@ -399,7 +429,10 @@ export default function Quizzes() {
 
   const filteredClasses = useMemo(() => {
     return classes.filter((classItem) => {
-      if (selectedAcademicYear && classItem.academic_year !== selectedAcademicYear) {
+      if (
+        selectedAcademicYear &&
+        classItem.academic_year !== selectedAcademicYear
+      ) {
         return false;
       }
       if (
@@ -418,13 +451,16 @@ export default function Quizzes() {
       return [];
     }
 
-    return subjects.filter((subjectItem) => subjectItem.class_id === selectedClass.id);
+    return subjects.filter(
+      (subjectItem) => subjectItem.class_id === selectedClass.id
+    );
   }, [selectedClass, subjects]);
 
   const selectedSubject = useMemo(
     () =>
-      subjectsForSelectedClass.find((subjectItem) => subjectItem.id === selectedSubjectId) ??
-      null,
+      subjectsForSelectedClass.find(
+        (subjectItem) => subjectItem.id === selectedSubjectId
+      ) ?? null,
     [selectedSubjectId, subjectsForSelectedClass]
   );
 
@@ -505,7 +541,14 @@ export default function Quizzes() {
       (subjectItem) => subjectItem.id === nextSubjectId
     );
     if (subject && !isTitleTouched) {
-      setExamTitle(autoTitle(subject.name, selectedClass, selectedAcademicYear, selectedSemester));
+      setExamTitle(
+        autoTitle(
+          subject.name,
+          selectedClass,
+          selectedAcademicYear,
+          selectedSemester
+        )
+      );
     }
 
     setIsLessonsLoading(true);
@@ -594,7 +637,10 @@ export default function Quizzes() {
       return;
     }
     if (!isQuarterStepMark(totalMarks)) {
-      setError({ message: 'الدرجة الكلية يجب أن تكون بمضاعفات 0.25 مثل 1 أو 1.25 أو 1.5.' });
+      setError({
+        message:
+          'الدرجة الكلية يجب أن تكون بمضاعفات 0.25 مثل 1 أو 1.25 أو 1.5.',
+      });
       return;
     }
     if (totalMarks * 4 < totalQuestions) {
@@ -602,7 +648,9 @@ export default function Quizzes() {
       return;
     }
     if (!Number.isInteger(durationMinutes) || durationMinutes < 1) {
-      setError({ message: 'زمن الاختبار يجب أن يكون رقماً صحيحاً موجباً (دقيقة).' });
+      setError({
+        message: 'زمن الاختبار يجب أن يكون رقماً صحيحاً موجباً (دقيقة).',
+      });
       return;
     }
 
@@ -719,9 +767,10 @@ export default function Quizzes() {
     ? !isLocalOnlyId(selectedExam.public_id)
     : false;
 
-  const examDetailsTitle = isCreateRoute && examScreen === 'generated'
-    ? 'عرض الاختبار المولد'
-    : 'تفاصيل الاختبار';
+  const examDetailsTitle =
+    isCreateRoute && examScreen === 'generated'
+      ? 'عرض الاختبار المولد'
+      : 'تفاصيل الاختبار';
 
   const openExportDialog = (type: 'questions_only' | 'answer_key') => {
     setExportTargetType(type);
@@ -761,7 +810,6 @@ export default function Quizzes() {
       setExportTargetType(null);
     }
   };
-
 
   const handleStartEditingExam = () => {
     if (!selectedExam) {
@@ -867,7 +915,9 @@ export default function Quizzes() {
           ...cloneExamQuestion(question),
           question_text: question.question_text.trim(),
           answer_text: question.answer_text.trim(),
-          rubric: (question.rubric ?? []).map((item) => item.trim()).filter(Boolean),
+          rubric: (question.rubric ?? [])
+            .map((item) => item.trim())
+            .filter(Boolean),
         };
       });
 
@@ -914,8 +964,8 @@ export default function Quizzes() {
   };
 
   const displayedExamQuestions = isEditingExam
-    ? examDraft?.questions ?? []
-    : selectedExam?.questions ?? [];
+    ? (examDraft?.questions ?? [])
+    : (selectedExam?.questions ?? []);
 
   const examDetailsView = selectedExam ? (
     <div className="qz__details">
@@ -949,7 +999,8 @@ export default function Quizzes() {
                 </div>
               )}
               <p>
-                {selectedExam.total_questions} سؤال | {selectedExam.total_marks} درجة
+                {selectedExam.total_questions} سؤال | {selectedExam.total_marks}{' '}
+                درجة
                 {selectedExam.duration_minutes != null
                   ? ` | مدة: ${selectedExam.duration_minutes} دقيقة`
                   : ''}
@@ -973,7 +1024,9 @@ export default function Quizzes() {
                     onClick={() => void handleSaveExam()}
                     disabled={isSavingExam || !examDraft}
                   >
-                    {isSavingExam && <span className="ui-button-spinner" aria-hidden />}
+                    {isSavingExam && (
+                      <span className="ui-button-spinner" aria-hidden />
+                    )}
                     {!isSavingExam && <MdSave aria-hidden />}
                     {isSavingExam ? 'جارٍ الحفظ...' : 'حفظ'}
                   </button>
@@ -986,7 +1039,9 @@ export default function Quizzes() {
                     onClick={() => void handleSaveExam()}
                     disabled={isSavingExam || !examDraft || !selectedExam}
                   >
-                    {isSavingExam && <span className="ui-button-spinner" aria-hidden />}
+                    {isSavingExam && (
+                      <span className="ui-button-spinner" aria-hidden />
+                    )}
                     {!isSavingExam && <MdSave aria-hidden />}
                     {isSavingExam ? 'جارٍ الحفظ...' : 'حفظ'}
                   </button>
@@ -1103,7 +1158,10 @@ export default function Quizzes() {
                   </div>
                   {isEditingExam ? (
                     <div className="qz__question-editor">
-                      <label className="qz__editor-label" htmlFor={question.slot_id}>
+                      <label
+                        className="qz__editor-label"
+                        htmlFor={question.slot_id}
+                      >
                         نص السؤال
                       </label>
                       <textarea
@@ -1122,19 +1180,29 @@ export default function Quizzes() {
                       {question.question_type === 'multiple_choice' ? (
                         <>
                           <div className="qz__question-edit-grid">
-                            <label className="qz__editor-label">الخيار الصحيح</label>
+                            <label className="qz__editor-label">
+                              الخيار الصحيح
+                            </label>
                             <select
                               className="qz__edit-select"
                               value={question.correct_option_index ?? 0}
                               onChange={(event) =>
-                                updateDraftQuestion(question.slot_id, (current) => ({
-                                  ...current,
-                                  correct_option_index: Number(event.target.value),
-                                }))
+                                updateDraftQuestion(
+                                  question.slot_id,
+                                  (current) => ({
+                                    ...current,
+                                    correct_option_index: Number(
+                                      event.target.value
+                                    ),
+                                  })
+                                )
                               }
                             >
                               {(question.options ?? []).map((_, index) => (
-                                <option key={`${question.slot_id}-correct-${index}`} value={index}>
+                                <option
+                                  key={`${question.slot_id}-correct-${index}`}
+                                  value={index}
+                                >
                                   الخيار {index + 1}
                                 </option>
                               ))}
@@ -1152,14 +1220,19 @@ export default function Quizzes() {
                                   className="qz__edit-input"
                                   value={option}
                                   onChange={(event) =>
-                                    updateDraftQuestion(question.slot_id, (current) => {
-                                      const nextOptions = [...(current.options ?? [])];
-                                      nextOptions[index] = event.target.value;
-                                      return {
-                                        ...current,
-                                        options: nextOptions,
-                                      };
-                                    })
+                                    updateDraftQuestion(
+                                      question.slot_id,
+                                      (current) => {
+                                        const nextOptions = [
+                                          ...(current.options ?? []),
+                                        ];
+                                        nextOptions[index] = event.target.value;
+                                        return {
+                                          ...current,
+                                          options: nextOptions,
+                                        };
+                                      }
+                                    )
                                   }
                                 />
                               </label>
@@ -1170,15 +1243,20 @@ export default function Quizzes() {
 
                       {question.question_type === 'true_false' ? (
                         <div className="qz__question-edit-grid">
-                          <label className="qz__editor-label">الإجابة الصحيحة</label>
+                          <label className="qz__editor-label">
+                            الإجابة الصحيحة
+                          </label>
                           <select
                             className="qz__edit-select"
                             value={question.correct_answer ? 'true' : 'false'}
                             onChange={(event) =>
-                              updateDraftQuestion(question.slot_id, (current) => ({
-                                ...current,
-                                correct_answer: event.target.value === 'true',
-                              }))
+                              updateDraftQuestion(
+                                question.slot_id,
+                                (current) => ({
+                                  ...current,
+                                  correct_answer: event.target.value === 'true',
+                                })
+                              )
                             }
                           >
                             <option value="true">صحيح</option>
@@ -1189,16 +1267,21 @@ export default function Quizzes() {
 
                       {question.question_type === 'fill_blank' ? (
                         <div className="qz__question-edit-grid">
-                          <label className="qz__editor-label">الإجابة النموذجية</label>
+                          <label className="qz__editor-label">
+                            الإجابة النموذجية
+                          </label>
                           <textarea
                             className="qz__edit-textarea"
                             rows={3}
                             value={question.answer_text}
                             onChange={(event) =>
-                              updateDraftQuestion(question.slot_id, (current) => ({
-                                ...current,
-                                answer_text: event.target.value,
-                              }))
+                              updateDraftQuestion(
+                                question.slot_id,
+                                (current) => ({
+                                  ...current,
+                                  answer_text: event.target.value,
+                                })
+                              )
                             }
                           />
                         </div>
@@ -1207,16 +1290,21 @@ export default function Quizzes() {
                       {question.question_type === 'open_ended' ? (
                         <>
                           <div className="qz__question-edit-grid">
-                            <label className="qz__editor-label">الإجابة النموذجية</label>
+                            <label className="qz__editor-label">
+                              الإجابة النموذجية
+                            </label>
                             <textarea
                               className="qz__edit-textarea"
                               rows={4}
                               value={question.answer_text}
                               onChange={(event) =>
-                                updateDraftQuestion(question.slot_id, (current) => ({
-                                  ...current,
-                                  answer_text: event.target.value,
-                                }))
+                                updateDraftQuestion(
+                                  question.slot_id,
+                                  (current) => ({
+                                    ...current,
+                                    answer_text: event.target.value,
+                                  })
+                                )
                               }
                             />
                           </div>
@@ -1229,10 +1317,13 @@ export default function Quizzes() {
                               rows={4}
                               value={joinLines(question.rubric)}
                               onChange={(event) =>
-                                updateDraftQuestion(question.slot_id, (current) => ({
-                                  ...current,
-                                  rubric: splitLines(event.target.value),
-                                }))
+                                updateDraftQuestion(
+                                  question.slot_id,
+                                  (current) => ({
+                                    ...current,
+                                    rubric: splitLines(event.target.value),
+                                  })
+                                )
                               }
                             />
                           </div>
@@ -1241,7 +1332,9 @@ export default function Quizzes() {
                     </div>
                   ) : (
                     <>
-                      <p className="qz__question-text">{question.question_text}</p>
+                      <p className="qz__question-text">
+                        {question.question_text}
+                      </p>
 
                       {question.question_type === 'multiple_choice' &&
                         question.options && (
@@ -1330,7 +1423,9 @@ export default function Quizzes() {
             <span className="qz__breadcrumb-current">الاختبارات</span>
           </nav>
           <h1>
-            {isCreateRoute ? 'توليد الاختبارات بجدول المواصفات' : 'مكتبة الاختبارات'}
+            {isCreateRoute
+              ? 'توليد الاختبارات بجدول المواصفات'
+              : 'مكتبة الاختبارات'}
           </h1>
           <p>
             {isCreateRoute
@@ -1341,24 +1436,38 @@ export default function Quizzes() {
       </header>
 
       {draftRecoveredNotice ? (
-        <p className="ui-inline-notice ui-inline-notice--info">{draftRecoveredNotice}</p>
+        <p className="ui-inline-notice ui-inline-notice--info">
+          {draftRecoveredNotice}
+        </p>
       ) : null}
 
-      <div className={`qz__layout ${isCreateRoute ? 'qz__layout--creator' : isAdmin ? 'qz__layout--admin' : ''}`}>
+      <div
+        className={`qz__layout ${isCreateRoute ? 'qz__layout--creator' : isAdmin ? 'qz__layout--admin' : ''}`}
+      >
         {isCreateRoute && examScreen === 'creator' ? (
           <aside className="qz__panel">
             <h2>إعداد الاختبار</h2>
-            <div className="qz__requirement-note ui-inline-notice ui-inline-notice--info" role="note">
-              <strong>متطلبات توليد الاختبار:</strong> اختر مادة ودروساً تحتوي على <strong>خطط درس مولدة</strong> و<strong>أهداف تعلم</strong>. إن لم تكن الدروس تحتوي على خطط أو أهداف، سيظهر خطأ عند التوليد.
+            <div
+              className="qz__requirement-note ui-inline-notice ui-inline-notice--info"
+              role="note"
+            >
+              <strong>متطلبات توليد الاختبار:</strong> اختر مادة ودروساً تحتوي
+              على <strong>خطط درس مولدة</strong> و<strong>أهداف تعلم</strong>.
+              إن لم تكن الدروس تحتوي على خطط أو أهداف، سيظهر خطأ عند التوليد.
             </div>
 
             {error ? (
-              <div className="qz__error-block ui-inline-notice ui-inline-notice--error" role="alert">
+              <div
+                className="qz__error-block ui-inline-notice ui-inline-notice--error"
+                role="alert"
+              >
                 <p>{error.message}</p>
                 {Array.isArray(error.details) && error.details.length > 0 ? (
                   <ul className="qz__error-details">
                     {error.details.map((d: { message?: string }, i: number) => (
-                      <li key={i}>{typeof d?.message === 'string' ? d.message : String(d)}</li>
+                      <li key={i}>
+                        {typeof d?.message === 'string' ? d.message : String(d)}
+                      </li>
                     ))}
                   </ul>
                 ) : null}
@@ -1371,7 +1480,9 @@ export default function Quizzes() {
                 <select
                   id="qz-academic-year"
                   value={selectedAcademicYear}
-                  onChange={(event) => handleAcademicYearChange(event.target.value)}
+                  onChange={(event) =>
+                    handleAcademicYearChange(event.target.value)
+                  }
                   disabled={isGenerating || isEditingExam}
                 >
                   {academicYearOptions.map((year) => (
@@ -1424,8 +1535,12 @@ export default function Quizzes() {
               <select
                 id="qz-subject"
                 value={selectedSubjectId}
-                onChange={(event) => void handleSubjectChange(event.target.value)}
-                disabled={isGenerating || isEditingExam || selectedClassId === ''}
+                onChange={(event) =>
+                  void handleSubjectChange(event.target.value)
+                }
+                disabled={
+                  isGenerating || isEditingExam || selectedClassId === ''
+                }
               >
                 <option value="">اختر المادة...</option>
                 {subjectsForSelectedClass.map((subject) => (
@@ -1468,7 +1583,9 @@ export default function Quizzes() {
                   type="number"
                   min={1}
                   value={totalQuestions}
-                  onChange={(event) => setTotalQuestions(Number(event.target.value))}
+                  onChange={(event) =>
+                    setTotalQuestions(Number(event.target.value))
+                  }
                   disabled={isGenerating || isEditingExam}
                 />
               </div>
@@ -1480,17 +1597,23 @@ export default function Quizzes() {
                   min={0.25}
                   step={0.25}
                   value={totalMarks}
-                  onChange={(event) => setTotalMarks(Number(event.target.value))}
+                  onChange={(event) =>
+                    setTotalMarks(Number(event.target.value))
+                  }
                   disabled={isGenerating || isEditingExam}
                 />
                 <small>تُوزَّع الدرجات على الأسئلة بمضاعفات 0.25.</small>
               </div>
               <div className="qz__field">
-                <label htmlFor="qz-duration-minutes">زمن الاختبار (دقيقة)</label>
+                <label htmlFor="qz-duration-minutes">
+                  زمن الاختبار (دقيقة)
+                </label>
                 <select
                   id="qz-duration-minutes"
                   value={durationMinutes}
-                  onChange={(event) => setDurationMinutes(Number(event.target.value))}
+                  onChange={(event) =>
+                    setDurationMinutes(Number(event.target.value))
+                  }
                   disabled={isGenerating || isEditingExam}
                 >
                   {LESSON_DURATION_OPTIONS.map((duration) => (
@@ -1543,9 +1666,16 @@ export default function Quizzes() {
               type="button"
               className="qz__generate-btn"
               onClick={() => void handleGenerateExam()}
-              disabled={isGenerating || isEditingExam || selectedSubjectId === '' || selectedClassId === ''}
+              disabled={
+                isGenerating ||
+                isEditingExam ||
+                selectedSubjectId === '' ||
+                selectedClassId === ''
+              }
             >
-              {isGenerating && <span className="ui-button-spinner" aria-hidden />}
+              {isGenerating && (
+                <span className="ui-button-spinner" aria-hidden />
+              )}
               {!isGenerating && <MdAutoAwesome aria-hidden />}
               {isGenerating ? 'جارٍ التوليد...' : 'توليد الاختبار'}
             </button>
@@ -1563,7 +1693,9 @@ export default function Quizzes() {
                     id="qz-filter-subject"
                     value={filterSubjectId}
                     onChange={(event) =>
-                      setFilterSubjectId(event.target.value ? Number(event.target.value) : '')
+                      setFilterSubjectId(
+                        event.target.value ? Number(event.target.value) : ''
+                      )
                     }
                     disabled={isEditingExam}
                   >
@@ -1581,7 +1713,9 @@ export default function Quizzes() {
                     id="qz-filter-class"
                     value={filterClassId}
                     onChange={(event) =>
-                      setFilterClassId(event.target.value ? Number(event.target.value) : '')
+                      setFilterClassId(
+                        event.target.value ? Number(event.target.value) : ''
+                      )
                     }
                     disabled={isEditingExam}
                   >
@@ -1623,7 +1757,9 @@ export default function Quizzes() {
                 onClick={() => void loadExams()}
                 disabled={isListLoading || isEditingExam}
               >
-                {isListLoading && <span className="ui-button-spinner" aria-hidden />}
+                {isListLoading && (
+                  <span className="ui-button-spinner" aria-hidden />
+                )}
                 {!isListLoading && <MdRefresh aria-hidden />}
                 {isListLoading ? 'جارٍ التحديث...' : 'تحديث القائمة'}
               </button>
@@ -1631,7 +1767,10 @@ export default function Quizzes() {
           ) : null}
 
           {isCreateRoute && examScreen === 'generated' && selectedExam ? (
-            <section className="qz__content qz__generated-view" aria-live="polite">
+            <section
+              className="qz__content qz__generated-view"
+              aria-live="polite"
+            >
               {examDetailsView}
             </section>
           ) : null}
@@ -1642,21 +1781,26 @@ export default function Quizzes() {
                 <h2>تم إنشاء اختبار بنجاح ✓</h2>
                 <article className="qz__confirmation-panel">
                   <h3>{selectedExam.title}</h3>
+                  <p>عنوان الاختبار: {selectedExam.title}</p>
                   <p>
-                    عنوان الاختبار: {selectedExam.title}
+                    عدد الأسئلة: {totalQuestions} | الدرجة: {totalMarks} |
+                    المدة: {durationMinutes} د
                   </p>
                   <p>
-                    عدد الأسئلة: {totalQuestions} | الدرجة: {totalMarks} | المدة:{' '}
-                    {durationMinutes} د
-                  </p>
-                  <p>
-                    العام الدراسي: {selectedAcademicYear} | الفصل الدراسي: {selectedSemester}
-                    {' '}| الصف: {selectedClass?.grade_label ?? '—'} | الشعبة:{' '}
-                    {selectedClass?.section_label ?? selectedClass?.section ?? '—'} | المادة:{' '}
-                    {selectedSubject?.name ?? '—'}
+                    العام الدراسي: {selectedAcademicYear} | الفصل الدراسي:{' '}
+                    {selectedSemester} | الصف:{' '}
+                    {selectedClass?.grade_label ?? '—'} | الشعبة:{' '}
+                    {selectedClass?.section_label ??
+                      selectedClass?.section ??
+                      '—'}{' '}
+                    | المادة: {selectedSubject?.name ?? '—'}
                   </p>
                   <div className="qz__confirmation-actions">
-                    <button type="button" className="qz__btn-save" onClick={handleOpenGeneratedExamFromConfirmation}>
+                    <button
+                      type="button"
+                      className="qz__btn-save"
+                      onClick={handleOpenGeneratedExamFromConfirmation}
+                    >
                       عرض
                     </button>
                     <button
@@ -1667,10 +1811,18 @@ export default function Quizzes() {
                     >
                       حذف
                     </button>
-                    <button type="button" className="qz__btn-edit" onClick={handleCreateNewExam}>
+                    <button
+                      type="button"
+                      className="qz__btn-edit"
+                      onClick={handleCreateNewExam}
+                    >
                       إنشاء اختبار جديد
                     </button>
-                    <button type="button" className="qz__btn-edit" onClick={() => navigate('/quizzes')}>
+                    <button
+                      type="button"
+                      className="qz__btn-edit"
+                      onClick={() => navigate('/quizzes')}
+                    >
                       مكتبة الاختبارات
                     </button>
                   </div>
@@ -1690,7 +1842,9 @@ export default function Quizzes() {
                       id="qz-filter-subject"
                       value={filterSubjectId}
                       onChange={(event) =>
-                        setFilterSubjectId(event.target.value ? Number(event.target.value) : '')
+                        setFilterSubjectId(
+                          event.target.value ? Number(event.target.value) : ''
+                        )
                       }
                       disabled={isEditingExam}
                     >
@@ -1708,7 +1862,9 @@ export default function Quizzes() {
                       id="qz-filter-class"
                       value={filterClassId}
                       onChange={(event) =>
-                        setFilterClassId(event.target.value ? Number(event.target.value) : '')
+                        setFilterClassId(
+                          event.target.value ? Number(event.target.value) : ''
+                        )
                       }
                       disabled={isEditingExam}
                     >
@@ -1729,7 +1885,9 @@ export default function Quizzes() {
                       id="qz-filter-from"
                       type="date"
                       value={filterDateFrom}
-                      onChange={(event) => setFilterDateFrom(event.target.value)}
+                      onChange={(event) =>
+                        setFilterDateFrom(event.target.value)
+                      }
                       disabled={isEditingExam}
                     />
                   </div>
@@ -1750,7 +1908,9 @@ export default function Quizzes() {
                   onClick={() => void loadExams()}
                   disabled={isListLoading || isEditingExam}
                 >
-                  {isListLoading && <span className="ui-button-spinner" aria-hidden />}
+                  {isListLoading && (
+                    <span className="ui-button-spinner" aria-hidden />
+                  )}
                   {!isListLoading && <MdRefresh aria-hidden />}
                   {isListLoading ? 'جارٍ التحديث...' : 'تحديث القائمة'}
                 </button>
@@ -1767,7 +1927,8 @@ export default function Quizzes() {
                     exams.map((exam) => {
                       const subject = subjectsById.get(exam.subject_id);
                       const classItem = classesById.get(exam.class_id);
-                      const isActive = selectedExam?.public_id === exam.public_id;
+                      const isActive =
+                        selectedExam?.public_id === exam.public_id;
                       const canExportExam = !isLocalOnlyId(exam.public_id);
                       return (
                         <article
@@ -1779,7 +1940,9 @@ export default function Quizzes() {
                           <button
                             type="button"
                             className="qz__exam-open"
-                            onClick={() => void handleLoadExamDetails(exam.public_id)}
+                            onClick={() =>
+                              void handleLoadExamDetails(exam.public_id)
+                            }
                             disabled={isExamLoading || isEditingExam}
                           >
                             {isExamLoading && isActive ? (
@@ -1792,14 +1955,18 @@ export default function Quizzes() {
                               <p>
                                 {subject?.name ?? `مادة #${exam.subject_id}`} |{' '}
                                 {(classItem
-                                  ? [classItem.grade_label, classItem.section_label]
+                                  ? [
+                                      classItem.grade_label,
+                                      classItem.section_label,
+                                    ]
                                       .map((value) => value?.trim() ?? '')
                                       .filter(Boolean)
                                       .join(' - ')
                                   : null) ?? `صف #${exam.class_id}`}
                               </p>
                               <small>
-                                {exam.total_questions} سؤال | {exam.total_marks} درجة
+                                {exam.total_questions} سؤال | {exam.total_marks}{' '}
+                                درجة
                                 {exam.duration_minutes != null
                                   ? ` | ${exam.duration_minutes} دقيقة`
                                   : ''}
@@ -1813,7 +1980,9 @@ export default function Quizzes() {
                             <button
                               type="button"
                               className="qz__card-action"
-                              onClick={() => void handleLoadExamDetails(exam.public_id)}
+                              onClick={() =>
+                                void handleLoadExamDetails(exam.public_id)
+                              }
                               disabled={isExamLoading || isEditingExam}
                             >
                               عرض
@@ -1829,7 +1998,9 @@ export default function Quizzes() {
                             <button
                               type="button"
                               className="qz__card-action qz__card-action--subtle"
-                              onClick={() => openExamExportDialog(exam, 'questions_only')}
+                              onClick={() =>
+                                openExamExportDialog(exam, 'questions_only')
+                              }
                               disabled={!canExportExam || isExportingExam}
                             >
                               تصدير

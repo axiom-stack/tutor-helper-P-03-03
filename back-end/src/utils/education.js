@@ -21,5 +21,3 @@ export function getAllGrades() {
 export function isValidGradeLabel(label) {
   return GRADE_LABEL_OPTIONS.includes(label);
 }
-
-

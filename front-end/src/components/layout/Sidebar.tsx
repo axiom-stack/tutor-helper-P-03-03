@@ -18,9 +18,6 @@ export function Sidebar() {
       ? ADMIN_SECONDARY_LINKS
       : TEACHER_SECONDARY_LINKS;
 
-  const isTeacher = user?.userRole === 'teacher';
-  const isAdmin = user?.userRole === 'admin';
-
   return (
     <aside className="sidebar" role="navigation" aria-label="القائمة الجانبية">
       <nav className="sidebar__nav">

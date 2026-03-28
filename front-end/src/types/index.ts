@@ -4,7 +4,10 @@ export type UserRole = 'teacher' | 'admin';
 
 export type PreparationType = 'daily' | 'weekly' | 'other';
 
-export const PREPARATION_TYPE_OPTIONS: { value: PreparationType; label: string }[] = [
+export const PREPARATION_TYPE_OPTIONS: {
+  value: PreparationType;
+  label: string;
+}[] = [
   { value: 'daily', label: 'تحضير يومي' },
   { value: 'weekly', label: 'تحضير أسبوعي' },
   { value: 'other', label: 'غير ذلك' },
@@ -236,8 +239,7 @@ export interface UserProfileUpdatePayload {
   default_plan_type?: 'traditional' | 'active_learning';
 }
 
-export interface AdminTeacherProfileUpdatePayload
-  extends UserProfileUpdatePayload {
+export interface AdminTeacherProfileUpdatePayload extends UserProfileUpdatePayload {
   username?: string;
   display_name?: string;
 }

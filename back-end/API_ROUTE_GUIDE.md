@@ -1,6 +1,7 @@
 # Tutor Helper API Route Guide
 
 ## Overview
+
 This API provides endpoints for managing educational content including classes, subjects, units, and lessons. All endpoints except authentication require JWT token authentication.
 
 ## Phase 2 Lesson-Plan Pipeline (MVP)
@@ -44,6 +45,7 @@ This API provides endpoints for managing educational content including classes, 
 ```
 
 `plan_type` must be one of:
+
 - `traditional`
 - `active_learning`
 
@@ -62,6 +64,7 @@ This API provides endpoints for managing educational content including classes, 
 ```
 
 ## Authentication
+
 All API endpoints except login/logout require authentication via JWT token in the Authorization header.
 
 ---
@@ -69,9 +72,11 @@ All API endpoints except login/logout require authentication via JWT token in th
 ## Auth Endpoints (`/auth`)
 
 ### POST `/auth/login`
+
 **Summary**: Authenticates a user and returns a JWT token
 
 **Request Body**:
+
 ```json
 {
   "username": "string (required)",
@@ -80,6 +85,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Body** (200):
+
 ```json
 {
   "token": "string",
@@ -93,6 +99,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Success
 - `400`: Missing username/password
 - `401`: Invalid credentials
@@ -101,11 +108,13 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ### POST `/auth/logout`
+
 **Summary**: Logs out the current user (client-side token removal)
 
 **Request Body**: None
 
 **Response Body** (200):
+
 ```json
 {
   "ok": true
@@ -113,6 +122,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Success
 
 ---
@@ -120,9 +130,11 @@ All API endpoints except login/logout require authentication via JWT token in th
 ## Classes Endpoints (`/classes`)
 
 ### POST `/classes`
+
 **Summary**: Creates a new class for a teacher
 
 **Request Body**:
+
 ```json
 {
   "grade_label": "string (required)",
@@ -135,6 +147,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Body** (201):
+
 ```json
 {
   "class": {
@@ -152,6 +165,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `201`: Created successfully
 - `400`: Missing/invalid required fields or teacher_id
 - `500`: Internal server error
@@ -159,11 +173,13 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ### GET `/classes/mine`
+
 **Summary**: Gets all classes owned by the authenticated teacher
 
 **Request Body**: None
 
 **Response Body** (200):
+
 ```json
 {
   "classes": [
@@ -182,17 +198,20 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Success
 - `500`: Internal server error
 
 ---
 
 ### GET `/classes/:classId`
+
 **Summary**: Gets a specific class by ID (admin can access any, teachers only their own)
 
 **Request Body**: None
 
 **Response Body** (200):
+
 ```json
 {
   "class": {
@@ -209,6 +228,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Success
 - `403`: Unauthorized (not owner and not admin)
 - `404`: Class not found
@@ -217,11 +237,13 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ### GET `/classes`
+
 **Summary**: Gets all classes in the system (admin only)
 
 **Request Body**: None
 
 **Response Body** (200):
+
 ```json
 {
   "classes": [
@@ -241,6 +263,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Success
 - `403`: Forbidden (not admin)
 - `500`: Internal server error
@@ -248,9 +271,11 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ### PUT `/classes/:classId`
+
 **Summary**: Updates a class (admin can update any, teachers only their own)
 
 **Request Body**:
+
 ```json
 {
   "grade_label": "string (required)",
@@ -262,6 +287,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Body** (200):
+
 ```json
 {
   "class": {
@@ -278,6 +304,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Updated successfully
 - `400`: Missing/invalid required fields
 - `403`: Unauthorized (not owner and not admin)
@@ -287,11 +314,13 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ### DELETE `/classes/:classId`
+
 **Summary**: Deletes a class (admin can delete any, teachers only their own)
 
 **Request Body**: None
 
 **Response Body** (200):
+
 ```json
 {
   "class": {
@@ -308,6 +337,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Deleted successfully (returns deleted class data)
 - `403`: Unauthorized (not owner and not admin)
 - `404`: Class not found
@@ -318,9 +348,11 @@ All API endpoints except login/logout require authentication via JWT token in th
 ## Subjects Endpoints (`/subjects`)
 
 ### POST `/subjects`
+
 **Summary**: Creates a new subject within a class
 
 **Request Body**:
+
 ```json
 {
   "name": "string (required)",
@@ -331,6 +363,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Body** (201):
+
 ```json
 {
   "subject": {
@@ -345,6 +378,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `201`: Created successfully
 - `400`: Missing/invalid required fields or class_id
 - `500`: Internal server error
@@ -352,11 +386,13 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ### GET `/subjects/mine`
+
 **Summary**: Gets all subjects owned by the authenticated teacher
 
 **Request Body**: None
 
 **Response Body** (200):
+
 ```json
 {
   "subjects": [
@@ -373,17 +409,20 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Success
 - `500`: Internal server error
 
 ---
 
 ### GET `/subjects/class/:classId`
+
 **Summary**: Gets all subjects within a specific class (admin can access any class, teachers only their own classes)
 
 **Request Body**: None
 
 **Response Body** (200):
+
 ```json
 {
   "subjects": [
@@ -400,6 +439,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Success
 - `403`: Unauthorized (not class owner and not admin)
 - `404`: Class not found
@@ -408,11 +448,13 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ### GET `/subjects/:subjectId`
+
 **Summary**: Gets a specific subject by ID (admin can access any, teachers only their own)
 
 **Request Body**: None
 
 **Response Body** (200):
+
 ```json
 {
   "subject": {
@@ -427,6 +469,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Success
 - `403`: Unauthorized (not owner and not admin)
 - `404`: Subject not found
@@ -435,11 +478,13 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ### GET `/subjects`
+
 **Summary**: Gets all subjects in the system (admin only)
 
 **Request Body**: None
 
 **Response Body** (200):
+
 ```json
 {
   "subjects": [
@@ -456,6 +501,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Success
 - `403`: Forbidden (not admin)
 - `500`: Internal server error
@@ -463,9 +509,11 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ### PUT `/subjects/:subjectId`
+
 **Summary**: Updates a subject (admin can update any, teachers only their own)
 
 **Request Body**:
+
 ```json
 {
   "name": "string (required)",
@@ -475,10 +523,12 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Description update semantics**:
+
 - Omit `description` to keep the existing value.
 - Send `description: ""` (or whitespace) to clear it to `null`.
 
 **Response Body** (200):
+
 ```json
 {
   "subject": {
@@ -493,6 +543,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Updated successfully
 - `400`: Missing/invalid required fields
 - `403`: Unauthorized (not owner and not admin)
@@ -502,11 +553,13 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ### DELETE `/subjects/:subjectId`
+
 **Summary**: Deletes a subject (admin can delete any, teachers only their own) - returns deleted subject data
 
 **Request Body**: None
 
 **Response Body** (200):
+
 ```json
 {
   "subject": {
@@ -521,6 +574,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Deleted successfully
 - `403`: Unauthorized (not owner and not admin)
 - `404`: Subject not found
@@ -531,9 +585,11 @@ All API endpoints except login/logout require authentication via JWT token in th
 ## Units Endpoints (`/units`)
 
 ### POST `/units`
+
 **Summary**: Creates a new unit within a subject
 
 **Request Body**:
+
 ```json
 {
   "name": "string (required)",
@@ -544,6 +600,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Body** (201):
+
 ```json
 {
   "unit": {
@@ -558,6 +615,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `201`: Created successfully
 - `400`: Missing/invalid required fields or subject_id
 - `403`: Unauthorized (subject not owned by teacher)
@@ -567,11 +625,13 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ### GET `/units/mine`
+
 **Summary**: Gets all units owned by the authenticated teacher
 
 **Request Body**: None
 
 **Response Body** (200):
+
 ```json
 {
   "units": [
@@ -588,17 +648,20 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Success
 - `500`: Internal server error
 
 ---
 
 ### GET `/units/subject/:subjectId`
+
 **Summary**: Gets all units within a specific subject (admin can access any subject, teachers only their own subjects)
 
 **Request Body**: None
 
 **Response Body** (200):
+
 ```json
 {
   "units": [
@@ -615,6 +678,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Success
 - `403`: Unauthorized (not subject owner and not admin)
 - `404`: Subject not found
@@ -623,11 +687,13 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ### GET `/units/:unitId`
+
 **Summary**: Gets a specific unit by ID (admin can access any, teachers only their own)
 
 **Request Body**: None
 
 **Response Body** (200):
+
 ```json
 {
   "unit": {
@@ -642,6 +708,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Success
 - `403`: Unauthorized (not owner and not admin)
 - `404`: Unit not found
@@ -650,11 +717,13 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ### GET `/units`
+
 **Summary**: Gets all units in the system (admin only)
 
 **Request Body**: None
 
 **Response Body** (200):
+
 ```json
 {
   "units": [
@@ -671,6 +740,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Success
 - `403`: Forbidden (not admin)
 - `500`: Internal server error
@@ -678,9 +748,11 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ### PUT `/units/:unitId`
+
 **Summary**: Updates a unit (admin can update any, teachers only their own)
 
 **Request Body**:
+
 ```json
 {
   "name": "string (required)",
@@ -690,10 +762,12 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Description update semantics**:
+
 - Omit `description` to keep the existing value.
 - Send `description: ""` (or whitespace) to clear it to `null`.
 
 **Response Body** (200):
+
 ```json
 {
   "unit": {
@@ -708,6 +782,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Updated successfully
 - `400`: Missing/invalid required fields
 - `403`: Unauthorized (not owner and not admin, or trying to move to unowned subject)
@@ -717,11 +792,13 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ### DELETE `/units/:unitId`
+
 **Summary**: Deletes a unit (admin can delete any, teachers only their own) - returns deleted unit data
 
 **Request Body**: None
 
 **Response Body** (200):
+
 ```json
 {
   "unit": {
@@ -736,6 +813,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Deleted successfully
 - `403`: Unauthorized (not owner and not admin)
 - `404`: Unit not found
@@ -746,9 +824,11 @@ All API endpoints except login/logout require authentication via JWT token in th
 ## Lessons Endpoints (`/lessons`)
 
 ### POST `/lessons`
+
 **Summary**: Creates a new lesson within a unit
 
 **Request Body** (Form Data):
+
 ```json
 {
   "name": "string (required)",
@@ -763,6 +843,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 **Additional**: File upload via `file` field (required for PDF/Word content_type)
 
 **Response Body** (201 for text, 201 for files):
+
 ```json
 // Text lessons
 {
@@ -789,6 +870,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `201`: Created successfully
 - `400`: Missing/invalid required fields, invalid content_type, or file type mismatch
 - `403`: Unauthorized (unit not owned by teacher)
@@ -796,6 +878,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 - `500`: Internal server error
 
 **Quirks**:
+
 - For `content_type: "text"`: Provide `content` field with lesson text
 - For `content_type: "pdf"` or `content_type: "word"`: Upload file via `file` field, content extraction is placeholder (TODO)
 - File validation checks MIME type and file extension
@@ -804,11 +887,13 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ### GET `/lessons/mine`
+
 **Summary**: Gets all lessons owned by the authenticated teacher
 
 **Request Body**: None
 
 **Response Body** (200):
+
 ```json
 {
   "lessons": [
@@ -826,17 +911,20 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Success
 - `500`: Internal server error
 
 ---
 
 ### GET `/lessons/unit/:unitId`
+
 **Summary**: Gets all lessons within a specific unit (admin can access any unit, teachers only their own units)
 
 **Request Body**: None
 
 **Response Body** (200):
+
 ```json
 {
   "lessons": [
@@ -854,6 +942,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Success
 - `403`: Unauthorized (not unit owner and not admin)
 - `404`: Unit not found
@@ -862,11 +951,13 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ### GET `/lessons/:lessonId`
+
 **Summary**: Gets a specific lesson by ID (admin can access any, teachers only their own)
 
 **Request Body**: None
 
 **Response Body** (200):
+
 ```json
 {
   "lesson": {
@@ -882,6 +973,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Success
 - `403`: Unauthorized (not owner and not admin)
 - `404`: Lesson not found
@@ -890,11 +982,13 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ### GET `/lessons`
+
 **Summary**: Gets all lessons in the system (admin only)
 
 **Request Body**: None
 
 **Response Body** (200):
+
 ```json
 {
   "lessons": [
@@ -912,6 +1006,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Success
 - `403`: Forbidden (not admin)
 - `500`: Internal server error
@@ -919,9 +1014,11 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ### PUT `/lessons/:lessonId`
+
 **Summary**: Updates a lesson (admin can update any, teachers only their own)
 
 **Request Body**:
+
 ```json
 {
   "name": "string (required)",
@@ -932,10 +1029,12 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Description update semantics**:
+
 - Omit `description` to keep the existing value.
 - Send `description: ""` (or whitespace) to clear it to `null`.
 
 **Response Body** (200):
+
 ```json
 {
   "lesson": {
@@ -951,6 +1050,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Updated successfully
 - `400`: Missing/invalid required fields
 - `403`: Unauthorized (not owner and not admin, or trying to move to unowned unit)
@@ -960,11 +1060,13 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ### DELETE `/lessons/:lessonId`
+
 **Summary**: Deletes a lesson (admin can delete any, teachers only their own) - returns deleted lesson data
 
 **Request Body**: None
 
 **Response Body** (200):
+
 ```json
 {
   "lesson": {
@@ -980,6 +1082,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ```
 
 **Response Codes**:
+
 - `200`: Deleted successfully
 - `403`: Unauthorized (not owner and not admin)
 - `404`: Lesson not found
@@ -988,6 +1091,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 ---
 
 ## General Response Codes
+
 - `200`: Success
 - `201`: Created
 - `400`: Bad Request (missing/invalid parameters)
@@ -997,6 +1101,7 @@ All API endpoints except login/logout require authentication via JWT token in th
 - `500`: Internal Server Error
 
 ## Authentication Notes
+
 - All endpoints except `/auth/login` and `/auth/logout` require `Authorization: Bearer <token>` header
 - Teachers can only access/modify their own resources
 - Admins have full access to all resources

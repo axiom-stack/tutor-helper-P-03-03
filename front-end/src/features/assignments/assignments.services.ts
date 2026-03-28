@@ -14,7 +14,10 @@ import {
   getCachedAssignments,
   saveAssignmentOffline,
 } from '../../offline/assignments';
-import { enqueueOfflineAction, upsertPendingEntityAction } from '../../offline/queue';
+import {
+  enqueueOfflineAction,
+  upsertPendingEntityAction,
+} from '../../offline/queue';
 import { getReference, putReference } from '../../offline/references';
 import { isLocalOnlyId } from '../../offline/utils';
 
@@ -46,6 +49,7 @@ export interface ListAssignmentsFilters {
   lessonPlanPublicId?: string;
   lessonId?: number;
   classId?: number;
+  stage?: string;
 }
 
 type GenerateAssignmentsExtras = Pick<
@@ -85,7 +89,8 @@ export async function generateAssignments(
       return {
         queued: true,
         queue_id: queued.queue_id,
-        message: 'تم حفظ طلب توليد الواجبات محليًا وسيعاد تشغيله عند عودة الاتصال.',
+        message:
+          'تم حفظ طلب توليد الواجبات محليًا وسيعاد تشغيله عند عودة الاتصال.',
       };
     }
     throw normalizeApiError(error, 'فشل توليد الواجبات.');
@@ -126,10 +131,16 @@ export async function listAssignments(
         ) {
           return false;
         }
-        if (filters.lessonId != null && assignment.lesson_id !== filters.lessonId) {
+        if (
+          filters.lessonId != null &&
+          assignment.lesson_id !== filters.lessonId
+        ) {
           return false;
         }
-        if (filters.classId != null && assignment.class_id !== filters.classId) {
+        if (
+          filters.classId != null &&
+          assignment.class_id !== filters.classId
+        ) {
           return false;
         }
         return true;
@@ -140,9 +151,17 @@ export async function listAssignments(
   }
 }
 
-export async function getMyClasses(): Promise<{ classes: Class[] }> {
+export async function getMyClasses(
+  stage?: string
+): Promise<{ classes: Class[] }> {
   try {
-    const response = await api().get<{ classes: Class[] }>('/api/classes/mine');
+    const params: Record<string, string> = {};
+    if (stage && stage !== 'all') {
+      params.stage = stage;
+    }
+    const response = await api().get<{ classes: Class[] }>('/api/classes/mine', {
+      params,
+    });
     await putReference('classes:mine', 'classes', response.data.classes ?? []);
     return response.data;
   } catch (error: unknown) {
@@ -154,7 +173,9 @@ export async function getMyClasses(): Promise<{ classes: Class[] }> {
   }
 }
 
-export async function getAssignmentById(id: string): Promise<GetAssignmentResponse> {
+export async function getAssignmentById(
+  id: string
+): Promise<GetAssignmentResponse> {
   if (isLocalOnlyId(id)) {
     const cached = await getCachedAssignmentById(id);
     if (!cached) {
@@ -182,7 +203,15 @@ export async function getAssignmentById(id: string): Promise<GetAssignmentRespon
 
 export async function updateAssignment(
   id: string,
-  payload: Pick<Assignment, 'name' | 'description' | 'type' | 'content' | 'due_date' | 'whatsapp_message_text'>
+  payload: Pick<
+    Assignment,
+    | 'name'
+    | 'description'
+    | 'type'
+    | 'content'
+    | 'due_date'
+    | 'whatsapp_message_text'
+  >
 ): Promise<UpdateAssignmentResponse> {
   const local = await saveAssignmentOffline({ id, payload });
 
@@ -193,7 +222,7 @@ export async function updateAssignment(
 
     const response = await api().put<UpdateAssignmentResponse>(
       `/api/assignments/${local.server_id}`,
-      payload,
+      payload
     );
     const assignment = await cacheAssignment(response.data.assignment);
     return { assignment };

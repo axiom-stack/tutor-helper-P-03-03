@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
 import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router';
 import {
@@ -21,6 +27,12 @@ import type {
   Subject,
   Unit,
 } from '../../types';
+import {
+  ALLOWED_STAGES,
+  getGradesForStage,
+  getStageForGrade,
+  type StageId,
+} from '../../utils/stages';
 import {
   getScopedClasses,
   getScopedSubjects,
@@ -123,7 +135,10 @@ function getErrorMessage(
     if (typeof backendError === 'string' && backendError.trim().length > 0) {
       return backendError;
     }
-    if (typeof parsed.message === 'string' && parsed.message.trim().length > 0) {
+    if (
+      typeof parsed.message === 'string' &&
+      parsed.message.trim().length > 0
+    ) {
       return parsed.message;
     }
   }
@@ -162,7 +177,9 @@ function validateLessonFile(
     return 'حجم الملف أكبر من 25 ميجابايت.';
   }
   if (!matchesLessonFileType(file, contentType)) {
-    return contentType === 'pdf' ? 'الملف يجب أن يكون PDF.' : 'الملف يجب أن يكون DOCX.';
+    return contentType === 'pdf'
+      ? 'الملف يجب أن يكون PDF.'
+      : 'الملف يجب أن يكون DOCX.';
   }
   return null;
 }
@@ -177,7 +194,9 @@ function getLessonCreationMessage(result: CreateLessonResponse): string {
   return 'تم إنشاء الدرس بنجاح.';
 }
 
-function formatClassLabel(classItem: Pick<Class, 'grade_label' | 'section_label'>): string {
+function formatClassLabel(
+  classItem: Pick<Class, 'grade_label' | 'section_label'>
+): string {
   const gradeLabel = classItem.grade_label?.trim() ?? '';
   const sectionLabel = classItem.section_label?.trim() ?? '';
   if (gradeLabel && sectionLabel) {
@@ -204,7 +223,9 @@ function TeacherCirriculumManager(props: {
   const [lessonsByUnit, setLessonsByUnit] = useState<Record<number, Lesson[]>>(
     {}
   );
-  const [expandedUnitIds, setExpandedUnitIds] = useState<Set<number>>(new Set());
+  const [expandedUnitIds, setExpandedUnitIds] = useState<Set<number>>(
+    new Set()
+  );
 
   const [selectedClassId, setSelectedClassId] = useState<SelectValue>('');
   const [selectedSubjectId, setSelectedSubjectId] = useState<SelectValue>('');
@@ -216,23 +237,33 @@ function TeacherCirriculumManager(props: {
   const [success, setSuccess] = useState<string | null>(null);
 
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
-  const [quickAddDraft, setQuickAddDraft] = useState<QuickAddDraft | null>(null);
-  const [deleteRequest, setDeleteRequest] = useState<DeleteRequestDraft | null>(null);
+  const [quickAddDraft, setQuickAddDraft] = useState<QuickAddDraft | null>(
+    null
+  );
+  const [deleteRequest, setDeleteRequest] = useState<DeleteRequestDraft | null>(
+    null
+  );
   const [showCreatorFlow, setShowCreatorFlow] = useState(false);
 
-  const [creatorClassMode, setCreatorClassMode] = useState<ClassMode>('existing');
+  const [creatorClassMode, setCreatorClassMode] =
+    useState<ClassMode>('existing');
   const [creatorExistingClassId, setCreatorExistingClassId] =
     useState<SelectValue>('');
-  const [creatorNewClassStage, setCreatorNewClassStage] = useState<StageId>(
-    activeStage === 'all' ? 'ابتدائي' : activeStage
-  );
-  const [creatorNewClassGradeLabel, setCreatorNewClassGradeLabel] = useState('');
-  const [creatorNewClassSectionLabel, setCreatorNewClassSectionLabel] = useState('');
-  const [creatorNewClassAcademicYear, setCreatorNewClassAcademicYear] = useState('');
+  const [creatorNewClassStage, setCreatorNewClassStage] =
+    useState<StageId>('ابتدائي');
+  const [creatorNewClassGradeLabel, setCreatorNewClassGradeLabel] =
+    useState('');
+  const [creatorNewClassSectionLabel, setCreatorNewClassSectionLabel] =
+    useState('');
+  const [creatorNewClassAcademicYear, setCreatorNewClassAcademicYear] =
+    useState('');
   const [creatorNewClassDefaultDuration, setCreatorNewClassDefaultDuration] =
-    useState<number>(() => user?.profile?.default_lesson_duration_minutes ?? 45);
+    useState<number>(
+      () => user?.profile?.default_lesson_duration_minutes ?? 45
+    );
 
-  const [creatorSubjectMode, setCreatorSubjectMode] = useState<LevelMode>('skip');
+  const [creatorSubjectMode, setCreatorSubjectMode] =
+    useState<LevelMode>('skip');
   const [creatorExistingSubjectId, setCreatorExistingSubjectId] =
     useState<SelectValue>('');
   const [creatorNewSubjectName, setCreatorNewSubjectName] = useState('');
@@ -240,12 +271,15 @@ function TeacherCirriculumManager(props: {
     useState('');
 
   const [creatorUnitMode, setCreatorUnitMode] = useState<LevelMode>('skip');
-  const [creatorExistingUnitId, setCreatorExistingUnitId] = useState<SelectValue>('');
+  const [creatorExistingUnitId, setCreatorExistingUnitId] =
+    useState<SelectValue>('');
   const [creatorNewUnitName, setCreatorNewUnitName] = useState('');
-  const [creatorNewUnitDescription, setCreatorNewUnitDescription] = useState('');
+  const [creatorNewUnitDescription, setCreatorNewUnitDescription] =
+    useState('');
   const [creatorSubjectUnits, setCreatorSubjectUnits] = useState<Unit[]>([]);
 
-  const [creatorLessonMode, setCreatorLessonMode] = useState<LessonMode>('skip');
+  const [creatorLessonMode, setCreatorLessonMode] =
+    useState<LessonMode>('skip');
   const [creatorLessonName, setCreatorLessonName] = useState('');
   const [creatorLessonDescription, setCreatorLessonDescription] = useState('');
   const [creatorLessonContentType, setCreatorLessonContentType] =
@@ -258,17 +292,19 @@ function TeacherCirriculumManager(props: {
   const selectedClass =
     selectedClassId === ''
       ? null
-      : classes.find((classItem) => classItem.id === selectedClassId) ?? null;
+      : (classes.find((classItem) => classItem.id === selectedClassId) ?? null);
   const selectedSubject =
     selectedSubjectId === ''
       ? null
-      : subjects.find((subjectItem) => subjectItem.id === selectedSubjectId) ??
-        null;
+      : (subjects.find((subjectItem) => subjectItem.id === selectedSubjectId) ??
+        null);
 
   const subjectsForSelectedClass =
     selectedClassId === ''
       ? []
-      : subjects.filter((subjectItem) => subjectItem.class_id === selectedClassId);
+      : subjects.filter(
+          (subjectItem) => subjectItem.class_id === selectedClassId
+        );
 
   const creatorSubjectsForClass =
     creatorClassMode === 'existing' && creatorExistingClassId !== ''
@@ -316,10 +352,7 @@ function TeacherCirriculumManager(props: {
     if (creatorSubjectMode === 'existing' && creatorExistingSubjectId === '') {
       return false;
     }
-    if (
-      creatorSubjectMode === 'new' &&
-      !creatorNewSubjectName.trim()
-    ) {
+    if (creatorSubjectMode === 'new' && !creatorNewSubjectName.trim()) {
       return false;
     }
 
@@ -329,10 +362,7 @@ function TeacherCirriculumManager(props: {
     if (creatorUnitMode === 'existing' && creatorExistingUnitId === '') {
       return false;
     }
-    if (
-      creatorUnitMode === 'new' &&
-      !creatorNewUnitName.trim()
-    ) {
+    if (creatorUnitMode === 'new' && !creatorNewUnitName.trim()) {
       return false;
     }
 
@@ -372,11 +402,11 @@ function TeacherCirriculumManager(props: {
     if (quickAddDraft.kind === 'class') {
       return Boolean(
         quickAddDraft.stage &&
-          quickAddDraft.gradeLabel?.trim() &&
-          quickAddDraft.sectionLabel?.trim() &&
-          quickAddDraft.academicYear?.trim() &&
-          Number.isInteger(quickAddDraft.defaultDurationMinutes) &&
-          Number(quickAddDraft.defaultDurationMinutes) > 0
+        quickAddDraft.gradeLabel?.trim() &&
+        quickAddDraft.sectionLabel?.trim() &&
+        quickAddDraft.academicYear?.trim() &&
+        Number.isInteger(quickAddDraft.defaultDurationMinutes) &&
+        Number(quickAddDraft.defaultDurationMinutes) > 0
       );
     }
 
@@ -435,17 +465,21 @@ function TeacherCirriculumManager(props: {
         getScopedSubjects('admin'),
       ]);
       const tid = scope.selectedTeacherId;
-      setClasses((classesResponse.classes ?? []).filter((c) => c.teacher_id === tid));
-      setSubjects((subjectsResponse.subjects ?? []).filter((s) => s.teacher_id === tid));
+      setClasses(
+        (classesResponse.classes ?? []).filter((c) => c.teacher_id === tid)
+      );
+      setSubjects(
+        (subjectsResponse.subjects ?? []).filter((s) => s.teacher_id === tid)
+      );
     } else {
       const [classesResponse, subjectsResponse] = await Promise.all([
-        getMyClasses(activeStage),
-        getMySubjects(activeStage),
+        getMyClasses(),
+        getMySubjects(),
       ]);
       setClasses(classesResponse.classes ?? []);
       setSubjects(subjectsResponse.subjects ?? []);
     }
-  }, [scope?.role, scope?.selectedTeacherId, activeStage]);
+  }, [scope?.role, scope?.selectedTeacherId]);
 
   const loadHierarchyForSubject = useCallback(async (subjectId: number) => {
     const requestId = ++hierarchyRequestIdRef.current;
@@ -495,7 +529,7 @@ function TeacherCirriculumManager(props: {
   const resetCreatorForm = () => {
     setCreatorClassMode('existing');
     setCreatorExistingClassId('');
-    setCreatorNewClassStage(activeStage === 'all' ? 'ابتدائي' : activeStage);
+    setCreatorNewClassStage('ابتدائي');
     setCreatorNewClassGradeLabel('');
     setCreatorNewClassSectionLabel('');
     setCreatorNewClassAcademicYear('');
@@ -544,8 +578,8 @@ function TeacherCirriculumManager(props: {
     const timeoutId = window.setTimeout(() => {
       if (!cancelled) {
         setLoading(false);
-        setError((prev) =>
-          prev ?? 'تعذر تحميل بيانات المنهج. تحقق من الاتصال بالخادم.'
+        setError(
+          (prev) => prev ?? 'تعذر تحميل بيانات المنهج. تحقق من الاتصال بالخادم.'
         );
         toast.error('تعذر تحميل بيانات المنهج. تحقق من الاتصال بالخادم.');
       }
@@ -558,17 +592,23 @@ function TeacherCirriculumManager(props: {
       try {
         if (scope?.role === 'admin' && scope?.selectedTeacherId) {
           const [classesResponse, subjectsResponse] = await Promise.all([
-            getScopedClasses('admin', activeStage),
-            getScopedSubjects('admin', activeStage),
+            getScopedClasses('admin'),
+            getScopedSubjects('admin'),
           ]);
           if (cancelled) return;
           const tid = scope.selectedTeacherId;
-          setClasses((classesResponse.classes ?? []).filter((c) => c.teacher_id === tid));
-          setSubjects((subjectsResponse.subjects ?? []).filter((s) => s.teacher_id === tid));
+          setClasses(
+            (classesResponse.classes ?? []).filter((c) => c.teacher_id === tid)
+          );
+          setSubjects(
+            (subjectsResponse.subjects ?? []).filter(
+              (s) => s.teacher_id === tid
+            )
+          );
         } else {
           const [classesResponse, subjectsResponse] = await Promise.all([
-            getMyClasses(activeStage),
-            getMySubjects(activeStage),
+            getMyClasses(),
+            getMySubjects(),
           ]);
           if (cancelled) return;
           setClasses(classesResponse.classes ?? []);
@@ -592,7 +632,7 @@ function TeacherCirriculumManager(props: {
       cancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, [scope?.role, scope?.selectedTeacherId, user?.userRole, activeStage]);
+  }, [scope?.role, scope?.selectedTeacherId, user?.userRole]);
 
   useEffect(() => {
     if (selectedSubjectId === '') {
@@ -627,7 +667,9 @@ function TeacherCirriculumManager(props: {
         if (requestId !== creatorUnitsRequestIdRef.current) {
           return;
         }
-        setError(getErrorMessage(loadError, 'فشل تحميل وحدات المادة المختارة.'));
+        setError(
+          getErrorMessage(loadError, 'فشل تحميل وحدات المادة المختارة.')
+        );
       });
   }, [creatorSubjectMode, creatorExistingSubjectId]);
 
@@ -688,12 +730,13 @@ function TeacherCirriculumManager(props: {
       kind: 'class',
       name: '',
       description: '',
-      stage: activeStage === 'all' ? 'ابتدائي' : activeStage,
+      stage: 'ابتدائي',
       gradeLabel: '',
       sectionLabel: '',
       section: 'أ',
       academicYear: '',
-      defaultDurationMinutes: user?.profile?.default_lesson_duration_minutes ?? 45,
+      defaultDurationMinutes:
+        user?.profile?.default_lesson_duration_minutes ?? 45,
     });
   };
 
@@ -842,7 +885,10 @@ function TeacherCirriculumManager(props: {
       id: selectedClass.id,
       name: '',
       description: '',
-      stage: (selectedClass.stage as StageId) || getStageForGrade(selectedClass.grade_label) || (activeStage === 'all' ? 'ابتدائي' : activeStage),
+      stage:
+        (selectedClass.stage as StageId) ||
+        getStageForGrade(selectedClass.grade_label) ||
+        'ابتدائي',
       gradeLabel: selectedClass.grade_label,
       sectionLabel: selectedClass.section_label,
       section: selectedClass.section,
@@ -1022,7 +1068,9 @@ function TeacherCirriculumManager(props: {
       if (kind === 'class') {
         await deleteClass(id);
         setClasses((previous) => previous.filter((item) => item.id !== id));
-        setSubjects((previous) => previous.filter((item) => item.class_id !== id));
+        setSubjects((previous) =>
+          previous.filter((item) => item.class_id !== id)
+        );
         if (selectedClassId === id) {
           setSelectedClassId('');
           setSelectedSubjectId('');
@@ -1294,336 +1342,370 @@ function TeacherCirriculumManager(props: {
       </header>
 
       <div className="tcm2__grid">
-          <section className="tcm2__panel">
-            <div className="tcm2__panel-head">
-              <h2>
-                <MdSchool aria-hidden />
-                هيكل المنهج
-              </h2>
-              <span>
-                {units.length} وحدة / {totalLessons} درس
-              </span>
-            </div>
+        <section className="tcm2__panel">
+          <div className="tcm2__panel-head">
+            <h2>
+              <MdSchool aria-hidden />
+              هيكل المنهج
+            </h2>
+            <span>
+              {units.length} وحدة / {totalLessons} درس
+            </span>
+          </div>
 
-            <div className="tcm2__selectors">
-              <div className="tcm2__field">
-                <div className="tcm2__selector-row">
-                  <label htmlFor="active-class">الصف</label>
-                  <div className="tcm2__selector-actions">
-                    <button
-                      type="button"
-                      className="tcm2__primary-soft tcm2__quick-select-btn"
-                      onClick={openQuickAddClass}
-                    >
-                      <MdAdd aria-hidden />
-                      إضافة صف
-                    </button>
-                    <button
-                      type="button"
-                      className="tcm2__danger tcm2__quick-select-btn"
-                      onClick={() =>
-                        selectedClassId !== ''
-                          ? requestDeleteEntity('class', selectedClassId, 'هذا الصف')
-                          : undefined
-                      }
-                      disabled={selectedClassId === ''}
-                    >
-                      <MdDelete aria-hidden />
-                      حذف الصف
-                    </button>
-                  </div>
-                </div>
-                <select
-                  id="active-class"
-                  aria-label="اختيار الصف"
-                  value={selectedClassId}
-                  onChange={(event) =>
-                    handleClassChange(
-                      event.target.value ? Number(event.target.value) : ''
-                    )
-                  }
-                >
-                  <option value="">اختر الصف</option>
-                  {classes.map((classItem) => (
-                    <option key={classItem.id} value={classItem.id}>
-                      {formatClassLabel(classItem)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="tcm2__field">
-                <div className="tcm2__selector-row">
-                  <label htmlFor="active-subject">المادة</label>
-                  <div className="tcm2__selector-actions">
-                    <button
-                      type="button"
-                      className="tcm2__primary-soft tcm2__quick-select-btn"
-                      onClick={() =>
-                        selectedClassId !== ''
-                          ? openQuickAddSubject(selectedClassId)
-                          : undefined
-                      }
-                      disabled={selectedClassId === ''}
-                    >
-                      <MdAdd aria-hidden />
-                      إضافة مادة
-                    </button>
-                  </div>
-                </div>
-                <select
-                  id="active-subject"
-                  aria-label="اختيار المادة"
-                  value={selectedSubjectId}
-                  onChange={(event) =>
-                    handleSubjectChange(
-                      event.target.value ? Number(event.target.value) : ''
-                    )
-                  }
-                  disabled={selectedClassId === ''}
-                >
-                  <option value="">اختر المادة</option>
-                  {subjectsForSelectedClass.map((subjectItem) => (
-                    <option key={subjectItem.id} value={subjectItem.id}>
-                      {subjectItem.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {selectedClass && (
-              <div className="tcm2__meta">
-                <div>
-                  <h3>
-                    <MdSchool aria-hidden />
-                    {formatClassLabel(selectedClass)}
-                  </h3>
-                  <p>
-                    المرحلة: {selectedClass.stage} | الصف: {selectedClass.grade_label} | الشعبة:{' '}
-                    {selectedClass.section_label}
-                  </p>
-                  <p>
-                    العام الدراسي: {selectedClass.academic_year} | المدة الافتراضية:{' '}
-                    {selectedClass.default_duration_minutes} دقيقة
-                  </p>
-                </div>
-                <div className="tcm2__meta-actions">
-                  <button type="button" onClick={openEditForSelectedClass}>
-                    <MdEdit aria-hidden />
-                    تعديل
-                  </button>
+          <div className="tcm2__selectors">
+            <div className="tcm2__field">
+              <div className="tcm2__selector-row">
+                <label htmlFor="active-class">الصف</label>
+                <div className="tcm2__selector-actions">
                   <button
                     type="button"
-                    className="tcm2__danger"
-                    onClick={() =>
-                      requestDeleteEntity('class', selectedClass.id, 'هذا الصف')
-                    }
-                    disabled={saving}
-                  >
-                    <MdDelete aria-hidden />
-                    حذف
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {selectedSubject && (
-              <div className="tcm2__meta">
-                <div>
-                  <h3>
-                    <MdSubject aria-hidden />
-                    {selectedSubject.name}
-                  </h3>
-                  <p>{selectedSubject.description?.trim() || 'لا يوجد وصف للمادة.'}</p>
-                </div>
-                <div className="tcm2__meta-actions">
-                  <button
-                    type="button"
-                    className="tcm2__primary-soft"
-                    onClick={() => openQuickAddUnit(selectedSubject.id)}
+                    className="tcm2__primary-soft tcm2__quick-select-btn"
+                    onClick={openQuickAddClass}
                   >
                     <MdAdd aria-hidden />
-                    إضافة وحدة
-                  </button>
-                  <button type="button" onClick={openEditForSelectedSubject}>
-                    <MdEdit aria-hidden />
-                    تعديل
+                    إضافة صف
                   </button>
                   <button
                     type="button"
-                    className="tcm2__danger"
+                    className="tcm2__danger tcm2__quick-select-btn"
                     onClick={() =>
-                      requestDeleteEntity('subject', selectedSubject.id, 'هذه المادة')
+                      selectedClassId !== ''
+                        ? requestDeleteEntity(
+                            'class',
+                            selectedClassId,
+                            'هذا الصف'
+                          )
+                        : undefined
                     }
-                    disabled={saving}
+                    disabled={selectedClassId === ''}
                   >
                     <MdDelete aria-hidden />
-                    حذف
+                    حذف الصف
                   </button>
                 </div>
               </div>
-            )}
-
-            <div className="tcm2__helper-actions">
-              <button
-                type="button"
-                className="tcm2__primary-soft"
-                onClick={() =>
-                  selectedSubject ? openQuickAddUnit(selectedSubject.id) : undefined
+              <select
+                id="active-class"
+                aria-label="اختيار الصف"
+                value={selectedClassId}
+                onChange={(event) =>
+                  handleClassChange(
+                    event.target.value ? Number(event.target.value) : ''
+                  )
                 }
-                disabled={!selectedSubject}
               >
-                <MdAdd aria-hidden />
-                إضافة وحدة للمادة
-              </button>
-              <button
-                type="button"
-                className="tcm2__primary-soft"
-                onClick={() =>
-                  units[0] ? openQuickAddLesson(units[0].id) : undefined
-                }
-                disabled={!selectedSubject || units.length === 0}
-              >
-                <MdAdd aria-hidden />
-                إضافة درس سريع
-              </button>
+                <option value="">اختر الصف</option>
+                {classes.map((classItem) => (
+                  <option key={classItem.id} value={classItem.id}>
+                    {formatClassLabel(classItem)}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {!selectedSubject ? (
-              <div className="tcm2__empty">
-                اختر الصف ثم المادة لعرض الهيكل.
+            <div className="tcm2__field">
+              <div className="tcm2__selector-row">
+                <label htmlFor="active-subject">المادة</label>
+                <div className="tcm2__selector-actions">
+                  <button
+                    type="button"
+                    className="tcm2__primary-soft tcm2__quick-select-btn"
+                    onClick={() =>
+                      selectedClassId !== ''
+                        ? openQuickAddSubject(selectedClassId)
+                        : undefined
+                    }
+                    disabled={selectedClassId === ''}
+                  >
+                    <MdAdd aria-hidden />
+                    إضافة مادة
+                  </button>
+                </div>
               </div>
-            ) : hierarchyLoading ? (
-              <div className="tcm2__loading">جاري تحميل الوحدات والدروس...</div>
-            ) : units.length === 0 ? (
-              <div className="tcm2__empty">لا توجد وحدات بعد لهذه المادة.</div>
-            ) : (
-              <div className="tcm2__hierarchy">
-                {units.map((unitItem) => {
-                  const unitLessons = lessonsByUnit[unitItem.id] ?? [];
-                  const isExpanded = expandedUnitIds.has(unitItem.id);
+              <select
+                id="active-subject"
+                aria-label="اختيار المادة"
+                value={selectedSubjectId}
+                onChange={(event) =>
+                  handleSubjectChange(
+                    event.target.value ? Number(event.target.value) : ''
+                  )
+                }
+                disabled={selectedClassId === ''}
+              >
+                <option value="">اختر المادة</option>
+                {subjectsForSelectedClass.map((subjectItem) => (
+                  <option key={subjectItem.id} value={subjectItem.id}>
+                    {subjectItem.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-                  return (
-                    <article key={unitItem.id} className="tcm2__unit animate-fadeIn">
-                      <header className="tcm2__unit-head">
+          {selectedClass && (
+            <div className="tcm2__meta">
+              <div>
+                <h3>
+                  <MdSchool aria-hidden />
+                  {formatClassLabel(selectedClass)}
+                </h3>
+                <p>
+                  المرحلة: {selectedClass.stage} | الصف:{' '}
+                  {selectedClass.grade_label} | الشعبة:{' '}
+                  {selectedClass.section_label}
+                </p>
+                <p>
+                  العام الدراسي: {selectedClass.academic_year} | المدة
+                  الافتراضية: {selectedClass.default_duration_minutes} دقيقة
+                </p>
+              </div>
+              <div className="tcm2__meta-actions">
+                <button type="button" onClick={openEditForSelectedClass}>
+                  <MdEdit aria-hidden />
+                  تعديل
+                </button>
+                <button
+                  type="button"
+                  className="tcm2__danger"
+                  onClick={() =>
+                    requestDeleteEntity('class', selectedClass.id, 'هذا الصف')
+                  }
+                  disabled={saving}
+                >
+                  <MdDelete aria-hidden />
+                  حذف
+                </button>
+              </div>
+            </div>
+          )}
+
+          {selectedSubject && (
+            <div className="tcm2__meta">
+              <div>
+                <h3>
+                  <MdSubject aria-hidden />
+                  {selectedSubject.name}
+                </h3>
+                <p>
+                  {selectedSubject.description?.trim() || 'لا يوجد وصف للمادة.'}
+                </p>
+              </div>
+              <div className="tcm2__meta-actions">
+                <button
+                  type="button"
+                  className="tcm2__primary-soft"
+                  onClick={() => openQuickAddUnit(selectedSubject.id)}
+                >
+                  <MdAdd aria-hidden />
+                  إضافة وحدة
+                </button>
+                <button type="button" onClick={openEditForSelectedSubject}>
+                  <MdEdit aria-hidden />
+                  تعديل
+                </button>
+                <button
+                  type="button"
+                  className="tcm2__danger"
+                  onClick={() =>
+                    requestDeleteEntity(
+                      'subject',
+                      selectedSubject.id,
+                      'هذه المادة'
+                    )
+                  }
+                  disabled={saving}
+                >
+                  <MdDelete aria-hidden />
+                  حذف
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="tcm2__helper-actions">
+            <button
+              type="button"
+              className="tcm2__primary-soft"
+              onClick={() =>
+                selectedSubject
+                  ? openQuickAddUnit(selectedSubject.id)
+                  : undefined
+              }
+              disabled={!selectedSubject}
+            >
+              <MdAdd aria-hidden />
+              إضافة وحدة للمادة
+            </button>
+            <button
+              type="button"
+              className="tcm2__primary-soft"
+              onClick={() =>
+                units[0] ? openQuickAddLesson(units[0].id) : undefined
+              }
+              disabled={!selectedSubject || units.length === 0}
+            >
+              <MdAdd aria-hidden />
+              إضافة درس سريع
+            </button>
+          </div>
+
+          {!selectedSubject ? (
+            <div className="tcm2__empty">اختر الصف ثم المادة لعرض الهيكل.</div>
+          ) : hierarchyLoading ? (
+            <div className="tcm2__loading">جاري تحميل الوحدات والدروس...</div>
+          ) : units.length === 0 ? (
+            <div className="tcm2__empty">لا توجد وحدات بعد لهذه المادة.</div>
+          ) : (
+            <div className="tcm2__hierarchy">
+              {units.map((unitItem) => {
+                const unitLessons = lessonsByUnit[unitItem.id] ?? [];
+                const isExpanded = expandedUnitIds.has(unitItem.id);
+
+                return (
+                  <article
+                    key={unitItem.id}
+                    className="tcm2__unit animate-fadeIn"
+                  >
+                    <header className="tcm2__unit-head">
+                      <button
+                        type="button"
+                        className="tcm2__unit-toggle"
+                        onClick={() => toggleUnitExpansion(unitItem.id)}
+                      >
+                        {isExpanded ? (
+                          <MdExpandLess aria-hidden />
+                        ) : (
+                          <MdExpandMore aria-hidden />
+                        )}
+                        <span>{unitItem.name}</span>
+                        <small>{unitLessons.length} درس</small>
+                      </button>
+                      <div className="tcm2__row-actions">
                         <button
                           type="button"
-                          className="tcm2__unit-toggle"
-                          onClick={() => toggleUnitExpansion(unitItem.id)}
+                          className="tcm2__primary-soft"
+                          onClick={() => openQuickAddLesson(unitItem.id)}
                         >
-                          {isExpanded ? (
-                            <MdExpandLess aria-hidden />
-                          ) : (
-                            <MdExpandMore aria-hidden />
-                          )}
-                          <span>{unitItem.name}</span>
-                          <small>{unitLessons.length} درس</small>
+                          <MdAdd aria-hidden />
+                          درس
                         </button>
-                        <div className="tcm2__row-actions">
-                          <button
-                            type="button"
-                            className="tcm2__primary-soft"
-                            onClick={() => openQuickAddLesson(unitItem.id)}
-                          >
-                            <MdAdd aria-hidden />
-                            درس
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => openEditForUnit(unitItem)}
-                          >
-                            <MdEdit aria-hidden />
-                            تعديل
-                          </button>
-                          <button
-                            type="button"
-                            className="tcm2__danger"
-                            onClick={() =>
-                              requestDeleteEntity('unit', unitItem.id, 'هذه الوحدة')
-                            }
-                            disabled={saving}
-                          >
-                            <MdDelete aria-hidden />
-                            حذف
-                          </button>
-                        </div>
-                      </header>
+                        <button
+                          type="button"
+                          onClick={() => openEditForUnit(unitItem)}
+                        >
+                          <MdEdit aria-hidden />
+                          تعديل
+                        </button>
+                        <button
+                          type="button"
+                          className="tcm2__danger"
+                          onClick={() =>
+                            requestDeleteEntity(
+                              'unit',
+                              unitItem.id,
+                              'هذه الوحدة'
+                            )
+                          }
+                          disabled={saving}
+                        >
+                          <MdDelete aria-hidden />
+                          حذف
+                        </button>
+                      </div>
+                    </header>
 
-                      {isExpanded && (
-                        <div className="tcm2__unit-body">
-                          <p className="tcm2__unit-description">
-                            {unitItem.description?.trim() || 'لا يوجد وصف للوحدة.'}
+                    {isExpanded && (
+                      <div className="tcm2__unit-body">
+                        <p className="tcm2__unit-description">
+                          {unitItem.description?.trim() ||
+                            'لا يوجد وصف للوحدة.'}
+                        </p>
+                        {unitLessons.length === 0 ? (
+                          <p className="tcm2__empty-small">
+                            لا توجد دروس داخل هذه الوحدة.
                           </p>
-                          {unitLessons.length === 0 ? (
-                            <p className="tcm2__empty-small">
-                              لا توجد دروس داخل هذه الوحدة.
-                            </p>
-                          ) : (
-                            <ul className="tcm2__lesson-list">
-                              {unitLessons.map((lessonItem) => (
-                                <li key={lessonItem.id} className="tcm2__lesson-row animate-fadeIn">
-                                  <div className="tcm2__lesson-main">
-                                    <MdMenuBook aria-hidden />
-                                    <div>
-                                      <strong>{lessonItem.name}</strong>
-                                      <p>{lessonItem.description?.trim() || 'لا يوجد وصف للدرس.'}</p>
-                                      <small>
-                                        عدد الحصص: {Number(lessonItem.number_of_periods ?? 1)}
-                                      </small>
-                                    </div>
+                        ) : (
+                          <ul className="tcm2__lesson-list">
+                            {unitLessons.map((lessonItem) => (
+                              <li
+                                key={lessonItem.id}
+                                className="tcm2__lesson-row animate-fadeIn"
+                              >
+                                <div className="tcm2__lesson-main">
+                                  <MdMenuBook aria-hidden />
+                                  <div>
+                                    <strong>{lessonItem.name}</strong>
+                                    <p>
+                                      {lessonItem.description?.trim() ||
+                                        'لا يوجد وصف للدرس.'}
+                                    </p>
+                                    <small>
+                                      عدد الحصص:{' '}
+                                      {Number(
+                                        lessonItem.number_of_periods ?? 1
+                                      )}
+                                    </small>
                                   </div>
-                                  <div className="tcm2__row-actions">
-                                    <button
-                                      type="button"
-                                      onClick={() => openEditForLesson(lessonItem)}
-                                    >
-                                      <MdEdit aria-hidden />
-                                      تعديل
-                                    </button>
-                                    <button
+                                </div>
+                                <div className="tcm2__row-actions">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      openEditForLesson(lessonItem)
+                                    }
+                                  >
+                                    <MdEdit aria-hidden />
+                                    تعديل
+                                  </button>
+                                  <button
                                     type="button"
                                     className="tcm2__danger"
                                     onClick={() =>
-                                        requestDeleteEntity('lesson', lessonItem.id, 'هذا الدرس')
-                                      }
+                                      requestDeleteEntity(
+                                        'lesson',
+                                        lessonItem.id,
+                                        'هذا الدرس'
+                                      )
+                                    }
                                     disabled={saving}
                                   >
-                                      <MdDelete aria-hidden />
-                                      حذف
-                                    </button>
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      )}
-                    </article>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          <section className="tcm2__panel">
-            <div className="tcm2__panel-head">
-              <h2>
-                <MdViewModule aria-hidden />
-                إنشاء متكامل - اختياري
-              </h2>
-              <button
-                type="button"
-                onClick={() => setShowCreatorFlow((previous) => !previous)}
-              >
-                {showCreatorFlow ? 'إخفاء' : 'إظهار'}
-              </button>
+                                    <MdDelete aria-hidden />
+                                    حذف
+                                  </button>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
             </div>
+          )}
+        </section>
 
-            {showCreatorFlow ? (
-              <form className="tcm2__form" onSubmit={handleCreatorSubmit}>
-                <p className="tcm2__required-note">الحقول التي عليها * مطلوبة.</p>
-                <div className="tcm2__step">
+        <section className="tcm2__panel">
+          <div className="tcm2__panel-head">
+            <h2>
+              <MdViewModule aria-hidden />
+              إنشاء متكامل - اختياري
+            </h2>
+            <button
+              type="button"
+              onClick={() => setShowCreatorFlow((previous) => !previous)}
+            >
+              {showCreatorFlow ? 'إخفاء' : 'إظهار'}
+            </button>
+          </div>
+
+          {showCreatorFlow ? (
+            <form className="tcm2__form" onSubmit={handleCreatorSubmit}>
+              <p className="tcm2__required-note">الحقول التي عليها * مطلوبة.</p>
+              <div className="tcm2__step">
                 <h3>1) الصف</h3>
                 <div className="tcm2__mode-toggle">
                   <button
@@ -1637,7 +1719,9 @@ function TeacherCirriculumManager(props: {
                   </button>
                   <button
                     type="button"
-                    className={creatorClassMode === 'new' ? 'tcm2__mode-active' : ''}
+                    className={
+                      creatorClassMode === 'new' ? 'tcm2__mode-active' : ''
+                    }
                     onClick={() => setCreatorClassMode('new')}
                   >
                     إنشاء صف جديد
@@ -1646,7 +1730,9 @@ function TeacherCirriculumManager(props: {
 
                 {creatorClassMode === 'existing' ? (
                   <div className="tcm2__field">
-                    <label htmlFor="creator-existing-class">الصف الحالي *</label>
+                    <label htmlFor="creator-existing-class">
+                      الصف الحالي *
+                    </label>
                     <select
                       id="creator-existing-class"
                       value={creatorExistingClassId}
@@ -1678,9 +1764,7 @@ function TeacherCirriculumManager(props: {
                 ) : (
                   <div className="tcm2__inline-grid">
                     <div className="tcm2__field">
-                      <label htmlFor="creator-new-class-stage">
-                        المرحلة *
-                      </label>
+                      <label htmlFor="creator-new-class-stage">المرحلة *</label>
                       <select
                         id="creator-new-class-stage"
                         value={creatorNewClassStage}
@@ -1688,7 +1772,11 @@ function TeacherCirriculumManager(props: {
                           const nextStage = event.target.value as StageId;
                           setCreatorNewClassStage(nextStage);
                           // Reset grade if not in the new stage
-                          if (creatorNewClassGradeLabel && getStageForGrade(creatorNewClassGradeLabel) !== nextStage) {
+                          if (
+                            creatorNewClassGradeLabel &&
+                            getStageForGrade(creatorNewClassGradeLabel) !==
+                              nextStage
+                          ) {
                             setCreatorNewClassGradeLabel('');
                           }
                         }}
@@ -1712,15 +1800,19 @@ function TeacherCirriculumManager(props: {
                         }
                       >
                         <option value="">اختر الصف</option>
-                        {getGradesForStage(creatorNewClassStage).map((label) => (
-                          <option key={label} value={label}>
-                            {label}
-                          </option>
-                        ))}
+                        {getGradesForStage(creatorNewClassStage).map(
+                          (label) => (
+                            <option key={label} value={label}>
+                              {label}
+                            </option>
+                          )
+                        )}
                       </select>
                     </div>
                     <div className="tcm2__field">
-                      <label htmlFor="creator-new-class-section-label">الشعبة *</label>
+                      <label htmlFor="creator-new-class-section-label">
+                        الشعبة *
+                      </label>
                       <input
                         id="creator-new-class-section-label"
                         type="text"
@@ -1751,7 +1843,9 @@ function TeacherCirriculumManager(props: {
                         id="creator-new-class-default-duration"
                         value={creatorNewClassDefaultDuration}
                         onChange={(event) =>
-                          setCreatorNewClassDefaultDuration(Number(event.target.value))
+                          setCreatorNewClassDefaultDuration(
+                            Number(event.target.value)
+                          )
                         }
                       >
                         {[30, 35, 40, 45, 50, 60, 90].map((d) => (
@@ -1785,7 +1879,10 @@ function TeacherCirriculumManager(props: {
                     }}
                   >
                     <option value="skip">عدم إضافة مادة</option>
-                    <option value="existing" disabled={creatorClassMode === 'new'}>
+                    <option
+                      value="existing"
+                      disabled={creatorClassMode === 'new'}
+                    >
                       استخدام مادة موجودة
                     </option>
                     <option value="new">إنشاء مادة جديدة</option>
@@ -1794,7 +1891,9 @@ function TeacherCirriculumManager(props: {
 
                 {creatorSubjectMode === 'existing' && (
                   <div className="tcm2__field">
-                      <label htmlFor="creator-existing-subject">المادة الحالية *</label>
+                    <label htmlFor="creator-existing-subject">
+                      المادة الحالية *
+                    </label>
                     <select
                       id="creator-existing-subject"
                       value={creatorExistingSubjectId}
@@ -1818,7 +1917,9 @@ function TeacherCirriculumManager(props: {
                 {creatorSubjectMode === 'new' && (
                   <div className="tcm2__inline-grid">
                     <div className="tcm2__field">
-                      <label htmlFor="creator-new-subject-name">اسم المادة *</label>
+                      <label htmlFor="creator-new-subject-name">
+                        اسم المادة *
+                      </label>
                       <input
                         id="creator-new-subject-name"
                         type="text"
@@ -1864,10 +1965,16 @@ function TeacherCirriculumManager(props: {
                     }}
                   >
                     <option value="skip">عدم إضافة وحدة</option>
-                    <option value="existing" disabled={creatorSubjectMode !== 'existing'}>
+                    <option
+                      value="existing"
+                      disabled={creatorSubjectMode !== 'existing'}
+                    >
                       استخدام وحدة موجودة
                     </option>
-                    <option value="new" disabled={creatorSubjectMode === 'skip'}>
+                    <option
+                      value="new"
+                      disabled={creatorSubjectMode === 'skip'}
+                    >
                       إنشاء وحدة جديدة
                     </option>
                   </select>
@@ -1875,7 +1982,9 @@ function TeacherCirriculumManager(props: {
 
                 {creatorUnitMode === 'existing' && (
                   <div className="tcm2__field">
-                    <label htmlFor="creator-existing-unit">الوحدة الحالية *</label>
+                    <label htmlFor="creator-existing-unit">
+                      الوحدة الحالية *
+                    </label>
                     <select
                       id="creator-existing-unit"
                       value={creatorExistingUnitId}
@@ -1899,16 +2008,22 @@ function TeacherCirriculumManager(props: {
                 {creatorUnitMode === 'new' && (
                   <div className="tcm2__inline-grid">
                     <div className="tcm2__field">
-                      <label htmlFor="creator-new-unit-name">اسم الوحدة *</label>
+                      <label htmlFor="creator-new-unit-name">
+                        اسم الوحدة *
+                      </label>
                       <input
                         id="creator-new-unit-name"
                         type="text"
                         value={creatorNewUnitName}
-                        onChange={(event) => setCreatorNewUnitName(event.target.value)}
+                        onChange={(event) =>
+                          setCreatorNewUnitName(event.target.value)
+                        }
                       />
                     </div>
                     <div className="tcm2__field">
-                      <label htmlFor="creator-new-unit-description">وصف الوحدة</label>
+                      <label htmlFor="creator-new-unit-description">
+                        وصف الوحدة
+                      </label>
                       <input
                         id="creator-new-unit-description"
                         type="text"
@@ -1954,7 +2069,9 @@ function TeacherCirriculumManager(props: {
                         />
                       </div>
                       <div className="tcm2__field">
-                        <label htmlFor="creator-lesson-description">وصف الدرس</label>
+                        <label htmlFor="creator-lesson-description">
+                          وصف الدرس
+                        </label>
                         <input
                           id="creator-lesson-description"
                           type="text"
@@ -1965,21 +2082,27 @@ function TeacherCirriculumManager(props: {
                         />
                       </div>
                       <div className="tcm2__field">
-                        <label htmlFor="creator-lesson-periods">عدد الحصص *</label>
+                        <label htmlFor="creator-lesson-periods">
+                          عدد الحصص *
+                        </label>
                         <input
                           id="creator-lesson-periods"
                           type="number"
                           min={1}
                           value={creatorLessonNumberOfPeriods}
                           onChange={(event) =>
-                            setCreatorLessonNumberOfPeriods(Number(event.target.value))
+                            setCreatorLessonNumberOfPeriods(
+                              Number(event.target.value)
+                            )
                           }
                         />
                       </div>
                     </div>
 
                     <div className="tcm2__field">
-                      <label htmlFor="creator-lesson-content-type">نوع المحتوى *</label>
+                      <label htmlFor="creator-lesson-content-type">
+                        نوع المحتوى *
+                      </label>
                       <select
                         id="creator-lesson-content-type"
                         value={creatorLessonContentType}
@@ -1998,7 +2121,9 @@ function TeacherCirriculumManager(props: {
 
                     {creatorLessonContentType === 'text' ? (
                       <div className="tcm2__field">
-                        <label htmlFor="creator-lesson-text-content">محتوى الدرس *</label>
+                        <label htmlFor="creator-lesson-text-content">
+                          محتوى الدرس *
+                        </label>
                         <textarea
                           id="creator-lesson-text-content"
                           rows={5}
@@ -2020,7 +2145,9 @@ function TeacherCirriculumManager(props: {
                               : '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
                           }
                           onChange={(event) =>
-                            setCreatorLessonFile(event.target.files?.[0] ?? null)
+                            setCreatorLessonFile(
+                              event.target.files?.[0] ?? null
+                            )
                           }
                         />
                         <small>الحد الأقصى لحجم الملف: 25 ميجابايت.</small>
@@ -2031,7 +2158,11 @@ function TeacherCirriculumManager(props: {
               </div>
 
               <div className="tcm2__form-actions">
-                <button type="button" onClick={resetCreatorForm} disabled={saving}>
+                <button
+                  type="button"
+                  onClick={resetCreatorForm}
+                  disabled={saving}
+                >
                   مسح
                 </button>
                 <button
@@ -2043,14 +2174,15 @@ function TeacherCirriculumManager(props: {
                   {saving ? 'جارٍ الحفظ...' : 'تنفيذ المسار'}
                 </button>
               </div>
-              </form>
-            ) : (
-              <div className="tcm2__empty">
-                هذا المسار ينفع إذا أردت إنشاء الصف ثم المادة ثم الوحدة ثم الدرس مرة واحدة.
-              </div>
-            )}
-          </section>
-        </div>
+            </form>
+          ) : (
+            <div className="tcm2__empty">
+              هذا المسار ينفع إذا أردت إنشاء الصف ثم المادة ثم الوحدة ثم الدرس
+              مرة واحدة.
+            </div>
+          )}
+        </section>
+      </div>
 
       <ConfirmActionModal
         isOpen={Boolean(deleteRequest)}
@@ -2079,7 +2211,10 @@ function TeacherCirriculumManager(props: {
           onClick={() => !saving && setQuickAddDraft(null)}
           role="presentation"
         >
-          <div className="tcm2__modal" onClick={(event) => event.stopPropagation()}>
+          <div
+            className="tcm2__modal"
+            onClick={(event) => event.stopPropagation()}
+          >
             <h3>
               {quickAddDraft.kind === 'class' && 'إضافة صف'}
               {quickAddDraft.kind === 'subject' && 'إضافة مادة'}
@@ -2089,8 +2224,10 @@ function TeacherCirriculumManager(props: {
             <p className="tcm2__required-note">الحقول التي عليها * مطلوبة.</p>
             {quickAddDraft.kind === 'class' && (
               <p className="tcm2__helper-note">
-                ملاحظة: إذا اخترت مرحلة غير مفعّلة لديك في الإعدادات أو مختلفة عن المرحلة الحالية في الشريط الجانبي،
-                فلن يظهر هذا الصف فوراً في القوائم. غيّر المرحلة من الشريط الجانبي أو فعّل المرحلة من صفحة الإعدادات لرؤية الصف.
+                ملاحظة: إذا اخترت مرحلة غير مفعّلة لديك في الإعدادات أو مختلفة
+                عن المرحلة الحالية في الشريط الجانبي، فلن يظهر هذا الصف فوراً في
+                القوائم. غيّر المرحلة من الشريط الجانبي أو فعّل المرحلة من صفحة
+                الإعدادات لرؤية الصف.
               </p>
             )}
 
@@ -2148,7 +2285,10 @@ function TeacherCirriculumManager(props: {
                       setQuickAddDraft((previous) => {
                         if (!previous) return previous;
                         const next = { ...previous, stage: nextStage };
-                        if (previous.gradeLabel && getStageForGrade(previous.gradeLabel) !== nextStage) {
+                        if (
+                          previous.gradeLabel &&
+                          getStageForGrade(previous.gradeLabel) !== nextStage
+                        ) {
                           next.gradeLabel = '';
                         }
                         return next;
@@ -2181,11 +2321,12 @@ function TeacherCirriculumManager(props: {
                     disabled={!quickAddDraft.stage}
                   >
                     <option value="">اختر الصف</option>
-                    {quickAddDraft.stage && getGradesForStage(quickAddDraft.stage).map((label) => (
-                      <option key={label} value={label}>
-                        {label}
-                      </option>
-                    ))}
+                    {quickAddDraft.stage &&
+                      getGradesForStage(quickAddDraft.stage).map((label) => (
+                        <option key={label} value={label}>
+                          {label}
+                        </option>
+                      ))}
                   </select>
                 </div>
                 <div className="tcm2__field">
@@ -2236,7 +2377,9 @@ function TeacherCirriculumManager(props: {
                         previous
                           ? {
                               ...previous,
-                              defaultDurationMinutes: Number(event.target.value),
+                              defaultDurationMinutes: Number(
+                                event.target.value
+                              ),
                             }
                           : previous
                       )
@@ -2284,7 +2427,8 @@ function TeacherCirriculumManager(props: {
                         previous
                           ? {
                               ...previous,
-                              contentType: event.target.value as LessonContentType,
+                              contentType: event.target
+                                .value as LessonContentType,
                               content: '',
                               file: null,
                             }
@@ -2346,7 +2490,11 @@ function TeacherCirriculumManager(props: {
             )}
 
             <div className="tcm2__form-actions">
-              <button type="button" onClick={() => setQuickAddDraft(null)} disabled={saving}>
+              <button
+                type="button"
+                onClick={() => setQuickAddDraft(null)}
+                disabled={saving}
+              >
                 إلغاء
               </button>
               <button
@@ -2369,7 +2517,10 @@ function TeacherCirriculumManager(props: {
           onClick={() => !saving && setEditDraft(null)}
           role="presentation"
         >
-          <div className="tcm2__modal" onClick={(event) => event.stopPropagation()}>
+          <div
+            className="tcm2__modal"
+            onClick={(event) => event.stopPropagation()}
+          >
             <h3>
               {editDraft.kind === 'class' && 'تعديل الصف'}
               {editDraft.kind === 'subject' && 'تعديل المادة'}
@@ -2432,7 +2583,10 @@ function TeacherCirriculumManager(props: {
                         setEditDraft((previous) => {
                           if (!previous) return previous;
                           const next = { ...previous, stage: nextStage };
-                          if (previous.gradeLabel && getStageForGrade(previous.gradeLabel) !== nextStage) {
+                          if (
+                            previous.gradeLabel &&
+                            getStageForGrade(previous.gradeLabel) !== nextStage
+                          ) {
                             next.gradeLabel = '';
                           }
                           return next;
@@ -2465,11 +2619,12 @@ function TeacherCirriculumManager(props: {
                       disabled={!editDraft.stage}
                     >
                       <option value="">اختر الصف</option>
-                      {editDraft.stage && getGradesForStage(editDraft.stage).map((label) => (
-                        <option key={label} value={label}>
-                          {label}
-                        </option>
-                      ))}
+                      {editDraft.stage &&
+                        getGradesForStage(editDraft.stage).map((label) => (
+                          <option key={label} value={label}>
+                            {label}
+                          </option>
+                        ))}
                     </select>
                   </div>
                   <div className="tcm2__field">
@@ -2494,7 +2649,9 @@ function TeacherCirriculumManager(props: {
 
                 <div className="tcm2__inline-grid">
                   <div className="tcm2__field">
-                    <label htmlFor="edit-class-academic-year">العام الدراسي</label>
+                    <label htmlFor="edit-class-academic-year">
+                      العام الدراسي
+                    </label>
                     <input
                       id="edit-class-academic-year"
                       type="text"
@@ -2523,7 +2680,9 @@ function TeacherCirriculumManager(props: {
                           previous
                             ? {
                                 ...previous,
-                                defaultDurationMinutes: Number(event.target.value),
+                                defaultDurationMinutes: Number(
+                                  event.target.value
+                                ),
                               }
                             : previous
                         )
@@ -2570,7 +2729,9 @@ function TeacherCirriculumManager(props: {
                 </div>
 
                 <div className="tcm2__field">
-                  <label htmlFor="edit-lesson-content-type">نوع المحتوى *</label>
+                  <label htmlFor="edit-lesson-content-type">
+                    نوع المحتوى *
+                  </label>
                   <select
                     id="edit-lesson-content-type"
                     value={editDraft.contentType ?? 'text'}
@@ -2579,7 +2740,8 @@ function TeacherCirriculumManager(props: {
                         previous
                           ? {
                               ...previous,
-                              contentType: event.target.value as LessonContentType,
+                              contentType: event.target
+                                .value as LessonContentType,
                               file: null,
                             }
                           : previous
@@ -2660,7 +2822,11 @@ function TeacherCirriculumManager(props: {
             )}
 
             <div className="tcm2__form-actions">
-              <button type="button" onClick={() => setEditDraft(null)} disabled={saving}>
+              <button
+                type="button"
+                onClick={() => setEditDraft(null)}
+                disabled={saving}
+              >
                 إلغاء
               </button>
               <button

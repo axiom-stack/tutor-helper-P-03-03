@@ -81,7 +81,9 @@
   line-height: 1;
   cursor: pointer;
   border-radius: var(--radius-md);
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .mobile-drawer__close:hover {
@@ -119,7 +121,9 @@
   font-weight: 500;
   color: var(--text-secondary);
   text-decoration: none;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
   min-height: 48px;
   border-inline-start: 4px solid transparent;
 }

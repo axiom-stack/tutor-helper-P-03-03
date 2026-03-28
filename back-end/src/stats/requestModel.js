@@ -50,7 +50,9 @@ function resolvePresetRange(period) {
 
 export function validateStatsQuery(query = {}, user = { role: "teacher" }) {
   const normalizedPeriod =
-    typeof query.period === "string" ? query.period.trim().toLowerCase() : "all";
+    typeof query.period === "string"
+      ? query.period.trim().toLowerCase()
+      : "all";
   const period = normalizedPeriod || "all";
 
   if (!VALID_PERIODS.includes(period)) {
@@ -83,8 +85,10 @@ export function validateStatsQuery(query = {}, user = { role: "teacher" }) {
   }
 
   if (period === "custom") {
-    const dateFromRaw = typeof query.date_from === "string" ? query.date_from.trim() : "";
-    const dateToRaw = typeof query.date_to === "string" ? query.date_to.trim() : "";
+    const dateFromRaw =
+      typeof query.date_from === "string" ? query.date_from.trim() : "";
+    const dateToRaw =
+      typeof query.date_to === "string" ? query.date_to.trim() : "";
 
     if (!dateFromRaw || !dateToRaw) {
       return {

@@ -76,7 +76,9 @@ type ExportAction = 'whatsapp' | null;
 
 const LESSON_PLAN_ID_PATTERN = /^(trd|act)_\d+$/;
 
-function pickByPriority(values: Array<string | undefined | null>): string | null {
+function pickByPriority(
+  values: Array<string | undefined | null>
+): string | null {
   for (const value of values) {
     if (typeof value !== 'string') {
       continue;
@@ -136,8 +138,13 @@ function countUniqueLessons(assignments: Assignment[]): number {
   return new Set(assignments.map((assignment) => assignment.lesson_id)).size;
 }
 
-function formatCountByType(assignments: Assignment[], type: Assignment['type']): string {
-  const count = assignments.filter((assignment) => assignment.type === type).length;
+function formatCountByType(
+  assignments: Assignment[],
+  type: Assignment['type']
+): string {
+  const count = assignments.filter(
+    (assignment) => assignment.type === type
+  ).length;
   return `${count}`;
 }
 
@@ -228,9 +235,8 @@ export default function Assignments() {
   const [classes, setClasses] = useState<Class[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<SelectValue>('');
   const [assignments, setAssignments] = useState<OfflineAssignmentRecord[]>([]);
-  const [selectedAssignment, setSelectedAssignment] = useState<OfflineAssignmentRecord | null>(
-    null
-  );
+  const [selectedAssignment, setSelectedAssignment] =
+    useState<OfflineAssignmentRecord | null>(null);
   const [activeAssignmentId, setActiveAssignmentId] = useState<string | null>(
     null
   );
@@ -241,8 +247,11 @@ export default function Assignments() {
   const [isGeneratingFromPlan, setIsGeneratingFromPlan] = useState(false);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isClassesLoading, setIsClassesLoading] = useState(false);
-  const [plansForGenerate, setPlansForGenerate] = useState<LessonPlanRecord[]>([]);
-  const [selectedPlanIdForGenerate, setSelectedPlanIdForGenerate] = useState('');
+  const [plansForGenerate, setPlansForGenerate] = useState<LessonPlanRecord[]>(
+    []
+  );
+  const [selectedPlanIdForGenerate, setSelectedPlanIdForGenerate] =
+    useState('');
   const [isPlansLoading, setIsPlansLoading] = useState(false);
   const [isEditingAssignment, setIsEditingAssignment] = useState(false);
   const [isSavingAssignment, setIsSavingAssignment] = useState(false);
@@ -252,15 +261,12 @@ export default function Assignments() {
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
   const [exportingAction, setExportingAction] = useState<ExportAction>(null);
   const [exportError, setExportError] = useState<string | null>(null);
-  const [assignmentDraft, setAssignmentDraft] = useState<AssignmentDraft | null>(
-    null
-  );
-  const [draftRecoveredNotice, setDraftRecoveredNotice] = useState<string | null>(
-    null
-  );
+  const [assignmentDraft, setAssignmentDraft] =
+    useState<AssignmentDraft | null>(null);
+  const [draftRecoveredNotice, setDraftRecoveredNotice] = useState<
+    string | null
+  >(null);
   const [whatsAppExportOpen, setWhatsAppExportOpen] = useState(false);
-
-  const { activeStage } = useStage();
 
   const selectedClassName = useMemo(() => {
     if (selectedClassId === '') {
@@ -357,18 +363,19 @@ export default function Assignments() {
             })
           : await listAssignments({
               classId: selectedClassId === '' ? undefined : selectedClassId,
-              stage: activeStage,
             });
-        const nextAssignments = (response.assignments ?? []) as OfflineAssignmentRecord[];
+        const nextAssignments = (response.assignments ??
+          []) as OfflineAssignmentRecord[];
         setAssignments(nextAssignments);
         setLastRefreshedAt(new Date());
         setError(null);
         setExportError(null);
         setSuccessMessage(null);
         setActiveAssignmentId((current) =>
-          current && nextAssignments.some((assignment) => assignment.public_id === current)
+          current &&
+          nextAssignments.some((assignment) => assignment.public_id === current)
             ? current
-            : nextAssignments[0]?.public_id ?? null
+            : (nextAssignments[0]?.public_id ?? null)
         );
 
         setSelectedAssignment((current) => {
@@ -376,7 +383,9 @@ export default function Assignments() {
             return (
               nextAssignments.find(
                 (assignment) => assignment.public_id === current.public_id
-              ) ?? nextAssignments[0] ?? null
+              ) ??
+              nextAssignments[0] ??
+              null
             );
           }
 
@@ -459,7 +468,7 @@ export default function Assignments() {
     const loadClasses = async () => {
       setIsClassesLoading(true);
       try {
-        const response = await getMyClasses(activeStage);
+        const response = await getMyClasses();
         if (cancelled) {
           return;
         }
@@ -604,7 +613,8 @@ export default function Assignments() {
         return;
       }
       await loadAssignments(true);
-      const generatedAssignments = (response as { assignments: Assignment[] }).assignments ?? [];
+      const generatedAssignments =
+        (response as { assignments: Assignment[] }).assignments ?? [];
       if (generatedAssignments.length > 0) {
         setActiveAssignmentId(generatedAssignments[0].public_id);
       }
@@ -624,7 +634,9 @@ export default function Assignments() {
 
   const handleGenerateFromPlan = async () => {
     if (!selectedPlanIdForGenerate) return;
-    const plan = plansForGenerate.find((p) => p.public_id === selectedPlanIdForGenerate);
+    const plan = plansForGenerate.find(
+      (p) => p.public_id === selectedPlanIdForGenerate
+    );
     if (!plan || plan.lesson_id == null) return;
 
     setIsGeneratingFromPlan(true);
@@ -632,14 +644,18 @@ export default function Assignments() {
     setSuccessMessage(null);
 
     try {
-      const response = await generateAssignments(plan.public_id, plan.lesson_id);
+      const response = await generateAssignments(
+        plan.public_id,
+        plan.lesson_id
+      );
       if ('queued' in response && response.queued) {
         setSuccessMessage(response.message);
         setSelectedPlanIdForGenerate('');
         return;
       }
       await loadAssignments(true);
-      const generatedAssignments = (response as { assignments: Assignment[] }).assignments ?? [];
+      const generatedAssignments =
+        (response as { assignments: Assignment[] }).assignments ?? [];
       if (generatedAssignments.length > 0) {
         setActiveAssignmentId(generatedAssignments[0].public_id);
       }
@@ -657,7 +673,9 @@ export default function Assignments() {
     }
   };
 
-  const handleViewAssignment = async (assignment: Assignment | OfflineAssignmentRecord) => {
+  const handleViewAssignment = async (
+    assignment: Assignment | OfflineAssignmentRecord
+  ) => {
     if (isEditingAssignment) {
       toast.error('احفظ تعديلات الواجب الحالية أو ألغها قبل فتح واجب آخر.');
       return;
@@ -679,7 +697,8 @@ export default function Assignments() {
   };
 
   const canExportAssignment =
-    selectedAssignment?.public_id && !isLocalOnlyId(selectedAssignment.public_id);
+    selectedAssignment?.public_id &&
+    !isLocalOnlyId(selectedAssignment.public_id);
 
   const handleRefinementCommitted = async () => {
     if (!canExportAssignment) {
@@ -694,7 +713,6 @@ export default function Assignments() {
     }
     setSuccessMessage('تم حفظ التعديل المعتمد بنجاح.');
   };
-
 
   const handleStartEditing = () => {
     if (!selectedAssignment || isDetailLoading) {
@@ -714,7 +732,11 @@ export default function Assignments() {
   };
 
   const handleSaveAssignment = async () => {
-    if (!selectedAssignment?.public_id || !assignmentDraft || isSavingAssignment) {
+    if (
+      !selectedAssignment?.public_id ||
+      !assignmentDraft ||
+      isSavingAssignment
+    ) {
       return;
     }
 
@@ -723,7 +745,10 @@ export default function Assignments() {
     setSuccessMessage(null);
 
     try {
-      const response = await updateAssignment(selectedAssignment.public_id, assignmentDraft);
+      const response = await updateAssignment(
+        selectedAssignment.public_id,
+        assignmentDraft
+      );
       const nextAssignment = response.assignment as OfflineAssignmentRecord;
       setSelectedAssignment(nextAssignment);
       setActiveAssignmentId(response.assignment.public_id);
@@ -795,7 +820,9 @@ export default function Assignments() {
           type="button"
           className="asn-btn asn-btn--primary"
           onClick={() => void handleGenerateAssignments()}
-          disabled={!context || isGenerating || isListLoading || isEditingAssignment}
+          disabled={
+            !context || isGenerating || isListLoading || isEditingAssignment
+          }
         >
           {isGenerating && <span className="ui-button-spinner" aria-hidden />}
           {!isGenerating && <MdAutoAwesome aria-hidden />}
@@ -804,14 +831,20 @@ export default function Assignments() {
       </header>
 
       {draftRecoveredNotice ? (
-        <p className="ui-inline-notice ui-inline-notice--info">{draftRecoveredNotice}</p>
+        <p className="ui-inline-notice ui-inline-notice--info">
+          {draftRecoveredNotice}
+        </p>
       ) : null}
 
       <section className="asn__context">
         {summaryCards.map((card) => (
           <article key={card.label} className="animate-fadeIn">
             <span>{card.label}</span>
-            {card.label.includes('الخطة') ? <code>{card.value}</code> : <p>{card.value}</p>}
+            {card.label.includes('الخطة') ? (
+              <code>{card.value}</code>
+            ) : (
+              <p>{card.value}</p>
+            )}
             <small>{card.hint}</small>
           </article>
         ))}
@@ -826,10 +859,15 @@ export default function Assignments() {
                 id="asn-class-filter"
                 value={selectedClassId}
                 onChange={(event) =>
-                  setSelectedClassId(event.target.value ? Number(event.target.value) : '')
+                  setSelectedClassId(
+                    event.target.value ? Number(event.target.value) : ''
+                  )
                 }
                 disabled={
-                  isClassesLoading || isListLoading || isRefreshing || isEditingAssignment
+                  isClassesLoading ||
+                  isListLoading ||
+                  isRefreshing ||
+                  isEditingAssignment
                 }
               >
                 <option value="">كل الصفوف</option>
@@ -851,7 +889,10 @@ export default function Assignments() {
             </p>
           </section>
 
-          <section className="asn__generate-from-plan" aria-label="توليد واجب من خطة">
+          <section
+            className="asn__generate-from-plan"
+            aria-label="توليد واجب من خطة"
+          >
             <h3>توليد واجب من خطة</h3>
             <div className="asn__generate-from-plan-row">
               <label className="asn__field" htmlFor="asn-plan-select">
@@ -859,8 +900,14 @@ export default function Assignments() {
                 <select
                   id="asn-plan-select"
                   value={selectedPlanIdForGenerate}
-                  onChange={(event) => setSelectedPlanIdForGenerate(event.target.value)}
-                  disabled={isPlansLoading || isGeneratingFromPlan || isEditingAssignment}
+                  onChange={(event) =>
+                    setSelectedPlanIdForGenerate(event.target.value)
+                  }
+                  disabled={
+                    isPlansLoading ||
+                    isGeneratingFromPlan ||
+                    isEditingAssignment
+                  }
                 >
                   <option value="">اختر خطة...</option>
                   {plansForGenerate
@@ -883,9 +930,13 @@ export default function Assignments() {
                   isEditingAssignment
                 }
               >
-                {isGeneratingFromPlan && <span className="ui-button-spinner" aria-hidden />}
+                {isGeneratingFromPlan && (
+                  <span className="ui-button-spinner" aria-hidden />
+                )}
                 {!isGeneratingFromPlan && <MdAutoAwesome aria-hidden />}
-                {isGeneratingFromPlan ? 'جارٍ التوليد...' : 'توليد واجب من هذه الخطة'}
+                {isGeneratingFromPlan
+                  ? 'جارٍ التوليد...'
+                  : 'توليد واجب من هذه الخطة'}
               </button>
             </div>
           </section>
@@ -913,7 +964,9 @@ export default function Assignments() {
               onClick={() => void loadAssignments(true)}
               disabled={isListLoading || isRefreshing || isEditingAssignment}
             >
-              {isRefreshing && <span className="ui-button-spinner" aria-hidden />}
+              {isRefreshing && (
+                <span className="ui-button-spinner" aria-hidden />
+              )}
               {!isRefreshing && <MdRefresh aria-hidden />}
               {isRefreshing ? 'جارٍ التحديث...' : 'تحديث القائمة'}
             </button>
@@ -934,7 +987,11 @@ export default function Assignments() {
           ) : assignments.length === 0 ? (
             <div className="asn-empty">
               <MdAssignment aria-hidden className="asn-empty__icon" />
-              <h3>{context ? 'لا توجد واجبات مقترحة بعد' : 'لا توجد واجبات محفوظة بعد'}</h3>
+              <h3>
+                {context
+                  ? 'لا توجد واجبات مقترحة بعد'
+                  : 'لا توجد واجبات محفوظة بعد'}
+              </h3>
               <p>
                 {context
                   ? 'اضغط على "اقتراح واجبات جديدة" لتوليد واجبات مرتبطة بالخطة الحالية.'
@@ -949,7 +1006,9 @@ export default function Assignments() {
                   onClick={() => void handleGenerateAssignments()}
                   disabled={isGenerating || isEditingAssignment}
                 >
-                  {isGenerating && <span className="ui-button-spinner" aria-hidden />}
+                  {isGenerating && (
+                    <span className="ui-button-spinner" aria-hidden />
+                  )}
                   {!isGenerating && <MdAutoAwesome aria-hidden />}
                   {isGenerating ? 'جارٍ التوليد...' : 'توليد الواجبات الآن'}
                 </button>
@@ -1078,18 +1137,22 @@ export default function Assignments() {
                         )
                       }
                     >
-                      {Object.entries(ASSIGNMENT_TYPE_LABELS).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
+                      {Object.entries(ASSIGNMENT_TYPE_LABELS).map(
+                        ([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        )
+                      )}
                     </select>
                   </>
                 ) : (
                   <>
                     <div className="asn__details-title-text">
                       <h3>{selectedAssignment.name}</h3>
-                      <SyncStatusBadge status={selectedAssignment.sync_status} />
+                      <SyncStatusBadge
+                        status={selectedAssignment.sync_status}
+                      />
                     </div>
                     <span
                       className={`asn-card__type asn-card__type--${selectedAssignment.type}`}
@@ -1123,7 +1186,8 @@ export default function Assignments() {
                                   due_date: event.target.value || null,
                                 }
                               : current
-                          )}
+                          )
+                        }
                       />
                     ) : selectedAssignment.due_date ? (
                       selectedAssignment.due_date
@@ -1200,7 +1264,9 @@ export default function Assignments() {
                 <SmartRefinementPanel
                   artifactType="assignment"
                   artifactId={selectedAssignment.public_id}
-                  assignmentGroupId={selectedAssignment.assignment_group_public_id ?? undefined}
+                  assignmentGroupId={
+                    selectedAssignment.assignment_group_public_id ?? undefined
+                  }
                   baseArtifact={{
                     assignment_id: selectedAssignment.public_id,
                     name: selectedAssignment.name,
@@ -1229,14 +1295,19 @@ export default function Assignments() {
           setExportingAction('whatsapp');
           setExportError(null);
           try {
-            const blob = await getAssignmentExportBlob(selectedAssignment!.public_id, format);
+            const blob = await getAssignmentExportBlob(
+              selectedAssignment!.public_id,
+              format
+            );
             const ext = format === 'pdf' ? 'pdf' : 'docx';
             const filename = `assignment_${selectedAssignment!.public_id}.${ext}`;
             const result = await shareDocument(blob, filename);
             if (result === 'shared') {
               toast.success('تمت المشاركة بنجاح.');
             } else if (result === 'downloaded') {
-              toast.success('تم تحميل الملف. أرفقه يدوياً عبر واتساب أو أي تطبيق آخر.');
+              toast.success(
+                'تم تحميل الملف. أرفقه يدوياً عبر واتساب أو أي تطبيق آخر.'
+              );
             }
             setWhatsAppExportOpen(false);
           } catch {

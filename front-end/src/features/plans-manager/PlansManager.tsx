@@ -1,13 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import toast from 'react-hot-toast';
-import {
-  MdClose,
-  MdEdit,
-  MdDelete,
-  MdRefresh,
-  MdSave,
-} from 'react-icons/md';
+import { MdClose, MdEdit, MdDelete, MdRefresh, MdSave } from 'react-icons/md';
 import ConfirmActionModal from '../../components/common/ConfirmActionModal';
 import ExportFormatModal from '../../components/common/ExportFormatModal';
 import { SyncStatusBadge } from '../../components/common/SyncStatusBadge';
@@ -102,7 +96,12 @@ export default function PlansManager() {
   const detailRequestIdRef = useRef(0);
 
   const teacherNameMap = useMemo(() => {
-    return new Map(teachers.map((teacher) => [teacher.id, teacher.display_name || teacher.username]));
+    return new Map(
+      teachers.map((teacher) => [
+        teacher.id,
+        teacher.display_name || teacher.username,
+      ])
+    );
   }, [teachers]);
 
   const subjectOptions = useMemo(() => {
@@ -328,7 +327,6 @@ export default function PlansManager() {
   const selectedPlanCanExport = selectedPlan
     ? !isLocalOnlyId(selectedPlan.public_id)
     : false;
-
 
   const clearFilters = () => {
     setPlanType('');
@@ -628,10 +626,14 @@ export default function PlansManager() {
                       </h3>
                       <div className="pm__card-meta">
                         {plan.subject ? (
-                          <span className="pm__card-meta-item">{plan.subject}</span>
+                          <span className="pm__card-meta-item">
+                            {plan.subject}
+                          </span>
                         ) : null}
                         {plan.grade ? (
-                          <span className="pm__card-meta-item">{plan.grade}</span>
+                          <span className="pm__card-meta-item">
+                            {plan.grade}
+                          </span>
                         ) : null}
                         <span className="pm__card-meta-item pm__card-meta-item--date">
                           {formatDateAr(plan.created_at)}
@@ -668,7 +670,9 @@ export default function PlansManager() {
                             event.stopPropagation();
                             openExportDialog(plan);
                           }}
-                          disabled={!plan.public_id || isLocalOnlyId(plan.public_id)}
+                          disabled={
+                            !plan.public_id || isLocalOnlyId(plan.public_id)
+                          }
                         >
                           تصدير
                         </button>
@@ -678,7 +682,9 @@ export default function PlansManager() {
                       ) : null}
                       {isAdmin ? (
                         <p className="pm__card-teacher">
-                          المعلم: {teacherNameMap.get(plan.teacher_id) || `#${plan.teacher_id}`}
+                          المعلم:{' '}
+                          {teacherNameMap.get(plan.teacher_id) ||
+                            `#${plan.teacher_id}`}
                         </p>
                       ) : null}
                       {isLoadingThisPlan ? (
@@ -892,8 +898,16 @@ export default function PlansManager() {
         isOpen={deleteConfirmOpen}
         title="تأكيد حذف الخطة"
         message="سيتم حذف الخطة نهائيًا من المكتبة. لا يمكن التراجع بعد الحذف."
-        endpoint={deleteTargetPlan?.public_id ? `/api/plans/${deleteTargetPlan.public_id}` : '/api/plans'}
-        payload={deleteTargetPlan?.public_id ? { planId: deleteTargetPlan.public_id } : undefined}
+        endpoint={
+          deleteTargetPlan?.public_id
+            ? `/api/plans/${deleteTargetPlan.public_id}`
+            : '/api/plans'
+        }
+        payload={
+          deleteTargetPlan?.public_id
+            ? { planId: deleteTargetPlan.public_id }
+            : undefined
+        }
         isLoading={isDeletingPlan}
         confirmLabel="حذف الخطة"
         onCancel={() => {

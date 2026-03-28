@@ -46,7 +46,9 @@ function getPlanTypeByPublicId(publicId) {
     return PLAN_TYPES.TRADITIONAL;
   }
 
-  if (publicId.startsWith(PLAN_PUBLIC_ID_PREFIXES[PLAN_TYPES.ACTIVE_LEARNING])) {
+  if (
+    publicId.startsWith(PLAN_PUBLIC_ID_PREFIXES[PLAN_TYPES.ACTIVE_LEARNING])
+  ) {
     return PLAN_TYPES.ACTIVE_LEARNING;
   }
 
@@ -75,7 +77,8 @@ async function listFromSingleTable(dbClient, planType, filters, accessContext) {
     args.push(filters.grade);
   }
 
-  const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
+  const whereSql =
+    whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
 
   const result = await dbClient.execute({
     sql: `
@@ -179,16 +182,32 @@ export function createLessonPlansRepository(dbClient = turso) {
 
     async list(filters = {}, accessContext) {
       if (filters.plan_type && VALID_PLAN_TYPES.includes(filters.plan_type)) {
-        return listFromSingleTable(dbClient, filters.plan_type, filters, accessContext);
+        return listFromSingleTable(
+          dbClient,
+          filters.plan_type,
+          filters,
+          accessContext,
+        );
       }
 
       const [traditionalPlans, activePlans] = await Promise.all([
-        listFromSingleTable(dbClient, PLAN_TYPES.TRADITIONAL, filters, accessContext),
-        listFromSingleTable(dbClient, PLAN_TYPES.ACTIVE_LEARNING, filters, accessContext),
+        listFromSingleTable(
+          dbClient,
+          PLAN_TYPES.TRADITIONAL,
+          filters,
+          accessContext,
+        ),
+        listFromSingleTable(
+          dbClient,
+          PLAN_TYPES.ACTIVE_LEARNING,
+          filters,
+          accessContext,
+        ),
       ]);
 
       return [...traditionalPlans, ...activePlans].sort((a, b) => {
-        const dateDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        const dateDiff =
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         if (dateDiff !== 0) {
           return dateDiff;
         }
@@ -305,7 +324,11 @@ export function createLessonPlansRepository(dbClient = turso) {
       return this.getByPublicId(planPublicId, accessContext);
     },
 
-    async updateByPublicId(planPublicId, { lessonTitle, planJson }, accessContext) {
+    async updateByPublicId(
+      planPublicId,
+      { lessonTitle, planJson },
+      accessContext,
+    ) {
       const planType = getPlanTypeByPublicId(planPublicId);
       if (!planType) {
         return null;

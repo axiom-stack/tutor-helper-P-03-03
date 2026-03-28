@@ -58,7 +58,12 @@ export async function createUnit(req, res) {
 
     const createdUnit = await turso.execute({
       sql: "INSERT INTO Units (name, description, subject_id, teacher_id) VALUES (?, ?, ?, ?)",
-      args: [normalizedName, finalDescription, parsedSubjectId, parsedTeacherId],
+      args: [
+        normalizedName,
+        finalDescription,
+        parsedSubjectId,
+        parsedTeacherId,
+      ],
     });
 
     // Get the inserted unit data
@@ -233,7 +238,9 @@ export async function updateUnitByUnitId(req, res) {
       const parsedSubjectId = Number(subject_id);
 
       if (Number.isNaN(parsedSubjectId)) {
-        return res.status(400).json({ error: "subject_id must be a valid number" });
+        return res
+          .status(400)
+          .json({ error: "subject_id must be a valid number" });
       }
 
       const subjectCheck = await turso.execute({
@@ -251,7 +258,10 @@ export async function updateUnitByUnitId(req, res) {
         });
       }
 
-      if (Number(subjectCheck.rows[0].teacher_id) !== Number(unit.rows[0].teacher_id)) {
+      if (
+        Number(subjectCheck.rows[0].teacher_id) !==
+        Number(unit.rows[0].teacher_id)
+      ) {
         return res.status(400).json({
           error: "Cannot move unit to a subject owned by a different teacher",
         });

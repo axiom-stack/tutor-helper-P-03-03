@@ -246,8 +246,6 @@ export default function Stats() {
   const { user } = useAuth();
   const isAdmin = user?.userRole === 'admin';
 
-  const { activeStage } = useStage();
-
   const [period, setPeriod] = useState<StatsPeriod>('all');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
@@ -262,7 +260,6 @@ export default function Stats() {
   const filters = useMemo<StatsSummaryFilters>(() => {
     const next: StatsSummaryFilters = {
       period,
-        stage: null,
     };
 
     if (period === 'custom') {

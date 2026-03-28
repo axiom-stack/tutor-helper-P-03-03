@@ -197,7 +197,8 @@ export function createExamsRepository(dbClient = turso) {
         args.push(filters.date_to);
       }
 
-      const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
+      const whereSql =
+        whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
       const result = await dbClient.execute({
         sql: `
           SELECT ${EXAMS_TABLE}.*
@@ -212,7 +213,10 @@ export function createExamsRepository(dbClient = turso) {
       const list = [];
       for (const row of result.rows) {
         const record = toExamRecord(row, { includePayload: false });
-        record.lesson_ids = await getLessonIdsByExamDbId(dbClient, record.db_id);
+        record.lesson_ids = await getLessonIdsByExamDbId(
+          dbClient,
+          record.db_id,
+        );
         list.push(record);
       }
 
@@ -263,7 +267,9 @@ export function createExamsRepository(dbClient = turso) {
         args,
       });
 
-      return this.getByPublicId(publicId, accessContext, { includePayload: true });
+      return this.getByPublicId(publicId, accessContext, {
+        includePayload: true,
+      });
     },
 
     async updateByPublicId(publicId, { title, questions }, accessContext) {
@@ -300,7 +306,9 @@ export function createExamsRepository(dbClient = turso) {
         args,
       });
 
-      return this.getByPublicId(publicId, accessContext, { includePayload: true });
+      return this.getByPublicId(publicId, accessContext, {
+        includePayload: true,
+      });
     },
   };
 }

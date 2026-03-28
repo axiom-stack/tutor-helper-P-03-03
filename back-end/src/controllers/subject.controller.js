@@ -36,7 +36,8 @@ export async function createSubject(req, res) {
 
     if (userRole !== "admin" && parsedTeacherId !== Number(userId)) {
       return res.status(403).json({
-        error: "Unauthorized: You can only create subjects for your own account",
+        error:
+          "Unauthorized: You can only create subjects for your own account",
       });
     }
 
@@ -239,7 +240,9 @@ export async function updateSubjectBySubjectId(req, res) {
       const parsedClassId = Number(class_id);
 
       if (Number.isNaN(parsedClassId)) {
-        return res.status(400).json({ error: "class_id must be a valid number" });
+        return res
+          .status(400)
+          .json({ error: "class_id must be a valid number" });
       }
 
       const classCheck = await turso.execute({
@@ -257,7 +260,10 @@ export async function updateSubjectBySubjectId(req, res) {
         });
       }
 
-      if (Number(classCheck.rows[0].teacher_id) !== Number(subject.rows[0].teacher_id)) {
+      if (
+        Number(classCheck.rows[0].teacher_id) !==
+        Number(subject.rows[0].teacher_id)
+      ) {
         return res.status(400).json({
           error: "Cannot move subject to a class owned by a different teacher",
         });

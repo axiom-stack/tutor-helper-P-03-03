@@ -2,7 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 
-import type { Class, Lesson, Subject, TeacherManagementRow, Unit } from '../../types';
+import type {
+  Class,
+  Lesson,
+  Subject,
+  TeacherManagementRow,
+  Unit,
+} from '../../types';
 import TeacherCirriculumManager from '../teacher-curriculum-manager/TeacherCirriculumManager';
 import {
   getScopedClasses,
@@ -49,9 +55,7 @@ export default function ControlCurriculum() {
   }
 
   return (
-    <AdminCurriculumExplorer
-      onSelectTeacherToManage={setManageTeacherId}
-    />
+    <AdminCurriculumExplorer onSelectTeacherToManage={setManageTeacherId} />
   );
 }
 
@@ -74,9 +78,7 @@ function AdminCurriculumManagerView({
           ← العودة إلى الاستعراض
         </button>
       </header>
-      <TeacherCirriculumManager
-        scope={{ role: 'admin', selectedTeacherId }}
-      />
+      <TeacherCirriculumManager scope={{ role: 'admin', selectedTeacherId }} />
     </div>
   );
 }
@@ -105,8 +107,8 @@ function AdminCurriculumExplorer({
     const timeoutId = window.setTimeout(() => {
       if (!cancelled) {
         setLoading(false);
-        setError((prev) =>
-          prev ?? 'تعذر تحميل بيانات المنهج. تحقق من الاتصال بالخادم.'
+        setError(
+          (prev) => prev ?? 'تعذر تحميل بيانات المنهج. تحقق من الاتصال بالخادم.'
         );
         toast.error('تعذر تحميل بيانات المنهج. تحقق من الاتصال بالخادم.');
       }
@@ -119,17 +121,25 @@ function AdminCurriculumExplorer({
       getScopedUnits('admin'),
       getScopedLessons('admin'),
     ])
-      .then(([teachersResponse, classesResponse, subjectsResponse, unitsResponse, lessonsResponse]) => {
-        if (cancelled) {
-          return;
-        }
+      .then(
+        ([
+          teachersResponse,
+          classesResponse,
+          subjectsResponse,
+          unitsResponse,
+          lessonsResponse,
+        ]) => {
+          if (cancelled) {
+            return;
+          }
 
-        setTeachers(teachersResponse.teachers ?? []);
-        setClasses(classesResponse.classes ?? []);
-        setSubjects(subjectsResponse.subjects ?? []);
-        setUnits(unitsResponse.units ?? []);
-        setLessons(lessonsResponse.lessons ?? []);
-      })
+          setTeachers(teachersResponse.teachers ?? []);
+          setClasses(classesResponse.classes ?? []);
+          setSubjects(subjectsResponse.subjects ?? []);
+          setUnits(unitsResponse.units ?? []);
+          setLessons(lessonsResponse.lessons ?? []);
+        }
+      )
       .catch(() => {
         if (!cancelled) {
           setError('تعذر تحميل بيانات المنهج على مستوى النظام.');
@@ -154,7 +164,12 @@ function AdminCurriculumExplorer({
   }, [classes]);
 
   const teacherNameMap = useMemo(() => {
-    return new Map(teachers.map((teacher) => [teacher.id, teacher.display_name || teacher.username]));
+    return new Map(
+      teachers.map((teacher) => [
+        teacher.id,
+        teacher.display_name || teacher.username,
+      ])
+    );
   }, [teachers]);
 
   const filteredClasses = useMemo(() => {
@@ -190,13 +205,17 @@ function AdminCurriculumExplorer({
         return true;
       }
 
-      const unitSubject = subjects.find((subjectItem) => subjectItem.id === unitItem.subject_id);
+      const unitSubject = subjects.find(
+        (subjectItem) => subjectItem.id === unitItem.subject_id
+      );
       return unitSubject?.class_id === classFilter;
     });
   }, [units, teacherFilter, subjectFilter, classFilter, subjects]);
 
   const filteredLessons = useMemo(() => {
-    const allowedUnitIds = new Set(filteredUnits.map((unitItem) => unitItem.id));
+    const allowedUnitIds = new Set(
+      filteredUnits.map((unitItem) => unitItem.id)
+    );
 
     return lessons.filter((lessonItem) => {
       if (!allowedUnitIds.has(lessonItem.unit_id)) {
@@ -228,7 +247,10 @@ function AdminCurriculumExplorer({
 
       <section className="cc__manage-section">
         <h2 className="cc__manage-title">إدارة منهج معلم</h2>
-        <p className="cc__manage-desc">اختر معلمًا من القائمة لإضافة أو تعديل منهجه (صفوف، مواد، وحدات، دروس).</p>
+        <p className="cc__manage-desc">
+          اختر معلمًا من القائمة لإضافة أو تعديل منهجه (صفوف، مواد، وحدات،
+          دروس).
+        </p>
         <label className="cc__field" htmlFor="cc-manage-teacher">
           <span>المعلم</span>
           <select
@@ -355,12 +377,14 @@ function AdminCurriculumExplorer({
                 </thead>
                 <tbody>
                   {filteredLessons.map((lessonItem) => {
-                    const unit = filteredUnits.find((item) => item.id === lessonItem.unit_id);
+                    const unit = filteredUnits.find(
+                      (item) => item.id === lessonItem.unit_id
+                    );
                     const subject = unit
                       ? subjects.find((item) => item.id === unit.subject_id)
                       : null;
                     const classItem = subject
-                      ? classesMap.get(subject.class_id) ?? null
+                      ? (classesMap.get(subject.class_id) ?? null)
                       : null;
 
                     return (
@@ -369,11 +393,9 @@ function AdminCurriculumExplorer({
                         <td>{unit?.name ?? '—'}</td>
                         <td>{subject?.name ?? '—'}</td>
                         <td>
-                          {classItem ? (
-                            `${classItem.grade_label} - ${classItem.section_label}`
-                          ) : (
-                            '—'
-                          )}
+                          {classItem
+                            ? `${classItem.grade_label} - ${classItem.section_label}`
+                            : '—'}
                         </td>
                         <td>
                           {teacherNameMap.get(lessonItem.teacher_id) ||

@@ -67,7 +67,10 @@ export async function createLesson(req, res) {
     if (!content_type) {
       return res.status(400).json({ error: "content_type is required" });
     }
-    if (!Number.isInteger(parsedNumberOfPeriods) || parsedNumberOfPeriods <= 0) {
+    if (
+      !Number.isInteger(parsedNumberOfPeriods) ||
+      parsedNumberOfPeriods <= 0
+    ) {
       return res.status(400).json({
         error: "number_of_periods must be a positive integer",
       });
@@ -109,38 +112,49 @@ export async function createLesson(req, res) {
           .json({ error: "Content field is required for text lessons" });
       }
       finalContent = content;
-    } else if (normalizedContentType === "pdf" || normalizedContentType === "word") {
+    } else if (
+      normalizedContentType === "pdf" ||
+      normalizedContentType === "word"
+    ) {
       // FILE content - expect file upload
       if (!req.file) {
         return res
           .status(400)
-          .json(buildExtractionFailureResponse(`${content_type} file is required`));
+          .json(
+            buildExtractionFailureResponse(`${content_type} file is required`),
+          );
       }
 
       detectedFileType = req.file.mimetype;
 
       if (normalizedContentType === "pdf" && !isPdfUpload(req.file)) {
-        return res.status(415).json(
-          buildExtractionFailureResponse(
-            "File type does not match content_type. Expected a PDF file.",
-          ),
-        );
+        return res
+          .status(415)
+          .json(
+            buildExtractionFailureResponse(
+              "File type does not match content_type. Expected a PDF file.",
+            ),
+          );
       }
 
       if (normalizedContentType === "word" && isLegacyDocUpload(req.file)) {
-        return res.status(415).json(
-          buildExtractionFailureResponse(
-            "Legacy DOC files are not supported. Please convert the file to DOCX first.",
-          ),
-        );
+        return res
+          .status(415)
+          .json(
+            buildExtractionFailureResponse(
+              "Legacy DOC files are not supported. Please convert the file to DOCX first.",
+            ),
+          );
       }
 
       if (normalizedContentType === "word" && !isDocxUpload(req.file)) {
-        return res.status(415).json(
-          buildExtractionFailureResponse(
-            "File type does not match content_type. Expected a DOCX file.",
-          ),
-        );
+        return res
+          .status(415)
+          .json(
+            buildExtractionFailureResponse(
+              "File type does not match content_type. Expected a DOCX file.",
+            ),
+          );
       }
 
       const extractionResult =
@@ -151,21 +165,26 @@ export async function createLesson(req, res) {
       warnings = extractionResult.warnings ?? [];
 
       if (extractionResult.extractionStatus === "failed") {
-        return res.status(422).json(
-          buildExtractionFailureResponse(
-            extractionResult.errorMessage || "Failed to extract text from the file.",
-          ),
-        );
+        return res
+          .status(422)
+          .json(
+            buildExtractionFailureResponse(
+              extractionResult.errorMessage ||
+                "Failed to extract text from the file.",
+            ),
+          );
       }
 
       finalContent = cleanExtractedText(extractionResult.text);
 
       if (!finalContent) {
-        return res.status(422).json(
-          buildExtractionFailureResponse(
-            "No readable text could be extracted from the uploaded file.",
-          ),
-        );
+        return res
+          .status(422)
+          .json(
+            buildExtractionFailureResponse(
+              "No readable text could be extracted from the uploaded file.",
+            ),
+          );
       }
 
       fileProcessed = extractionResult.fileProcessed;
@@ -394,7 +413,9 @@ export async function updateLessonByLessonId(req, res) {
       const parsedUnitId = Number(unit_id);
 
       if (Number.isNaN(parsedUnitId)) {
-        return res.status(400).json({ error: "unit_id must be a valid number" });
+        return res
+          .status(400)
+          .json({ error: "unit_id must be a valid number" });
       }
 
       const unitCheck = await turso.execute({
@@ -412,7 +433,10 @@ export async function updateLessonByLessonId(req, res) {
         });
       }
 
-      if (Number(unitCheck.rows[0].teacher_id) !== Number(lesson.rows[0].teacher_id)) {
+      if (
+        Number(unitCheck.rows[0].teacher_id) !==
+        Number(lesson.rows[0].teacher_id)
+      ) {
         return res.status(400).json({
           error: "Cannot move lesson to a unit owned by a different teacher",
         });
@@ -424,7 +448,10 @@ export async function updateLessonByLessonId(req, res) {
     if (number_of_periods !== undefined) {
       const parsedNumberOfPeriods = Number(number_of_periods);
 
-      if (!Number.isInteger(parsedNumberOfPeriods) || parsedNumberOfPeriods <= 0) {
+      if (
+        !Number.isInteger(parsedNumberOfPeriods) ||
+        parsedNumberOfPeriods <= 0
+      ) {
         return res.status(400).json({
           error: "number_of_periods must be a positive integer",
         });
@@ -459,37 +486,48 @@ export async function updateLessonByLessonId(req, res) {
         });
       }
       finalContent = content;
-    } else if (normalizedContentType === "pdf" || normalizedContentType === "word") {
+    } else if (
+      normalizedContentType === "pdf" ||
+      normalizedContentType === "word"
+    ) {
       if (!req.file) {
         return res
           .status(400)
-          .json(buildExtractionFailureResponse(`${content_type} file is required`));
+          .json(
+            buildExtractionFailureResponse(`${content_type} file is required`),
+          );
       }
 
       detectedFileType = req.file.mimetype;
 
       if (normalizedContentType === "pdf" && !isPdfUpload(req.file)) {
-        return res.status(415).json(
-          buildExtractionFailureResponse(
-            "File type does not match content_type. Expected a PDF file.",
-          ),
-        );
+        return res
+          .status(415)
+          .json(
+            buildExtractionFailureResponse(
+              "File type does not match content_type. Expected a PDF file.",
+            ),
+          );
       }
 
       if (normalizedContentType === "word" && isLegacyDocUpload(req.file)) {
-        return res.status(415).json(
-          buildExtractionFailureResponse(
-            "Legacy DOC files are not supported. Please convert the file to DOCX first.",
-          ),
-        );
+        return res
+          .status(415)
+          .json(
+            buildExtractionFailureResponse(
+              "Legacy DOC files are not supported. Please convert the file to DOCX first.",
+            ),
+          );
       }
 
       if (normalizedContentType === "word" && !isDocxUpload(req.file)) {
-        return res.status(415).json(
-          buildExtractionFailureResponse(
-            "File type does not match content_type. Expected a DOCX file.",
-          ),
-        );
+        return res
+          .status(415)
+          .json(
+            buildExtractionFailureResponse(
+              "File type does not match content_type. Expected a DOCX file.",
+            ),
+          );
       }
 
       const extractionResult =
@@ -500,21 +538,26 @@ export async function updateLessonByLessonId(req, res) {
       warnings = extractionResult.warnings ?? [];
 
       if (extractionResult.extractionStatus === "failed") {
-        return res.status(422).json(
-          buildExtractionFailureResponse(
-            extractionResult.errorMessage || "Failed to extract text from the file.",
-          ),
-        );
+        return res
+          .status(422)
+          .json(
+            buildExtractionFailureResponse(
+              extractionResult.errorMessage ||
+                "Failed to extract text from the file.",
+            ),
+          );
       }
 
       finalContent = cleanExtractedText(extractionResult.text);
 
       if (!finalContent) {
-        return res.status(422).json(
-          buildExtractionFailureResponse(
-            "No readable text could be extracted from the uploaded file.",
-          ),
-        );
+        return res
+          .status(422)
+          .json(
+            buildExtractionFailureResponse(
+              "No readable text could be extracted from the uploaded file.",
+            ),
+          );
       }
 
       fileProcessed = extractionResult.fileProcessed;

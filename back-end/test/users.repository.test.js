@@ -9,7 +9,10 @@ test("getProfileByUserId ensures a profile row and returns normalized profile", 
     async execute({ sql, args }) {
       calls.push({ sql, args });
 
-      if (sql.includes("FROM Users u") && sql.includes("INNER JOIN UserProfiles")) {
+      if (
+        sql.includes("FROM Users u") &&
+        sql.includes("INNER JOIN UserProfiles")
+      ) {
         return {
           rows: [
             {
@@ -51,7 +54,10 @@ test("updateProfileByUserId updates only provided fields", async () => {
     async execute({ sql, args }) {
       calls.push({ sql, args });
 
-      if (sql.includes("FROM Users u") && sql.includes("INNER JOIN UserProfiles")) {
+      if (
+        sql.includes("FROM Users u") &&
+        sql.includes("INNER JOIN UserProfiles")
+      ) {
         return {
           rows: [
             {
@@ -84,7 +90,9 @@ test("updateProfileByUserId updates only provided fields", async () => {
 
   assert.equal(result?.user_id, 7);
 
-  const updateCall = calls.find((call) => call.sql.includes("UPDATE UserProfiles"));
+  const updateCall = calls.find((call) =>
+    call.sql.includes("UPDATE UserProfiles"),
+  );
   assert.ok(updateCall, "expected profile update query");
   assert.ok(updateCall.sql.includes("language = ?"));
   assert.ok(updateCall.sql.includes("subject = ?"));
@@ -192,7 +200,9 @@ test("deleteTeacherById deletes teacher by deleting from Users", async () => {
   assert.ok(
     calls.some((call) =>
       call.sql.includes("SELECT id, username, display_name, role, created_at"),
-    )
+    ),
   );
-  assert.ok(calls.some((call) => call.sql.includes("DELETE FROM Users WHERE id = ?")));
+  assert.ok(
+    calls.some((call) => call.sql.includes("DELETE FROM Users WHERE id = ?")),
+  );
 });

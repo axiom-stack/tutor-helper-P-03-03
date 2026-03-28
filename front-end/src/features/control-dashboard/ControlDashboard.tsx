@@ -64,7 +64,10 @@ export default function ControlDashboard() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
+    const timeoutId = window.setTimeout(
+      () => controller.abort(),
+      HEALTH_TIMEOUT_MS
+    );
 
     fetch(HEALTH_URL, { signal: controller.signal })
       .then(() => clearTimeout(timeoutId))
@@ -84,7 +87,10 @@ export default function ControlDashboard() {
       return;
     }
 
-    const timer = window.setTimeout(() => setRefreshReady(true), WAKE_UP_WAIT_MS);
+    const timer = window.setTimeout(
+      () => setRefreshReady(true),
+      WAKE_UP_WAIT_MS
+    );
     return () => window.clearTimeout(timer);
   }, [serverWakingUp]);
 
@@ -105,16 +111,18 @@ export default function ControlDashboard() {
       listScopedPlans(stage),
       listScopedExams(stage),
     ])
-      .then(([classesResponse, subjectsResponse, plansResponse, examsResponse]) => {
-        if (cancelled) {
-          return;
-        }
+      .then(
+        ([classesResponse, subjectsResponse, plansResponse, examsResponse]) => {
+          if (cancelled) {
+            return;
+          }
 
-        setClasses(classesResponse.classes ?? []);
-        setSubjects(subjectsResponse.subjects ?? []);
-        setPlans(plansResponse.plans ?? []);
-        setExams(examsResponse.exams ?? []);
-      })
+          setClasses(classesResponse.classes ?? []);
+          setSubjects(subjectsResponse.subjects ?? []);
+          setPlans(plansResponse.plans ?? []);
+          setExams(examsResponse.exams ?? []);
+        }
+      )
       .catch(() => {
         if (!cancelled) {
           const message = 'تعذر تحميل بيانات الصفحة الرئيسية.';
@@ -143,13 +151,21 @@ export default function ControlDashboard() {
 
   const recentPlans = useMemo(() => {
     return [...plans]
-      .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
+      .sort(
+        (left, right) =>
+          new Date(right.created_at).getTime() -
+          new Date(left.created_at).getTime()
+      )
       .slice(0, 3);
   }, [plans]);
 
   const recentExams = useMemo(() => {
     return [...exams]
-      .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
+      .sort(
+        (left, right) =>
+          new Date(right.created_at).getTime() -
+          new Date(left.created_at).getTime()
+      )
       .slice(0, 3);
   }, [exams]);
 
@@ -157,25 +173,29 @@ export default function ControlDashboard() {
     {
       path: '/curriculum',
       title: 'إدارة المنهج',
-      description: 'بناء هيكل العام الدراسي والفصل والصف والشعبة والمواد والوحدات والدروس.',
+      description:
+        'بناء هيكل العام الدراسي والفصل والصف والشعبة والمواد والوحدات والدروس.',
       icon: MdSchool,
     },
     {
       path: '/lessons',
       title: 'إنشاء خطة درس',
-      description: 'توليد خطة درس ذكية من محتوى الدرس مع التحرير والتحسين والتصدير.',
+      description:
+        'توليد خطة درس ذكية من محتوى الدرس مع التحرير والتحسين والتصدير.',
       icon: MdMenuBook,
     },
     {
       path: '/quizzes/create',
       title: 'إنشاء اختبار',
-      description: 'إعداد اختبار موحّد من الدروس المسجلة مع ضبط العدد والدرجة والمدة.',
+      description:
+        'إعداد اختبار موحّد من الدروس المسجلة مع ضبط العدد والدرجة والمدة.',
       icon: MdQuiz,
     },
     {
       path: '/plans',
       title: 'مكتبة الخطط',
-      description: 'تصفح الخطط المولدة، افتحها، حررها، أو صدّرها بصيغة PDF أو DOCX.',
+      description:
+        'تصفح الخطط المولدة، افتحها، حررها، أو صدّرها بصيغة PDF أو DOCX.',
       icon: MdLibraryBooks,
     },
     {
@@ -211,10 +231,12 @@ export default function ControlDashboard() {
       {serverWakingUp ? (
         <div className="auth__wake-notice" role="status">
           <p className="auth__wake-notice-text">
-            الخادم المجاني قيد التشغيل. يرجى تحديث الصفحة بعد 40 ثانية ثم البدء باستخدام التطبيق.
+            الخادم المجاني قيد التشغيل. يرجى تحديث الصفحة بعد 40 ثانية ثم البدء
+            باستخدام التطبيق.
           </p>
           <p className="auth__wake-notice-en">
-            The free server is waking up. Please refresh the page after 40 seconds, then you can start using the app.
+            The free server is waking up. Please refresh the page after 40
+            seconds, then you can start using the app.
           </p>
           {refreshReady ? (
             <button
@@ -233,12 +255,11 @@ export default function ControlDashboard() {
         <div className="cd__hero-copy">
           <p className="cd__eyebrow">الصفحة الرئيسية</p>
           <h1>
-            {isAdmin
-              ? `مرحباً، ${displayName}`
-              : `مرحباً، ${displayName}`}
+            {isAdmin ? `مرحباً، ${displayName}` : `مرحباً، ${displayName}`}
           </h1>
           <p>
-            اختر المهمة التي تريدها بسرعة، أو راجع أحدث الخطط والاختبارات من أسفل الصفحة.
+            اختر المهمة التي تريدها بسرعة، أو راجع أحدث الخطط والاختبارات من
+            أسفل الصفحة.
           </p>
         </div>
 
@@ -286,8 +307,12 @@ export default function ControlDashboard() {
               recentPlans.map((plan) => (
                 <div key={plan.public_id} className="cd__preview-card">
                   <strong>{plan.lesson_title}</strong>
-                  <span>{plan.subject} | {plan.grade}</span>
-                  <span>{plan.plan_type === 'traditional' ? 'تقليدية' : 'تعلم نشط'}</span>
+                  <span>
+                    {plan.subject} | {plan.grade}
+                  </span>
+                  <span>
+                    {plan.plan_type === 'traditional' ? 'تقليدية' : 'تعلم نشط'}
+                  </span>
                   <span>{formatDateAr(plan.created_at)}</span>
                 </div>
               ))
@@ -314,8 +339,12 @@ export default function ControlDashboard() {
                 return (
                   <div key={exam.public_id} className="cd__preview-card">
                     <strong>{exam.title}</strong>
-                    <span>{subject?.name ?? '—'} | {classItem?.grade_label ?? '—'}</span>
-                    <span>{exam.total_questions} سؤال | {exam.total_marks} درجة</span>
+                    <span>
+                      {subject?.name ?? '—'} | {classItem?.grade_label ?? '—'}
+                    </span>
+                    <span>
+                      {exam.total_questions} سؤال | {exam.total_marks} درجة
+                    </span>
                     <span>{formatDateAr(exam.created_at)}</span>
                   </div>
                 );

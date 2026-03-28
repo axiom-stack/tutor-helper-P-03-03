@@ -34,6 +34,12 @@ type EnrichedLesson = Lesson & {
 function TeacherDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -51,12 +57,7 @@ function TeacherDashboard() {
 
     let cancelled = false;
 
-    Promise.all([
-      getMyLessons(),
-      getMyUnits(),
-      getMySubjects(),
-      getMyClasses(),
-    ])
+    Promise.all([getMyLessons(), getMyUnits(), getMySubjects(), getMyClasses()])
       .then(([lessonsRes, unitsRes, subjectsRes, classesRes]) => {
         if (cancelled) return;
         setLessons(lessonsRes.lessons ?? []);
@@ -66,7 +67,8 @@ function TeacherDashboard() {
       })
       .catch((err) => {
         if (cancelled) return;
-        const message = err?.response?.data?.error ?? 'حدث خطأ أثناء تحميل البيانات';
+        const message =
+          err?.response?.data?.error ?? 'حدث خطأ أثناء تحميل البيانات';
         setError(message);
         toast.error(message);
       })
@@ -82,24 +84,26 @@ function TeacherDashboard() {
     const unitsById = new Map(units.map((u) => [u.id, u]));
     const subjectsById = new Map(subjects.map((s) => [s.id, s]));
     const classesById = new Map(classes.map((c) => [c.id, c]));
-    return lessons
-      .map((lesson) => {
-        const unit = unitsById.get(lesson.unit_id);
-        const subject = unit ? subjectsById.get(unit.subject_id) : undefined;
-        const cls = subject ? classesById.get(subject.class_id) : undefined;
-        return {
-          ...lesson,
-          subjectName: subject?.name ?? '—',
-          className: cls ? `${cls.grade_label} - ${cls.section_label}` : '—',
-        };
-      })
-      // Only keep lessons whose class exists in the current-stage class list
-      .filter((lesson) => lesson.className !== '—')
-      .sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )
-      .slice(0, RECENT_LESSONS_LIMIT);
+    return (
+      lessons
+        .map((lesson) => {
+          const unit = unitsById.get(lesson.unit_id);
+          const subject = unit ? subjectsById.get(unit.subject_id) : undefined;
+          const cls = subject ? classesById.get(subject.class_id) : undefined;
+          return {
+            ...lesson,
+            subjectName: subject?.name ?? '—',
+            className: cls ? `${cls.grade_label} - ${cls.section_label}` : '—',
+          };
+        })
+        // Only keep lessons whose class exists in the current-stage class list
+        .filter((lesson) => lesson.className !== '—')
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )
+        .slice(0, RECENT_LESSONS_LIMIT)
+    );
   }, [lessons, units, subjects, classes]);
 
   if (user?.userRole !== 'teacher') {

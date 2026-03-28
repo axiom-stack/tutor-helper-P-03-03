@@ -254,8 +254,5 @@ test("updateMyProfile rejects invalid default_plan_type", async () => {
   await controller.updateMyProfile(req, res);
 
   assert.equal(res.statusCode, 400);
-  assert.match(
-    res.payload?.error || "",
-    /default_plan_type must be one of/i
-  );
+  assert.match(res.payload?.error || "", /default_plan_type must be one of/i);
 });

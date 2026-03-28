@@ -126,8 +126,12 @@ function buildMonthlyKeys({ dateFrom, dateTo, plans, exams, assignments }) {
     return [];
   }
 
-  const cursor = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), 1));
-  const last = new Date(Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), 1));
+  const cursor = new Date(
+    Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), 1),
+  );
+  const last = new Date(
+    Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), 1),
+  );
 
   while (cursor.getTime() <= last.getTime()) {
     keys.push(cursor.toISOString().slice(0, 7));
@@ -139,7 +143,16 @@ function buildMonthlyKeys({ dateFrom, dateTo, plans, exams, assignments }) {
 
 function buildMonthlyTrend({ monthlyKeys, plans, exams, assignments }) {
   const map = new Map(
-    monthlyKeys.map((month) => [month, { month, month_label: formatMonthLabel(month), plans: 0, exams: 0, assignments: 0 }]),
+    monthlyKeys.map((month) => [
+      month,
+      {
+        month,
+        month_label: formatMonthLabel(month),
+        plans: 0,
+        exams: 0,
+        assignments: 0,
+      },
+    ]),
   );
 
   for (const plan of plans) {
@@ -250,7 +263,9 @@ function buildTeacherRows({
   teacherFilter,
 }) {
   const teacherRows = [];
-  const teacherMap = new Map((teachers || []).map((teacher) => [Number(teacher.id), teacher]));
+  const teacherMap = new Map(
+    (teachers || []).map((teacher) => [Number(teacher.id), teacher]),
+  );
 
   const allTeacherIds = new Set([
     ...teacherMap.keys(),
@@ -269,8 +284,12 @@ function buildTeacherRows({
     }
 
     const teacher = teacherMap.get(teacherId);
-    const teacherPlans = plans.filter((plan) => Number(plan.teacher_id) === teacherId);
-    const teacherExams = exams.filter((exam) => Number(exam.teacher_id) === teacherId);
+    const teacherPlans = plans.filter(
+      (plan) => Number(plan.teacher_id) === teacherId,
+    );
+    const teacherExams = exams.filter(
+      (exam) => Number(exam.teacher_id) === teacherId,
+    );
     const teacherAssignments = assignments.filter(
       (assignment) => Number(assignment.teacher_id) === teacherId,
     );
@@ -281,13 +300,24 @@ function buildTeacherRows({
 
     const teacherCriteria = {
       firstPass: teacherPlans
-        .map((plan) => scoredPlansById.get(plan.public_id)?.criteria?.first_pass_reliability)
+        .map(
+          (plan) =>
+            scoredPlansById.get(plan.public_id)?.criteria
+              ?.first_pass_reliability,
+        )
         .filter((value) => Number.isFinite(value)),
       structural: teacherPlans
-        .map((plan) => scoredPlansById.get(plan.public_id)?.criteria?.structural_completeness)
+        .map(
+          (plan) =>
+            scoredPlansById.get(plan.public_id)?.criteria
+              ?.structural_completeness,
+        )
         .filter((value) => Number.isFinite(value)),
       depth: teacherPlans
-        .map((plan) => scoredPlansById.get(plan.public_id)?.criteria?.content_depth)
+        .map(
+          (plan) =>
+            scoredPlansById.get(plan.public_id)?.criteria?.content_depth,
+        )
         .filter((value) => Number.isFinite(value)),
     };
 
@@ -302,11 +332,15 @@ function buildTeacherRows({
       return updated.getTime() > created.getTime();
     }).length;
 
-    const retryCount = teacherPlans.filter((plan) => Boolean(plan.retry_occurred)).length;
+    const retryCount = teacherPlans.filter((plan) =>
+      Boolean(plan.retry_occurred),
+    ).length;
     const firstPassCount = teacherPlans.length - retryCount;
 
     const firstPassRate =
-      teacherPlans.length > 0 ? (firstPassCount / teacherPlans.length) * 100 : 0;
+      teacherPlans.length > 0
+        ? (firstPassCount / teacherPlans.length) * 100
+        : 0;
     const retryRate =
       teacherPlans.length > 0 ? (retryCount / teacherPlans.length) * 100 : 0;
 
@@ -340,11 +374,14 @@ function buildTeacherRows({
     teacherRows.push({
       teacher_id: teacherId,
       username: teacher?.username ?? `#${teacherId}`,
-      display_name: teacher?.display_name || teacher?.username || `#${teacherId}`,
+      display_name:
+        teacher?.display_name || teacher?.username || `#${teacherId}`,
       plans_generated: teacherPlans.length,
       avg_plan_quality: roundOne(avgPlanQuality),
       quality_band:
-        teacherPlans.length === 0 ? getNoDataBand() : getQualityBand(avgPlanQuality),
+        teacherPlans.length === 0
+          ? getNoDataBand()
+          : getQualityBand(avgPlanQuality),
       first_pass_rate: roundOne(firstPassRate),
       retry_rate: roundOne(retryRate),
       exams_generated: teacherExams.length,
@@ -385,7 +422,8 @@ export function createStatsService({
   return {
     async getSummary(filters, requester) {
       const role = requester?.role === "admin" ? "admin" : "teacher";
-      const effectiveTeacherId = role === "admin" ? filters.teacher_id ?? null : requester.userId;
+      const effectiveTeacherId =
+        role === "admin" ? (filters.teacher_id ?? null) : requester.userId;
 
       const accessContext =
         role === "admin" && !effectiveTeacherId
@@ -396,7 +434,9 @@ export function createStatsService({
         lessonPlansRepository.list({}, accessContext),
         examsRepository.list({}, accessContext),
         assignmentsRepository.list({}, accessContext),
-        role === "admin" ? usersRepository.listTeachersWithUsage() : Promise.resolve([]),
+        role === "admin"
+          ? usersRepository.listTeachersWithUsage()
+          : Promise.resolve([]),
       ]);
 
       const plans = allPlans.filter((plan) =>
@@ -415,9 +455,13 @@ export function createStatsService({
         ...scorePlanQuality(plan),
       }));
 
-      const scoredPlansById = new Map(scoredPlans.map((plan) => [plan.public_id, plan]));
+      const scoredPlansById = new Map(
+        scoredPlans.map((plan) => [plan.public_id, plan]),
+      );
 
-      const retriesCount = plans.filter((plan) => Boolean(plan.retry_occurred)).length;
+      const retriesCount = plans.filter((plan) =>
+        Boolean(plan.retry_occurred),
+      ).length;
       const firstPassCount = plans.length - retriesCount;
 
       const editedAssignmentsCount = assignments.filter((assignment) => {
@@ -454,17 +498,23 @@ export function createStatsService({
 
       const criteriaAverage = {
         first_pass_reliability: roundOne(
-          average(scoredPlans.map((plan) => plan.criteria.first_pass_reliability)),
+          average(
+            scoredPlans.map((plan) => plan.criteria.first_pass_reliability),
+          ),
         ),
         structural_completeness: roundOne(
-          average(scoredPlans.map((plan) => plan.criteria.structural_completeness)),
+          average(
+            scoredPlans.map((plan) => plan.criteria.structural_completeness),
+          ),
         ),
         content_depth: roundOne(
           average(scoredPlans.map((plan) => plan.criteria.content_depth)),
         ),
       };
 
-      const averageQuality = roundOne(average(scoredPlans.map((plan) => plan.score)));
+      const averageQuality = roundOne(
+        average(scoredPlans.map((plan) => plan.score)),
+      );
 
       const kpis = {
         plans_generated: plans.length,
@@ -490,20 +540,30 @@ export function createStatsService({
 
       const qualityRubric = {
         average_score: averageQuality,
-        quality_band: plans.length === 0 ? getNoDataBand() : getQualityBand(averageQuality),
+        quality_band:
+          plans.length === 0 ? getNoDataBand() : getQualityBand(averageQuality),
         criteria: criteriaAverage,
         distribution: buildQualityDistribution(scoredPlans),
       };
 
       const breakdowns = {
         plan_types: {
-          traditional: plans.filter((plan) => plan.plan_type === "traditional").length,
-          active_learning: plans.filter((plan) => plan.plan_type === "active_learning").length,
+          traditional: plans.filter((plan) => plan.plan_type === "traditional")
+            .length,
+          active_learning: plans.filter(
+            (plan) => plan.plan_type === "active_learning",
+          ).length,
         },
         assignment_types: {
-          written: assignments.filter((assignment) => assignment.type === "written").length,
-          varied: assignments.filter((assignment) => assignment.type === "varied").length,
-          practical: assignments.filter((assignment) => assignment.type === "practical").length,
+          written: assignments.filter(
+            (assignment) => assignment.type === "written",
+          ).length,
+          varied: assignments.filter(
+            (assignment) => assignment.type === "varied",
+          ).length,
+          practical: assignments.filter(
+            (assignment) => assignment.type === "practical",
+          ).length,
         },
       };
 

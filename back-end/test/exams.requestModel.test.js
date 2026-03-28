@@ -60,7 +60,9 @@ test("validateGenerateExamRequest rejects non-quarter marks and underweighted to
 
   assert.equal(result.ok, false);
   assert.ok(result.errors.some((error) => error.message.includes("0.25")));
-  assert.ok(result.errors.some((error) => error.message.includes("at least 0.25")));
+  assert.ok(
+    result.errors.some((error) => error.message.includes("at least 0.25")),
+  );
 });
 
 test("validateListExamsQuery parses and validates filters", () => {

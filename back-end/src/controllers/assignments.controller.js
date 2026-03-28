@@ -41,7 +41,8 @@ function buildAssignmentPayload(assignment) {
 
 export function createAssignmentsController(dependencies = {}) {
   const assignmentGenerationService =
-    dependencies.assignmentGenerationService || createAssignmentGenerationService();
+    dependencies.assignmentGenerationService ||
+    createAssignmentGenerationService();
   const assignmentsRepository =
     dependencies.assignmentsRepository || createAssignmentsRepository();
   const revisionsRepository =
@@ -69,11 +70,14 @@ export function createAssignmentsController(dependencies = {}) {
           });
         }
 
-        const result = await assignmentGenerationService.generate(validation.value, {
-          teacherId: req.user.id,
-          role: req.user.role,
-          logger: req.log,
-        });
+        const result = await assignmentGenerationService.generate(
+          validation.value,
+          {
+            teacherId: req.user.id,
+            role: req.user.role,
+            logger: req.log,
+          },
+        );
 
         return res.status(201).json(result);
       } catch (error) {
@@ -151,7 +155,9 @@ export function createAssignmentsController(dependencies = {}) {
       try {
         const filters = {};
         if (req.query.lesson_plan_public_id) {
-          filters.lesson_plan_public_id = String(req.query.lesson_plan_public_id).trim();
+          filters.lesson_plan_public_id = String(
+            req.query.lesson_plan_public_id,
+          ).trim();
         }
         if (req.query.lesson_id != null) {
           const n = Number(req.query.lesson_id);
@@ -276,7 +282,10 @@ export function createAssignmentsController(dependencies = {}) {
         await insertAuditLog({
           action: "record_edit",
           userId: req.user.id,
-          details: JSON.stringify({ artifact_type: "assignment", artifact_id: updatedAssignment.public_id }),
+          details: JSON.stringify({
+            artifact_type: "assignment",
+            artifact_id: updatedAssignment.public_id,
+          }),
           logger: req.log,
         });
 
