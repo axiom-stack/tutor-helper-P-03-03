@@ -494,6 +494,26 @@ function TeacherCirriculumManager(props: {
     });
   }, [subjects, classByIdMap]);
 
+  const visibleSubjects = useMemo<Subject[]>(() => {
+    if (selectedClassId !== '') {
+      return orderedSubjects.filter(
+        (subjectItem) => subjectItem.class_id === selectedClassId
+      );
+    }
+
+    if (selectedClassBaseKey === '') {
+      return orderedSubjects;
+    }
+
+    return orderedSubjects.filter((subjectItem) => {
+      const subjectClass = classByIdMap.get(subjectItem.class_id) ?? null;
+      return (
+        subjectClass != null &&
+        getClassBaseKey(subjectClass) === selectedClassBaseKey
+      );
+    });
+  }, [orderedSubjects, selectedClassBaseKey, selectedClassId, classByIdMap]);
+
 
   const quickAddSubjectSuggestions = useMemo<SearchSuggestion[]>(() => {
     if (
@@ -523,35 +543,6 @@ function TeacherCirriculumManager(props: {
         description: subjectItem.description ?? null,
       }));
   }, [quickAddDraft, subjects]);
-
-  const quickAddUnitSuggestions = useMemo<SearchSuggestion[]>(() => {
-    if (
-      !quickAddDraft ||
-      quickAddDraft.kind !== 'unit' ||
-      !quickAddDraft.subjectId
-    ) {
-      return [];
-    }
-
-    const normalizedQuery = normalizeLookupText(quickAddDraft.name);
-    if (!normalizedQuery) {
-      return [];
-    }
-
-    return units
-      .filter(
-        (unitItem) =>
-          unitItem.subject_id === quickAddDraft.subjectId &&
-          matchesLookupQuery(unitItem.name, normalizedQuery)
-      )
-      .sort((left, right) => left.name.localeCompare(right.name, 'ar'))
-      .slice(0, 6)
-      .map((unitItem) => ({
-        id: unitItem.id,
-        label: unitItem.name,
-        description: unitItem.description ?? null,
-      }));
-  }, [quickAddDraft, units]);
 
   const duplicateNewClass = classes.find((classItem) =>
     isSameClassIdentity(classItem, {
@@ -1810,7 +1801,7 @@ function TeacherCirriculumManager(props: {
                 }
               >
                 <option value="">اختر المادة</option>
-                {orderedSubjects.map((subjectItem) => (
+                {visibleSubjects.map((subjectItem) => (
                   <option key={subjectItem.id} value={subjectItem.id}>
                     {formatSubjectSelectLabel(
                       subjectItem,
@@ -2154,42 +2145,32 @@ function TeacherCirriculumManager(props: {
                     }
                   />
                 ) : quickAddDraft.kind === 'unit' ? (
-                  <SearchablePickerField
-                    id="quick-add-name"
-                    label="اسم الوحدة *"
-                    value={quickAddDraft.name}
-                    placeholder="اكتب اسم الوحدة"
-                    helperText="ابحث داخل المادة المحددة أو اكتب اسمًا جديدًا."
-                    statusText={
-                      quickAddDraft.name.trim().length === 0
-                        ? ''
-                        : quickAddUnitSuggestions.length > 0
-                          ? 'هناك وحدات محفوظة مطابقة للاسم المدخل.'
-                          : 'لن تُستخدم وحدة محفوظة لهذا الاسم.'
-                    }
-                    suggestions={quickAddUnitSuggestions}
-                    onChange={(value) =>
-                      setQuickAddDraft((previous) =>
-                        previous
-                          ? {
-                              ...previous,
-                              name: value,
-                            }
-                          : previous
-                      )
-                    }
-                    onSelectSuggestion={(suggestion) =>
-                      setQuickAddDraft((previous) =>
-                        previous
-                          ? {
-                              ...previous,
-                              name: suggestion.label,
-                              description: suggestion.description ?? '',
-                            }
-                          : previous
-                      )
-                    }
-                  />
+                  <div className="tcm2__field">
+                    <label htmlFor="quick-add-name">اسم الوحدة *</label>
+                    <select
+                      id="quick-add-name"
+                      value={quickAddDraft.name}
+                      onChange={(event) =>
+                        setQuickAddDraft((previous) =>
+                          previous
+                            ? {
+                                ...previous,
+                                name: event.target.value,
+                              }
+                            : previous
+                        )
+                      }
+                    >
+                      <option value="">اختر الوحدة</option>
+                      {Array.from({ length: 20 }, (_, index) => index + 1).map(
+                        (unitNumber) => (
+                          <option key={unitNumber} value={String(unitNumber)}>
+                            {unitNumber}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </div>
                 ) : (
                   <div className="tcm2__field">
                     <label htmlFor="quick-add-name">الاسم *</label>

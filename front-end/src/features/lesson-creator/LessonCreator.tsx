@@ -235,10 +235,10 @@ function LessonCreator() {
     setSelectedUnitId('');
     setSelectedLessonId('');
     setSelectedPeriodOrder('');
-      setUnits([]);
-      setLessons([]);
-      setSubjects([]);
-      setPlanType(defaultPlanType);
+    setUnits([]);
+    setLessons([]);
+    setSubjects([]);
+    setPlanType(defaultPlanType);
     setDurationMinutes(
       LESSON_DURATION_OPTIONS.includes(
         defaultDurationMinutes as (typeof LESSON_DURATION_OPTIONS)[number]
@@ -274,7 +274,7 @@ function LessonCreator() {
       setPageError(null);
 
       try {
-      const classesLoader =
+        const classesLoader =
           user.userRole === 'admin' ? getAllClasses : getMyClasses;
         const classesResponse = await classesLoader();
 
@@ -429,21 +429,25 @@ function LessonCreator() {
       return [];
     }
 
+    const selectedClassIdNumber = Number(selectedClassId);
+    if (Number.isNaN(selectedClassIdNumber)) {
+      return [];
+    }
+
     return subjects.filter(
-      (subjectItem) => subjectItem.class_id === selectedClassId
+      (subjectItem) => Number(subjectItem.class_id) === selectedClassIdNumber
     );
   }, [selectedClassId, subjects]);
 
   const selectedClass = useMemo(
-    () => classes.find((item) => item.id === selectedClassId) ?? null,
+    () =>
+      classes.find((item) => Number(item.id) === Number(selectedClassId)) ??
+      null,
     [classes, selectedClassId]
   );
 
   const classGroups = useMemo(() => {
-    const grouped = new Map<
-      string,
-      { baseClass: Class; sections: Class[] }
-    >();
+    const grouped = new Map<string, { baseClass: Class; sections: Class[] }>();
 
     classes.forEach((classItem) => {
       const baseKey = getClassBaseKey(classItem);
@@ -483,24 +487,30 @@ function LessonCreator() {
       return [];
     }
 
-    return classGroups.find((group) => group.key === selectedClassBaseKey)
-      ?.sections ?? [];
+    return (
+      classGroups.find((group) => group.key === selectedClassBaseKey)
+        ?.sections ?? []
+    );
   }, [classGroups, selectedClassBaseKey]);
 
   const selectedSubject = useMemo(
     () =>
-      subjectsForSelectedClass.find((item) => item.id === selectedSubjectId) ??
-      null,
+      subjectsForSelectedClass.find(
+        (item) => Number(item.id) === Number(selectedSubjectId)
+      ) ?? null,
     [selectedSubjectId, subjectsForSelectedClass]
   );
 
   const selectedUnit = useMemo(
-    () => units.find((item) => item.id === selectedUnitId) ?? null,
+    () =>
+      units.find((item) => Number(item.id) === Number(selectedUnitId)) ?? null,
     [selectedUnitId, units]
   );
 
   const selectedLesson = useMemo(
-    () => lessons.find((item) => item.id === selectedLessonId) ?? null,
+    () =>
+      lessons.find((item) => Number(item.id) === Number(selectedLessonId)) ??
+      null,
     [selectedLessonId, lessons]
   );
 
@@ -1008,7 +1018,9 @@ function LessonCreator() {
                   <select
                     id="lcp-section-select"
                     value={selectedClassId}
-                    onChange={(event) => handleSectionSelect(event.target.value)}
+                    onChange={(event) =>
+                      handleSectionSelect(event.target.value)
+                    }
                     disabled={
                       selectedClassBaseKey === '' ||
                       isGenerating ||
@@ -1029,8 +1041,12 @@ function LessonCreator() {
                   <select
                     id="lcp-subject-select"
                     value={selectedSubjectId}
-                    onChange={(event) => handleSubjectSelect(event.target.value)}
-                    disabled={selectedClassId === '' || subjectsLoading || isGenerating}
+                    onChange={(event) =>
+                      handleSubjectSelect(event.target.value)
+                    }
+                    disabled={
+                      selectedClassId === '' || subjectsLoading || isGenerating
+                    }
                   >
                     <option value="">اختر المادة...</option>
                     {subjectsForSelectedClass.map((subjectItem) => (
@@ -1117,7 +1133,9 @@ function LessonCreator() {
                   <select
                     id="lcp-period-order"
                     value={selectedPeriodOrder}
-                    onChange={(event) => setSelectedPeriodOrder(event.target.value)}
+                    onChange={(event) =>
+                      setSelectedPeriodOrder(event.target.value)
+                    }
                     disabled={selectedLessonId === '' || isGenerating}
                   >
                     <option value="">اختر ترتيب الحصة...</option>
@@ -1300,10 +1318,10 @@ function LessonCreator() {
                 الوحدة الأولى | {selectedSubject?.name ?? '—'} | الصف:{' '}
                 {selectedClass?.grade_label ?? '—'} | الفصل:{' '}
                 {normalizeSemesterLabel(selectedClass?.semester)} |{' '}
-                {normalizeAcademicYearLabel(selectedClass?.academic_year) || '—'}{' '}
-                |{' '}
-                {toPlanTypeLabel(generatedPlan?.plan_type ?? planType)} | المدة:{' '}
-                {durationMinutes} د
+                {normalizeAcademicYearLabel(selectedClass?.academic_year) ||
+                  '—'}{' '}
+                | {toPlanTypeLabel(generatedPlan?.plan_type ?? planType)} |
+                المدة: {durationMinutes} د
               </p>
 
               <div className="lcp__confirmation-actions">

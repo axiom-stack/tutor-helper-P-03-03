@@ -55,7 +55,10 @@ import {
 } from '../../constants/dropdown-options';
 import {
   formatClassSelectLabel,
+  formatClassBaseSelectLabel,
   formatSubjectSelectLabel,
+  getClassBaseKey,
+  getClassSectionLabel,
   normalizeAcademicYearLabel,
   normalizeSemesterLabel,
 } from '../../utils/classDisplay';
@@ -72,6 +75,12 @@ interface LessonOption extends Lesson {
 interface ExamDraft {
   title: string;
   questions: ExamQuestion[];
+}
+
+interface ClassGroup {
+  key: string;
+  baseClass: Class;
+  sections: Class[];
 }
 
 const PAPER_SECTION_GROUPS = [
@@ -482,6 +491,18 @@ function autoTitle(
   return `اختبار ${subjectName}-${semesterLabel}-الصف ${gradeLabel} ${yearLabel}`.trim();
 }
 
+function formatCombinedSectionLabel(classItems: Class[]): string {
+  const labels = Array.from(
+    new Set(
+      classItems
+        .map((classItem) => getClassSectionLabel(classItem).trim())
+        .filter((label) => label.length > 0 && label !== '—')
+    )
+  );
+
+  return labels.length > 0 ? labels.join('، ') : '—';
+}
+
 function isQuarterStepMark(value: number): boolean {
   const scaled = value * 4;
   return Math.abs(scaled - Math.round(scaled)) < 1e-9;
@@ -803,6 +824,69 @@ export default function Quizzes() {
     return new Map(classes.map((classItem) => [classItem.id, classItem]));
   }, [classes]);
 
+  const classGroups = useMemo(() => {
+    const grouped = new Map<string, ClassGroup>();
+
+    classes.forEach((classItem) => {
+      const baseKey = getClassBaseKey(classItem);
+      const current = grouped.get(baseKey);
+      if (current) {
+        current.sections.push(classItem);
+        return;
+      }
+
+      grouped.set(baseKey, {
+        key: baseKey,
+        baseClass: classItem,
+        sections: [classItem],
+      });
+    });
+
+    return Array.from(grouped.values())
+      .map((group) => ({
+        ...group,
+        sections: [...group.sections].sort((left, right) =>
+          getClassSectionLabel(left).localeCompare(
+            getClassSectionLabel(right),
+            'ar'
+          )
+        ),
+      }))
+      .sort((left, right) =>
+        formatClassBaseSelectLabel(left.baseClass).localeCompare(
+          formatClassBaseSelectLabel(right.baseClass),
+          'ar'
+        )
+      );
+  }, [classes]);
+
+  const selectedClass = useMemo(
+    () => classes.find((classItem) => classItem.id === selectedClassId) ?? null,
+    [classes, selectedClassId]
+  );
+
+  const selectedClassGroup = useMemo(() => {
+    if (!selectedClass) {
+      return null;
+    }
+
+    const baseKey = getClassBaseKey(selectedClass);
+    return classGroups.find((group) => group.key === baseKey) ?? null;
+  }, [classGroups, selectedClass]);
+
+  const selectedClassSectionLabel = useMemo(() => {
+    if (selectedClassGroup) {
+      return formatCombinedSectionLabel(selectedClassGroup.sections);
+    }
+
+    return (
+      (selectedClass ? getClassSectionLabel(selectedClass) : '') ||
+      selectedClass?.section_label?.trim() ||
+      selectedClass?.section?.trim() ||
+      '—'
+    );
+  }, [selectedClass, selectedClassGroup]);
+
   const subjectsById = useMemo(() => {
     return new Map(subjects.map((subject) => [subject.id, subject]));
   }, [subjects]);
@@ -864,13 +948,9 @@ export default function Quizzes() {
     );
   }, [academicYearOptions]);
 
-  const selectedClass = useMemo(
-    () => classes.find((classItem) => classItem.id === selectedClassId) ?? null,
-    [classes, selectedClassId]
-  );
-
-  const filteredClasses = useMemo(() => {
-    return classes.filter((classItem) => {
+  const filteredClassGroups = useMemo(() => {
+    return classGroups.filter((group) => {
+      const classItem = group.baseClass;
       if (
         selectedAcademicYear &&
         normalizeAcademicYearLabel(classItem.academic_year) !==
@@ -886,17 +966,27 @@ export default function Quizzes() {
       }
       return true;
     });
-  }, [classes, selectedAcademicYear, selectedSemester]);
+  }, [classGroups, selectedAcademicYear, selectedSemester]);
 
   const subjectsForSelectedClass = useMemo(() => {
-    if (!selectedClass) {
+    if (!selectedClassGroup) {
       return [];
     }
 
-    return subjects.filter(
-      (subjectItem) => subjectItem.class_id === selectedClass.id
+    const selectedClassIds = new Set(
+      selectedClassGroup.sections.map((classItem) => classItem.id)
     );
-  }, [selectedClass, subjects]);
+
+    return [...subjects]
+      .filter((subjectItem) => selectedClassIds.has(subjectItem.class_id))
+      .sort((left, right) => {
+        const leftClass = classesById.get(left.class_id) ?? null;
+        const rightClass = classesById.get(right.class_id) ?? null;
+        const leftLabel = formatSubjectSelectLabel(left, leftClass);
+        const rightLabel = formatSubjectSelectLabel(right, rightClass);
+        return leftLabel.localeCompare(rightLabel, 'ar');
+      });
+  }, [classesById, selectedClassGroup, subjects]);
 
   const selectedSubject = useMemo(
     () =>
@@ -956,7 +1046,7 @@ export default function Quizzes() {
     isGenerating ||
     isEditingExam;
 
-  const resetExamDraftSelection = () => {
+  const resetExamDraftSelection = useCallback(() => {
     setSelectedClassId('');
     setSelectedSubjectId('');
     setSelectedLessonIds(new Set());
@@ -965,9 +1055,9 @@ export default function Quizzes() {
     setExamTitle('');
     setIsTitleTouched(false);
     setExamScreen('creator');
-  };
+  }, []);
 
-  const resetCreateExamState = () => {
+  const resetCreateExamState = useCallback(() => {
     resetExamDraftSelection();
     setSelectedAcademicYear(academicYearOptions[0] ?? '');
     setSelectedSemester(SEMESTER_OPTIONS[0]);
@@ -985,11 +1075,11 @@ export default function Quizzes() {
     setSuccessMessage(null);
     setDraftRecoveredNotice(null);
     setIsGenerating(false);
-  };
+  }, [academicYearOptions, resetExamDraftSelection]);
 
   useEffect(() => {
     resetCreateExamState();
-  }, [isCreateRoute]);
+  }, [isCreateRoute, resetCreateExamState]);
 
   const handleAcademicYearChange = (value: string) => {
     setSelectedAcademicYear(value);
@@ -1169,7 +1259,10 @@ export default function Quizzes() {
         academic_year: selectedAcademicYear,
         semester: selectedSemester,
         grade: selectedClass.grade_label,
-        section: selectedClass.section_label,
+        section:
+          selectedClassSectionLabel.trim() === '—'
+            ? undefined
+            : selectedClassSectionLabel,
       });
 
       if ('queued' in response && response.queued) {
@@ -2165,9 +2258,14 @@ export default function Quizzes() {
                     disabled={isGenerating || isEditingExam}
                   >
                     <option value="">اختر الصف...</option>
-                    {filteredClasses.map((classItem) => (
-                      <option key={classItem.id} value={classItem.id}>
-                        {formatClassSelectLabel(classItem)}
+                    {filteredClassGroups.map((group) => (
+                      <option key={group.key} value={group.baseClass.id}>
+                        {formatClassBaseSelectLabel(group.baseClass)}
+                        {group.sections.length > 1
+                          ? ` | الشعبة: ${formatCombinedSectionLabel(
+                              group.sections
+                            )}`
+                          : ''}
                       </option>
                     ))}
                   </select>
@@ -2200,7 +2298,10 @@ export default function Quizzes() {
                   <option value="">اختر المادة...</option>
                   {subjectsForSelectedClass.map((subject) => (
                     <option key={subject.id} value={subject.id}>
-                      {subject.name}
+                      {formatSubjectSelectLabel(
+                        subject,
+                        classesById.get(subject.class_id) ?? null
+                      )}
                     </option>
                   ))}
                 </select>
@@ -2376,11 +2477,7 @@ export default function Quizzes() {
                   العام الدراسي: {toArabicDigits(selectedAcademicYear)} | الفصل
                   الدراسي: {toArabicDigits(selectedSemester)} | الصف:{' '}
                   {toArabicDigits(selectedClass?.grade_label ?? '—')} | الشعبة:{' '}
-                  {toArabicDigits(
-                    selectedClass?.section_label ??
-                      selectedClass?.section ??
-                      '—'
-                  )}{' '}
+                  {toArabicDigits(selectedClassSectionLabel)}{' '}
                   | المادة: {selectedSubject?.name ?? '—'}
                 </p>
                 <div className="qz__confirmation-actions">
