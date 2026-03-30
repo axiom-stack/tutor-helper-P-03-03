@@ -80,7 +80,9 @@ function heading(text, size = 28) {
 
 function subheading(text) {
   return new Paragraph({
-    children: [new TextRun({ text: toArabicDigits(text), bold: true, size: 24 })],
+    children: [
+      new TextRun({ text: toArabicDigits(text), bold: true, size: 24 }),
+    ],
     ...RTL_PARAGRAPH,
     spacing: { before: 160, after: 80 },
   });
@@ -139,12 +141,20 @@ function headerCell(label, value) {
     verticalAlign: VerticalAlign.CENTER,
     children: [
       new Paragraph({
-        children: [new TextRun({ text: toArabicDigits(label), bold: true, size: 20 })],
+        children: [
+          new TextRun({ text: toArabicDigits(label), bold: true, size: 20 }),
+        ],
         ...RTL_PARAGRAPH,
         spacing: { after: 40 },
       }),
       new Paragraph({
-        children: [new TextRun({ text: toArabicDigits(value || "—"), bold: true, size: 22 })],
+        children: [
+          new TextRun({
+            text: toArabicDigits(value || "—"),
+            bold: true,
+            size: 22,
+          }),
+        ],
         ...RTL_PARAGRAPH,
       }),
     ],
@@ -226,10 +236,17 @@ function buildQuestionMetaParts(q, { includeLessonName = false } = {}) {
 
 function buildPaperQuestionChildren(q) {
   const children = [
-    para(buildQuestionMetaParts(q, { includeLessonName: true }).join(" | "), 20),
+    para(
+      buildQuestionMetaParts(q, { includeLessonName: true }).join(" | "),
+      20,
+    ),
     new Paragraph({
       children: [
-        new TextRun({ text: toArabicDigits(q.text ?? ""), bold: true, size: 24 }),
+        new TextRun({
+          text: toArabicDigits(q.text ?? ""),
+          bold: true,
+          size: 24,
+        }),
       ],
       ...RTL_PARAGRAPH,
       spacing: { after: 80 },
@@ -269,10 +286,17 @@ function buildPaperQuestionChildren(q) {
 
 function buildAnswerKeyQuestionChildren(q) {
   const children = [
-    para(buildQuestionMetaParts(q, { includeLessonName: true }).join(" | "), 20),
+    para(
+      buildQuestionMetaParts(q, { includeLessonName: true }).join(" | "),
+      20,
+    ),
     new Paragraph({
       children: [
-        new TextRun({ text: toArabicDigits(q.text ?? ""), bold: true, size: 24 }),
+        new TextRun({
+          text: toArabicDigits(q.text ?? ""),
+          bold: true,
+          size: 24,
+        }),
       ],
       ...RTL_PARAGRAPH,
       spacing: { after: 80 },
@@ -312,13 +336,9 @@ function buildAnswerKeyQuestionChildren(q) {
     const correct = q.correctAnswer === true ? "صح" : "خطأ";
     children.push(para(`الإجابة الصحيحة: ${correct}`, 22));
   } else if (q.type === "short_answer") {
-    children.push(
-      para(`الإجابة النموذجية: ${q.answerText ?? ""}`, 22),
-    );
+    children.push(para(`الإجابة النموذجية: ${q.answerText ?? ""}`, 22));
   } else if (q.type === "essay") {
-    children.push(
-      para(`ملخص الإجابة النموذجية: ${q.answerText ?? ""}`, 22),
-    );
+    children.push(para(`ملخص الإجابة النموذجية: ${q.answerText ?? ""}`, 22));
     if (Array.isArray(q.rubric) && q.rubric.length) {
       children.push(subheading("معايير التصحيح"));
       q.rubric.forEach((r) => {
@@ -436,7 +456,9 @@ export async function buildExamPaperDocx(enrichedExam) {
 
   children.push(
     subheading("التعليمات"),
-    para("اقرأ الأسئلة جيدًا وأجب في الأماكن المخصصة، واستخدم نموذج الإجابات للأسئلة الموضوعية."),
+    para(
+      "اقرأ الأسئلة جيدًا وأجب في الأماكن المخصصة، واستخدم نموذج الإجابات للأسئلة الموضوعية.",
+    ),
   );
 
   for (const section of vm.sections) {
@@ -500,7 +522,8 @@ function buildAnswerFormHeaderTable(vm) {
       new Paragraph({
         children: [
           new TextRun({
-            text: " ", size: 18,
+            text: " ",
+            size: 18,
           }),
         ],
         border: {
@@ -574,7 +597,10 @@ export async function buildExamAnswerFormDocx(enrichedExam) {
 
   children.push(
     subheading("تعليمات تعبئة النموذج"),
-    para("ظلِّل دائرة واحدة فقط لكل سؤال، ولا تظلِّل أكثر من خيار واحد لنفس السؤال، ولا تكتب في المنطقة الإدارية.", 22),
+    para(
+      "ظلِّل دائرة واحدة فقط لكل سؤال، ولا تظلِّل أكثر من خيار واحد لنفس السؤال، ولا تكتب في المنطقة الإدارية.",
+      22,
+    ),
   );
 
   const objectiveSections = getObjectiveSections(vm);

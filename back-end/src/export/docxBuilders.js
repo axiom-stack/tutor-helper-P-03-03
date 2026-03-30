@@ -98,16 +98,14 @@ function para(text) {
 }
 
 function bulletList(items) {
-  return (items && items.length
-    ? items
-    : ["لا توجد بيانات."]
-  ).map((item) =>
-    new Paragraph({
-      children: [new TextRun({ text: item || "—", size: 18 })],
-      ...RTL_PARAGRAPH,
-      bullet: { level: 0 },
-      spacing: { after: 40 },
-    })
+  return (items && items.length ? items : ["لا توجد بيانات."]).map(
+    (item) =>
+      new Paragraph({
+        children: [new TextRun({ text: item || "—", size: 18 })],
+        ...RTL_PARAGRAPH,
+        bullet: { level: 0 },
+        spacing: { after: 40 },
+      }),
   );
 }
 
@@ -117,12 +115,21 @@ function headerCell(label, value) {
     verticalAlign: VerticalAlign.CENTER,
     children: [
       new Paragraph({
-        children: [new TextRun({ text: label, bold: true, size: 16, color: "000000" })],
+        children: [
+          new TextRun({ text: label, bold: true, size: 16, color: "000000" }),
+        ],
         ...RTL_PARAGRAPH,
         spacing: { after: 40 },
       }),
       new Paragraph({
-        children: [new TextRun({ text: value || "—", bold: true, size: 18, color: "000000" })],
+        children: [
+          new TextRun({
+            text: value || "—",
+            bold: true,
+            size: 18,
+            color: "000000",
+          }),
+        ],
         ...RTL_PARAGRAPH,
       }),
     ],
@@ -133,7 +140,9 @@ function sectionCell(title, items, emptyText) {
   const list = items && items.length ? items : [];
   const content = [
     new Paragraph({
-      children: [new TextRun({ text: title, bold: true, size: 18, color: "000000" })],
+      children: [
+        new TextRun({ text: title, bold: true, size: 18, color: "000000" }),
+      ],
       ...RTL_PARAGRAPH,
       spacing: { after: 60 },
     }),
@@ -151,7 +160,13 @@ function sectionCell(title, items, emptyText) {
   } else {
     content.push(
       new Paragraph({
-        children: [new TextRun({ text: emptyText || "لا توجد بيانات.", size: 17, color: "000000" })],
+        children: [
+          new TextRun({
+            text: emptyText || "لا توجد بيانات.",
+            size: 17,
+            color: "000000",
+          }),
+        ],
         ...RTL_PARAGRAPH,
       }),
     );
@@ -190,17 +205,24 @@ function resolveTraditionalSource(source, subject, unit, lessonTitle) {
  * @returns {Promise<Buffer>}
  */
 export async function buildPlanDocx(enrichedPlan) {
-  const plan = enrichedPlan?.plan_json && typeof enrichedPlan.plan_json === "object"
-    ? enrichedPlan.plan_json
-    : {};
-  const header = plan.header && typeof plan.header === "object" ? plan.header : {};
+  const plan =
+    enrichedPlan?.plan_json && typeof enrichedPlan.plan_json === "object"
+      ? enrichedPlan.plan_json
+      : {};
+  const header =
+    plan.header && typeof plan.header === "object" ? plan.header : {};
   const isTraditional = enrichedPlan.plan_type === "traditional";
   const duration = enrichedPlan.duration_minutes
     ? `${enrichedPlan.duration_minutes} دقيقة`
     : "—";
-  const grade = enrichedPlan.grade ?? extractHeaderValue(header, "grade") ?? "—";
+  const grade =
+    enrichedPlan.grade ?? extractHeaderValue(header, "grade") ?? "—";
   const unit = enrichedPlan.unit ?? extractHeaderValue(header, "unit") ?? "—";
-  const lessonTitle = enrichedPlan.lesson_title ?? enrichedPlan.lesson_name ?? extractHeaderValue(header, "lesson_title") ?? "—";
+  const lessonTitle =
+    enrichedPlan.lesson_title ??
+    enrichedPlan.lesson_name ??
+    extractHeaderValue(header, "lesson_title") ??
+    "—";
   const date = extractHeaderValue(header, "date");
   const day = extractHeaderValue(header, "day");
   const section = extractHeaderValue(header, "section");
@@ -255,10 +277,22 @@ export async function buildPlanDocx(enrichedPlan) {
         new TableRow({
           cantSplit: true,
           children: [
-            sectionCell("الأهداف / المخرجات التعليمية", outcomes, "لا توجد أهداف مدخلة."),
-            sectionCell("الاستراتيجيات / طرق التدريس", strategies, "لا توجد استراتيجيات مدخلة."),
+            sectionCell(
+              "الأهداف / المخرجات التعليمية",
+              outcomes,
+              "لا توجد أهداف مدخلة.",
+            ),
+            sectionCell(
+              "الاستراتيجيات / طرق التدريس",
+              strategies,
+              "لا توجد استراتيجيات مدخلة.",
+            ),
             sectionCell("الأنشطة", activities, "لا توجد أنشطة مدخلة."),
-            sectionCell("الوسائل / مصادر التعلم", resources, "لا توجد وسائل مدخلة."),
+            sectionCell(
+              "الوسائل / مصادر التعلم",
+              resources,
+              "لا توجد وسائل مدخلة.",
+            ),
             sectionCell("التقويم", assessment, "لا توجد أدوات تقويم مدخلة."),
           ],
         }),
@@ -276,7 +310,9 @@ export async function buildPlanDocx(enrichedPlan) {
       plan.source,
       enrichedPlan.subject ?? plan.subject,
       enrichedPlan.unit ?? plan.unit,
-      enrichedPlan.lesson_title ?? enrichedPlan.lesson_name ?? plan.header?.lesson_title
+      enrichedPlan.lesson_title ??
+        enrichedPlan.lesson_name ??
+        plan.header?.lesson_title,
     );
     const footerTable = rtlTable({
       rows: [
@@ -287,7 +323,14 @@ export async function buildPlanDocx(enrichedPlan) {
               borders: CELL_BORDER,
               children: [
                 new Paragraph({
-                  children: [new TextRun({ text: "الواجب", bold: true, size: 18, color: "000000" })],
+                  children: [
+                    new TextRun({
+                      text: "الواجب",
+                      bold: true,
+                      size: 18,
+                      color: "000000",
+                    }),
+                  ],
                   ...RTL_PARAGRAPH,
                   spacing: { after: 40 },
                 }),
@@ -301,7 +344,14 @@ export async function buildPlanDocx(enrichedPlan) {
               borders: CELL_BORDER,
               children: [
                 new Paragraph({
-                  children: [new TextRun({ text: "المصدر", bold: true, size: 18, color: "000000" })],
+                  children: [
+                    new TextRun({
+                      text: "المصدر",
+                      bold: true,
+                      size: 18,
+                      color: "000000",
+                    }),
+                  ],
                   ...RTL_PARAGRAPH,
                   spacing: { after: 40 },
                 }),
@@ -349,10 +399,7 @@ export async function buildPlanDocx(enrichedPlan) {
     children.push(headerGrid);
 
     const objectives = toTextList(plan.objectives);
-    children.push(
-      subheading("الأهداف التعليمية"),
-      ...bulletList(objectives),
-    );
+    children.push(subheading("الأهداف التعليمية"), ...bulletList(objectives));
 
     const lessonFlow = Array.isArray(plan.lesson_flow)
       ? plan.lesson_flow.filter((item) => item && typeof item === "object")
@@ -363,7 +410,12 @@ export async function buildPlanDocx(enrichedPlan) {
       new TableRow({
         cantSplit: true,
         children: [
-          "الزمن", "المحتوى", "نوع النشاط", "دور المعلم", "دور الطالب", "الوسائل",
+          "الزمن",
+          "المحتوى",
+          "نوع النشاط",
+          "دور المعلم",
+          "دور الطالب",
+          "الوسائل",
         ].map(
           (t) =>
             new TableCell({
@@ -375,7 +427,7 @@ export async function buildPlanDocx(enrichedPlan) {
                   ...RTL_PARAGRAPH,
                 }),
               ],
-            })
+            }),
         ),
       }),
       ...lessonFlow.map(
@@ -397,13 +449,15 @@ export async function buildPlanDocx(enrichedPlan) {
                   borders: CELL_BORDER,
                   children: [
                     new Paragraph({
-                      children: [new TextRun({ text: String(t ?? "—"), size: 17 })],
+                      children: [
+                        new TextRun({ text: String(t ?? "—"), size: 17 }),
+                      ],
                       ...RTL_PARAGRAPH,
                     }),
                   ],
-                })
+                }),
             ),
-          })
+          }),
       ),
     ];
 
@@ -411,7 +465,12 @@ export async function buildPlanDocx(enrichedPlan) {
       const emptyCell = () =>
         new TableCell({
           borders: CELL_BORDER,
-          children: [new Paragraph({ children: [new TextRun({ text: "" })], ...RTL_PARAGRAPH })],
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "" })],
+              ...RTL_PARAGRAPH,
+            }),
+          ],
         });
       flowTableRows.push(
         new TableRow({
@@ -419,11 +478,18 @@ export async function buildPlanDocx(enrichedPlan) {
           children: [
             new TableCell({
               borders: CELL_BORDER,
-              children: [new Paragraph({ children: [new TextRun({ text: "لا توجد بيانات تدفق." })], ...RTL_PARAGRAPH })],
+              children: [
+                new Paragraph({
+                  children: [new TextRun({ text: "لا توجد بيانات تدفق." })],
+                  ...RTL_PARAGRAPH,
+                }),
+              ],
             }),
-            ...Array(5).fill(null).map(() => emptyCell()),
+            ...Array(5)
+              .fill(null)
+              .map(() => emptyCell()),
           ],
-        })
+        }),
       );
     }
 
@@ -436,10 +502,7 @@ export async function buildPlanDocx(enrichedPlan) {
       }),
     );
 
-    children.push(
-      subheading("الواجب"),
-      para(toDisplayText(plan.homework)),
-    );
+    children.push(subheading("الواجب"), para(toDisplayText(plan.homework)));
   }
 
   const doc = new Document({
@@ -479,7 +542,10 @@ export async function buildAssignmentDocx(enrichedAssignment) {
     para(`نوع الواجب: ${typeLabel}`),
     para(`آخر تعديل: ${updatedAt}`),
     subheading("الوصف"),
-    para((a.description && a.description.trim()) || "لا يوجد وصف إضافي لهذا الواجب."),
+    para(
+      (a.description && a.description.trim()) ||
+        "لا يوجد وصف إضافي لهذا الواجب.",
+    ),
     subheading("المحتوى"),
     para(a.content ?? "—"),
   ];
@@ -497,7 +563,9 @@ export async function buildAssignmentDocx(enrichedAssignment) {
  */
 export async function buildExamDocx(enrichedExam, type = "answer_key") {
   const e = enrichedExam;
-  const date = e.created_at ? new Date(e.created_at).toLocaleDateString("ar-SA") : "—";
+  const date = e.created_at
+    ? new Date(e.created_at).toLocaleDateString("ar-SA")
+    : "—";
   const typeLabel = type === "answer_key" ? "نموذج إجابة" : "اختبار";
 
   const children = [
@@ -505,7 +573,9 @@ export async function buildExamDocx(enrichedExam, type = "answer_key") {
     para(`المعلم: ${e.teacher_name ?? "—"}`),
     para(`التاريخ: ${date}`),
     para(`الصف: ${e.class_name ?? "—"}  |  المادة: ${e.subject_name ?? "—"}`),
-    para(`عدد الأسئلة: ${e.total_questions ?? 0}  |  الدرجة الكلية: ${e.total_marks ?? 0}`),
+    para(
+      `عدد الأسئلة: ${e.total_questions ?? 0}  |  الدرجة الكلية: ${e.total_marks ?? 0}`,
+    ),
   ];
 
   const blueprint = e.blueprint;
@@ -530,7 +600,7 @@ export async function buildExamDocx(enrichedExam, type = "answer_key") {
                 ...RTL_PARAGRAPH,
               }),
             ],
-          })
+          }),
       ),
     });
     const dataRows = blueprint.cells.map(
@@ -554,16 +624,16 @@ export async function buildExamDocx(enrichedExam, type = "answer_key") {
                     ...RTL_PARAGRAPH,
                   }),
                 ],
-              })
+              }),
           ),
-        })
+        }),
     );
     children.push(
-    rtlTable({
+      rtlTable({
         rows: [headerRow, ...dataRows],
         width: { size: 100, type: WidthType.PERCENTAGE },
         layout: TableLayoutType.AUTOFIT,
-      })
+      }),
     );
   }
 
@@ -572,7 +642,9 @@ export async function buildExamDocx(enrichedExam, type = "answer_key") {
     open_ended: "سؤال مفتوح",
   };
   const questions = Array.isArray(e.questions) ? e.questions : [];
-  children.push(subheading(type === "answer_key" ? "الأسئلة والإجابات" : "الأسئلة"));
+  children.push(
+    subheading(type === "answer_key" ? "الأسئلة والإجابات" : "الأسئلة"),
+  );
   for (const q of questions) {
     const meta = [
       `س${q.question_number ?? ""}`,
@@ -586,28 +658,40 @@ export async function buildExamDocx(enrichedExam, type = "answer_key") {
     children.push(
       para(meta),
       new Paragraph({
-        children: [new TextRun({ text: q.question_text ?? "", bold: true, size: 20 })],
+        children: [
+          new TextRun({ text: q.question_text ?? "", bold: true, size: 20 }),
+        ],
         ...RTL_PARAGRAPH,
         spacing: { after: 100 },
-      })
+      }),
     );
     if (q.question_type === "multiple_choice" && Array.isArray(q.options)) {
       q.options.forEach((opt, i) => {
         children.push(para(`${i + 1}. ${opt}`));
       });
     }
-    if (q.question_type === "open_ended" && Array.isArray(q.rubric) && q.rubric.length) {
+    if (
+      q.question_type === "open_ended" &&
+      Array.isArray(q.rubric) &&
+      q.rubric.length
+    ) {
       q.rubric.forEach((r) => children.push(para(r)));
     }
 
     if (type === "answer_key") {
       children.push(
         new Paragraph({
-          children: [new TextRun({ text: "الإجابة النموذجية:", bold: true, color: "000000" })],
+          children: [
+            new TextRun({
+              text: "الإجابة النموذجية:",
+              bold: true,
+              color: "000000",
+            }),
+          ],
           ...RTL_PARAGRAPH,
           spacing: { before: 60 },
         }),
-        para(q.answer_text ?? "")
+        para(q.answer_text ?? ""),
       );
     }
     children.push(new Paragraph({ children: [], spacing: { after: 200 } }));
@@ -619,11 +703,17 @@ export async function buildExamDocx(enrichedExam, type = "answer_key") {
 
   children.push(
     new Paragraph({
-      children: [new TextRun({ text: `تم التوليد بواسطة مساعد المعلم الذكي - ${date}`, size: 16, color: "000000" })],
+      children: [
+        new TextRun({
+          text: `تم التوليد بواسطة مساعد المعلم الذكي - ${date}`,
+          size: 16,
+          color: "000000",
+        }),
+      ],
       ...RTL_PARAGRAPH,
       alignment: AlignmentType.CENTER,
       spacing: { before: 400 },
-    })
+    }),
   );
 
   const doc = new Document({
