@@ -27,8 +27,6 @@ const PERIOD_OPTIONS: Array<{ value: StatsPeriod; label: string }> = [
 
 const TREND_SERIES = [
   { key: 'plans', label: 'الخطط', color: '#2563eb' },
-  { key: 'exams', label: 'الاختبارات', color: '#16a34a' },
-  { key: 'assignments', label: 'الواجبات', color: '#ea580c' },
 ] as const;
 
 function formatNumber(value: number): string {
@@ -73,7 +71,7 @@ function getRiskLabel(flag: StatsTeacherRiskFlag): string {
     return 'إعادة توليد مرتفعة';
   }
 
-  return 'تعديلات واجبات مرتفعة';
+  return 'تعديلات متكررة مرتفعة';
 }
 
 function getQualityBandTone(
@@ -108,12 +106,6 @@ function buildTeacherInsights(summary: StatsSummaryResponse): string[] {
     );
   }
 
-  if (kpis.assignment_edit_rate > 60) {
-    insights.push(
-      'معدل تعديل الواجبات مرتفع. حاول تحسين صياغة الطلب الأولي لتقليل التعديلات اللاحقة.'
-    );
-  }
-
   if (kpis.first_pass_rate >= 80) {
     insights.push('أداء ممتاز: نسبة النجاح من أول محاولة مرتفعة.');
   }
@@ -137,7 +129,7 @@ function TrendChart({ rows }: { rows: StatsMonthlyTrendRow[] }) {
   const paddingX = 40;
   const paddingY = 24;
 
-  const values = rows.flatMap((row) => [row.plans, row.exams, row.assignments]);
+  const values = rows.flatMap((row) => [row.plans]);
   const maxValue = Math.max(1, ...values);
 
   const xForIndex = (index: number) => {
@@ -165,7 +157,7 @@ function TrendChart({ rows }: { rows: StatsMonthlyTrendRow[] }) {
         className="st__chart"
         viewBox={`0 0 ${width} ${height}`}
         role="img"
-        aria-label="اتجاهات شهرية للخطط والاختبارات والواجبات"
+        aria-label="اتجاهات شهرية للخطط"
       >
         {yTicks.map((tick) => (
           <g key={`grid-${tick.value}`}>
@@ -374,10 +366,6 @@ export default function Stats() {
         value: formatNumber(summary.kpis.exams_generated),
       },
       {
-        label: 'عدد الواجبات المولدة',
-        value: formatNumber(summary.kpis.assignments_generated),
-      },
-      {
         label: 'نسبة النجاح من أول محاولة',
         value: formatPercent(summary.kpis.first_pass_rate),
         tone: 'positive',
@@ -386,10 +374,6 @@ export default function Stats() {
         label: 'معدل إعادة التوليد',
         value: formatPercent(summary.kpis.retry_rate),
         tone: 'warn',
-      },
-      {
-        label: 'معدل تعديل الواجبات',
-        value: formatPercent(summary.kpis.assignment_edit_rate),
       },
       {
         label: 'متوسط عدد أسئلة الاختبار',
@@ -421,9 +405,7 @@ export default function Stats() {
 
   const hasData = Boolean(
     summary &&
-    (summary.kpis.plans_generated > 0 ||
-      summary.kpis.exams_generated > 0 ||
-      summary.kpis.assignments_generated > 0)
+    (summary.kpis.plans_generated > 0 || summary.kpis.exams_generated > 0)
   );
 
   const handleExport = () => {
@@ -764,42 +746,6 @@ export default function Stats() {
                       );
                     })}
                   </div>
-
-                  <div className="st__breakdown-block">
-                    <h3>أنواع الواجبات</h3>
-                    {[
-                      {
-                        label: 'تحريري',
-                        count: summary.breakdowns.assignment_types.written,
-                      },
-                      {
-                        label: 'متنوع',
-                        count: summary.breakdowns.assignment_types.varied,
-                      },
-                      {
-                        label: 'عملي',
-                        count: summary.breakdowns.assignment_types.practical,
-                      },
-                    ].map((item) => {
-                      const total =
-                        summary.breakdowns.assignment_types.written +
-                        summary.breakdowns.assignment_types.varied +
-                        summary.breakdowns.assignment_types.practical;
-                      const width = total > 0 ? (item.count / total) * 100 : 0;
-
-                      return (
-                        <div className="st__breakdown-row" key={item.label}>
-                          <div className="st__breakdown-meta">
-                            <span>{item.label}</span>
-                            <strong>{formatNumber(item.count)}</strong>
-                          </div>
-                          <div className="st__breakdown-track">
-                            <span style={{ width: `${width}%` }} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
                 </article>
               </section>
 
@@ -825,12 +771,17 @@ export default function Stats() {
                           </li>
                         ) : (
                           summary.admin.top_teachers.map((teacher) => (
-                            <li key={teacher.teacher_id} className="st__summary-item">
+                            <li
+                              key={teacher.teacher_id}
+                              className="st__summary-item"
+                            >
                               <div className="st__summary-item-main">
-                                <strong>{teacher.display_name || teacher.username}</strong>
+                                <strong>
+                                  {teacher.display_name || teacher.username}
+                                </strong>
                                 <span>
-                                  {formatNumber(teacher.plans_generated)} خطة | جودة{' '}
-                                  {formatNumber(teacher.avg_plan_quality)}
+                                  {formatNumber(teacher.plans_generated)} خطة |
+                                  جودة {formatNumber(teacher.avg_plan_quality)}
                                 </span>
                               </div>
                               <span className="st__summary-badge">Top</span>
@@ -852,15 +803,23 @@ export default function Stats() {
                           </li>
                         ) : (
                           summary.admin.at_risk_teachers.map((teacher) => (
-                            <li key={teacher.teacher_id} className="st__summary-item">
+                            <li
+                              key={teacher.teacher_id}
+                              className="st__summary-item"
+                            >
                               <div className="st__summary-item-main">
-                                <strong>{teacher.display_name || teacher.username}</strong>
+                                <strong>
+                                  {teacher.display_name || teacher.username}
+                                </strong>
                                 <span>
-                                  {formatNumber(teacher.plans_generated)} خطة | جودة{' '}
-                                  {formatNumber(teacher.avg_plan_quality)}
+                                  {formatNumber(teacher.plans_generated)} خطة |
+                                  جودة {formatNumber(teacher.avg_plan_quality)}
                                 </span>
                               </div>
-                              <div className="st__summary-flags" aria-label="مؤشرات الخطر">
+                              <div
+                                className="st__summary-flags"
+                                aria-label="مؤشرات الخطر"
+                              >
                                 {teacher.risk_flags.map((flag) => (
                                   <span
                                     key={`${teacher.teacher_id}-${flag}`}
@@ -891,8 +850,6 @@ export default function Stats() {
                             <th>متوسط الجودة</th>
                             <th>نجاح أول محاولة</th>
                             <th>الاختبارات</th>
-                            <th>الواجبات</th>
-                            <th>تعديلات الواجبات</th>
                             <th>آخر نشاط</th>
                             <th>مخاطر</th>
                           </tr>
@@ -900,7 +857,7 @@ export default function Stats() {
                         <tbody>
                           {summary.admin.teacher_performance.length === 0 ? (
                             <tr>
-                              <td colSpan={9} className="st__table-empty">
+                              <td colSpan={7} className="st__table-empty">
                                 لا توجد بيانات معلمين ضمن النطاق الحالي.
                               </td>
                             </tr>
@@ -922,8 +879,6 @@ export default function Stats() {
                                 <td>{formatNumber(row.avg_plan_quality)}</td>
                                 <td>{formatPercent(row.first_pass_rate)}</td>
                                 <td>{formatNumber(row.exams_generated)}</td>
-                                <td>{formatNumber(row.assignments_generated)}</td>
-                                <td>{formatNumber(row.edited_assignments)}</td>
                                 <td>{formatDateTime(row.last_activity_at)}</td>
                                 <td>
                                   {row.risk_flags.length === 0 ? (

@@ -647,6 +647,7 @@ function buildClassLabel(classRow) {
 
 async function resolveClassInfo(request, teacherId) {
   let className = request.class_name || null;
+  let sectionLabel = request.section_label || null;
   let section = request.section || null;
 
   if (request.class_id) {
@@ -659,14 +660,18 @@ async function resolveClassInfo(request, teacherId) {
       if (result.rows.length > 0) {
         const classRow = result.rows[0];
         className = buildClassLabel(classRow) || className;
+        sectionLabel =
+          typeof classRow.section_label === "string"
+            ? classRow.section_label.trim()
+            : sectionLabel;
         section = classRow.section || null;
       }
     } catch {
-      return { className, section };
+      return { className, sectionLabel, section };
     }
   }
 
-  return { className, section };
+  return { className, sectionLabel, section };
 }
 
 export function createLessonPlanGenerationService(dependencies = {}) {
@@ -705,11 +710,15 @@ export function createLessonPlanGenerationService(dependencies = {}) {
       const knowledge = knowledgeLoader();
       const { targetSchema, strategyBank } = resourceSelector(request.plan_type, knowledge);
 
-      const { className, section } = await resolveClassInfo(request, teacherId);
+      const { className, sectionLabel, section } = await resolveClassInfo(
+        request,
+        teacherId,
+      );
 
       const enrichedRequest = {
         ...request,
         class_name: className,
+        section_label: sectionLabel || request.section_label || section || null,
         section,
       };
 
@@ -723,6 +732,7 @@ export function createLessonPlanGenerationService(dependencies = {}) {
           duration_minutes: request.duration_minutes,
           plan_type: request.plan_type,
           class_name: className,
+          section_label: sectionLabel,
           section,
           step_models: stepModels,
         },

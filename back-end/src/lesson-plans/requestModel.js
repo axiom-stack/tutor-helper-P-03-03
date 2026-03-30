@@ -48,6 +48,7 @@ export function validateGeneratePlanRequest(payload) {
       : null,
     class_id: request.class_id != null ? parsePositiveInteger(request.class_id) : null,
     class_name: normalizeString(request.class_name) || null,
+    section_label: normalizeString(request.section_label) || null,
     section: normalizeString(request.section) || null,
   };
 

@@ -15,6 +15,9 @@ const EXAM_BASE_STYLES = `
     font-family: 'Traditional Arabic', 'Amiri', 'Noto Naskh Arabic', 'Arial', sans-serif;
     font-size: 14px;
     line-height: 1.75;
+    direction: rtl;
+    unicode-bidi: plaintext;
+    text-align: right;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -26,6 +29,8 @@ const EXAM_BASE_STYLES = `
     padding: 10mm 9mm 12mm;
     border: 1.5px solid #000000;
     background: #ffffff;
+    direction: rtl;
+    unicode-bidi: plaintext;
   }
 
   .exam-sheet {
@@ -39,6 +44,7 @@ const EXAM_BASE_STYLES = `
     table-layout: fixed;
     border: 1px solid #000000;
     background: #ffffff;
+    direction: rtl;
   }
 
   .exam-header-table td {
@@ -111,6 +117,7 @@ const EXAM_BASE_STYLES = `
     grid-template-columns: minmax(0, 1fr) 48mm;
     gap: 14px;
     align-items: center;
+    direction: rtl;
   }
 
   .student-field {
@@ -287,6 +294,7 @@ const EXAM_BASE_STYLES = `
     border-radius: 8px;
     padding: 10px 12px;
     background: #ffffff;
+    direction: rtl;
   }
 
   .exam-answer-form-header,
@@ -298,6 +306,7 @@ const EXAM_BASE_STYLES = `
     background: #ffffff;
     display: grid;
     gap: 12px;
+    direction: rtl;
   }
 
   .answer-form-section {
@@ -316,6 +325,7 @@ const EXAM_BASE_STYLES = `
     display: flex;
     align-items: flex-start;
     gap: 10px;
+    direction: rtl;
   }
 
   .answer-form-header__meta {
@@ -328,6 +338,7 @@ const EXAM_BASE_STYLES = `
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 6px;
+    direction: rtl;
   }
 
   .answer-form-header__admin {
@@ -363,6 +374,7 @@ const EXAM_BASE_STYLES = `
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
+    direction: rtl;
   }
 
   .answer-form-grid th,
@@ -413,6 +425,7 @@ const EXAM_BASE_STYLES = `
   .exam-section {
     display: grid;
     gap: 12px;
+    direction: rtl;
   }
 
   .question-block {
@@ -422,6 +435,7 @@ const EXAM_BASE_STYLES = `
     background: #ffffff;
     break-inside: avoid;
     page-break-inside: avoid;
+    direction: rtl;
   }
 
   .question-header {

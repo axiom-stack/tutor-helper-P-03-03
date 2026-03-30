@@ -344,19 +344,22 @@ function buildLessonContextSnapshot(lessonContext = {}) {
 }
 
 function buildLessonTopicText(lessonContext = {}) {
+  const content = lessonContext.lessonContent || "";
+  const firstClause = content.split(/[.!؟،\n]/u).map((item) => item.trim()).find(Boolean);
+  if (firstClause) {
+    return firstClause;
+  }
+
   if (lessonContext.lessonTitle) {
     return lessonContext.lessonTitle;
   }
 
-  const content = lessonContext.lessonContent || "";
-  const firstClause = content.split(/[.!؟،\n]/u).map((item) => item.trim()).find(Boolean);
-  return firstClause || "موضوع الدرس";
+  return "موضوع الدرس";
 }
 
 function buildLessonContextKeywords(lessonContext = {}) {
   return new Set(
     [
-      lessonContext.lessonTitle,
       lessonContext.lessonContent,
       lessonContext.subject,
       lessonContext.unit,
@@ -366,6 +369,19 @@ function buildLessonContextKeywords(lessonContext = {}) {
       )
       .filter(Boolean),
   );
+}
+
+export function buildLessonSourceText(lessonContext = {}) {
+  const subject = typeof lessonContext?.subject === "string" ? lessonContext.subject.trim() : "";
+  const unit = typeof lessonContext?.unit === "string" ? lessonContext.unit.trim() : "";
+  const lessonTitle =
+    typeof lessonContext?.lessonTitle === "string" ? lessonContext.lessonTitle.trim() : "";
+
+  if (!subject || !unit || !lessonTitle) {
+    return "";
+  }
+
+  return `${subject} - ${unit} - ${lessonTitle}`;
 }
 
 function buildVerbPreferenceList(bloomVerbsGeneration = {}) {
@@ -974,6 +990,27 @@ function normalizeHomework(plan, lessonContext, repairSummary) {
   }
 }
 
+function normalizeTraditionalSource(plan, lessonContext, repairSummary) {
+  if (!isPlainObject(plan)) {
+    return;
+  }
+
+  const expectedSource = buildLessonSourceText(lessonContext);
+  if (!expectedSource) {
+    return;
+  }
+
+  if (plan.source !== expectedSource) {
+    plan.source = expectedSource;
+    addRepair(
+      repairSummary,
+      "normalization.source.scope",
+      "source",
+      "Normalized traditional source to subject - unit - lesson title",
+    );
+  }
+}
+
 function normalizeTraditionalArabicPhrasing(plan, repairSummary) {
   if (typeof plan?.intro === "string" && plan.intro.trim()) {
     const nextIntro = repairCommonArabicTemplates(plan.intro);
@@ -1468,6 +1505,7 @@ export function normalizeLessonPlan({
     normalizeTraditionalAlignment(normalizedPlan, repairSummary);
     normalizeTraditionalTimings(normalizedPlan, phaseBudgets, repairSummary);
     normalizeHomework(normalizedPlan, resolvedLessonContext, repairSummary);
+    normalizeTraditionalSource(normalizedPlan, resolvedLessonContext, repairSummary);
   }
 
   if (planType === PLAN_TYPES.ACTIVE_LEARNING) {

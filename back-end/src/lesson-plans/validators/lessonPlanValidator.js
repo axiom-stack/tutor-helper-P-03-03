@@ -1,6 +1,7 @@
 import { ACTIVE_FLOW_ACTIVITY_TYPES, PLAN_TYPES } from "../types.js";
 import {
   buildPhaseBudgets,
+  buildLessonSourceText,
   extractKeywords,
   extractMinutes,
   normalizeArabicForMatching,
@@ -190,7 +191,6 @@ function buildLessonContext({ lessonContext = {} }) {
 function buildLessonContextKeywords(lessonContext) {
   return new Set(
     [
-      lessonContext.lessonTitle,
       lessonContext.lessonContent,
       lessonContext.subject,
       lessonContext.unit,
@@ -198,6 +198,33 @@ function buildLessonContextKeywords(lessonContext) {
       .flatMap((value) => extractKeywords(value))
       .filter(Boolean),
   );
+}
+
+function validateTraditionalSource(plan, lessonContext, errors) {
+  const expectedSource = buildLessonSourceText(lessonContext);
+  if (!expectedSource) {
+    return;
+  }
+
+  const sourceText = toDisplayText(plan?.source);
+  if (!sourceText) {
+    addError(
+      errors,
+      "business.source.required",
+      "source",
+      "source must equal subject - unit - lesson title",
+    );
+    return;
+  }
+
+  if (sourceText !== expectedSource) {
+    addError(
+      errors,
+      "business.source.mismatch",
+      "source",
+      "source must equal subject - unit - lesson title",
+    );
+  }
 }
 
 function extractTrailingTimeHintMinutes(value) {
@@ -1565,6 +1592,7 @@ export function validateLessonPlan({
   if (planType === PLAN_TYPES.TRADITIONAL) {
     validateTraditionalStrategies(normalizedPlan, allowedStrategies, durationMinutes, errors);
     validateTraditionalActivityStrategyLinkage(normalizedPlan, errors);
+    validateTraditionalSource(normalizedPlan, resolvedLessonContext, errors);
     validateTraditionalLessonTime(normalizedPlan, durationMinutes, phaseBudgets, errors);
     validateTraditionalRichness(normalizedPlan, errors);
   }

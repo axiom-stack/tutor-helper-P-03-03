@@ -29,7 +29,11 @@ function countNonEmptyItems(items) {
 }
 
 function ratioScore(weight, numerator, denominator) {
-  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) {
+  if (
+    !Number.isFinite(numerator) ||
+    !Number.isFinite(denominator) ||
+    denominator <= 0
+  ) {
     return 0;
   }
 
@@ -62,7 +66,6 @@ function scoreTraditionalStructural(plan) {
     countNonEmptyItems(plan?.learning_outcomes) > 0,
     countNonEmptyItems(plan?.activities) > 0,
     countNonEmptyItems(plan?.assessment) > 0,
-    hasNonEmptyText(plan?.homework),
     countNonEmptyItems(plan?.teaching_strategies) > 0,
     countNonEmptyItems(plan?.learning_resources) > 0,
   ];
@@ -83,14 +86,15 @@ function scoreActiveStructural(plan) {
   const rowContentComplete =
     hasLessonFlow && lessonFlow.every((row) => hasNonEmptyText(row.content));
   const rowTeacherComplete =
-    hasLessonFlow && lessonFlow.every((row) => hasNonEmptyText(row.teacher_activity));
+    hasLessonFlow &&
+    lessonFlow.every((row) => hasNonEmptyText(row.teacher_activity));
   const rowStudentComplete =
-    hasLessonFlow && lessonFlow.every((row) => hasNonEmptyText(row.student_activity));
+    hasLessonFlow &&
+    lessonFlow.every((row) => hasNonEmptyText(row.student_activity));
 
   const checks = [
     countNonEmptyItems(plan?.objectives) > 0,
     hasLessonFlow,
-    hasNonEmptyText(plan?.homework),
     rowTimeComplete,
     rowContentComplete,
     rowTeacherComplete,
@@ -133,7 +137,8 @@ function scoreActiveDepth(plan) {
   if (lessonFlow.length > 0) {
     const completeTeacherStudentRows = lessonFlow.filter(
       (row) =>
-        hasNonEmptyText(row.teacher_activity) && hasNonEmptyText(row.student_activity),
+        hasNonEmptyText(row.teacher_activity) &&
+        hasNonEmptyText(row.student_activity),
     ).length;
     const completionRatio = completeTeacherStudentRows / lessonFlow.length;
 
@@ -171,9 +176,10 @@ export function getQualityBand(score) {
 
 export function scorePlanQuality(planRecord) {
   const planType = planRecord?.plan_type;
-  const plan = planRecord?.plan_json && typeof planRecord.plan_json === "object"
-    ? planRecord.plan_json
-    : {};
+  const plan =
+    planRecord?.plan_json && typeof planRecord.plan_json === "object"
+      ? planRecord.plan_json
+      : {};
 
   const firstPassReliability = planRecord?.retry_occurred ? 24 : 40;
 

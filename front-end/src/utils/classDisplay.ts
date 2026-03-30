@@ -29,7 +29,9 @@ export function normalizeSemesterLabel(
   return normalized || DEFAULT_SEMESTER_LABEL;
 }
 
-function resolveSectionLabel(classItem: ClassIdentityLike): string {
+function resolveSectionLabel(
+  classItem: Pick<Class, 'section_label' | 'section'>
+): string {
   const sectionLabel = normalizeText(classItem.section_label);
   if (sectionLabel) {
     return sectionLabel;
@@ -37,6 +39,25 @@ function resolveSectionLabel(classItem: ClassIdentityLike): string {
 
   const section = normalizeText(classItem.section);
   return section || '—';
+}
+
+export function getClassSectionLabel(
+  classItem: Pick<Class, 'section_label' | 'section'>
+): string {
+  return resolveSectionLabel(classItem);
+}
+
+export function getClassBaseKey(
+  classItem: Pick<
+    ClassIdentityLike,
+    'academic_year' | 'semester' | 'grade_label'
+  >
+): string {
+  return [
+    normalizeAcademicYearLabel(classItem.academic_year),
+    normalizeSemesterLabel(classItem.semester),
+    normalizeText(classItem.grade_label),
+  ].join(' | ');
 }
 
 export function formatClassShortLabel(classItem: ClassIdentityLike): string {
@@ -57,6 +78,16 @@ export function formatClassSelectLabel(classItem: ClassIdentityLike): string {
   const sectionLabel = resolveSectionLabel(classItem);
 
   return `العام: ${yearLabel} | الفصل: ${semesterLabel} | الصف: ${gradeLabel} | الشعبة: ${sectionLabel}`;
+}
+
+export function formatClassBaseSelectLabel(
+  classItem: Pick<ClassIdentityLike, 'academic_year' | 'semester' | 'grade_label'>
+): string {
+  const yearLabel = normalizeAcademicYearLabel(classItem.academic_year) || '—';
+  const semesterLabel = normalizeSemesterLabel(classItem.semester);
+  const gradeLabel = normalizeText(classItem.grade_label) || '—';
+
+  return `العام: ${yearLabel} | الفصل: ${semesterLabel} | الصف: ${gradeLabel}`;
 }
 
 export function formatSubjectSelectLabel(

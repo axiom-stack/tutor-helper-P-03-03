@@ -92,10 +92,35 @@ function buildCommonInput({
         duration_minutes: request.duration_minutes,
         period_order: request.period_order || null,
         class_name: request.class_name || null,
+        section_label: request.section_label || null,
         section: request.section || null,
       },
       lesson_content: boundedLessonContent,
       lesson_content_truncated: lessonContent.length > maxLessonContentChars,
+      lesson_scope_priority: {
+        authoritative_source: "lesson_content",
+        lesson_title_role: "display_label_only",
+        conflict_rule: "if lesson_title and lesson_content disagree, follow lesson_content",
+        anti_hallucination_rule:
+          "never invent lesson scope, examples, objectives, or activities from lesson_title when lesson_content provides the real content",
+      },
+      content_dominance_rules: {
+        rank_1_source: "lesson_content",
+        rank_2_source: "lesson_title_only_if_content_is_missing",
+        content_driven_decisions: [
+          "topic",
+          "scope",
+          "examples",
+          "objectives",
+          "activities",
+          "assessment",
+          "keywords",
+          "vocabulary",
+          "pacing",
+        ],
+        title_conflict_policy: "ignore_lesson_title_for_scope_when_lesson_content_exists",
+        fallback_policy: "use_lesson_title_only_when_lesson_content_is_missing_or_empty",
+      },
       preparation_context: request.preparation_type
         ? {
             type: request.preparation_type,
@@ -173,6 +198,7 @@ function buildTraditionalRepairContract() {
         "اختيار متعدد: ما المدينة اليمنية التي ازدهرت على طريق البخور؟ (4 دقائق)",
       assessment_without_time_hint:
         "سؤال مفتوح: كيف أثرت التجارة في التبادل الثقافي بين اليمن والحضارات الأخرى؟",
+      source: "المادة - الوحدة - اسم الدرس",
     },
   };
 }
@@ -226,6 +252,11 @@ export function buildPrompt2TraditionalPedagogicalTuner(args) {
     "All natural-language values must be Arabic.",
     "Repair weak or invalid values only.",
     "Keep the plan concise and teacher-facing; do not bloat the text just to sound compliant.",
+    "LESSON_CONTENT IS THE NUMBER 1 DOMINANT SOURCE OF TRUTH FOR THE LESSON SCOPE.",
+    "lesson_content is the top priority input for topic, scope, examples, objectives, activities, assessment, wording, and pacing.",
+    "lesson_title is a label only; it must never override lesson_content.",
+    "If lesson_title and lesson_content conflict, ignore lesson_title for scope and follow lesson_content only.",
+    "Do not hallucinate a plan from the title alone when lesson_content exists.",
     "Every learning_outcome must start with أن followed immediately by one measurable behavioral verb from the provided Bloom bank.",
     "The leading learning_outcome verb should map clearly to one Bloom level only, so avoid stacking verbs from different Bloom levels in one objective.",
     "Every learning_outcome must include الطالب, lesson-specific content, and a condition or criterion when natural.",
@@ -246,7 +277,8 @@ export function buildPrompt2TraditionalPedagogicalTuner(args) {
     "The remaining assessment strings should stay plain strings without any time hints.",
     "If assessment includes multiple items, vary the formats across the allowed question types and keep each item aligned to the same skill level as its objective.",
     "Encode time only through the existing traditional text fields, and make the exact total equal the requested duration.",
-    "Preserve header.grade and header.section from the draft or fill them with provided values.",
+    "Preserve header.grade and header.section from the draft or fill them with the provided section_label (الشعبة) when available.",
+    "Traditional plans must keep source exactly as subject - unit - lesson title from inputs.",
     "Use natural formal Arabic for teacher-facing lesson plans: prefer يشرح المعلم, يعرض المعلم, يوجه المعلم, يناقش الطلاب, يستنتج الطلاب, يطبق الطلاب.",
     "Avoid awkward templates such as ستستمر المحاضرة.",
     "When validation_errors are present, repair the exact failing paths first and do not leave a reported failing path unchanged.",
@@ -285,6 +317,8 @@ export function buildPrompt2TraditionalPedagogicalTuner(args) {
       require_objective_activity_assessment_alignment: true,
       prefer_same_order_objective_activity_assessment_mapping: true,
       arabic_style_targets: ARABIC_STYLE_HINTS,
+      source_format: "subject - unit - lesson title",
+      content_priority: "lesson_content_first_always",
     },
   };
 
@@ -308,6 +342,11 @@ export function buildPrompt2ActiveLearningPedagogicalTuner(args) {
     "All natural-language values must be Arabic.",
     "Repair weak or invalid values only.",
     "Keep the plan concise and teacher-facing; do not bloat the rows just to sound compliant.",
+    "LESSON_CONTENT IS THE NUMBER 1 DOMINANT SOURCE OF TRUTH FOR THE LESSON SCOPE.",
+    "lesson_content is the top priority input for topic, scope, examples, objectives, activities, assessment, wording, and pacing.",
+    "lesson_title is a label only; it must never override lesson_content.",
+    "If lesson_title and lesson_content conflict, ignore lesson_title for scope and follow lesson_content only.",
+    "Do not hallucinate a plan from the title alone when lesson_content exists.",
     "Each objective must start with أن followed immediately by one measurable behavioral verb from the provided Bloom bank.",
     "The leading objective verb should map clearly to one Bloom level only, so avoid stacking verbs from different Bloom levels in one objective.",
     "Each objective must include الطالب, lesson-specific content, and a clear condition or criterion.",
@@ -324,7 +363,8 @@ export function buildPrompt2ActiveLearningPedagogicalTuner(args) {
     "Ensure teacher and student actions are not copied as repetitive generic text across phases.",
     "Ensure every objective is supported by activities and assessment rows.",
     "Ensure the assessment row measures the objectives explicitly and does not stay limited to recall if the objectives target explanation, application, or analysis.",
-    "Preserve header.grade and header.section from the draft or fill them with provided values.",
+    "source is not part of active-learning plans.",
+    "Preserve header.grade and header.section from the draft or fill them with the provided section_label (الشعبة) when available.",
     "Use natural classroom Arabic such as يعرض المعلم, يوجه المعلم, يناقش الطلاب, يستنتج الطلاب, يطبق الطلاب.",
     "Avoid awkward templates such as ستستمر المحاضرة.",
     "When validation_errors are present, repair the exact failing paths first and never return a partial object such as header only.",
@@ -355,6 +395,7 @@ export function buildPrompt2ActiveLearningPedagogicalTuner(args) {
       prefer_same_order_objective_support_when_natural: true,
       encode_active_strategy_name_inside_existing_rows: true,
       arabic_style_targets: ARABIC_STYLE_HINTS,
+      content_priority: "lesson_content_first_always",
     },
   };
 

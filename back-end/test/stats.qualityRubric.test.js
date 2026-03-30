@@ -60,8 +60,8 @@ test("scorePlanQuality computes active-learning rubric with retry penalties", ()
   });
 
   assert.equal(scored.criteria.first_pass_reliability, 24);
-  assert.equal(scored.criteria.structural_completeness, 25);
+  assert.equal(scored.criteria.structural_completeness, 23.3);
   assert.equal(scored.criteria.content_depth, 8);
-  assert.equal(scored.score, 57);
+  assert.equal(scored.score, 55.3);
   assert.equal(scored.quality_band, "مقبول");
 });

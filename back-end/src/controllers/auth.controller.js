@@ -17,7 +17,9 @@ export async function login(req, res) {
         { username: !!username, password: !!password },
         "Missing login credentials",
       );
-      return res.status(400).json({ error: "اسم المستخدم وكلمة المرور مطلوبان" });
+      return res
+        .status(400)
+        .json({ error: "اسم المستخدم وكلمة المرور مطلوبان" });
     }
 
     // Validation - we ensure that the password and username are of proper length
@@ -49,10 +51,13 @@ export async function login(req, res) {
       await insertAuditLog({
         action: "login_failure",
         userId: null,
-        details: JSON.stringify({ username }),
+        details: JSON.stringify({ username, reason: "user_not_found" }),
         logger: req.log,
       });
-      return res.status(401).json({ error: "بيانات الدخول غير صحيحة" });
+      return res.status(401).json({
+        error: "اسم المستخدم أو كلمة المرور غير صحيح",
+        code: "INVALID_CREDENTIALS",
+      });
     }
 
     const user = result.rows[0];
@@ -69,18 +74,21 @@ export async function login(req, res) {
       await insertAuditLog({
         action: "login_failure",
         userId: user.id,
-        details: JSON.stringify({ username }),
+        details: JSON.stringify({ username, reason: "invalid_password" }),
         logger: req.log,
       });
-      return res.status(401).json({ error: "بيانات الدخول غير صحيحة" });
+      return res.status(401).json({
+        error: "اسم المستخدم أو كلمة المرور غير صحيح",
+        code: "INVALID_CREDENTIALS",
+      });
     }
 
     await insertAuditLog({
       action: "login",
       userId: user.id,
-      details: JSON.stringify({ 
+      details: JSON.stringify({
         username: user.username,
-        display_name: user.display_name
+        display_name: user.display_name,
       }),
       logger: req.log,
     });
@@ -111,7 +119,11 @@ export async function login(req, res) {
       { err: err.message, stack: err.stack },
       "Login failed with error",
     );
-    res.status(500).json({ error: "حدث خطأ غير متوقع أثناء تسجيل الدخول، يرجى المحاولة مرة أخرى" });
+    res
+      .status(500)
+      .json({
+        error: "حدث خطأ غير متوقع أثناء تسجيل الدخول، يرجى المحاولة مرة أخرى",
+      });
   }
 }
 

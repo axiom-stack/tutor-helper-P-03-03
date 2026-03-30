@@ -20,13 +20,12 @@ import {
 import type { Class, Lesson, Subject, Unit } from '../../types';
 import {
   getAllClasses,
-  getAllSubjects,
   generatePlan,
   getLessonById,
   getLessonsByUnit,
   getMyClasses,
   getPlanById,
-  getMySubjects,
+  getSubjectsByClass,
   getUnitsBySubject,
   type GeneratePlanErrorResponse,
   type GeneratedPlanResponse,
@@ -45,9 +44,11 @@ import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel
 import { getRefinementTargetOptions } from '../refinements/refinementTargets';
 import { getLocalizedAiLimitMessage } from '../../utils/apiErrors';
 import {
-  formatClassSelectLabel,
+  formatClassBaseSelectLabel,
   normalizeAcademicYearLabel,
   normalizeSemesterLabel,
+  getClassBaseKey,
+  getClassSectionLabel,
 } from '../../utils/classDisplay';
 import './lesson-creator.css';
 
@@ -154,6 +155,7 @@ function LessonCreator() {
 
   const unitsRequestIdRef = useRef(0);
   const lessonsRequestIdRef = useRef(0);
+  const subjectsRequestIdRef = useRef(0);
   const timelineTimersRef = useRef<number[]>([]);
 
   const [classes, setClasses] = useState<Class[]>([]);
@@ -162,6 +164,7 @@ function LessonCreator() {
   const [lessons, setLessons] = useState<Lesson[]>([]);
 
   const [selectedClassId, setSelectedClassId] = useState<SelectValue>('');
+  const [selectedClassBaseKey, setSelectedClassBaseKey] = useState('');
   const [selectedSubjectId, setSelectedSubjectId] = useState<SelectValue>('');
   const [selectedUnitId, setSelectedUnitId] = useState<SelectValue>('');
   const [selectedLessonId, setSelectedLessonId] = useState<SelectValue>('');
@@ -181,6 +184,7 @@ function LessonCreator() {
   });
 
   const [initialLoading, setInitialLoading] = useState(true);
+  const [subjectsLoading, setSubjectsLoading] = useState(false);
   const [unitsLoading, setUnitsLoading] = useState(false);
   const [lessonsLoading, setLessonsLoading] = useState(false);
 
@@ -226,13 +230,15 @@ function LessonCreator() {
 
   const resetCreatorForm = () => {
     setSelectedClassId('');
+    setSelectedClassBaseKey('');
     setSelectedSubjectId('');
     setSelectedUnitId('');
     setSelectedLessonId('');
     setSelectedPeriodOrder('');
-    setUnits([]);
-    setLessons([]);
-    setPlanType(defaultPlanType);
+      setUnits([]);
+      setLessons([]);
+      setSubjects([]);
+      setPlanType(defaultPlanType);
     setDurationMinutes(
       LESSON_DURATION_OPTIONS.includes(
         defaultDurationMinutes as (typeof LESSON_DURATION_OPTIONS)[number]
@@ -268,21 +274,15 @@ function LessonCreator() {
       setPageError(null);
 
       try {
-        const classesLoader =
+      const classesLoader =
           user.userRole === 'admin' ? getAllClasses : getMyClasses;
-        const subjectsLoader =
-          user.userRole === 'admin' ? getAllSubjects : getMySubjects;
-        const [classesResponse, subjectsResponse] = await Promise.all([
-          classesLoader(),
-          subjectsLoader(),
-        ]);
+        const classesResponse = await classesLoader();
 
         if (cancelled) {
           return;
         }
 
         setClasses(classesResponse.classes ?? []);
-        setSubjects(subjectsResponse.subjects ?? []);
       } catch (error: unknown) {
         if (!cancelled) {
           setPageError(
@@ -302,6 +302,40 @@ function LessonCreator() {
       cancelled = true;
     };
   }, [user?.id, user?.userRole]);
+
+  useEffect(() => {
+    if (selectedClassId === '') {
+      subjectsRequestIdRef.current += 1;
+      setSubjects([]);
+      setSubjectsLoading(false);
+      return;
+    }
+
+    const requestId = ++subjectsRequestIdRef.current;
+    setSubjectsLoading(true);
+    setPageError(null);
+
+    getSubjectsByClass(selectedClassId)
+      .then((response) => {
+        if (requestId !== subjectsRequestIdRef.current) {
+          return;
+        }
+        setSubjects(response.subjects ?? []);
+      })
+      .catch((error: unknown) => {
+        if (requestId !== subjectsRequestIdRef.current) {
+          return;
+        }
+        setPageError(
+          getErrorMessage(error, 'فشل تحميل المواد المرتبطة بالصف المختار.')
+        );
+      })
+      .finally(() => {
+        if (requestId === subjectsRequestIdRef.current) {
+          setSubjectsLoading(false);
+        }
+      });
+  }, [selectedClassId]);
 
   useEffect(() => {
     if (selectedSubjectId === '') {
@@ -405,6 +439,54 @@ function LessonCreator() {
     [classes, selectedClassId]
   );
 
+  const classGroups = useMemo(() => {
+    const grouped = new Map<
+      string,
+      { baseClass: Class; sections: Class[] }
+    >();
+
+    classes.forEach((classItem) => {
+      const baseKey = getClassBaseKey(classItem);
+      const current = grouped.get(baseKey);
+      if (current) {
+        current.sections.push(classItem);
+        return;
+      }
+
+      grouped.set(baseKey, {
+        baseClass: classItem,
+        sections: [classItem],
+      });
+    });
+
+    return Array.from(grouped.entries())
+      .map(([key, group]) => ({
+        key,
+        baseClass: group.baseClass,
+        sections: [...group.sections].sort((left, right) =>
+          getClassSectionLabel(left).localeCompare(
+            getClassSectionLabel(right),
+            'ar'
+          )
+        ),
+      }))
+      .sort((left, right) =>
+        formatClassBaseSelectLabel(left.baseClass).localeCompare(
+          formatClassBaseSelectLabel(right.baseClass),
+          'ar'
+        )
+      );
+  }, [classes]);
+
+  const selectedClassSections = useMemo(() => {
+    if (selectedClassBaseKey === '') {
+      return [];
+    }
+
+    return classGroups.find((group) => group.key === selectedClassBaseKey)
+      ?.sections ?? [];
+  }, [classGroups, selectedClassBaseKey]);
+
   const selectedSubject = useMemo(
     () =>
       subjectsForSelectedClass.find((item) => item.id === selectedSubjectId) ??
@@ -460,12 +542,32 @@ function LessonCreator() {
   };
 
   const handleClassSelect = (value: string) => {
-    const nextClassId = value ? Number(value) : '';
-
-    setSelectedClassId(nextClassId);
+    setSelectedClassBaseKey(value);
+    setSelectedClassId('');
     setSelectedSubjectId('');
     setSelectedUnitId('');
     setSelectedLessonId('');
+    setSelectedPeriodOrder('');
+    setUnits([]);
+    setLessons([]);
+
+    setPageError(null);
+    setGenerationError(null);
+    setScreen('creator');
+  };
+
+  const handleSectionSelect = (value: string) => {
+    const nextClassId = value ? Number(value) : '';
+    const nextClass = classes.find((classItem) => classItem.id === nextClassId);
+
+    setSelectedClassId(nextClassId);
+    setSelectedClassBaseKey(
+      nextClass ? getClassBaseKey(nextClass) : selectedClassBaseKey
+    );
+    setSelectedSubjectId('');
+    setSelectedUnitId('');
+    setSelectedLessonId('');
+    setSelectedPeriodOrder('');
     setUnits([]);
     setLessons([]);
 
@@ -576,6 +678,7 @@ function LessonCreator() {
         preparation_type: user?.profile?.preparation_type ?? null,
         class_id: selectedClass.id,
         class_name: classLabel || undefined,
+        section_label: selectedClass.section_label,
         section: selectedClass.section,
       });
 
@@ -887,17 +990,38 @@ function LessonCreator() {
                   <label htmlFor="lcp-class-select">حدد الصف</label>
                   <select
                     id="lcp-class-select"
-                    value={selectedClassId}
+                    value={selectedClassBaseKey}
                     onChange={(event) => handleClassSelect(event.target.value)}
                     disabled={initialLoading || isGenerating}
                   >
-                      <option value="">اختر الصف...</option>
-                      {classes.map((classItem) => (
-                        <option key={classItem.id} value={classItem.id}>
-                          {formatClassSelectLabel(classItem)}
-                        </option>
-                      ))}
-                    </select>
+                    <option value="">اختر الصف...</option>
+                    {classGroups.map((group) => (
+                      <option key={group.key} value={group.key}>
+                        {formatClassBaseSelectLabel(group.baseClass)}
+                      </option>
+                    ))}
+                  </select>
+                </li>
+
+                <li className="lcp__classic-row">
+                  <label htmlFor="lcp-section-select">حدد الشعبة</label>
+                  <select
+                    id="lcp-section-select"
+                    value={selectedClassId}
+                    onChange={(event) => handleSectionSelect(event.target.value)}
+                    disabled={
+                      selectedClassBaseKey === '' ||
+                      isGenerating ||
+                      selectedClassSections.length === 0
+                    }
+                  >
+                    <option value="">اختر الشعبة...</option>
+                    {selectedClassSections.map((classItem) => (
+                      <option key={classItem.id} value={classItem.id}>
+                        {getClassSectionLabel(classItem)}
+                      </option>
+                    ))}
+                  </select>
                 </li>
 
                 <li className="lcp__classic-row">
@@ -906,7 +1030,7 @@ function LessonCreator() {
                     id="lcp-subject-select"
                     value={selectedSubjectId}
                     onChange={(event) => handleSubjectSelect(event.target.value)}
-                    disabled={selectedClassId === '' || isGenerating}
+                    disabled={selectedClassId === '' || subjectsLoading || isGenerating}
                   >
                     <option value="">اختر المادة...</option>
                     {subjectsForSelectedClass.map((subjectItem) => (
@@ -915,6 +1039,11 @@ function LessonCreator() {
                       </option>
                     ))}
                   </select>
+                  {subjectsLoading ? (
+                    <small className="lcp__classic-note-muted">
+                      جارٍ تحميل المواد...
+                    </small>
+                  ) : null}
                 </li>
 
                 <li className="lcp__classic-row">

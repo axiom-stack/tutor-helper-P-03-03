@@ -17,7 +17,12 @@ import {
   getScopedUnits,
   listTeacherScopes,
 } from '../control-dashboard/control-dashboard.services';
-import { formatClassSelectLabel, formatClassShortLabel } from '../../utils/classDisplay';
+import {
+  formatClassBaseSelectLabel,
+  formatClassShortLabel,
+  getClassBaseKey,
+  getClassSectionLabel,
+} from '../../utils/classDisplay';
 import './control-curriculum.css';
 
 type SelectValue = number | '';
@@ -96,7 +101,8 @@ function AdminCurriculumExplorer({
   const [lessons, setLessons] = useState<Lesson[]>([]);
 
   const [teacherFilter, setTeacherFilter] = useState<SelectValue>('');
-  const [classFilter, setClassFilter] = useState<SelectValue>('');
+  const [classFilter, setClassFilter] = useState('');
+  const [sectionFilter, setSectionFilter] = useState<SelectValue>('');
   const [subjectFilter, setSubjectFilter] = useState<SelectValue>('');
 
   const [loading, setLoading] = useState(true);
@@ -173,7 +179,7 @@ function AdminCurriculumExplorer({
     );
   }, [teachers]);
 
-  const filteredClasses = useMemo(() => {
+  const visibleClasses = useMemo(() => {
     return classes.filter((classItem) => {
       if (teacherFilter !== '' && classItem.teacher_id !== teacherFilter) {
         return false;
@@ -182,17 +188,78 @@ function AdminCurriculumExplorer({
     });
   }, [classes, teacherFilter]);
 
+  const classGroups = useMemo(() => {
+    const grouped = new Map<
+      string,
+      { baseClass: Class; sections: Class[] }
+    >();
+
+    visibleClasses.forEach((classItem) => {
+      const baseKey = getClassBaseKey(classItem);
+      const current = grouped.get(baseKey);
+      if (current) {
+        current.sections.push(classItem);
+        return;
+      }
+
+      grouped.set(baseKey, {
+        baseClass: classItem,
+        sections: [classItem],
+      });
+    });
+
+    return Array.from(grouped.entries())
+      .map(([key, group]) => ({
+        key,
+        baseClass: group.baseClass,
+        sections: [...group.sections].sort((left, right) =>
+          getClassSectionLabel(left).localeCompare(
+            getClassSectionLabel(right),
+            'ar'
+          )
+        ),
+      }))
+      .sort((left, right) =>
+        formatClassBaseSelectLabel(left.baseClass).localeCompare(
+          formatClassBaseSelectLabel(right.baseClass),
+          'ar'
+        )
+      );
+  }, [visibleClasses]);
+
+  const sectionOptions = useMemo(() => {
+    if (classFilter === '') {
+      return [];
+    }
+
+    return visibleClasses
+      .filter((classItem) => getClassBaseKey(classItem) === classFilter)
+      .sort((left, right) =>
+        getClassSectionLabel(left).localeCompare(
+          getClassSectionLabel(right),
+          'ar'
+        )
+      );
+  }, [visibleClasses, classFilter]);
+
   const filteredSubjects = useMemo(() => {
     return subjects.filter((subjectItem) => {
       if (teacherFilter !== '' && subjectItem.teacher_id !== teacherFilter) {
         return false;
       }
-      if (classFilter !== '' && subjectItem.class_id !== classFilter) {
+      const subjectClass = classesMap.get(subjectItem.class_id) ?? null;
+      if (!subjectClass) {
+        return false;
+      }
+      if (classFilter !== '' && getClassBaseKey(subjectClass) !== classFilter) {
+        return false;
+      }
+      if (sectionFilter !== '' && subjectClass.id !== sectionFilter) {
         return false;
       }
       return true;
     });
-  }, [subjects, teacherFilter, classFilter]);
+  }, [subjects, teacherFilter, classFilter, sectionFilter, classesMap]);
 
   const filteredUnits = useMemo(() => {
     return units.filter((unitItem) => {
@@ -202,16 +269,34 @@ function AdminCurriculumExplorer({
       if (subjectFilter !== '' && unitItem.subject_id !== subjectFilter) {
         return false;
       }
-      if (classFilter === '') {
-        return true;
-      }
-
       const unitSubject = subjects.find(
         (subjectItem) => subjectItem.id === unitItem.subject_id
       );
-      return unitSubject?.class_id === classFilter;
+      if (!unitSubject) {
+        return false;
+      }
+
+      const unitClass = classesMap.get(unitSubject.class_id) ?? null;
+      if (!unitClass) {
+        return false;
+      }
+      if (classFilter !== '' && getClassBaseKey(unitClass) !== classFilter) {
+        return false;
+      }
+      if (sectionFilter !== '' && unitClass.id !== sectionFilter) {
+        return false;
+      }
+      return true;
     });
-  }, [units, teacherFilter, subjectFilter, classFilter, subjects]);
+  }, [
+    units,
+    teacherFilter,
+    subjectFilter,
+    classFilter,
+    sectionFilter,
+    subjects,
+    classesMap,
+  ]);
 
   const filteredLessons = useMemo(() => {
     const allowedUnitIds = new Set(
@@ -228,6 +313,18 @@ function AdminCurriculumExplorer({
       return true;
     });
   }, [lessons, filteredUnits, teacherFilter]);
+
+  const filteredClassRows = useMemo(() => {
+    return visibleClasses.filter((classItem) => {
+      if (classFilter !== '' && getClassBaseKey(classItem) !== classFilter) {
+        return false;
+      }
+      if (sectionFilter !== '' && classItem.id !== sectionFilter) {
+        return false;
+      }
+      return true;
+    });
+  }, [visibleClasses, classFilter, sectionFilter]);
 
   if (loading) {
     return (
@@ -282,6 +379,7 @@ function AdminCurriculumExplorer({
               const nextValue = event.target.value;
               setTeacherFilter(nextValue ? Number(nextValue) : '');
               setClassFilter('');
+              setSectionFilter('');
               setSubjectFilter('');
             }}
           >
@@ -300,15 +398,36 @@ function AdminCurriculumExplorer({
             id="cc-class-filter"
             value={classFilter}
             onChange={(event) => {
-              const nextValue = event.target.value;
-              setClassFilter(nextValue ? Number(nextValue) : '');
+              setClassFilter(event.target.value);
+              setSectionFilter('');
               setSubjectFilter('');
             }}
           >
             <option value="">الكل</option>
-            {filteredClasses.map((classItem) => (
+            {classGroups.map((group) => (
+              <option key={group.key} value={group.key}>
+                {formatClassBaseSelectLabel(group.baseClass)}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="cc__field" htmlFor="cc-section-filter">
+          <span>الشعبة</span>
+          <select
+            id="cc-section-filter"
+            value={sectionFilter}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              setSectionFilter(nextValue ? Number(nextValue) : '');
+              setSubjectFilter('');
+            }}
+            disabled={classFilter === ''}
+          >
+            <option value="">الكل</option>
+            {sectionOptions.map((classItem) => (
               <option key={classItem.id} value={classItem.id}>
-                {formatClassSelectLabel(classItem)}
+                {getClassSectionLabel(classItem)}
               </option>
             ))}
           </select>
@@ -338,7 +457,7 @@ function AdminCurriculumExplorer({
         <section className="cc__summary-grid">
           <article>
             <span>عدد الصفوف</span>
-            <strong>{filteredClasses.length}</strong>
+            <strong>{filteredClassRows.length}</strong>
           </article>
           <article>
             <span>عدد المواد</span>

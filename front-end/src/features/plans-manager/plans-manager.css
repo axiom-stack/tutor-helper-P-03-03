@@ -24,7 +24,7 @@
   background: var(--surface);
   box-shadow: var(--shadow-sm);
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
   gap: var(--space-sm);
   align-items: end;
 }

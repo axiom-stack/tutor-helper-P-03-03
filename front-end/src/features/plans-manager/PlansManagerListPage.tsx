@@ -6,12 +6,20 @@ import ConfirmActionModal from '../../components/common/ConfirmActionModal';
 import ExportFormatModal from '../../components/common/ExportFormatModal';
 import { SyncStatusBadge } from '../../components/common/SyncStatusBadge';
 import { useAuth } from '../../context/AuthContext';
-import type { TeacherManagementRow } from '../../types';
+import type { Class, Lesson, Subject, TeacherManagementRow, Unit } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
 import { useOffline } from '../../offline/useOffline';
 import { isLocalOnlyId } from '../../offline/utils';
 import type { OfflineLessonPlanRecord } from '../../offline/types';
 import { asRecord, toDisplayText, toPlanTypeLabel } from '../lesson-plans/planDisplay';
+import {
+  getAllClasses,
+  getAllSubjects,
+  getLessonsByUnit,
+  getMyClasses,
+  getMySubjects,
+  getUnitsBySubject,
+} from '../lesson-creator/lesson-creator.services';
 import { listTeachers } from '../users/users.services';
 import {
   deletePlanById,
@@ -27,16 +35,55 @@ function toOptionalText(value: unknown): string | null {
   return text === '—' ? null : text;
 }
 
+function getPlanHeader(plan: OfflineLessonPlanRecord): Record<string, unknown> {
+  return asRecord(plan.plan_json?.header) ?? {};
+}
+
+function getPlanSemester(plan: OfflineLessonPlanRecord): string | null {
+  const header = getPlanHeader(plan);
+  return (
+    toOptionalText(header.semester) ??
+    toOptionalText(header.term) ??
+    null
+  );
+}
+
+function getPlanAcademicYear(plan: OfflineLessonPlanRecord): string | null {
+  const header = getPlanHeader(plan);
+  return (
+    toOptionalText(header.academic_year) ??
+    toOptionalText(header.academicYear) ??
+    null
+  );
+}
+
+function getClassSemesterLabel(classItem: Class | null | undefined): string | null {
+  if (!classItem) {
+    return null;
+  }
+
+  return toOptionalText(classItem.semester);
+}
+
+function getClassAcademicYearLabel(
+  classItem: Class | null | undefined
+): string | null {
+  if (!classItem) {
+    return null;
+  }
+
+  return toOptionalText(classItem.academic_year);
+}
+
 function buildPlanMeta(plan: OfflineLessonPlanRecord): string[] {
-  const header = asRecord(plan.plan_json?.header) ?? {};
+  const header = getPlanHeader(plan);
   const parts = [
     toOptionalText(plan.unit),
     toOptionalText(plan.subject),
     toOptionalText(plan.grade),
     toOptionalText(header.section),
-    toOptionalText(header.semester),
-    toOptionalText(header.academic_year),
-    toOptionalText(header.academicYear),
+    getPlanSemester(plan),
+    getPlanAcademicYear(plan),
   ];
 
   return parts.filter((value): value is string => Boolean(value));
@@ -48,11 +95,17 @@ export default function PlansManagerListPage() {
   const isAdmin = user?.userRole === 'admin';
 
   const [allPlans, setAllPlans] = useState<OfflineLessonPlanRecord[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
   const [teachers, setTeachers] = useState<TeacherManagementRow[]>([]);
 
   const [planType, setPlanType] = useState<PlanTypeFilter>('');
   const [subject, setSubject] = useState('');
   const [grade, setGrade] = useState('');
+  const [semester, setSemester] = useState('');
+  const [academicYear, setAcademicYear] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,6 +149,62 @@ export default function PlansManagerListPage() {
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'ar'));
   }, [allPlans]);
 
+  const lessonById = useMemo(() => {
+    return new Map(lessons.map((lesson) => [lesson.id, lesson]));
+  }, [lessons]);
+
+  const unitById = useMemo(() => {
+    return new Map(units.map((unit) => [unit.id, unit]));
+  }, [units]);
+
+  const subjectById = useMemo(() => {
+    return new Map(subjects.map((subject) => [subject.id, subject]));
+  }, [subjects]);
+
+  const classById = useMemo(() => {
+    return new Map(classes.map((classItem) => [classItem.id, classItem]));
+  }, [classes]);
+
+  const semesterOptions = useMemo(() => {
+    const set = new Set<string>();
+    const addValue = (value: string | null) => {
+      if (value) {
+        set.add(value);
+      }
+    };
+
+    allPlans.forEach((plan) => {
+      const lesson =
+        plan.lesson_id != null ? lessonById.get(plan.lesson_id) : null;
+      const unit = lesson ? unitById.get(lesson.unit_id) : null;
+      const subject = unit ? subjectById.get(unit.subject_id) : null;
+      const classItem = subject ? classById.get(subject.class_id) : null;
+      addValue(getClassSemesterLabel(classItem));
+      addValue(getPlanSemester(plan));
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ar'));
+  }, [allPlans, classById, lessonById, subjectById, unitById]);
+
+  const academicYearOptions = useMemo(() => {
+    const set = new Set<string>();
+    const addValue = (value: string | null) => {
+      if (value) {
+        set.add(value);
+      }
+    };
+
+    allPlans.forEach((plan) => {
+      const lesson =
+        plan.lesson_id != null ? lessonById.get(plan.lesson_id) : null;
+      const unit = lesson ? unitById.get(lesson.unit_id) : null;
+      const subject = unit ? subjectById.get(unit.subject_id) : null;
+      const classItem = subject ? classById.get(subject.class_id) : null;
+      addValue(getClassAcademicYearLabel(classItem));
+      addValue(getPlanAcademicYear(plan));
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ar'));
+  }, [allPlans, classById, lessonById, subjectById, unitById]);
+
   const plans = useMemo(() => {
     return allPlans.filter((plan) => {
       if (planType && plan.plan_type !== planType) {
@@ -107,9 +216,38 @@ export default function PlansManagerListPage() {
       if (grade && plan.grade !== grade) {
         return false;
       }
+      const lesson =
+        plan.lesson_id != null ? lessonById.get(plan.lesson_id) : null;
+      const unit = lesson ? unitById.get(lesson.unit_id) : null;
+      const subjectRecord = unit ? subjectById.get(unit.subject_id) : null;
+      const classItem = subjectRecord
+        ? classById.get(subjectRecord.class_id)
+        : null;
+      const planSemester =
+        getClassSemesterLabel(classItem) ?? getPlanSemester(plan);
+      const planAcademicYear =
+        getClassAcademicYearLabel(classItem) ?? getPlanAcademicYear(plan);
+
+      if (semester && planSemester !== semester) {
+        return false;
+      }
+      if (academicYear && planAcademicYear !== academicYear) {
+        return false;
+      }
       return true;
     });
-  }, [allPlans, grade, planType, subject]);
+  }, [
+    academicYear,
+    allPlans,
+    classById,
+    grade,
+    lessonById,
+    planType,
+    semester,
+    subject,
+    subjectById,
+    unitById,
+  ]);
 
   const loadPlans = async () => {
     const requestId = ++plansRequestIdRef.current;
@@ -176,10 +314,73 @@ export default function PlansManagerListPage() {
     };
   }, [isAdmin]);
 
+  useEffect(() => {
+    if (!user?.userRole) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadRelationData = async () => {
+      try {
+        const [classesResponse, subjectsResponse] = await Promise.all([
+          user.userRole === 'admin' ? getAllClasses() : getMyClasses(),
+          user.userRole === 'admin' ? getAllSubjects() : getMySubjects(),
+        ]);
+
+        if (cancelled) {
+          return;
+        }
+
+        const nextClasses = classesResponse.classes ?? [];
+        const nextSubjects = subjectsResponse.subjects ?? [];
+
+        setClasses(nextClasses);
+        setSubjects(nextSubjects);
+
+        const unitsResponses = await Promise.all(
+          nextSubjects.map((subjectItem) => getUnitsBySubject(subjectItem.id))
+        );
+        if (cancelled) {
+          return;
+        }
+
+        const nextUnits = unitsResponses.flatMap((response) => response.units ?? []);
+        setUnits(nextUnits);
+
+        const lessonsResponses = await Promise.all(
+          nextUnits.map((unitItem) => getLessonsByUnit(unitItem.id))
+        );
+        if (cancelled) {
+          return;
+        }
+
+        setLessons(
+          lessonsResponses.flatMap((response) => response.lessons ?? [])
+        );
+      } catch {
+        if (!cancelled) {
+          setClasses([]);
+          setSubjects([]);
+          setUnits([]);
+          setLessons([]);
+        }
+      }
+    };
+
+    void loadRelationData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.userRole]);
+
   const clearFilters = () => {
     setPlanType('');
     setSubject('');
     setGrade('');
+    setSemester('');
+    setAcademicYear('');
   };
 
   const openExportDialog = (plan: OfflineLessonPlanRecord) => {
@@ -245,8 +446,9 @@ export default function PlansManagerListPage() {
         <div>
           <h1>مكتبة الخطط</h1>
           <p>
-            استعرض الخطط المولدة بسرعة، وفلترها حسب المادة أو الصف أو النوع،
-            ثم افتح أي خطة في صفحة مستقلة بنفس قالب العرض الحالي.
+            استعرض الخطط المولدة بسرعة، وفلترها حسب المادة أو الصف أو النوع أو
+            الفصل الدراسي أو السنة الدراسية، ثم افتح أي خطة في صفحة مستقلة
+            بنفس قالب العرض الحالي.
           </p>
         </div>
       </header>
@@ -305,6 +507,40 @@ export default function PlansManagerListPage() {
                 {option}
               </option>
             ))}
+            </select>
+        </div>
+
+        <div className="pm__field">
+          <label htmlFor="pm-semester">عرض بالفصل الدراسي</label>
+          <select
+            id="pm-semester"
+            value={semester}
+            onChange={(event) => setSemester(event.target.value)}
+            disabled={loading}
+          >
+            <option value="">الكل</option>
+            {semesterOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="pm__field">
+          <label htmlFor="pm-academic-year">عرض بالسنة الدراسية</label>
+          <select
+            id="pm-academic-year"
+            value={academicYear}
+            onChange={(event) => setAcademicYear(event.target.value)}
+            disabled={loading}
+          >
+            <option value="">الكل</option>
+            {academicYearOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -313,7 +549,10 @@ export default function PlansManagerListPage() {
             type="button"
             className="pm__btn pm__btn--ghost"
             onClick={clearFilters}
-            disabled={loading || (!planType && !subject && !grade)}
+            disabled={
+              loading ||
+              (!planType && !subject && !grade && !semester && !academicYear)
+            }
           >
             مسح الكل
           </button>

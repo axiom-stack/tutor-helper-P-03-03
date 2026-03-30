@@ -22,6 +22,7 @@ import type {
   ExamQuestion,
   Lesson,
   Subject,
+  TeacherManagementRow,
   Unit,
 } from '../../types';
 import { QUESTION_TYPE_LABELS } from '../../types';
@@ -54,9 +55,11 @@ import {
 } from '../../constants/dropdown-options';
 import {
   formatClassSelectLabel,
+  formatSubjectSelectLabel,
   normalizeAcademicYearLabel,
   normalizeSemesterLabel,
 } from '../../utils/classDisplay';
+import { listTeachers } from '../users/users.services';
 import './quizzes.css';
 
 type SelectValue = number | '';
@@ -538,6 +541,7 @@ export default function Quizzes() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [lessonOptions, setLessonOptions] = useState<LessonOption[]>([]);
+  const [teachers, setTeachers] = useState<TeacherManagementRow[]>([]);
 
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>('');
   const [selectedSemester, setSelectedSemester] = useState<string>(
@@ -555,8 +559,11 @@ export default function Quizzes() {
   const [durationMinutes, setDurationMinutes] = useState<number>(45);
   const [examScreen, setExamScreen] = useState<QuizScreen>('creator');
 
+  const [filterTeacherId, setFilterTeacherId] = useState<SelectValue>('');
   const [filterSubjectId, setFilterSubjectId] = useState<SelectValue>('');
   const [filterClassId, setFilterClassId] = useState<SelectValue>('');
+  const [filterSemester, setFilterSemester] = useState('');
+  const [filterAcademicYear, setFilterAcademicYear] = useState('');
   const academicYearOptions = useMemo(() => {
     const years = new Set<string>();
     classes.forEach((classItem) => {
@@ -568,6 +575,20 @@ export default function Quizzes() {
 
     return Array.from(years).sort((left, right) =>
       right.localeCompare(left, 'ar', { numeric: true })
+    );
+  }, [classes]);
+
+  const semesterOptions = useMemo(() => {
+    const semesters = new Set<string>();
+    classes.forEach((classItem) => {
+      const semester = normalizeSemesterLabel(classItem.semester);
+      if (semester) {
+        semesters.add(semester);
+      }
+    });
+
+    return Array.from(semesters).sort((left, right) =>
+      left.localeCompare(right, 'ar')
     );
   }, [classes]);
 
@@ -650,6 +671,21 @@ export default function Quizzes() {
 
         setClasses(classesResponse.classes ?? []);
         setSubjects(subjectsResponse.subjects ?? []);
+
+        if (isAdmin) {
+          try {
+            const teachersResponse = await listTeachers();
+            if (!cancelled) {
+              setTeachers(teachersResponse.teachers ?? []);
+            }
+          } catch {
+            if (!cancelled) {
+              setTeachers([]);
+            }
+          }
+        } else if (!cancelled) {
+          setTeachers([]);
+        }
       } catch (bootstrapError: unknown) {
         if (!cancelled) {
           setError(
@@ -771,6 +807,33 @@ export default function Quizzes() {
     return new Map(subjects.map((subject) => [subject.id, subject]));
   }, [subjects]);
 
+  const teacherFilterOptions = useMemo(() => {
+    const options = [
+      ...(user
+        ? [
+            {
+              id: user.id,
+              username: user.username,
+              display_name: user.display_name,
+            },
+          ]
+        : []),
+      ...teachers.map((teacher) => ({
+        id: teacher.id,
+        username: teacher.username,
+        display_name: teacher.display_name,
+      })),
+    ];
+
+    return Array.from(new Map(options.map((teacher) => [teacher.id, teacher])).values()).sort(
+      (left, right) =>
+        (left.display_name || left.username).localeCompare(
+          right.display_name || right.username,
+          'ar'
+        )
+    );
+  }, [teachers, user]);
+
   const lessonIdsArray = useMemo(() => {
     const selected = selectedLessonIds;
     return lessonOptions
@@ -843,17 +906,48 @@ export default function Quizzes() {
     [selectedSubjectId, subjectsForSelectedClass]
   );
 
+  const clearArchiveFilters = () => {
+    setFilterTeacherId('');
+    setFilterSubjectId('');
+    setFilterClassId('');
+    setFilterSemester('');
+    setFilterAcademicYear('');
+  };
+
   const filteredExams = useMemo(() => {
     return exams.filter((exam) => {
+      if (isAdmin && filterTeacherId !== '' && exam.teacher_id !== filterTeacherId) {
+        return false;
+      }
       if (filterSubjectId !== '' && exam.subject_id !== filterSubjectId) {
         return false;
       }
       if (filterClassId !== '' && exam.class_id !== filterClassId) {
         return false;
       }
+      const classItem = classesById.get(exam.class_id) ?? null;
+      const examSemester = normalizeSemesterLabel(classItem?.semester);
+      const examAcademicYear = normalizeAcademicYearLabel(
+        classItem?.academic_year
+      );
+      if (filterSemester && examSemester !== filterSemester) {
+        return false;
+      }
+      if (filterAcademicYear && examAcademicYear !== filterAcademicYear) {
+        return false;
+      }
       return true;
     });
-  }, [exams, filterClassId, filterSubjectId]);
+  }, [
+    classesById,
+    exams,
+    filterAcademicYear,
+    filterClassId,
+    filterSemester,
+    filterSubjectId,
+    filterTeacherId,
+    isAdmin,
+  ]);
 
   const isSubjectSelectionLocked =
     selectedAcademicYear === '' ||
@@ -2328,8 +2422,30 @@ export default function Quizzes() {
         {!isCreateRoute ? (
           <section className="qz__content">
             <div className="qz__filters">
-              <h2>الأرشيف</h2>
+              <h2>فلترة عرض الاختبارات</h2>
               <div className="qz__filters-grid">
+                {isAdmin ? (
+                  <div className="qz__field">
+                    <label htmlFor="qz-filter-teacher">فلترة باسم المعلم</label>
+                    <select
+                      id="qz-filter-teacher"
+                      value={filterTeacherId}
+                      onChange={(event) =>
+                        setFilterTeacherId(
+                          event.target.value ? Number(event.target.value) : ''
+                        )
+                      }
+                      disabled={isEditingExam}
+                    >
+                      <option value="">الكل</option>
+                      {teacherFilterOptions.map((teacher) => (
+                        <option key={teacher.id} value={teacher.id}>
+                          {teacher.display_name || teacher.username}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
                 <div className="qz__field">
                   <label htmlFor="qz-filter-subject">فلترة بالمادة</label>
                   <select
@@ -2345,7 +2461,10 @@ export default function Quizzes() {
                     <option value="">الكل</option>
                     {subjects.map((subject) => (
                       <option key={subject.id} value={subject.id}>
-                        {subject.name}
+                        {formatSubjectSelectLabel(
+                          subject,
+                          classesById.get(subject.class_id) ?? null
+                        )}
                       </option>
                     ))}
                   </select>
@@ -2370,19 +2489,72 @@ export default function Quizzes() {
                     ))}
                   </select>
                 </div>
+                <div className="qz__field">
+                  <label htmlFor="qz-filter-semester">فلترة بالفصل الدراسي</label>
+                  <select
+                    id="qz-filter-semester"
+                    value={filterSemester}
+                    onChange={(event) => setFilterSemester(event.target.value)}
+                    disabled={isEditingExam}
+                  >
+                    <option value="">الكل</option>
+                    {semesterOptions.map((semester) => (
+                      <option key={semester} value={semester}>
+                        {semester}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="qz__field">
+                  <label htmlFor="qz-filter-academic-year">
+                    فلترة بالعام الدراسي
+                  </label>
+                  <select
+                    id="qz-filter-academic-year"
+                    value={filterAcademicYear}
+                    onChange={(event) =>
+                      setFilterAcademicYear(event.target.value)
+                    }
+                    disabled={isEditingExam}
+                  >
+                    <option value="">الكل</option>
+                    {academicYearOptions.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <button
-                type="button"
-                className="qz__refresh-btn"
-                onClick={() => void loadExams()}
-                disabled={isListLoading || isEditingExam}
-              >
-                {isListLoading && (
-                  <span className="ui-button-spinner" aria-hidden />
-                )}
-                {!isListLoading && <MdRefresh aria-hidden />}
-                {isListLoading ? 'جارٍ التحديث...' : 'تحديث القائمة'}
-              </button>
+              <div className="qz__filters-actions">
+                <button
+                  type="button"
+                  className="qz__refresh-btn"
+                  onClick={clearArchiveFilters}
+                  disabled={
+                    isEditingExam ||
+                    (!filterTeacherId &&
+                      !filterSubjectId &&
+                      !filterClassId &&
+                      !filterSemester &&
+                      !filterAcademicYear)
+                  }
+                >
+                  مسح الكل
+                </button>
+                <button
+                  type="button"
+                  className="qz__refresh-btn"
+                  onClick={() => void loadExams()}
+                  disabled={isListLoading || isEditingExam}
+                >
+                  {isListLoading && (
+                    <span className="ui-button-spinner" aria-hidden />
+                  )}
+                  {!isListLoading && <MdRefresh aria-hidden />}
+                  {isListLoading ? 'جارٍ التحديث...' : 'تحديث القائمة'}
+                </button>
+              </div>
             </div>
 
             <div className="qz__archive-and-details">

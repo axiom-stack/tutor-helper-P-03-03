@@ -62,10 +62,35 @@ function buildCommonPayload({
       duration_minutes: request.duration_minutes,
       period_order: request.period_order || null,
       class_name: request.class_name || null,
+      section_label: request.section_label || null,
       section: request.section || null,
     },
     lesson_content: boundedLessonContent,
     lesson_content_truncated: lessonContent.length > maxLessonContentChars,
+    lesson_scope_priority: {
+      authoritative_source: "lesson_content",
+      lesson_title_role: "display_label_only",
+      conflict_rule: "if lesson_title and lesson_content disagree, follow lesson_content",
+      anti_hallucination_rule:
+        "never invent lesson scope, examples, objectives, or activities from lesson_title when lesson_content provides the real content",
+    },
+    content_dominance_rules: {
+      rank_1_source: "lesson_content",
+      rank_2_source: "lesson_title_only_if_content_is_missing",
+      content_driven_decisions: [
+        "topic",
+        "scope",
+        "examples",
+        "objectives",
+        "activities",
+        "assessment",
+        "keywords",
+        "vocabulary",
+        "pacing",
+      ],
+      title_conflict_policy: "ignore_lesson_title_for_scope_when_lesson_content_exists",
+      fallback_policy: "use_lesson_title_only_when_lesson_content_is_missing_or_empty",
+    },
     target_output_schema: targetSchema,
     preparation_context: request.preparation_type
       ? {
@@ -136,6 +161,7 @@ function buildTraditionalDraftShapeContract() {
         "اختيار متعدد: ما المدينة اليمنية التي ازدهرت على طريق البخور؟ (4 دقائق)",
       assessment_without_time_hint:
         "سؤال مفتوح: كيف أثرت التجارة في التبادل الثقافي بين اليمن والحضارات الأخرى؟",
+      source: "المادة - الوحدة - اسم الدرس",
     },
     objective_marker_hints: OBJECTIVE_MARKER_HINTS,
   };
@@ -196,6 +222,11 @@ export function buildPrompt1TraditionalDraftGenerator({
     "Follow the provided traditional target schema exactly.",
     "Do not add extra keys and do not omit required keys.",
     "This is a draft, but it must already satisfy the pedagogical rules as closely as possible.",
+    "LESSON_CONTENT IS THE NUMBER 1 DOMINANT SOURCE OF TRUTH FOR THE LESSON SCOPE.",
+    "lesson_content is the top priority input for topic, scope, examples, objectives, activities, assessment, wording, and pacing.",
+    "lesson_title is a label only; it must never override lesson_content.",
+    "If lesson_title and lesson_content conflict, ignore lesson_title for scope and follow lesson_content only.",
+    "Do not hallucinate a plan from the title alone when lesson_content exists.",
     "Default to 3 learning_outcomes unless the lesson size clearly requires a different count.",
     "Each learning outcome must start with أن followed immediately by one measurable behavioral verb from the provided Bloom bank.",
     "The leading learning-outcome verb should map clearly to one Bloom level only.",
@@ -219,8 +250,9 @@ export function buildPrompt1TraditionalDraftGenerator({
     "Use natural formal Arabic for classroom planning: prefer teacher phrasing مثل يشرح المعلم or يوجه المعلم, and student phrasing مثل يناقش الطلاب or يطبق الطلاب.",
     "Avoid awkward Arabic templates such as ستستمر المحاضرة.",
     "Homework must be derived directly from the lesson content and grade level, not generic textbook review.",
+    "source must be exactly subject - unit - lesson title from lesson_metadata, using the provided values in that order.",
     "Fill header.grade with the provided grade/class metadata.",
-    "Fill header.section with the provided section (الشعبة) if available.",
+    "Fill header.section with the provided section_label (الشعبة) if available.",
   ].join(" ");
 
   const payload = {
@@ -255,6 +287,9 @@ export function buildPrompt1TraditionalDraftGenerator({
       require_strategy_diversity: true,
       require_assessment_variety: true,
       arabic_style_targets: ARABIC_STYLE_HINTS,
+      source_format: "subject - unit - lesson title",
+      scope_priority: "lesson_content > lesson_title",
+      content_priority: "lesson_content_first_always",
     },
   };
 
@@ -282,6 +317,9 @@ export function buildPrompt1ActiveLearningDraftGenerator({
     "Follow the provided active-learning target schema exactly.",
     "Do not add extra keys and do not omit required keys.",
     "Keep the output distinct from the traditional plan format.",
+    "LESSON_CONTENT IS THE NUMBER 1 DOMINANT SOURCE OF TRUTH FOR THE LESSON SCOPE.",
+    "lesson_content is the top priority input for topic, scope, examples, objectives, activities, assessment, wording, and pacing.",
+    "lesson_title is a label only; it must never override lesson_content.",
     "Each lesson_flow row must be realistic and classroom-executable.",
     "lesson_flow.activity_type must be one of intro, presentation, activity, assessment.",
     "The row order must preserve intro -> presentation -> activity -> assessment.",
@@ -291,6 +329,8 @@ export function buildPrompt1ActiveLearningDraftGenerator({
     "The leading objective verb should map clearly to one Bloom level only.",
     "Each objective must include الطالب, lesson-specific content, and a clear condition or criterion.",
     "Use explicit condition or criterion markers such as من خلال, باستخدام, خلال, وفق, بدقة, بوضوح, مع مثال, or لا تقل عن.",
+    "If lesson_title and lesson_content conflict, ignore lesson_title for scope and follow lesson_content only.",
+    "Do not hallucinate a plan from the title alone when lesson_content exists.",
     "Objectives must stay aligned to the row activities and assessment rows.",
     "Never use forbidden weak verbs.",
     "objectives must be an array of plain Arabic strings only; never objects.",
@@ -302,8 +342,9 @@ export function buildPrompt1ActiveLearningDraftGenerator({
     "Do not place homework inside lesson_flow.",
     "Ensure the assessment row measures the objectives explicitly and does not stay limited to recall if the objectives target explanation, application, or analysis.",
     "Homework must be derived directly from the lesson content and grade level.",
+    "source is not part of active-learning plans.",
     "Fill header.grade with the provided grade/class metadata.",
-    "Fill header.section with the provided section (الشعبة) if available.",
+    "Fill header.section with the provided section_label (الشعبة) if available.",
   ].join(" ");
 
   const payload = {
@@ -332,6 +373,7 @@ export function buildPrompt1ActiveLearningDraftGenerator({
       prefer_same_order_objective_support_when_natural: true,
       encode_active_strategy_name_inside_existing_rows: true,
       arabic_style_targets: ARABIC_STYLE_HINTS,
+      content_priority: "lesson_content_first_always",
     },
   };
 

@@ -13,9 +13,7 @@ import { normalizeApiError } from '../../utils/apiErrors';
 import type {
   AdminTeacherProfileUpdatePayload,
   TeacherManagementRow,
-  PreparationType,
 } from '../../types';
-import { PREPARATION_TYPE_OPTIONS } from '../../types';
 import {
   createTeacher,
   deleteTeacher,
@@ -31,9 +29,7 @@ interface EditDraft {
   display_name: string;
   language: 'ar' | 'en';
   subject: string;
-  preparation_type: PreparationType | '';
   default_plan_type: 'traditional' | 'active_learning';
-  default_lesson_duration_minutes: number;
 }
 
 interface DeleteDraft {
@@ -61,21 +57,16 @@ function formatDateAr(value: string): string {
 }
 
 function toEditDraft(teacher: TeacherManagementRow): EditDraft {
-  const pt = teacher.profile.preparation_type;
   return {
     teacherId: teacher.id,
     username: teacher.username,
     display_name: teacher.display_name,
     language: teacher.profile.language,
     subject: teacher.profile.subject ?? '',
-    preparation_type:
-      pt === 'daily' || pt === 'weekly' || pt === 'other' ? pt : '',
     default_plan_type:
       teacher.profile.default_plan_type === 'active_learning'
         ? 'active_learning'
         : 'traditional',
-    default_lesson_duration_minutes:
-      teacher.profile.default_lesson_duration_minutes ?? 45,
   };
 }
 
@@ -92,11 +83,14 @@ export default function TeachersManagement() {
   const [newTeacherUsername, setNewTeacherUsername] = useState('');
   const [newTeacherDisplayName, setNewTeacherDisplayName] = useState('');
   const [newTeacherPassword, setNewTeacherPassword] = useState('');
+  const [showNewTeacherPassword, setShowNewTeacherPassword] = useState(false);
   const [, setCreateError] = useState<string | null>(null);
   const [deleteDraft, setDeleteDraft] = useState<DeleteDraft | null>(null);
   const [resetDraft, setResetDraft] = useState<ResetPasswordDraft | null>(null);
   const [resetNewPassword, setResetNewPassword] = useState('');
   const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+  const [showResetTeacherPassword, setShowResetTeacherPassword] =
+    useState(false);
   const [resetSubmitting, setResetSubmitting] = useState(false);
 
   const teacherById = useMemo(
@@ -160,6 +154,7 @@ export default function TeachersManagement() {
       setSuccess('تم إضافة المعلم بنجاح.');
       toast.success('تم إضافة المعلم بنجاح.');
       setShowCreateModal(false);
+      setShowNewTeacherPassword(false);
       setNewTeacherUsername('');
       setNewTeacherDisplayName('');
       setNewTeacherPassword('');
@@ -196,12 +191,6 @@ export default function TeachersManagement() {
       return;
     }
 
-    if (editDraft.default_lesson_duration_minutes < 1) {
-      setError('المدة الافتراضية يجب أن تكون دقيقة واحدة على الأقل.');
-      toast.error('المدة الافتراضية يجب أن تكون دقيقة واحدة على الأقل.');
-      return;
-    }
-
     setSaving(true);
     setError(null);
     setSuccess(null);
@@ -211,10 +200,7 @@ export default function TeachersManagement() {
       display_name,
       language: editDraft.language,
       subject: editDraft.subject.trim() || null,
-      preparation_type: editDraft.preparation_type || null,
       default_plan_type: editDraft.default_plan_type,
-      default_lesson_duration_minutes:
-        editDraft.default_lesson_duration_minutes,
     };
 
     try {
@@ -304,6 +290,7 @@ export default function TeachersManagement() {
       setResetDraft(null);
       setResetNewPassword('');
       setResetConfirmPassword('');
+      setShowResetTeacherPassword(false);
       toast.success('تم تعيين كلمة المرور. يمكن للمعلم تسجيل الدخول بها.');
     } catch (err: unknown) {
       const message = normalizeApiError(
@@ -372,8 +359,6 @@ export default function TeachersManagement() {
                     <th>المادة</th>
                     <th>الخطط</th>
                     <th>الاختبارات</th>
-                    <th>الواجبات</th>
-                    <th>تعديلات الواجبات</th>
                     <th>الإجراءات</th>
                   </tr>
                 </thead>
@@ -397,8 +382,6 @@ export default function TeachersManagement() {
                       <td>{teacher.profile.subject || '—'}</td>
                       <td>{teacher.usage.generated_plans_count}</td>
                       <td>{teacher.usage.generated_exams_count}</td>
-                      <td>{teacher.usage.generated_assignments_count}</td>
-                      <td>{teacher.usage.edited_assignments_count}</td>
                       <td>
                         <div className="tm__actions">
                           <button
@@ -450,15 +433,49 @@ export default function TeachersManagement() {
           )}
         </article>
 
-        <article className="tm__editor-card">
-          <h2>تعديل ملف المعلم</h2>
-          {!editDraft || !selectedTeacher ? (
-            <p className="tm__state">اختر معلماً من الجدول لتعديل ملفه.</p>
-          ) : (
-            <div className="tm__editor-grid">
-              <div className="tm__editor-selected">
-                <strong>{selectedTeacher.display_name}</strong>
-                <small>{selectedTeacher.username}</small>
+      </section>
+
+      {editDraft && (
+        <div
+          className="tm-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-teacher-title"
+        >
+          <div
+            className="tm-modal__backdrop"
+            onClick={() => {
+              if (!saving) {
+                setEditDraft(null);
+              }
+            }}
+          />
+          <div className="tm-modal__panel tm-modal__panel--wide">
+            <header className="tm-modal__header">
+              <h3 id="edit-teacher-title">تعديل ملف المعلم</h3>
+              <button
+                type="button"
+                className="tm-modal__close"
+                onClick={() => setEditDraft(null)}
+                disabled={saving}
+                aria-label="إغلاق نافذة تعديل ملف المعلم"
+              >
+                <MdClose aria-hidden />
+              </button>
+            </header>
+
+            <form
+              className="tm-modal__form tm-modal__form--wide"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleSave();
+              }}
+            >
+              <div className="tm__editor-selected tm__editor-selected--modal">
+                <strong>
+                  {selectedTeacher?.display_name ?? editDraft.display_name}
+                </strong>
+                <small>{selectedTeacher?.username ?? editDraft.username}</small>
               </div>
 
               <label className="tm__field" htmlFor="tm-display-name">
@@ -529,32 +546,6 @@ export default function TeachersManagement() {
                 />
               </label>
 
-              <label className="tm__field" htmlFor="tm-preparation-type">
-                <span>نوع التحضير</span>
-                <select
-                  id="tm-preparation-type"
-                  value={editDraft.preparation_type}
-                  onChange={(event) =>
-                    setEditDraft((current) =>
-                      current
-                        ? {
-                            ...current,
-                            preparation_type: event.target
-                              .value as PreparationType,
-                          }
-                        : current
-                    )
-                  }
-                >
-                  <option value="">-- اختر نوع التحضير --</option>
-                  {PREPARATION_TYPE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
               <label className="tm__field" htmlFor="tm-default-plan-type">
                 <span>نوع الخطة الافتراضي</span>
                 <select
@@ -578,35 +569,18 @@ export default function TeachersManagement() {
                 </select>
               </label>
 
-              <label className="tm__field" htmlFor="tm-duration">
-                <span>المدة الافتراضية (دقيقة)</span>
-                <select
-                  id="tm-duration"
-                  value={editDraft.default_lesson_duration_minutes}
-                  onChange={(event) =>
-                    setEditDraft((current) =>
-                      current
-                        ? {
-                            ...current,
-                            default_lesson_duration_minutes:
-                              Number(event.target.value) || 45,
-                          }
-                        : current
-                    )
-                  }
-                >
-                  {[30, 35, 40, 45, 50, 60, 90].map((d) => (
-                    <option key={d} value={d}>
-                      {d} دقيقة
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="tm__editor-actions">
+              <div className="tm-modal__actions tm-modal__actions--wide">
                 <button
                   type="button"
-                  onClick={() => void handleSave()}
+                  className="tm-modal__btn tm-modal__btn--secondary"
+                  onClick={() => setEditDraft(null)}
+                  disabled={saving}
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  className="tm-modal__btn tm-modal__btn--primary"
                   disabled={saving}
                 >
                   {saving && <span className="ui-button-spinner" aria-hidden />}
@@ -614,10 +588,10 @@ export default function TeachersManagement() {
                   {saving ? 'جارٍ الحفظ...' : 'حفظ'}
                 </button>
               </div>
-            </div>
-          )}
-        </article>
-      </section>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Create Teacher Modal */}
       {showCreateModal && (
@@ -685,20 +659,35 @@ export default function TeachersManagement() {
                 <span>كلمة المرور</span>
                 <input
                   id="new-teacher-password"
-                  type="password"
+                  type={showNewTeacherPassword ? 'text' : 'password'}
                   value={newTeacherPassword}
                   onChange={(e) => setNewTeacherPassword(e.target.value)}
                   placeholder="أدخل كلمة المرور (6 أحرف على الأقل)"
                   disabled={creating}
                   required
                 />
+                <label className="tm-modal__show-password">
+                  <input
+                    type="checkbox"
+                    checked={showNewTeacherPassword}
+                    onChange={(e) =>
+                      setShowNewTeacherPassword(e.target.checked)
+                    }
+                    disabled={creating}
+                    aria-checked={showNewTeacherPassword}
+                  />
+                  <span>إظهار كلمة المرور</span>
+                </label>
               </label>
 
               <div className="tm-modal__actions">
                 <button
                   type="button"
                   className="tm-modal__btn tm-modal__btn--secondary"
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setShowNewTeacherPassword(false);
+                  }}
                   disabled={creating}
                 >
                   إلغاء
@@ -789,7 +778,10 @@ export default function TeachersManagement() {
         >
           <div
             className="tm-modal__backdrop"
-            onClick={() => setResetDraft(null)}
+            onClick={() => {
+              setResetDraft(null);
+              setShowResetTeacherPassword(false);
+            }}
           />
           <div className="tm-modal__panel">
             <header className="tm-modal__header">
@@ -815,7 +807,7 @@ export default function TeachersManagement() {
                 كلمة المرور الجديدة (6 أحرف على الأقل)
                 <input
                   id="reset-new-password"
-                  type="password"
+                  type={showResetTeacherPassword ? 'text' : 'password'}
                   value={resetNewPassword}
                   onChange={(e) => setResetNewPassword(e.target.value)}
                   disabled={resetSubmitting}
@@ -830,18 +822,33 @@ export default function TeachersManagement() {
                 تأكيد كلمة المرور
                 <input
                   id="reset-confirm-password"
-                  type="password"
+                  type={showResetTeacherPassword ? 'text' : 'password'}
                   value={resetConfirmPassword}
                   onChange={(e) => setResetConfirmPassword(e.target.value)}
                   disabled={resetSubmitting}
                   autoComplete="new-password"
                 />
               </label>
+              <label className="tm-modal__show-password">
+                <input
+                  type="checkbox"
+                  checked={showResetTeacherPassword}
+                  onChange={(e) =>
+                    setShowResetTeacherPassword(e.target.checked)
+                  }
+                  disabled={resetSubmitting}
+                  aria-checked={showResetTeacherPassword}
+                />
+                <span>إظهار كلمة المرور</span>
+              </label>
               <div className="tm-modal__actions">
                 <button
                   type="button"
                   className="tm-modal__btn tm-modal__btn--secondary"
-                  onClick={() => setResetDraft(null)}
+                  onClick={() => {
+                    setResetDraft(null);
+                    setShowResetTeacherPassword(false);
+                  }}
                   disabled={resetSubmitting}
                 >
                   إلغاء

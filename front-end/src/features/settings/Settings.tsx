@@ -1,23 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { ChangeEvent } from 'react';
 import toast from 'react-hot-toast';
-import { MdSave } from 'react-icons/md';
+import { MdDeleteOutline, MdImage, MdSave } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
-import type { UserProfileUpdatePayload } from '../../types';
+import type { PreparationType, UserProfileUpdatePayload } from '../../types';
+import { PREPARATION_TYPE_OPTIONS } from '../../types';
+import { LANGUAGE_OPTIONS } from '../../constants/dropdown-options';
 import { normalizeApiError } from '../../utils/apiErrors';
+import { syncDisplayLanguageCookie } from '../../utils/displayLanguage';
 import { getMyProfile, updateMyProfile } from '../users/users.services';
-import { PLAN_TYPE_OPTIONS } from '../../constants/dropdown-options';
 import './settings.css';
-
-type PlanTypeValue = 'traditional' | 'active_learning';
-
-const TEMPLATE_URL =
-  'https://drive.google.com/file/d/1dCrgCvRlp3DdhUL7a8Ws5jD7DAJN7vVw/view';
 
 export default function Settings() {
   const { user, updateUserProfile } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const logoPreviewRef = useRef<HTMLImageElement | null>(null);
 
-  const [defaultPlanType, setDefaultPlanType] =
-    useState<PlanTypeValue>('traditional');
+  const [language, setLanguage] = useState<'ar' | 'en'>('ar');
+  const [preparationType, setPreparationType] = useState<PreparationType | ''>(
+    ''
+  );
+  const [schoolName, setSchoolName] = useState('');
+  const [schoolLogoUrl, setSchoolLogoUrl] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,15 +40,23 @@ export default function Settings() {
         }
 
         const profile = response.profile;
-        setDefaultPlanType(
-          profile.default_plan_type === 'active_learning'
-            ? 'active_learning'
-            : 'traditional'
+        setLanguage(profile.language === 'en' ? 'en' : 'ar');
+        setPreparationType(
+          profile.preparation_type === 'daily' ||
+            profile.preparation_type === 'weekly' ||
+            profile.preparation_type === 'other'
+            ? profile.preparation_type
+            : ''
         );
+        setSchoolName(profile.school_name?.trim() ?? '');
+        setSchoolLogoUrl(profile.school_logo_url ?? null);
       })
       .catch((loadError: unknown) => {
         if (!cancelled) {
-          const message = normalizeApiError(loadError, 'تعذر تحميل الإعدادات.').message;
+          const message = normalizeApiError(
+            loadError,
+            'تعذر تحميل الإعدادات.'
+          ).message;
           setError(message);
           toast.error(message);
         }
@@ -59,22 +72,120 @@ export default function Settings() {
     };
   }, []);
 
+  const handleLogoFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      const message = 'يرجى اختيار ملف صورة صالح.';
+      setLogoError(message);
+      toast.error(message);
+      return;
+    }
+
+    const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024;
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      const message =
+        'حجم الصورة كبير جدًا. الرجاء اختيار صورة أقل من 2 ميغابايت.';
+      setLogoError(message);
+      toast.error(message);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : null;
+      if (!result) {
+        const message = 'تعذر قراءة صورة الشعار.';
+        setLogoError(message);
+        toast.error(message);
+        return;
+      }
+
+      const image = new Image();
+      image.onload = () => {
+        const width = image.naturalWidth;
+        const height = image.naturalHeight;
+        const minWidth = 512;
+        const minHeight = 256;
+        const maxWidth = 2048;
+        const maxHeight = 1024;
+
+        if (
+          width < minWidth ||
+          height < minHeight ||
+          width > maxWidth ||
+          height > maxHeight
+        ) {
+          const message =
+            `أبعاد الصورة غير مناسبة. الموصى به: ${minWidth}×${minHeight} إلى ${maxWidth}×${maxHeight} بكسل. ` +
+            `الصورة الحالية: ${width}×${height} بكسل.`;
+          setLogoError(message);
+          toast.error(message);
+          return;
+        }
+
+        setSchoolLogoUrl(result);
+        setLogoError(null);
+        toast.success(
+          `تم قبول الصورة: ${width}×${height} بكسل. الأبعاد الموصى بها مناسبة.`
+        );
+      };
+      image.onerror = () => {
+        const message = 'الصورة تالفة أو غير قابلة للقراءة.';
+        setLogoError(message);
+        toast.error(message);
+      };
+      image.src = result;
+    };
+    reader.onerror = () => {
+      const message = 'تعذر قراءة صورة الشعار.';
+      setLogoError(message);
+      toast.error(message);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const clearLogo = () => {
+    setSchoolLogoUrl(null);
+    setLogoError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setError(null);
     setSuccess(null);
 
     const payload: UserProfileUpdatePayload = {
-      default_plan_type: defaultPlanType,
+      language,
+      preparation_type: preparationType || null,
+      school_name: schoolName.trim() || null,
+      school_logo_url: schoolLogoUrl,
     };
 
     try {
       const response = await updateMyProfile(payload);
       updateUserProfile(response.profile);
+
+      const needsReload = syncDisplayLanguageCookie(response.profile.language);
       setSuccess('تم حفظ الإعدادات بنجاح.');
       toast.success('تم حفظ الإعدادات بنجاح.');
+
+      if (needsReload) {
+        setTimeout(() => window.location.reload(), 100);
+      }
     } catch (saveError: unknown) {
-      const message = normalizeApiError(saveError, 'فشل حفظ الإعدادات.').message;
+      const message = normalizeApiError(
+        saveError,
+        'فشل حفظ الإعدادات.'
+      ).message;
       setError(message);
       toast.error(message);
     } finally {
@@ -101,7 +212,7 @@ export default function Settings() {
       <header className="st__header page-header">
         <div>
           <h1>الإعدادات</h1>
-          <p>اضبط نوع الخطة الافتراضي وافتح قالب العرض من الرابط المخصص هنا.</p>
+          <p>اضبط اللغة، ونوع التحضير، واسم المدرسة، وشعارها من هنا.</p>
         </div>
 
         <div className="st__role-chip">
@@ -121,52 +232,168 @@ export default function Settings() {
         </p>
       ) : null}
 
-      <section className="st__panel">
-        <div className="st__grid">
-          <label className="st__field" htmlFor="settings-plan-type">
-            <span>نوع الخطة الافتراضي *</span>
-            <select
-              id="settings-plan-type"
-              value={defaultPlanType}
-              onChange={(event) =>
-                setDefaultPlanType(event.target.value as PlanTypeValue)
-              }
+      <section className="st__panel" aria-labelledby="settings-core-title">
+        <div className="st__panel-head">
+          <h2 id="settings-core-title">الإعدادات الأساسية</h2>
+        </div>
+
+        <form
+          className="st__form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleSave();
+          }}
+        >
+          <div className="st__grid">
+            <label className="st__field" htmlFor="settings-language">
+              <span>اللغة *</span>
+              <div className="st__select-shell">
+                <select
+                  id="settings-language"
+                  name="language"
+                  className="st__select"
+                  value={language}
+                  onChange={(event) =>
+                    setLanguage(event.target.value as 'ar' | 'en')
+                  }
+                >
+                  {LANGUAGE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="st__select-chevron" aria-hidden="true" />
+              </div>
+            </label>
+
+            <label className="st__field" htmlFor="settings-preparation-type">
+              <span>نوع التحضير *</span>
+              <div className="st__select-shell">
+                <select
+                  id="settings-preparation-type"
+                  name="preparation_type"
+                  className="st__select st__select--placeholder"
+                  value={preparationType}
+                  onChange={(event) =>
+                    setPreparationType(
+                      event.target.value as PreparationType | ''
+                    )
+                  }
+                >
+                  <option value="">-- اختر نوع التحضير --</option>
+                  {PREPARATION_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="st__select-chevron" aria-hidden="true" />
+              </div>
+            </label>
+
+            <label
+              className="st__field st__field--full"
+              htmlFor="settings-school-name"
             >
-              {PLAN_TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+              <span>المدرسة *</span>
+              <input
+                id="settings-school-name"
+                name="school_name"
+                type="text"
+                value={schoolName}
+                onChange={(event) => setSchoolName(event.target.value)}
+                placeholder="مثال: مدرسة النور الأساسية"
+                autoComplete="organization"
+              />
+            </label>
 
-        <div className="st__template-row">
-          <div>
-            <h2>قالب عرض الخطة المولدة</h2>
-            <p>افتح القالب المعتمد مباشرة من رابط Google Drive.</p>
+            <div className="st__field st__field--full">
+              <span>شعار المدرسة</span>
+              <div className="st__logo-spec">
+                <strong>الأبعاد الموصى بها: 1024×512 بكسل</strong>
+                <span>الحد الأدنى المقبول: 512×256 بكسل</span>
+              </div>
+
+              <div className="st__logo-area">
+                <label className="st__upload" htmlFor="settings-school-logo">
+                  <input
+                    ref={fileInputRef}
+                    id="settings-school-logo"
+                    name="school_logo_url"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoFileChange}
+                  />
+                  <div className="st__upload-copy">
+                    <span className="st__upload-icon" aria-hidden>
+                      <MdImage />
+                    </span>
+                    <div>
+                      <strong>
+                        {schoolLogoUrl
+                          ? 'تحديث صورة الشعار'
+                          : 'رفع صورة الشعار'}
+                      </strong>
+                      <p>
+                        PNG أو JPG أو WEBP. ستُرسل الصورة كبيانات مضمنة. أي
+                        مشكلة في النوع أو الحجم أو الأبعاد ستظهر هنا بوضوح.
+                      </p>
+                    </div>
+                  </div>
+                </label>
+
+                <div className="st__logo-preview">
+                  {schoolLogoUrl ? (
+                    <img
+                      ref={logoPreviewRef}
+                      src={schoolLogoUrl}
+                      width={320}
+                      height={160}
+                      alt={schoolName ? `شعار ${schoolName}` : 'شعار المدرسة'}
+                    />
+                  ) : (
+                    <span>لا توجد صورة حالياً</span>
+                  )}
+                </div>
+              </div>
+
+              {logoError ? (
+                <p className="st__logo-error" role="alert">
+                  {logoError}
+                </p>
+              ) : null}
+
+              <div className="st__logo-actions">
+                <button
+                  type="button"
+                  className="st__secondary-btn"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <MdImage aria-hidden />
+                  اختيار ملف
+                </button>
+                <button
+                  type="button"
+                  className="st__secondary-btn st__secondary-btn--danger"
+                  onClick={clearLogo}
+                  disabled={!schoolLogoUrl}
+                >
+                  <MdDeleteOutline aria-hidden />
+                  إزالة الشعار
+                </button>
+              </div>
+            </div>
           </div>
-          <a
-            href={TEMPLATE_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="st__template-link"
-          >
-            فتح القالب
-          </a>
-        </div>
 
-        <div className="st__actions">
-          <button
-            type="button"
-            onClick={() => void handleSave()}
-            disabled={saving}
-          >
-            {saving && <span className="ui-button-spinner" aria-hidden />}
-            {!saving && <MdSave aria-hidden />}
-            {saving ? 'جارٍ الحفظ...' : 'حفظ'}
-          </button>
-        </div>
+          <div className="st__actions">
+            <button type="submit" disabled={saving}>
+              {saving && <span className="ui-button-spinner" aria-hidden />}
+              {!saving && <MdSave aria-hidden />}
+              {saving ? 'جارٍ الحفظ…' : 'حفظ'}
+            </button>
+          </div>
+        </form>
       </section>
     </div>
   );

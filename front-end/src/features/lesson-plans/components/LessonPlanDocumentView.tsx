@@ -89,6 +89,23 @@ function resolveDurationValue(
   return '—';
 }
 
+function resolveTraditionalSourceValue(
+  source: unknown,
+  subject?: string | null,
+  unit?: string | null,
+  lessonTitle?: string | null
+): string {
+  const subjectText = toDisplayText(subject);
+  const unitText = toDisplayText(unit);
+  const titleText = toDisplayText(lessonTitle);
+  if (subjectText !== '—' && unitText !== '—' && titleText !== '—') {
+    return `${subjectText} - ${unitText} - ${titleText}`;
+  }
+
+  const displaySource = toDisplayText(source);
+  return displaySource === '—' ? '—' : displaySource;
+}
+
 function renderStaticList(items: string[], emptyText: string) {
   return (
     <ul>
@@ -215,7 +232,12 @@ export default function LessonPlanDocumentView({
   const traditionalAssessment = toTextList(planObject.assessment);
   const traditionalIntro = toDisplayText(planObject.intro);
   const traditionalHomework = toDisplayText(planObject.homework);
-  const traditionalSource = toDisplayText(planObject.source);
+  const traditionalSource = resolveTraditionalSourceValue(
+    planObject.source,
+    fallback?.subject,
+    fallback?.unit,
+    resolvedLessonTitle
+  );
 
   const activeObjectives = toTextList(planObject.objectives);
   const lessonFlow = Array.isArray(planObject.lesson_flow)

@@ -55,7 +55,7 @@ function includesRateLimitSignal(value: string): boolean {
     normalized.includes('limit reached') ||
     normalized.includes('too many requests') ||
     normalized.includes('tokens per minute') ||
-    normalized.includes('requested') && normalized.includes('try again in') ||
+    (normalized.includes('requested') && normalized.includes('try again in')) ||
     normalized.includes('rate_limit') ||
     normalized.includes('429')
   );
@@ -81,8 +81,7 @@ export function getLocalizedAiLimitMessage(error: unknown): string | null {
     return null;
   }
 
-  const directMessage =
-    typeof error.message === 'string' ? error.message : '';
+  const directMessage = typeof error.message === 'string' ? error.message : '';
   if (includesRateLimitSignal(directMessage)) {
     return AI_FREE_TIER_LIMIT_MESSAGE;
   }
@@ -92,7 +91,10 @@ export function getLocalizedAiLimitMessage(error: unknown): string | null {
     return AI_FREE_TIER_LIMIT_MESSAGE;
   }
 
-  if (Array.isArray(error.details) && error.details.some(detailIndicatesAiRateLimit)) {
+  if (
+    Array.isArray(error.details) &&
+    error.details.some(detailIndicatesAiRateLimit)
+  ) {
     return AI_FREE_TIER_LIMIT_MESSAGE;
   }
 
@@ -138,6 +140,12 @@ export function normalizeApiError(
     }
 
     if (error.response?.status === 401) {
+      // Check if there's a specific error message from the server
+      const serverError =
+        error.response?.data?.error || error.response?.data?.message;
+      if (typeof serverError === 'string' && serverError.trim()) {
+        return { message: serverError.trim() };
+      }
       return { message: 'بيانات الدخول غير صحيحة أو انتهت جلسة العمل' };
     }
     if (error.response?.status === 403) {
@@ -152,11 +160,25 @@ export function normalizeApiError(
       return { message: localizedAiLimitMessage };
     }
 
-    const rawMessage = typeof error.message === 'string' ? error.message.trim() : '';
-    const isGenericStatusMessage = /^request failed with status code \d+$/i.test(rawMessage);
-    if (isGenericStatusMessage && error.response?.status === 422) {
-      return { message: fallback };
+    const rawMessage =
+      typeof error.message === 'string' ? error.message.trim() : '';
+    const isGenericStatusMessage =
+      /^request failed with status code \d+$/i.test(rawMessage);
+
+    // Handle generic status messages for specific status codes
+    if (isGenericStatusMessage) {
+      if (error.response?.status === 401) {
+        return { message: 'بيانات الدخول غير صحيحة أو انتهت جلسة العمل' };
+      }
+      if (error.response?.status === 422) {
+        return { message: fallback };
+      }
+      // For other status codes, return a generic error
+      if (error.response?.status) {
+        return { message: fallback };
+      }
     }
+
     if (rawMessage.length > 0 && !isGenericStatusMessage) {
       return { message: rawMessage };
     }

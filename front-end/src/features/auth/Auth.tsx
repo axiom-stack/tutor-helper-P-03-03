@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { MdMenuBook, MdRefresh } from 'react-icons/md';
-import { FiEye, FiEyeOff } from 'react-icons/fi';
 import './auth.css';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router';
@@ -95,6 +94,7 @@ function Auth() {
 
   React.useEffect(() => {
     if (error) {
+      // Still show toast for accessibility, but main display is on form
       toast.error(error);
     }
   }, [error]);
@@ -103,7 +103,9 @@ function Auth() {
 
   if (isLoading) {
     return (
-      <div className={`auth${serverWakingUp ? ' auth--wake-notice-visible' : ''}`}>
+      <div
+        className={`auth${serverWakingUp ? ' auth--wake-notice-visible' : ''}`}
+      >
         {wakeNotice}
         <div className="ui-loading-screen">
           <div className="ui-loading-shell">
@@ -116,6 +118,20 @@ function Auth() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
+    // Clear previous error
+    setError(null);
+
+    // Client-side validation - check if fields are empty first
+    if (!username.trim()) {
+      setError('يرجى إدخال اسم المستخدم');
+      return;
+    }
+
+    if (!password.trim()) {
+      setError('يرجى إدخال كلمة المرور');
+      return;
+    }
 
     // Client-side validation - we ensure that the password and username are of proper length
     if (username.length < 4) {
@@ -133,14 +149,45 @@ function Auth() {
       const response = await login(username, password);
       navigate(response.user.userRole === 'admin' ? '/admin' : '/');
     } catch (error: unknown) {
-      setError(normalizeApiError(error, 'حدث خطأ أثناء تسجيل الدخول').message);
+      // Handle raw axios errors with better user feedback
+      let errorMessage = 'حدث خطأ أثناء تسجيل الدخول';
+
+      if (error && typeof error === 'object') {
+        const err = error as Record<string, unknown>;
+
+        // Check for axios error with status code
+        if (
+          err.code === 'ERR_BAD_REQUEST' ||
+          (err as any).response?.status === 401
+        ) {
+          errorMessage =
+            'اسم المستخدم أو كلمة المرور غير صحيح. يرجى التحقق والمحاولة مرة أخرى.';
+        } else if ((err as any).response?.status === 400) {
+          const responseData = (err as any).response?.data;
+          if (responseData?.error) {
+            errorMessage = responseData.error;
+          }
+        } else {
+          const normalizedError = normalizeApiError(error);
+          if (normalizedError.message.includes('بيانات الدخول')) {
+            errorMessage =
+              'اسم المستخدم أو كلمة المرور غير صحيح. يرجى التحقق والمحاولة مرة أخرى.';
+          } else {
+            errorMessage = normalizedError.message;
+          }
+        }
+      }
+
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
-    <div className={`auth${serverWakingUp ? ' auth--wake-notice-visible' : ''}`}>
+    <div
+      className={`auth${serverWakingUp ? ' auth--wake-notice-visible' : ''}`}
+    >
       {wakeNotice}
       <div className="auth__container">
         <section className="auth__brand" aria-hidden>
@@ -190,6 +237,26 @@ function Auth() {
               data-purpose="login-form"
               aria-label="تسجيل الدخول"
             >
+              {error && (
+                <div
+                  id="auth-error-message"
+                  className="auth__error-message"
+                  role="alert"
+                  aria-live="polite"
+                >
+                  <span className="auth__error-text">{error}</span>
+                  <button
+                    type="button"
+                    className="auth__error-close"
+                    onClick={clearError}
+                    aria-label="إغلاق رسالة الخطأ"
+                    title="إغلاق"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
               <div className="auth-field">
                 <label className="auth-field__label" htmlFor="auth-username">
                   اسم المستخدم
@@ -202,11 +269,15 @@ function Auth() {
                   value={username}
                   onChange={(e) => {
                     setUsername(e.target.value);
-                    clearError();
+                    // Clear error that might relate to this field
+                    if (error?.includes('اسم المستخدم')) {
+                      setError(null);
+                    }
                   }}
                   autoComplete="username"
                   disabled={isSubmitting}
                   aria-invalid={!!error}
+                  aria-describedby={error ? 'auth-error-message' : undefined}
                 />
               </div>
 
@@ -214,36 +285,35 @@ function Auth() {
                 <label className="auth-field__label" htmlFor="auth-password">
                   كلمة المرور
                 </label>
-                <div className="auth-field__password-wrap">
+                <input
+                  id="auth-password"
+                  type={showPassword ? 'text' : 'password'}
+                  className="auth-field__input auth-field__input--password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    // Clear error that might relate to this field
+                    if (error?.includes('كلمة المرور')) {
+                      setError(null);
+                    }
+                  }}
+                  autoComplete="off"
+                  disabled={isSubmitting}
+                  aria-invalid={!!error}
+                  aria-describedby={error ? 'auth-error-message' : undefined}
+                />
+                <label className="auth-field__show-password">
                   <input
-                    id="auth-password"
-                    type={showPassword ? 'text' : 'password'}
-                    className="auth-field__input auth-field__input--password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      clearError();
-                    }}
-                    autoComplete="off"
+                    type="checkbox"
+                    checked={showPassword}
+                    onChange={(event) => setShowPassword(event.target.checked)}
                     disabled={isSubmitting}
-                    aria-invalid={!!error}
+                    aria-checked={showPassword}
+                    aria-label="إظهار كلمة المرور"
                   />
-                  <button
-                    type="button"
-                    className="auth-field__toggle-password"
-                    onClick={() => setShowPassword((v) => !v)}
-                    title={
-                      showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'
-                    }
-                    aria-label={
-                      showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'
-                    }
-                    tabIndex={-1}
-                  >
-                    {showPassword ? <FiEyeOff /> : <FiEye />}
-                  </button>
-                </div>
+                  <span>إظهار كلمة المرور</span>
+                </label>
               </div>
 
               <button

@@ -20,9 +20,32 @@ import {
   toArabicDigits,
 } from "./examViewModel.js";
 import { parseImageDataUrl } from "../utils/imageDataUrl.js";
+import { ensureDocxRtl } from "./docxRtl.js";
 
 const RTL_OPTS = { alignment: AlignmentType.RIGHT };
 const RTL_BIDI = { bidirectional: true };
+const RTL_PARAGRAPH = {
+  alignment: AlignmentType.RIGHT,
+  bidirectional: true,
+};
+
+const DOC_STYLES = {
+  default: {
+    document: {
+      run: {
+        rightToLeft: true,
+        language: {
+          value: "ar-SA",
+          bidirectional: "ar-SA",
+        },
+      },
+      paragraph: {
+        alignment: AlignmentType.RIGHT,
+        bidirectional: true,
+      },
+    },
+  },
+};
 
 const CELL_BORDER = {
   top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
@@ -36,13 +59,21 @@ const PORTRAIT_SECTION = {
     size: { orientation: PageOrientation.PORTRAIT },
     margin: { top: 720, bottom: 720, right: 720, left: 720 },
   },
+  bidi: true,
 };
+
+function rtlTable(options) {
+  return new Table({
+    ...options,
+    alignment: AlignmentType.RIGHT,
+    visuallyRightToLeft: true,
+  });
+}
 
 function heading(text, size = 28) {
   return new Paragraph({
     children: [new TextRun({ text: toArabicDigits(text), bold: true, size })],
-    ...RTL_OPTS,
-    ...RTL_BIDI,
+    ...RTL_PARAGRAPH,
     spacing: { before: 200, after: 100 },
   });
 }
@@ -50,8 +81,7 @@ function heading(text, size = 28) {
 function subheading(text) {
   return new Paragraph({
     children: [new TextRun({ text: toArabicDigits(text), bold: true, size: 24 })],
-    ...RTL_OPTS,
-    ...RTL_BIDI,
+    ...RTL_PARAGRAPH,
     spacing: { before: 160, after: 80 },
   });
 }
@@ -59,8 +89,7 @@ function subheading(text) {
 function para(text, size = 22) {
   return new Paragraph({
     children: [new TextRun({ text: toArabicDigits(text || "—"), size })],
-    ...RTL_OPTS,
-    ...RTL_BIDI,
+    ...RTL_PARAGRAPH,
     spacing: { after: 80 },
   });
 }
@@ -90,8 +119,7 @@ function buildTopBanner(vm, titleText) {
     children.push(
       new Paragraph({
         children: [logoRun],
-        ...RTL_OPTS,
-        ...RTL_BIDI,
+        ...RTL_PARAGRAPH,
         spacing: { after: 40 },
       }),
     );
@@ -112,14 +140,12 @@ function headerCell(label, value) {
     children: [
       new Paragraph({
         children: [new TextRun({ text: toArabicDigits(label), bold: true, size: 20 })],
-        ...RTL_OPTS,
-        ...RTL_BIDI,
+        ...RTL_PARAGRAPH,
         spacing: { after: 40 },
       }),
       new Paragraph({
         children: [new TextRun({ text: toArabicDigits(value || "—"), bold: true, size: 22 })],
-        ...RTL_OPTS,
-        ...RTL_BIDI,
+        ...RTL_PARAGRAPH,
       }),
     ],
   });
@@ -127,7 +153,7 @@ function headerCell(label, value) {
 
 function buildExamHeaderTable(vm) {
   const e = vm.examMeta;
-  return new Table({
+  return rtlTable({
     width: { size: 100, type: WidthType.PERCENTAGE },
     layout: TableLayoutType.FIXED,
     rows: [
@@ -157,7 +183,7 @@ function buildStudentInfoTable(vm) {
   const m = vm.studentMetaTemplate;
   const e = vm.examMeta;
 
-  return new Table({
+  return rtlTable({
     width: { size: 100, type: WidthType.PERCENTAGE },
     layout: TableLayoutType.FIXED,
     rows: [
@@ -205,8 +231,7 @@ function buildPaperQuestionChildren(q) {
       children: [
         new TextRun({ text: toArabicDigits(q.text ?? ""), bold: true, size: 24 }),
       ],
-      ...RTL_OPTS,
-      ...RTL_BIDI,
+      ...RTL_PARAGRAPH,
       spacing: { after: 80 },
     }),
   ];
@@ -231,8 +256,7 @@ function buildPaperQuestionChildren(q) {
           border: {
             bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
           },
-          ...RTL_OPTS,
-          ...RTL_BIDI,
+          ...RTL_PARAGRAPH,
           spacing: { after: 60 },
         }),
       );
@@ -250,8 +274,7 @@ function buildAnswerKeyQuestionChildren(q) {
       children: [
         new TextRun({ text: toArabicDigits(q.text ?? ""), bold: true, size: 24 }),
       ],
-      ...RTL_OPTS,
-      ...RTL_BIDI,
+      ...RTL_PARAGRAPH,
       spacing: { after: 80 },
     }),
   ];
@@ -280,8 +303,7 @@ function buildAnswerKeyQuestionChildren(q) {
                 ]
               : []),
           ],
-          ...RTL_OPTS,
-          ...RTL_BIDI,
+          ...RTL_PARAGRAPH,
           spacing: { after: 40 },
         }),
       );
@@ -327,7 +349,7 @@ function buildObjectiveSectionTable(section) {
           new Paragraph({
             children: [new TextRun({ text: "رقم السؤال", bold: true })],
             alignment: AlignmentType.CENTER,
-            ...RTL_BIDI,
+            ...RTL_PARAGRAPH,
           }),
         ],
       }),
@@ -340,7 +362,7 @@ function buildObjectiveSectionTable(section) {
               new Paragraph({
                 children: [new TextRun({ text: label, bold: true })],
                 alignment: AlignmentType.CENTER,
-                ...RTL_BIDI,
+                ...RTL_PARAGRAPH,
               }),
             ],
           }),
@@ -362,7 +384,7 @@ function buildObjectiveSectionTable(section) {
               }),
             ],
             alignment: AlignmentType.CENTER,
-            ...RTL_BIDI,
+            ...RTL_PARAGRAPH,
           }),
         ],
       }),
@@ -377,7 +399,7 @@ function buildObjectiveSectionTable(section) {
             new Paragraph({
               children: [new TextRun({ text: " ", size: 18 })],
               alignment: AlignmentType.CENTER,
-              ...RTL_BIDI,
+              ...RTL_PARAGRAPH,
             }),
           ],
         }),
@@ -390,7 +412,7 @@ function buildObjectiveSectionTable(section) {
     });
   });
 
-  return new Table({
+  return rtlTable({
     width: { size: 100, type: WidthType.PERCENTAGE },
     layout: TableLayoutType.FIXED,
     rows: [headerRow, ...dataRows],
@@ -425,6 +447,7 @@ export async function buildExamPaperDocx(enrichedExam) {
   }
 
   const doc = new Document({
+    styles: DOC_STYLES,
     sections: [
       {
         properties: PORTRAIT_SECTION,
@@ -433,14 +456,15 @@ export async function buildExamPaperDocx(enrichedExam) {
     ],
   });
 
-  return Packer.toBuffer(doc);
+  const buffer = await Packer.toBuffer(doc);
+  return await ensureDocxRtl(buffer);
 }
 
 function buildAnswerFormHeaderTable(vm) {
   const m = vm.studentMetaTemplate;
   const e = vm.examMeta;
 
-  const left = new Table({
+  const left = rtlTable({
     width: { size: 60, type: WidthType.PERCENTAGE },
     layout: TableLayoutType.FIXED,
     rows: [
@@ -486,13 +510,12 @@ function buildAnswerFormHeaderTable(vm) {
           right: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
         },
         spacing: { after: 80 },
-        ...RTL_OPTS,
-        ...RTL_BIDI,
+        ...RTL_PARAGRAPH,
       }),
     ],
   });
 
-  const right = new Table({
+  const right = rtlTable({
     width: { size: 40, type: WidthType.PERCENTAGE },
     layout: TableLayoutType.FIXED,
     rows: [
@@ -528,7 +551,7 @@ export async function buildExamAnswerFormDocx(enrichedExam) {
   const { left, right } = buildAnswerFormHeaderTable(vm);
 
   children.push(
-    new Table({
+    rtlTable({
       width: { size: 100, type: WidthType.PERCENTAGE },
       layout: TableLayoutType.FIXED,
       rows: [
@@ -572,6 +595,7 @@ export async function buildExamAnswerFormDocx(enrichedExam) {
   }
 
   const doc = new Document({
+    styles: DOC_STYLES,
     sections: [
       {
         properties: PORTRAIT_SECTION,
@@ -580,7 +604,8 @@ export async function buildExamAnswerFormDocx(enrichedExam) {
     ],
   });
 
-  return Packer.toBuffer(doc);
+  const buffer = await Packer.toBuffer(doc);
+  return await ensureDocxRtl(buffer);
 }
 
 export async function buildExamAnswerKeyDocx(enrichedExam) {
@@ -608,6 +633,7 @@ export async function buildExamAnswerKeyDocx(enrichedExam) {
   }
 
   const doc = new Document({
+    styles: DOC_STYLES,
     sections: [
       {
         properties: PORTRAIT_SECTION,
@@ -616,5 +642,6 @@ export async function buildExamAnswerKeyDocx(enrichedExam) {
     ],
   });
 
-  return Packer.toBuffer(doc);
+  const buffer = await Packer.toBuffer(doc);
+  return await ensureDocxRtl(buffer);
 }

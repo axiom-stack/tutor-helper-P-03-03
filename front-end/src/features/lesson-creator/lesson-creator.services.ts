@@ -23,6 +23,7 @@ export interface GeneratePlanRequest {
   preparation_type?: PreparationType | null;
   class_id?: number;
   class_name?: string;
+  section_label?: string;
   section?: string;
 }
 
@@ -112,6 +113,26 @@ export async function getAllSubjects(): Promise<{ subjects: Subject[] }> {
     }
 
     const cached = await getReference<Subject[]>('subjects:all');
+    return { subjects: cached ?? [] };
+  }
+}
+
+export async function getSubjectsByClass(
+  classId: number
+): Promise<{ subjects: Subject[] }> {
+  const cacheKey = `subjects:class:${classId}`;
+  try {
+    const response = await api().get<{ subjects: Subject[] }>(
+      `/api/subjects/class/${classId}`
+    );
+    await putReference(cacheKey, 'subjects', response.data.subjects ?? [], classId);
+    return response.data;
+  } catch (error: unknown) {
+    if (!isOfflineError(error)) {
+      throw error;
+    }
+
+    const cached = await getReference<Subject[]>(cacheKey);
     return { subjects: cached ?? [] };
   }
 }

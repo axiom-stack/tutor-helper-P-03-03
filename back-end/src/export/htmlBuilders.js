@@ -11,6 +11,9 @@ const BASE_STYLES = `
     font-size: 14px;
     line-height: 1.6;
     color: #000000;
+    direction: rtl;
+    unicode-bidi: plaintext;
+    text-align: right;
     padding: 0;
     margin: 0;
     background: #ffffff;
@@ -22,6 +25,8 @@ const BASE_STYLES = `
     background: #ffffff;
     padding: 18px;
     border: 2px solid #000000;
+    direction: rtl;
+    unicode-bidi: plaintext;
   }
 
   .lpdv__traditional-shell,
@@ -179,6 +184,7 @@ const BASE_STYLES = `
     width: 100%;
     border-collapse: collapse;
     min-width: 640px;
+    direction: rtl;
   }
 
   .lpdv__flow-table th,
@@ -208,6 +214,8 @@ const BASE_STYLES = `
     border: 1px solid #000000;
     border-radius: 8px;
     background: #ffffff;
+    direction: rtl;
+    unicode-bidi: plaintext;
   }
 
   .qz__question-meta {
@@ -306,6 +314,18 @@ function escapeHtml(str) {
     .replace(/'/g, "&#39;");
 }
 
+function resolveTraditionalSource(source, subject, unit, lessonTitle) {
+  const subjectText = toDisplayText(subject);
+  const unitText = toDisplayText(unit);
+  const titleText = toDisplayText(lessonTitle);
+  if (subjectText !== "—" && unitText !== "—" && titleText !== "—") {
+    return `${subjectText} - ${unitText} - ${titleText}`;
+  }
+
+  const sourceText = toDisplayText(source);
+  return sourceText === "—" ? "—" : sourceText;
+}
+
 function renderList(items, emptyText = "لا توجد بيانات.") {
   if (!items || items.length === 0) return `<li>${emptyText}</li>`;
   return items.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
@@ -345,7 +365,12 @@ export function buildPlanHtml(enrichedPlan) {
     const assessment = toTextList(plan.assessment);
     const intro = toDisplayText(plan.intro);
     const homework = toDisplayText(plan.homework);
-    const source = toDisplayText(plan.source);
+    const source = resolveTraditionalSource(
+      plan.source,
+      enrichedPlan.subject ?? plan.subject,
+      enrichedPlan.unit ?? plan.unit,
+      enrichedPlan.lesson_title ?? enrichedPlan.lesson_name ?? extractHeaderValue(header, "lesson_title")
+    );
 
     content = `
       <div class="lpdv">

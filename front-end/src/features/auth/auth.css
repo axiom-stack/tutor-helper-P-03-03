@@ -9,7 +9,7 @@
   --auth-brand-dark: var(--primary-hover);
   --auth-brand-light: var(--bg);
   --auth-error: var(--error);
-  --auth-error-bg: #FEF2F2;
+  --auth-error-bg: #fef2f2;
   --auth-radius: var(--radius-lg);
   --auth-font: var(--font-main);
 
@@ -316,6 +316,13 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
+  align-items: stretch;
+  text-align: right;
+}
+
+/* Make form wrapper 10% wider visually, keep centered */
+.auth__form-inner {
+  max-width: calc(28rem * 1.1);
 }
 
 .auth-field__label {
@@ -323,6 +330,8 @@
   font-weight: 500;
   color: var(--text-primary);
   display: block;
+  text-align: right;
+  width: 100%;
 }
 
 .auth-field__input {
@@ -334,7 +343,11 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+  direction: rtl;
+  text-align: right;
 }
 
 .auth-field__input::placeholder {
@@ -364,52 +377,94 @@
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
 }
 
-/* Password wrapper + visibility toggle */
-.auth-field__password-wrap {
-  position: relative;
-  display: flex;
-  align-items: stretch;
-}
-
+/* Password field + visibility checkbox */
 .auth-field__input--password {
-  padding-inline-end: 2.75rem;
+  padding-inline-end: 0.75rem;
 }
 
-.auth-field__toggle-password {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  inset-inline-end: 0;
-  width: 2.75rem;
+.auth-field__show-password {
   display: flex;
   align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: none;
-  color: #6b7280;
-  cursor: pointer;
-  border-radius: 0 var(--auth-radius) var(--auth-radius) 0;
-  transition: color 0.2s, background 0.2s;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  width: 100%;
+  direction: rtl;
+  text-align: right;
 }
 
-.auth[dir='rtl'] .auth-field__toggle-password {
-  border-radius: var(--auth-radius) 0 0 var(--auth-radius);
-}
-
-.auth-field__toggle-password:hover {
-  color: var(--primary);
-  background: var(--bg);
-}
-
-.auth-field__toggle-password:focus-visible {
-  outline: 2px solid var(--auth-brand);
-  outline-offset: 2px;
+.auth-field__show-password input[type='checkbox'] {
+  width: 1rem;
+  height: 1rem;
 }
 
 /* Forgot Password */
 .auth__forgot {
   display: flex;
   justify-content: flex-end;
+}
+
+/* Error message display */
+.auth__error-message {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-lg);
+  background-color: #fef2f2;
+  border: 1.5px solid var(--error);
+  border-radius: var(--radius-md);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.auth__error-text {
+  flex: 1;
+  font-size: var(--text-sm);
+  color: var(--error);
+  font-weight: 500;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.auth__error-close {
+  flex-shrink: 0;
+  padding: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--error);
+  cursor: pointer;
+  font-size: 1.25rem;
+  transition: opacity var(--transition-fast);
+  border-radius: var(--radius-sm);
+}
+
+.auth__error-close:hover {
+  opacity: 0.7;
+  background-color: rgba(220, 38, 38, 0.08);
+}
+
+.auth__error-close:focus-visible {
+  outline: 2px solid var(--error);
+  outline-offset: 2px;
 }
 
 .auth__link {
@@ -455,7 +510,9 @@
   border: none;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background var(--transition-fast), transform var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    transform var(--transition-fast);
   box-shadow: var(--shadow-sm);
 }
 

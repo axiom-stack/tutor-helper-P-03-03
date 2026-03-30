@@ -4,7 +4,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type FormEvent,
 } from 'react';
 import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router';
@@ -17,7 +16,6 @@ import {
   MdMenuBook,
   MdSchool,
   MdSubject,
-  MdViewModule,
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
 import ConfirmActionModal from '../../components/common/ConfirmActionModal';
@@ -57,11 +55,13 @@ import {
   updateLesson,
   updateSubject,
   updateUnit,
-  type CreateLessonResponse,
 } from './teacher-curriculum-manager.services';
 import {
+  formatClassBaseSelectLabel,
   formatClassSelectLabel,
   formatClassShortLabel,
+  getClassBaseKey,
+  getClassSectionLabel,
   formatSubjectSelectLabel,
   isSameClassIdentity,
   normalizeAcademicYearLabel,
@@ -80,7 +80,6 @@ export interface TeacherCirriculumManagerScope {
 
 type SelectValue = number | '';
 type ClassMode = 'existing' | 'new';
-type LessonMode = 'skip' | 'new';
 type EntityKind = 'class' | 'subject' | 'unit' | 'lesson';
 
 interface SearchSuggestion {
@@ -293,16 +292,6 @@ function SearchablePickerField(props: {
   );
 }
 
-function getLessonCreationMessage(result: CreateLessonResponse): string {
-  if (result.message) {
-    return result.message;
-  }
-  if (result.content_type === 'text') {
-    return 'تم إنشاء الدرس النصي بنجاح.';
-  }
-  return 'تم إنشاء الدرس بنجاح.';
-}
-
 function TeacherCirriculumManager(props: {
   scope?: TeacherCirriculumManagerScope;
 }) {
@@ -330,6 +319,7 @@ function TeacherCirriculumManager(props: {
   );
 
   const [selectedClassId, setSelectedClassId] = useState<SelectValue>('');
+  const [selectedClassBaseKey, setSelectedClassBaseKey] = useState('');
   const [selectedSubjectId, setSelectedSubjectId] = useState<SelectValue>('');
   const [classSelectionMode, setClassSelectionMode] =
     useState<ClassMode>('existing');
@@ -360,43 +350,43 @@ function TeacherCirriculumManager(props: {
   const [deleteRequest, setDeleteRequest] = useState<DeleteRequestDraft | null>(
     null
   );
-  const [showCreatorFlow, setShowCreatorFlow] = useState(false);
 
-  const [creatorClassMode, setCreatorClassMode] =
-    useState<ClassMode>('existing');
-  const [creatorExistingClassId, setCreatorExistingClassId] =
-    useState<SelectValue>('');
-  const [creatorNewClassGradeLabel, setCreatorNewClassGradeLabel] =
-    useState('');
-  const [creatorNewClassSemester, setCreatorNewClassSemester] =
-    useState<string>(SEMESTER_OPTIONS[0]);
-  const [creatorNewClassSectionLabel, setCreatorNewClassSectionLabel] =
-    useState('');
-  const [creatorNewClassAcademicYear, setCreatorNewClassAcademicYear] =
-    useState<string>(ACADEMIC_YEAR_OPTIONS[0]);
-  const [creatorNewClassDefaultDuration, setCreatorNewClassDefaultDuration] =
-    useState<number>(() => resolvedDefaultDuration);
+  const filteredExistingClasses = classes.filter((classItem) => {
+    if (
+      existingClassYearFilter &&
+      normalizeAcademicYearLabel(classItem.academic_year) !==
+        normalizeAcademicYearLabel(existingClassYearFilter)
+    ) {
+      return false;
+    }
 
-  const [creatorSubjectName, setCreatorSubjectName] = useState('');
-  const [creatorNewSubjectDescription, setCreatorNewSubjectDescription] =
-    useState('');
+    if (existingClassSemesterFilter) {
+      if (
+        normalizeSemesterLabel(classItem.semester) !==
+        existingClassSemesterFilter
+      ) {
+        return false;
+      }
+    }
 
-  const [creatorUnitName, setCreatorUnitName] = useState('');
-  const [creatorNewUnitDescription, setCreatorNewUnitDescription] =
-    useState('');
+    if (
+      existingClassGradeFilter &&
+      (classItem.grade_label?.trim() ?? '') !== existingClassGradeFilter
+    ) {
+      return false;
+    }
 
-  const [creatorLessonMode, setCreatorLessonMode] =
-    useState<LessonMode>('skip');
-  const [creatorLessonName, setCreatorLessonName] = useState('');
-  const [creatorLessonDescription, setCreatorLessonDescription] = useState('');
-  const [creatorLessonContentType, setCreatorLessonContentType] =
-    useState<LessonContentType>('text');
-  const [creatorLessonNumberOfPeriods, setCreatorLessonNumberOfPeriods] =
-    useState<number>(1);
-  const [creatorLessonPeriodNumber, setCreatorLessonPeriodNumber] =
-    useState<number>(1);
-  const [creatorLessonTextContent, setCreatorLessonTextContent] = useState('');
-  const [creatorLessonFile, setCreatorLessonFile] = useState<File | null>(null);
+    return true;
+  });
+
+  const existingClassYearOptions = Array.from(
+    new Set([
+      ...ACADEMIC_YEAR_OPTIONS,
+      ...classes
+        .map((classItem) => normalizeAcademicYearLabel(classItem.academic_year))
+        .filter((value) => value.trim().length > 0),
+    ])
+  );
 
   const selectedClass =
     selectedClassId === ''
@@ -407,6 +397,54 @@ function TeacherCirriculumManager(props: {
       ? null
       : (subjects.find((subjectItem) => subjectItem.id === selectedSubjectId) ??
         null);
+
+  const classGroups = useMemo(() => {
+    const grouped = new Map<
+      string,
+      { baseClass: Class; sections: Class[] }
+    >();
+
+    filteredExistingClasses.forEach((classItem) => {
+      const baseKey = getClassBaseKey(classItem);
+      const current = grouped.get(baseKey);
+      if (current) {
+        current.sections.push(classItem);
+        return;
+      }
+
+      grouped.set(baseKey, {
+        baseClass: classItem,
+        sections: [classItem],
+      });
+    });
+
+    return Array.from(grouped.entries())
+      .map(([key, group]) => ({
+        key,
+        baseClass: group.baseClass,
+        sections: [...group.sections].sort((left, right) =>
+          getClassSectionLabel(left).localeCompare(
+            getClassSectionLabel(right),
+            'ar'
+          )
+        ),
+      }))
+      .sort((left, right) =>
+        formatClassBaseSelectLabel(left.baseClass).localeCompare(
+          formatClassBaseSelectLabel(right.baseClass),
+          'ar'
+        )
+      );
+  }, [filteredExistingClasses]);
+
+  const selectedClassSections = useMemo(() => {
+    if (selectedClassBaseKey === '') {
+      return [];
+    }
+
+    return classGroups.find((group) => group.key === selectedClassBaseKey)
+      ?.sections ?? [];
+  }, [classGroups, selectedClassBaseKey]);
 
   const selectedSubjectUnits = useMemo(
     () => units.filter((unitItem) => unitItem.subject_id === selectedSubjectId),
@@ -456,98 +494,6 @@ function TeacherCirriculumManager(props: {
     });
   }, [subjects, classByIdMap]);
 
-  const creatorResolvedClassId =
-    creatorClassMode === 'existing' && creatorExistingClassId !== ''
-      ? creatorExistingClassId
-      : null;
-
-  const creatorSubjectMatch = useMemo(() => {
-    if (creatorResolvedClassId === null) {
-      return null;
-    }
-
-    const normalizedSubjectName = normalizeLookupText(creatorSubjectName);
-    if (!normalizedSubjectName) {
-      return null;
-    }
-
-    return (
-      subjects.find(
-        (subjectItem) =>
-          subjectItem.class_id === creatorResolvedClassId &&
-          normalizeLookupText(subjectItem.name) === normalizedSubjectName
-      ) ?? null
-    );
-  }, [creatorResolvedClassId, creatorSubjectName, subjects]);
-
-  const creatorUnitMatch = useMemo(() => {
-    if (!creatorSubjectMatch) {
-      return null;
-    }
-
-    const normalizedUnitName = normalizeLookupText(creatorUnitName);
-    if (!normalizedUnitName) {
-      return null;
-    }
-
-    return (
-      units.find(
-        (unitItem) =>
-          unitItem.subject_id === creatorSubjectMatch.id &&
-          normalizeLookupText(unitItem.name) === normalizedUnitName
-      ) ?? null
-    );
-  }, [creatorSubjectMatch, creatorUnitName, units]);
-
-  const creatorSubjectSuggestions = useMemo<SearchSuggestion[]>(() => {
-    if (creatorResolvedClassId === null) {
-      return [];
-    }
-
-    const normalizedQuery = normalizeLookupText(creatorSubjectName);
-    if (!normalizedQuery) {
-      return [];
-    }
-
-    return subjects
-      .filter(
-        (subjectItem) =>
-          subjectItem.class_id === creatorResolvedClassId &&
-          matchesLookupQuery(subjectItem.name, normalizedQuery)
-      )
-      .sort((left, right) => left.name.localeCompare(right.name, 'ar'))
-      .slice(0, 6)
-      .map((subjectItem) => ({
-        id: subjectItem.id,
-        label: subjectItem.name,
-        description: subjectItem.description ?? null,
-      }));
-  }, [creatorResolvedClassId, creatorSubjectName, subjects]);
-
-  const creatorUnitSuggestions = useMemo<SearchSuggestion[]>(() => {
-    if (!creatorSubjectMatch) {
-      return [];
-    }
-
-    const normalizedQuery = normalizeLookupText(creatorUnitName);
-    if (!normalizedQuery) {
-      return [];
-    }
-
-    return units
-      .filter(
-        (unitItem) =>
-          unitItem.subject_id === creatorSubjectMatch.id &&
-          matchesLookupQuery(unitItem.name, normalizedQuery)
-      )
-      .sort((left, right) => left.name.localeCompare(right.name, 'ar'))
-      .slice(0, 6)
-      .map((unitItem) => ({
-        id: unitItem.id,
-        label: unitItem.name,
-        description: unitItem.description ?? null,
-      }));
-  }, [creatorSubjectMatch, creatorUnitName, units]);
 
   const quickAddSubjectSuggestions = useMemo<SearchSuggestion[]>(() => {
     if (
@@ -607,43 +553,6 @@ function TeacherCirriculumManager(props: {
       }));
   }, [quickAddDraft, units]);
 
-  const filteredExistingClasses = classes.filter((classItem) => {
-    if (
-      existingClassYearFilter &&
-      normalizeAcademicYearLabel(classItem.academic_year) !==
-        normalizeAcademicYearLabel(existingClassYearFilter)
-    ) {
-      return false;
-    }
-
-    if (existingClassSemesterFilter) {
-      if (
-        normalizeSemesterLabel(classItem.semester) !==
-        existingClassSemesterFilter
-      ) {
-        return false;
-      }
-    }
-
-    if (
-      existingClassGradeFilter &&
-      (classItem.grade_label?.trim() ?? '') !== existingClassGradeFilter
-    ) {
-      return false;
-    }
-
-    return true;
-  });
-
-  const existingClassYearOptions = Array.from(
-    new Set([
-      ...ACADEMIC_YEAR_OPTIONS,
-      ...classes
-        .map((classItem) => normalizeAcademicYearLabel(classItem.academic_year))
-        .filter((value) => value.trim().length > 0),
-    ])
-  );
-
   const duplicateNewClass = classes.find((classItem) =>
     isSameClassIdentity(classItem, {
       academicYear: newClassAcademicYear,
@@ -679,69 +588,6 @@ function TeacherCirriculumManager(props: {
     }
   }, [success]);
 
-  const isCreatorValid = (() => {
-    const hasExistingClass = creatorClassMode === 'existing';
-    const hasNewClass =
-      creatorClassMode === 'new' &&
-      creatorNewClassGradeLabel.trim().length > 0 &&
-      creatorNewClassSemester.trim().length > 0 &&
-      creatorNewClassSectionLabel.trim().length > 0 &&
-      creatorNewClassAcademicYear.trim().length > 0 &&
-      Number.isInteger(creatorNewClassDefaultDuration) &&
-      creatorNewClassDefaultDuration > 0;
-
-    if (hasExistingClass && creatorExistingClassId === '') {
-      return false;
-    }
-    if (creatorClassMode === 'new' && !hasNewClass) {
-      return false;
-    }
-
-    const subjectName = normalizeLookupText(creatorSubjectName);
-    const unitName = normalizeLookupText(creatorUnitName);
-
-    if (!subjectName && (unitName.length > 0 || creatorLessonMode === 'new')) {
-      return false;
-    }
-    if (subjectName && unitName.length > 0 && creatorLessonMode === 'new') {
-      if (!creatorLessonName.trim()) {
-        return false;
-      }
-    }
-    if (unitName.length > 0 && !subjectName) {
-      return false;
-    }
-    if (creatorLessonMode !== 'new') {
-      return true;
-    }
-    if (!subjectName || !unitName) {
-      return false;
-    }
-    if (
-      !creatorLessonName.trim() ||
-      !Number.isInteger(creatorLessonPeriodNumber) ||
-      creatorLessonPeriodNumber <= 0 ||
-      !Number.isInteger(creatorLessonNumberOfPeriods) ||
-      creatorLessonNumberOfPeriods <= 0
-    ) {
-      return false;
-    }
-
-    if (creatorLessonContentType === 'text') {
-      return creatorLessonTextContent.trim().length > 0;
-    }
-
-    if (!creatorLessonFile || creatorLessonFile.size > MAX_UPLOAD_SIZE_BYTES) {
-      return false;
-    }
-
-    return (
-      validateLessonFile(
-        creatorLessonFile,
-        creatorLessonContentType as Exclude<LessonContentType, 'text'>
-      ) === null
-    );
-  })();
 
   const isQuickAddValid = (() => {
     if (!quickAddDraft) {
@@ -861,6 +707,7 @@ function TeacherCirriculumManager(props: {
       setUnits(nextUnits);
       setLessons(nextLessons);
       setSelectedClassId('');
+      setSelectedClassBaseKey('');
       setSelectedSubjectId('');
       setExpandedUnitIds(new Set());
     } catch (loadError: unknown) {
@@ -876,7 +723,12 @@ function TeacherCirriculumManager(props: {
 
   const activateSubjectView = useCallback(
     (subjectId: number, classId: number, nextUnits: Unit[] = units) => {
+      const nextClass =
+        classes.find((classItem) => classItem.id === classId) ?? null;
       setSelectedClassId(classId);
+      setSelectedClassBaseKey(
+        nextClass ? getClassBaseKey(nextClass) : selectedClassBaseKey
+      );
       setSelectedSubjectId(subjectId);
       setExpandedUnitIds(
         new Set(
@@ -886,30 +738,9 @@ function TeacherCirriculumManager(props: {
         )
       );
     },
-    [units]
+    [classes, selectedClassBaseKey, units]
   );
 
-  const resetCreatorForm = () => {
-    setCreatorClassMode('existing');
-    setCreatorExistingClassId('');
-    setCreatorNewClassGradeLabel('');
-    setCreatorNewClassSemester(SEMESTER_OPTIONS[0]);
-    setCreatorNewClassSectionLabel('');
-    setCreatorNewClassAcademicYear(ACADEMIC_YEAR_OPTIONS[0]);
-    setCreatorNewClassDefaultDuration(resolvedDefaultDuration);
-    setCreatorSubjectName('');
-    setCreatorNewSubjectDescription('');
-    setCreatorUnitName('');
-    setCreatorNewUnitDescription('');
-    setCreatorLessonMode('skip');
-    setCreatorLessonName('');
-    setCreatorLessonDescription('');
-    setCreatorLessonContentType('text');
-    setCreatorLessonNumberOfPeriods(1);
-    setCreatorLessonPeriodNumber(1);
-    setCreatorLessonTextContent('');
-    setCreatorLessonFile(null);
-  };
 
   useEffect(() => {
     if (!user) {
@@ -997,7 +828,24 @@ function TeacherCirriculumManager(props: {
     );
   }
 
-  const handleClassChange = (nextValue: SelectValue) => {
+  const handleClassGroupChange = (nextValue: string) => {
+    setError(null);
+    setSuccess(null);
+    setClassSelectionMode('existing');
+    setSelectedClassBaseKey(nextValue);
+    setSelectedClassId('');
+
+    if (nextValue === '') {
+      setSelectedSubjectId('');
+      setExpandedUnitIds(new Set());
+      return;
+    }
+
+    setSelectedSubjectId('');
+    setExpandedUnitIds(new Set());
+  };
+
+  const handleClassSectionChange = (nextValue: SelectValue) => {
     setError(null);
     setSuccess(null);
     setClassSelectionMode('existing');
@@ -1009,10 +857,13 @@ function TeacherCirriculumManager(props: {
       return;
     }
 
-    if (!selectedSubject || selectedSubject.class_id !== nextValue) {
-      setSelectedSubjectId('');
-      setExpandedUnitIds(new Set());
-    }
+    const nextClass =
+      classes.find((classItem) => classItem.id === nextValue) ?? null;
+    setSelectedClassBaseKey(
+      nextClass ? getClassBaseKey(nextClass) : selectedClassBaseKey
+    );
+    setSelectedSubjectId('');
+    setExpandedUnitIds(new Set());
   };
 
   const handleSubjectChange = (nextValue: SelectValue) => {
@@ -1029,6 +880,12 @@ function TeacherCirriculumManager(props: {
       subjects.find((subjectItem) => subjectItem.id === nextValue) ?? null;
     if (nextSubject && selectedClassId !== nextSubject.class_id) {
       setSelectedClassId(nextSubject.class_id);
+      const nextClass =
+        classes.find((classItem) => classItem.id === nextSubject.class_id) ??
+        null;
+      setSelectedClassBaseKey(
+        nextClass ? getClassBaseKey(nextClass) : selectedClassBaseKey
+      );
     }
   };
 
@@ -1072,6 +929,7 @@ function TeacherCirriculumManager(props: {
       setExistingClassGradeFilter(newClassGradeLabel);
       setClassSelectionMode('existing');
       setSelectedClassId(response.class.id);
+      setSelectedClassBaseKey(getClassBaseKey(response.class));
       setSelectedSubjectId('');
       setExpandedUnitIds(new Set());
       setNewClassSectionLabel('');
@@ -1170,6 +1028,7 @@ function TeacherCirriculumManager(props: {
             : [...previous, response.class]
         );
         setSelectedClassId(response.class.id);
+        setSelectedClassBaseKey(getClassBaseKey(response.class));
         setSelectedSubjectId('');
         setExpandedUnitIds(new Set());
       }
@@ -1271,10 +1130,11 @@ function TeacherCirriculumManager(props: {
             unit_id: quickAddDraft.unitId,
           });
           if (response.lesson) {
-            setLessons((previous) => [...previous, response.lesson as Lesson]);
+          setLessons((previous) => [...previous, response.lesson as Lesson]);
           }
           ensureUnitExpanded(targetUnit.id);
           setSelectedClassId(targetClass.id);
+          setSelectedClassBaseKey(getClassBaseKey(targetClass));
           setSelectedSubjectId(targetSubject.id);
         } else {
           const fileValidationError = validateLessonFile(
@@ -1299,6 +1159,7 @@ function TeacherCirriculumManager(props: {
           }
           ensureUnitExpanded(targetUnit.id);
           setSelectedClassId(targetClass.id);
+          setSelectedClassBaseKey(getClassBaseKey(targetClass));
           setSelectedSubjectId(targetSubject.id);
         }
       }
@@ -1418,6 +1279,9 @@ function TeacherCirriculumManager(props: {
             item.id === response.class.id ? response.class : item
           )
         );
+        if (selectedClassId === response.class.id) {
+          setSelectedClassBaseKey(getClassBaseKey(response.class));
+        }
       }
 
       if (editDraft.kind === 'subject') {
@@ -1555,6 +1419,7 @@ function TeacherCirriculumManager(props: {
         );
         if (selectedClassId === id) {
           setSelectedClassId('');
+          setSelectedClassBaseKey('');
           setSelectedSubjectId('');
           setExpandedUnitIds(new Set());
         }
@@ -1616,238 +1481,6 @@ function TeacherCirriculumManager(props: {
     });
   };
 
-  const handleCreatorSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!teacherId) {
-      setError('المعلم غير معرف. قم بإعادة تسجيل الدخول.');
-      return;
-    }
-
-    setSaving(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      let resolvedClassId: number;
-      let resolvedSubject: Subject | null = null;
-      let resolvedUnit: Unit | null = null;
-      let createdUnit: Unit | null = null;
-      let lessonCreationResult: CreateLessonResponse | null = null;
-
-      if (creatorClassMode === 'existing') {
-        if (creatorExistingClassId === '') {
-          throw new Error('اختر صفاً موجوداً.');
-        }
-        resolvedClassId = creatorExistingClassId;
-      } else {
-        if (!creatorNewClassGradeLabel.trim()) {
-          throw new Error('يرجى إدخال الصف.');
-        }
-        if (!creatorNewClassSemester.trim()) {
-          throw new Error('يرجى اختيار الفصل الدراسي.');
-        }
-        if (!creatorNewClassSectionLabel.trim()) {
-          throw new Error('يرجى إدخال الشعبة.');
-        }
-        if (!creatorNewClassAcademicYear.trim()) {
-          throw new Error('يرجى إدخال العام الدراسي.');
-        }
-        if (
-          !Number.isInteger(creatorNewClassDefaultDuration) ||
-          creatorNewClassDefaultDuration <= 0
-        ) {
-          throw new Error('المدة الافتراضية يجب أن تكون رقمًا صحيحًا موجبًا.');
-        }
-
-        const classResponse = await createClass({
-          grade_label: creatorNewClassGradeLabel.trim(),
-          semester: creatorNewClassSemester.trim(),
-          section_label: creatorNewClassSectionLabel.trim(),
-          section: 'أ',
-          academic_year: normalizeAcademicYearLabel(
-            creatorNewClassAcademicYear.trim()
-          ),
-          default_duration_minutes: creatorNewClassDefaultDuration,
-          teacher_id: teacherId,
-        });
-        resolvedClassId = classResponse.class.id;
-        setClasses((previous) =>
-          previous.some((classItem) => classItem.id === classResponse.class.id)
-            ? previous.map((classItem) =>
-                classItem.id === classResponse.class.id
-                  ? classResponse.class
-                  : classItem
-              )
-            : [...previous, classResponse.class]
-        );
-      }
-
-      const normalizedSubjectName = normalizeLookupText(creatorSubjectName);
-      const normalizedUnitName = normalizeLookupText(creatorUnitName);
-
-      if (normalizedSubjectName.length > 0) {
-        const existingSubject =
-          creatorClassMode === 'existing'
-            ? (subjects.find(
-                (subjectItem) =>
-                  subjectItem.class_id === resolvedClassId &&
-                  normalizeLookupText(subjectItem.name) ===
-                    normalizedSubjectName
-              ) ?? null)
-            : null;
-
-        if (existingSubject) {
-          resolvedSubject = existingSubject;
-        } else {
-          const subjectResponse = await createSubject({
-            class_id: resolvedClassId,
-            teacher_id: teacherId,
-            name: normalizedSubjectName,
-            description: creatorNewSubjectDescription.trim(),
-          });
-          resolvedSubject = subjectResponse.subject;
-          setSubjects((previous) => [...previous, subjectResponse.subject]);
-        }
-      } else if (normalizedUnitName.length > 0 || creatorLessonMode === 'new') {
-        throw new Error('لا يمكن إضافة وحدة أو درس بدون تحديد مادة.');
-      }
-
-      if (normalizedUnitName.length > 0) {
-        if (!resolvedSubject) {
-          throw new Error('لا يمكن إنشاء وحدة بدون مادة.');
-        }
-
-        const existingUnit =
-          units.find(
-            (unitItem) =>
-              unitItem.subject_id === resolvedSubject.id &&
-              normalizeLookupText(unitItem.name) === normalizedUnitName
-          ) ?? null;
-
-        if (existingUnit) {
-          resolvedUnit = existingUnit;
-        } else {
-          const unitResponse = await createUnit({
-            subject_id: resolvedSubject.id,
-            teacher_id: teacherId,
-            name: normalizedUnitName,
-            description: creatorNewUnitDescription.trim(),
-          });
-          resolvedUnit = unitResponse.unit;
-          createdUnit = unitResponse.unit;
-          setUnits((previous) => [...previous, unitResponse.unit]);
-        }
-      } else if (creatorLessonMode === 'new') {
-        if (!resolvedSubject) {
-          throw new Error('لا يمكن إضافة درس بدون تحديد وحدة.');
-        }
-      }
-
-      if (creatorLessonMode === 'new') {
-        if (!resolvedUnit) {
-          throw new Error('لا يمكن إنشاء درس بدون وحدة.');
-        }
-        if (!creatorLessonName.trim()) {
-          throw new Error('يرجى إدخال اسم الدرس.');
-        }
-        if (
-          !Number.isInteger(creatorLessonPeriodNumber) ||
-          creatorLessonPeriodNumber <= 0
-        ) {
-          throw new Error('يرجى اختيار الحصة.');
-        }
-        if (
-          !Number.isInteger(creatorLessonNumberOfPeriods) ||
-          creatorLessonNumberOfPeriods <= 0
-        ) {
-          throw new Error('عدد الحصص يجب أن يكون رقمًا صحيحًا موجبًا.');
-        }
-
-        if (creatorLessonContentType === 'text') {
-          if (!creatorLessonTextContent.trim()) {
-            throw new Error('يرجى إدخال المحتوى النصي للدرس.');
-          }
-          lessonCreationResult = await createLesson({
-            content_type: 'text',
-            content: creatorLessonTextContent.trim(),
-            description: creatorLessonDescription.trim(),
-            name: creatorLessonName.trim(),
-            period_number: creatorLessonPeriodNumber,
-            number_of_periods: creatorLessonNumberOfPeriods,
-            teacher_id: teacherId,
-            unit_id: resolvedUnit.id,
-          });
-          if (lessonCreationResult && lessonCreationResult.lesson) {
-            const lesson = lessonCreationResult.lesson;
-            setLessons((previous) => [...previous, lesson as Lesson]);
-          }
-        } else {
-          const fileValidationError = validateLessonFile(
-            creatorLessonFile,
-            creatorLessonContentType
-          );
-          if (fileValidationError) {
-            throw new Error(fileValidationError);
-          }
-
-          lessonCreationResult = await createLesson({
-            content_type: creatorLessonContentType,
-            description: creatorLessonDescription.trim(),
-            file: creatorLessonFile as File,
-            name: creatorLessonName.trim(),
-            period_number: creatorLessonPeriodNumber,
-            number_of_periods: creatorLessonNumberOfPeriods,
-            teacher_id: teacherId,
-            unit_id: resolvedUnit.id,
-          });
-          if (lessonCreationResult && lessonCreationResult.lesson) {
-            const lesson = lessonCreationResult.lesson;
-            setLessons((previous) => [...previous, lesson as Lesson]);
-          }
-        }
-      }
-
-      const nextUnits = createdUnit ? [...units, createdUnit] : units;
-
-      setSelectedClassId(resolvedClassId);
-      if (resolvedSubject) {
-        setSelectedSubjectId(resolvedSubject.id);
-        setExpandedUnitIds(
-          new Set(
-            nextUnits
-              .filter((unitItem) => unitItem.subject_id === resolvedSubject?.id)
-              .map((unitItem) => unitItem.id)
-          )
-        );
-      } else {
-        setSelectedSubjectId('');
-        setExpandedUnitIds(new Set());
-      }
-
-      resetCreatorForm();
-      setCreatorClassMode('existing');
-      setCreatorExistingClassId(resolvedClassId);
-      if (resolvedSubject) {
-        setCreatorSubjectName(resolvedSubject.name);
-        setCreatorNewSubjectDescription(resolvedSubject.description ?? '');
-      }
-      if (resolvedUnit) {
-        setCreatorUnitName(resolvedUnit.name);
-        setCreatorNewUnitDescription(resolvedUnit.description ?? '');
-      }
-
-      if (lessonCreationResult) {
-        setSuccess(getLessonCreationMessage(lessonCreationResult));
-      } else {
-        setSuccess('تم حفظ التغييرات بنجاح.');
-      }
-    } catch (creatorError: unknown) {
-      setError(getErrorMessage(creatorError, 'فشل تنفيذ عملية الإنشاء.'));
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <div className="tcm2 ui-loaded">
@@ -1992,17 +1625,36 @@ function TeacherCirriculumManager(props: {
                     <label htmlFor="active-class">الصف المحفوظ</label>
                     <select
                       id="active-class"
-                      value={selectedClassId}
+                      value={selectedClassBaseKey}
                       onChange={(event) =>
-                        handleClassChange(
-                          event.target.value ? Number(event.target.value) : ''
-                        )
+                        handleClassGroupChange(event.target.value)
                       }
                     >
                       <option value="">اختر الصف</option>
-                      {filteredExistingClasses.map((classItem) => (
+                      {classGroups.map((group) => (
+                        <option key={group.key} value={group.key}>
+                          {formatClassBaseSelectLabel(group.baseClass)}
+                        </option>
+                      ))}
+                    </select>
+                    <label htmlFor="active-class-section">الشعبة المحفوظة</label>
+                    <select
+                      id="active-class-section"
+                      value={selectedClassId}
+                      onChange={(event) =>
+                        handleClassSectionChange(
+                          event.target.value ? Number(event.target.value) : ''
+                        )
+                      }
+                      disabled={
+                        selectedClassBaseKey === '' ||
+                        selectedClassSections.length === 0
+                      }
+                    >
+                      <option value="">اختر الشعبة</option>
+                      {selectedClassSections.map((classItem) => (
                         <option key={classItem.id} value={classItem.id}>
-                          {formatClassSelectLabel(classItem)}
+                          {getClassSectionLabel(classItem)}
                         </option>
                       ))}
                     </select>
@@ -2416,438 +2068,6 @@ function TeacherCirriculumManager(props: {
           )}
         </section>
 
-        <section className="tcm2__panel">
-          <div className="tcm2__panel-head">
-            <h2>
-              <MdViewModule aria-hidden />
-              إنشاء متكامل - اختياري
-            </h2>
-            <button
-              type="button"
-              onClick={() => setShowCreatorFlow((previous) => !previous)}
-            >
-              {showCreatorFlow ? 'إخفاء' : 'إظهار'}
-            </button>
-          </div>
-
-          {showCreatorFlow ? (
-            <form className="tcm2__form" onSubmit={handleCreatorSubmit}>
-              <p className="tcm2__required-note">الحقول التي عليها * مطلوبة.</p>
-              <div className="tcm2__step">
-                <h3>1) الصف</h3>
-                <div className="tcm2__mode-toggle">
-                  <button
-                    type="button"
-                    className={
-                      creatorClassMode === 'existing' ? 'tcm2__mode-active' : ''
-                    }
-                    onClick={() => setCreatorClassMode('existing')}
-                  >
-                    استخدام صف موجود
-                  </button>
-                  <button
-                    type="button"
-                    className={
-                      creatorClassMode === 'new' ? 'tcm2__mode-active' : ''
-                    }
-                    onClick={() => setCreatorClassMode('new')}
-                  >
-                    إنشاء صف جديد
-                  </button>
-                </div>
-
-                {creatorClassMode === 'existing' ? (
-                  <div className="tcm2__field">
-                    <label htmlFor="creator-existing-class">
-                      الصف الحالي *
-                    </label>
-                    <select
-                      id="creator-existing-class"
-                      value={creatorExistingClassId}
-                      onChange={(event) => {
-                        const nextClassId = event.target.value
-                          ? Number(event.target.value)
-                          : '';
-                        setCreatorExistingClassId(nextClassId);
-                      }}
-                    >
-                      <option value="">اختر الصف</option>
-                      {classes.map((classItem) => (
-                        <option key={classItem.id} value={classItem.id}>
-                          {formatClassSelectLabel(classItem)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : (
-                  <div className="tcm2__inline-grid">
-                    <div className="tcm2__field">
-                      <label htmlFor="creator-new-class-academic-year">
-                        العام الدراسي *
-                      </label>
-                      <select
-                        id="creator-new-class-academic-year"
-                        value={creatorNewClassAcademicYear}
-                        onChange={(event) =>
-                          setCreatorNewClassAcademicYear(event.target.value)
-                        }
-                      >
-                        {ACADEMIC_YEAR_OPTIONS.map((yearOption) => (
-                          <option key={yearOption} value={yearOption}>
-                            {yearOption}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="tcm2__field">
-                      <label htmlFor="creator-new-class-semester">
-                        الفصل الدراسي *
-                      </label>
-                      <select
-                        id="creator-new-class-semester"
-                        value={creatorNewClassSemester}
-                        onChange={(event) =>
-                          setCreatorNewClassSemester(event.target.value)
-                        }
-                      >
-                        {SEMESTER_OPTIONS.map((semesterOption) => (
-                          <option key={semesterOption} value={semesterOption}>
-                            {semesterOption}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="tcm2__field">
-                      <label htmlFor="creator-new-class-grade-label">
-                        الصف *
-                      </label>
-                      <select
-                        id="creator-new-class-grade-label"
-                        value={creatorNewClassGradeLabel}
-                        onChange={(event) =>
-                          setCreatorNewClassGradeLabel(event.target.value)
-                        }
-                      >
-                        <option value="">اختر الصف</option>
-                        {GRADE_OPTIONS.map((label) => (
-                          <option key={label} value={label}>
-                            {label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="tcm2__field">
-                      <label htmlFor="creator-new-class-section-label">
-                        الشعبة *
-                      </label>
-                      <input
-                        id="creator-new-class-section-label"
-                        type="text"
-                        value={creatorNewClassSectionLabel}
-                        onChange={(event) =>
-                          setCreatorNewClassSectionLabel(event.target.value)
-                        }
-                      />
-                    </div>
-                    <div className="tcm2__field">
-                      <label htmlFor="creator-new-class-default-duration">
-                        مدة الحصة الافتراضية (دقيقة) *
-                      </label>
-                      <select
-                        id="creator-new-class-default-duration"
-                        value={creatorNewClassDefaultDuration}
-                        onChange={(event) =>
-                          setCreatorNewClassDefaultDuration(
-                            Number(event.target.value)
-                          )
-                        }
-                      >
-                        {LESSON_DURATION_OPTIONS.map((d) => (
-                          <option key={d} value={d}>
-                            {d} دقيقة
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="tcm2__step">
-                <h3>2) المادة</h3>
-                <SearchablePickerField
-                  id="creator-subject-name"
-                  label="اسم المادة *"
-                  value={creatorSubjectName}
-                  placeholder={
-                    creatorClassMode === 'existing'
-                      ? 'اكتب اسم المادة أو ابحث عن مادة محفوظة'
-                      : 'اكتب اسم المادة الجديدة'
-                  }
-                  helperText={
-                    creatorClassMode === 'existing'
-                      ? creatorExistingClassId === ''
-                        ? 'اختر الصف أولاً ليظهر التطابق داخل هذا الصف.'
-                        : 'سيُعاد استخدام المادة المطابقة داخل الصف نفسه، وإلا ستُنشأ مادة جديدة.'
-                      : 'ستُنشأ المادة داخل الصف الجديد إذا لم يوجد تطابق.'
-                  }
-                  statusText={
-                    creatorSubjectName.trim().length === 0
-                      ? ''
-                      : creatorResolvedClassId === null
-                        ? 'سيتم إنشاء مادة جديدة بعد حفظ الصف.'
-                        : creatorSubjectMatch
-                          ? 'مادة محفوظة ضمن الصف المختار.'
-                          : 'مادة جديدة ستُنشأ ضمن الصف المختار.'
-                  }
-                  suggestions={creatorSubjectSuggestions}
-                  onChange={setCreatorSubjectName}
-                  onSelectSuggestion={(suggestion) => {
-                    setCreatorSubjectName(suggestion.label);
-                    setCreatorNewSubjectDescription(
-                      suggestion.description ?? ''
-                    );
-                  }}
-                  disabled={
-                    creatorClassMode === 'existing' &&
-                    creatorExistingClassId === ''
-                  }
-                />
-                <div className="tcm2__field">
-                  <label htmlFor="creator-new-subject-description">
-                    وصف المادة
-                  </label>
-                  <input
-                    id="creator-new-subject-description"
-                    type="text"
-                    value={creatorNewSubjectDescription}
-                    onChange={(event) =>
-                      setCreatorNewSubjectDescription(event.target.value)
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="tcm2__step">
-                <h3>3) الوحدة</h3>
-                <SearchablePickerField
-                  id="creator-unit-name"
-                  label="اسم الوحدة *"
-                  value={creatorUnitName}
-                  placeholder="اكتب اسم الوحدة"
-                  helperText={
-                    normalizeLookupText(creatorSubjectName).length > 0
-                      ? creatorSubjectMatch
-                        ? 'سيُبحث داخل المادة المحددة فقط، والمطابق سيُعاد استخدامه.'
-                        : 'ستُنشأ الوحدة بعد إنشاء المادة التي كتبتها.'
-                      : 'ابدأ بكتابة اسم المادة أولاً.'
-                  }
-                  statusText={
-                    creatorUnitName.trim().length === 0
-                      ? ''
-                      : creatorSubjectMatch === null
-                        ? 'لن تُطابق الوحدة حتى تُحدد مادة.'
-                        : creatorUnitMatch
-                          ? 'وحدة محفوظة ضمن المادة المختارة.'
-                          : 'وحدة جديدة ستُنشأ ضمن المادة المختارة.'
-                  }
-                  suggestions={creatorUnitSuggestions}
-                  onChange={setCreatorUnitName}
-                  onSelectSuggestion={(suggestion) => {
-                    setCreatorUnitName(suggestion.label);
-                    setCreatorNewUnitDescription(suggestion.description ?? '');
-                  }}
-                  disabled={
-                    normalizeLookupText(creatorSubjectName).length === 0
-                  }
-                />
-                <div className="tcm2__field">
-                  <label htmlFor="creator-new-unit-description">
-                    وصف الوحدة
-                  </label>
-                  <input
-                    id="creator-new-unit-description"
-                    type="text"
-                    value={creatorNewUnitDescription}
-                    onChange={(event) =>
-                      setCreatorNewUnitDescription(event.target.value)
-                    }
-                    disabled={
-                      normalizeLookupText(creatorSubjectName).length === 0
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="tcm2__step">
-                <h3>4) الدرس</h3>
-                <div className="tcm2__field">
-                  <label htmlFor="creator-lesson-mode">الدرس</label>
-                  <select
-                    id="creator-lesson-mode"
-                    value={creatorLessonMode}
-                    onChange={(event) =>
-                      setCreatorLessonMode(event.target.value as LessonMode)
-                    }
-                    disabled={normalizeLookupText(creatorUnitName).length === 0}
-                  >
-                    <option value="skip">عدم إضافة درس</option>
-                    <option value="new">إنشاء درس جديد</option>
-                  </select>
-                </div>
-
-                {creatorLessonMode === 'new' && (
-                  <>
-                    <div className="tcm2__inline-grid">
-                      <div className="tcm2__field">
-                        <label htmlFor="creator-lesson-name">اسم الدرس *</label>
-                        <input
-                          id="creator-lesson-name"
-                          type="text"
-                          value={creatorLessonName}
-                          onChange={(event) =>
-                            setCreatorLessonName(event.target.value)
-                          }
-                        />
-                      </div>
-                      <div className="tcm2__field">
-                        <label htmlFor="creator-lesson-description">
-                          وصف الدرس
-                        </label>
-                        <input
-                          id="creator-lesson-description"
-                          type="text"
-                          value={creatorLessonDescription}
-                          onChange={(event) =>
-                            setCreatorLessonDescription(event.target.value)
-                          }
-                        />
-                      </div>
-                      <div className="tcm2__field">
-                        <label htmlFor="creator-lesson-period-number">
-                          الحصة *
-                        </label>
-                        <select
-                          id="creator-lesson-period-number"
-                          value={creatorLessonPeriodNumber}
-                          onChange={(event) =>
-                            setCreatorLessonPeriodNumber(
-                              Number(event.target.value)
-                            )
-                          }
-                        >
-                          {PERIOD_OPTIONS.map((periodOption, index) => (
-                            <option key={periodOption} value={index + 1}>
-                              {periodOption}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="tcm2__field">
-                        <label htmlFor="creator-lesson-periods">
-                          عدد الحصص *
-                        </label>
-                        <select
-                          id="creator-lesson-periods"
-                          value={creatorLessonNumberOfPeriods}
-                          onChange={(event) =>
-                            setCreatorLessonNumberOfPeriods(
-                              Number(event.target.value)
-                            )
-                          }
-                        >
-                          {LESSON_PERIOD_COUNT_OPTIONS.map((periodCount) => (
-                            <option key={periodCount} value={periodCount}>
-                              {periodCount}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="tcm2__field">
-                      <label htmlFor="creator-lesson-content-type">
-                        نوع المحتوى *
-                      </label>
-                      <select
-                        id="creator-lesson-content-type"
-                        value={creatorLessonContentType}
-                        onChange={(event) => {
-                          setCreatorLessonContentType(
-                            event.target.value as LessonContentType
-                          );
-                          setCreatorLessonFile(null);
-                        }}
-                      >
-                        <option value="text">نص</option>
-                        <option value="pdf">ملف PDF</option>
-                        <option value="word">ملف وورد (DOCX)</option>
-                      </select>
-                    </div>
-
-                    {creatorLessonContentType === 'text' ? (
-                      <div className="tcm2__field">
-                        <label htmlFor="creator-lesson-text-content">
-                          محتوى الدرس *
-                        </label>
-                        <textarea
-                          id="creator-lesson-text-content"
-                          rows={5}
-                          value={creatorLessonTextContent}
-                          onChange={(event) =>
-                            setCreatorLessonTextContent(event.target.value)
-                          }
-                        />
-                      </div>
-                    ) : (
-                      <div className="tcm2__field">
-                        <label htmlFor="creator-lesson-file">ملف الدرس *</label>
-                        <input
-                          id="creator-lesson-file"
-                          type="file"
-                          accept={
-                            creatorLessonContentType === 'pdf'
-                              ? '.pdf,application/pdf'
-                              : '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                          }
-                          onChange={(event) =>
-                            setCreatorLessonFile(
-                              event.target.files?.[0] ?? null
-                            )
-                          }
-                        />
-                        <small>الحد الأقصى لحجم الملف: 25 ميجابايت.</small>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              <div className="tcm2__form-actions">
-                <button
-                  type="button"
-                  onClick={resetCreatorForm}
-                  disabled={saving}
-                >
-                  مسح
-                </button>
-                <button
-                  type="submit"
-                  className="tcm2__primary"
-                  disabled={saving || !isCreatorValid}
-                >
-                  {saving && <span className="ui-button-spinner" aria-hidden />}
-                  {saving ? 'جارٍ الحفظ...' : 'تنفيذ المسار'}
-                </button>
-              </div>
-            </form>
-          ) : (
-            <div className="tcm2__empty">
-              هذا المسار ينفع إذا أردت إنشاء الصف ثم المادة ثم الوحدة ثم الدرس
-              مرة واحدة.
-            </div>
-          )}
-        </section>
       </div>
 
       <ConfirmActionModal
