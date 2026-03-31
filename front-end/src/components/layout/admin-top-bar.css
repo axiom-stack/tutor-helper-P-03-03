@@ -51,6 +51,8 @@
   cursor: pointer;
   box-shadow: 0 10px 22px rgba(37, 99, 235, 0.24);
   transition: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .admin-topbar__menu-btn:hover {

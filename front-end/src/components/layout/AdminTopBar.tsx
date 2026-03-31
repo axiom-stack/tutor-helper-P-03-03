@@ -9,10 +9,13 @@ import './admin-top-bar.css';
 
 interface AdminTopBarProps {
   menuOpen: boolean;
-  onMenuToggle: () => void;
+  onMenuOpenChange: (nextOpen: boolean) => void;
 }
 
-export function AdminTopBar({ menuOpen, onMenuToggle }: AdminTopBarProps) {
+export function AdminTopBar({
+  menuOpen,
+  onMenuOpenChange,
+}: AdminTopBarProps) {
   const { user, logout } = useAuth();
   const { isOnline, isSyncing } = useOffline();
   const location = useLocation();
@@ -36,9 +39,9 @@ export function AdminTopBar({ menuOpen, onMenuToggle }: AdminTopBarProps) {
 
   useEffect(() => {
     if (!showMenuButton && menuOpen) {
-      onMenuToggle();
+      onMenuOpenChange(false);
     }
-  }, [menuOpen, onMenuToggle, showMenuButton]);
+  }, [menuOpen, onMenuOpenChange, showMenuButton]);
 
   useLayoutEffect(() => {
     if (!menuOpen) {
@@ -98,13 +101,13 @@ export function AdminTopBar({ menuOpen, onMenuToggle }: AdminTopBarProps) {
         !menuRef.current?.contains(target) &&
         !menuPanelRef.current?.contains(target)
       ) {
-        onMenuToggle();
+        onMenuOpenChange(false);
       }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onMenuToggle();
+        onMenuOpenChange(false);
       }
     };
 
@@ -115,7 +118,7 @@ export function AdminTopBar({ menuOpen, onMenuToggle }: AdminTopBarProps) {
       document.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [menuOpen, onMenuToggle]);
+  }, [menuOpen, onMenuOpenChange]);
 
   const handleLogout = async () => {
     if (logoutPending) {
@@ -140,7 +143,7 @@ export function AdminTopBar({ menuOpen, onMenuToggle }: AdminTopBarProps) {
           className="admin-topbar__menu-btn"
           onClick={(event) => {
             event.stopPropagation();
-            onMenuToggle();
+            onMenuOpenChange(!menuOpen);
           }}
           aria-label={menuOpen ? 'إغلاق قائمة الإدارة' : 'فتح قائمة الإدارة'}
           aria-expanded={menuOpen}
@@ -210,7 +213,7 @@ export function AdminTopBar({ menuOpen, onMenuToggle }: AdminTopBarProps) {
                   to={item.to}
                   role="menuitem"
                   className="admin-topbar__menu-item"
-                  onClick={() => onMenuToggle()}
+                  onClick={() => onMenuOpenChange(false)}
                 >
                   <span>{item.label}</span>
                 </Link>

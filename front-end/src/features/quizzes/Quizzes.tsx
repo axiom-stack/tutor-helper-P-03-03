@@ -1,6 +1,12 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Link, useLocation, useNavigate, useParams } from 'react-router';
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router';
 import {
   MdAutoAwesome,
   MdClose,
@@ -611,6 +617,7 @@ export default function Quizzes() {
   const location = useLocation();
   const navigate = useNavigate();
   const { examId: examIdParam } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { lastSyncAt } = useOffline();
   const isAdmin = user?.userRole === 'admin';
   const isTeacher = user?.userRole === 'teacher';
@@ -1389,6 +1396,37 @@ export default function Quizzes() {
     selectedExamIdFromRoute,
   ]);
 
+  useEffect(() => {
+    if (isCreateRoute || !selectedExamIdFromRoute || !selectedExam) {
+      return;
+    }
+
+    if (selectedExam.public_id !== selectedExamIdFromRoute) {
+      return;
+    }
+
+    const requestedType = searchParams.get('export');
+    if (requestedType !== 'questions_only' && requestedType !== 'answer_key') {
+      return;
+    }
+
+    if (isLocalOnlyId(selectedExam.public_id)) {
+      toast.error('لا يمكن تصدير اختبار محلي غير مزامن.');
+      setSearchParams({}, { replace: true });
+      return;
+    }
+
+    setExportTargetType(requestedType);
+    setExportFormatOpen(true);
+    setSearchParams({}, { replace: true });
+  }, [
+    isCreateRoute,
+    searchParams,
+    selectedExam,
+    selectedExamIdFromRoute,
+    setSearchParams,
+  ]);
+
   const requestDeleteExam = (examId: string) => {
     if (isEditingExam) {
       toast.error('احفظ تعديلات الاختبار الحالي أو ألغها قبل حذف اختبار آخر.');
@@ -1465,29 +1503,6 @@ export default function Quizzes() {
   const openExportDialog = (type: 'questions_only' | 'answer_key') => {
     setExportTargetType(type);
     setExportFormatOpen(true);
-  };
-
-  const openExamExportDialog = async (
-    exam: OfflineExamRecord,
-    type: 'questions_only' | 'answer_key' = 'questions_only'
-  ) => {
-    if (isLocalOnlyId(exam.public_id)) {
-      toast.error('لا يمكن تصدير اختبار محلي غير مزامن.');
-      return;
-    }
-
-    setIsExamLoading(true);
-    setError(null);
-    try {
-      const response = await getExamById(exam.public_id);
-      setSelectedExam(response.exam as OfflineExamRecord);
-      setExportTargetType(type);
-      setExportFormatOpen(true);
-    } catch (loadError: unknown) {
-      setError(normalizeApiError(loadError, 'تعذر تحميل تفاصيل الاختبار.'));
-    } finally {
-      setIsExamLoading(false);
-    }
   };
 
   const handleExportSelectedExam = async (format: 'pdf' | 'docx') => {
@@ -2757,7 +2772,7 @@ export default function Quizzes() {
                                 type="button"
                                 className="qz__exam-title-button"
                                 onClick={() =>
-                                  void handleLoadExamDetails(exam.public_id)
+                                  navigate(`/quizzes/${exam.public_id}`)
                                 }
                                 disabled={isExamLoading || isEditingExam}
                               >
@@ -2811,9 +2826,7 @@ export default function Quizzes() {
                           <button
                             type="button"
                             className="qz__card-action"
-                            onClick={() =>
-                              void handleLoadExamDetails(exam.public_id)
-                            }
+                            onClick={() => navigate(`/quizzes/${exam.public_id}`)}
                             disabled={isExamLoading || isEditingExam}
                           >
                             عرض
@@ -2830,7 +2843,9 @@ export default function Quizzes() {
                             type="button"
                             className="qz__card-action qz__card-action--subtle"
                             onClick={() =>
-                              void openExamExportDialog(exam, 'questions_only')
+                              navigate(
+                                `/quizzes/${exam.public_id}?export=questions_only`
+                              )
                             }
                             disabled={!canExportExam || isExportingExam}
                           >

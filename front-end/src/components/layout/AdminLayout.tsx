@@ -10,7 +10,7 @@ export function AdminLayout() {
     <div className="admin-layout">
       <AdminTopBar
         menuOpen={drawerOpen}
-        onMenuToggle={() => setDrawerOpen((value) => !value)}
+        onMenuOpenChange={setDrawerOpen}
       />
 
       <div className="admin-layout__workspace">
