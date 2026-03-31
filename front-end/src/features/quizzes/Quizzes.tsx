@@ -563,7 +563,9 @@ function groupEditorQuestions(
   PAPER_SECTION_GROUPS.forEach((section) => {
     section.questionTypes.forEach((questionType) => knownTypes.add(questionType));
     const sectionQuestions = questions.filter((question) =>
-      section.questionTypes.includes(question.question_type)
+      section.questionTypes.some(
+        (questionType) => questionType === question.question_type
+      )
     );
     if (!sectionQuestions.length) {
       return;
