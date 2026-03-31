@@ -240,6 +240,39 @@ function normalizeLessonsByInputOrder(lessons, inputLessonIds) {
   return inputLessonIds.map((lessonId) => byId.get(lessonId)).filter(Boolean);
 }
 
+function countSubItemsFromQuestionText(questionText) {
+  const lines = String(questionText ?? "")
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return lines.length > 1 ? lines.length : 0;
+}
+
+function collectInvalidQuestionGrading(questions) {
+  const details = [];
+  for (const question of questions) {
+    const marks = Number(question?.marks);
+    if (!Number.isInteger(marks) || marks <= 0) {
+      details.push({
+        code: "invalid_integer_marks",
+        path: "questions",
+        message: `Question ${question?.slot_id ?? "unknown"} must have a positive integer mark`,
+      });
+      continue;
+    }
+
+    const subItemsCount = countSubItemsFromQuestionText(question?.question_text);
+    if (subItemsCount > 1 && marks % subItemsCount !== 0) {
+      details.push({
+        code: "invalid_sub_item_distribution",
+        path: "questions",
+        message: `Question ${question?.slot_id ?? "unknown"} mark (${marks}) must divide equally across ${subItemsCount} sub-items`,
+      });
+    }
+  }
+  return details;
+}
+
 export function createExamGenerationService(dependencies = {}) {
   const dbClient = dependencies.dbClient || turso;
   const knowledgeLoader = dependencies.knowledgeLoader || loadLessonPlanKnowledge;
@@ -474,6 +507,16 @@ export function createExamGenerationService(dependencies = {}) {
       const finalQuestions = slots.map((slot, index) =>
         buildFinalQuestion(slot, normalizedQuestions[index]),
       );
+
+      const gradingIssues = collectInvalidQuestionGrading(finalQuestions);
+      if (gradingIssues.length > 0) {
+        throw new ExamPipelineError(
+          422,
+          "invalid_question_grading",
+          "Generated questions violate integer grading constraints",
+          gradingIssues,
+        );
+      }
 
       const saved = await examsRepository.create({
         teacherId,

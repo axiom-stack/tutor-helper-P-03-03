@@ -20,7 +20,7 @@ function createExamFixture() {
     date: "١٠/٠٣/٢٠٢٦",
     duration: "45",
     total_questions: 4,
-    total_marks: 12.5,
+    total_marks: 12,
     term: "الأول",
     semester: "الأول",
     academic_year: "2025-2026",
@@ -105,11 +105,12 @@ test("buildExamPaperHtml renders grouped sections and Arabic numerals", () => {
   const html = buildExamPaperHtml(createExamFixture());
 
   assert.ok(html.includes("اختبار ٢٠٢٦"));
-  assert.ok(html.includes("الدرجة الكلية: ١٢٫٥"));
+  assert.ok(html.includes("الدرجة الكلية: ١٢"));
   assert.ok(html.includes("أجب بنعم أو لا"));
   assert.ok(html.includes("اختر الإجابة الصحيحة"));
   assert.ok(html.includes("أجب عن الأسئلة الآتية"));
-  assert.ok(html.includes("السؤال ١"));
+  assert.ok(html.includes("السؤال الأول"));
+  assert.ok(html.includes("١."));
   assert.ok(html.includes("٢ + ٢"));
 });
 
@@ -130,6 +131,6 @@ test("buildExamAnswerFormHtml and buildExamAnswerKeyHtml preserve section order"
       answerKeyHtml.indexOf("اختر الإجابة الصحيحة"),
   );
   assert.ok(answerKeyHtml.includes("الإجابة الصحيحة"));
-  assert.ok(answerKeyHtml.includes("السؤال ١"));
-  assert.ok(answerKeyHtml.includes("الدرس ١"));
+  assert.ok(answerKeyHtml.includes("السؤال الأول"));
+  assert.ok(answerKeyHtml.includes("١."));
 });

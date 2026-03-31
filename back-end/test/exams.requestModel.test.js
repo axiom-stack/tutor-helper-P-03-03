@@ -50,18 +50,31 @@ test("validateGenerateExamRequest rejects invalid totals", () => {
   assert.ok(result.errors.some((error) => error.field === "total_marks"));
 });
 
-test("validateGenerateExamRequest rejects non-quarter marks and underweighted totals", () => {
-  const result = validateGenerateExamRequest({
+test("validateGenerateExamRequest rejects non-integer marks and underweighted totals", () => {
+  const nonIntegerMarks = validateGenerateExamRequest({
     subject_id: 2,
     lesson_ids: [11, 12, 13, 14],
     total_questions: 4,
     total_marks: 0.6,
   });
 
-  assert.equal(result.ok, false);
-  assert.ok(result.errors.some((error) => error.message.includes("0.25")));
+  assert.equal(nonIntegerMarks.ok, false);
   assert.ok(
-    result.errors.some((error) => error.message.includes("at least 0.25")),
+    nonIntegerMarks.errors.some((error) =>
+      error.message.includes("positive integer"),
+    ),
+  );
+
+  const underweightedMarks = validateGenerateExamRequest({
+    subject_id: 2,
+    lesson_ids: [11, 12, 13, 14],
+    total_questions: 4,
+    total_marks: 3,
+  });
+
+  assert.equal(underweightedMarks.ok, false);
+  assert.ok(
+    underweightedMarks.errors.some((error) => error.message.includes("at least 1")),
   );
 });
 

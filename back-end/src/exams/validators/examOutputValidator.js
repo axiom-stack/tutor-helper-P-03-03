@@ -12,6 +12,14 @@ function asNonEmptyString(value) {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function countSubItemsFromQuestionText(questionText) {
+  const lines = String(questionText ?? "")
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return lines.length > 1 ? lines.length : 0;
+}
+
 function extractQuestionsArray(rawOutput) {
   if (!rawOutput || typeof rawOutput !== "object" || Array.isArray(rawOutput)) {
     return null;
@@ -201,6 +209,28 @@ export function validateGeneratedExamOutput(rawOutput, slots) {
         "schema.question.text",
         `${path}.question_text`,
         "question_text must be a non-empty string",
+      );
+      continue;
+    }
+
+    const slotMarks = Number(slot.marks);
+    if (!Number.isInteger(slotMarks) || slotMarks <= 0) {
+      addError(
+        errors,
+        "grading.slot_marks_integer",
+        `${path}.marks`,
+        `slot marks must be a positive integer for slot_id ${slot.slot_id}`,
+      );
+      continue;
+    }
+
+    const subItemsCount = countSubItemsFromQuestionText(questionText);
+    if (subItemsCount > 1 && slotMarks % subItemsCount !== 0) {
+      addError(
+        errors,
+        "grading.sub_items_divisible",
+        `${path}.question_text`,
+        `question mark (${slotMarks}) must be divisible by sub-item count (${subItemsCount}) for equal integer distribution`,
       );
       continue;
     }

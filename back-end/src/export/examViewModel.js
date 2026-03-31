@@ -54,6 +54,14 @@ export function toArabicDigits(value) {
   return String(value ?? "").replace(/\d/g, (digit) => ARABIC_DIGIT_MAP[digit] ?? digit);
 }
 
+function toNonNegativeInteger(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return 0;
+  }
+  return Math.max(0, Math.round(number));
+}
+
 function getQuestionSectionTitle(questionType) {
   return QUESTION_SECTION_TITLE_BY_TYPE.get(questionType) ?? "أجب عن الأسئلة الآتية";
 }
@@ -140,7 +148,7 @@ export function buildExamExportViewModel(enrichedExam) {
       : questions.length;
 
   const totalMarks =
-    enrichedExam.total_marks != null ? Number(enrichedExam.total_marks) : 0;
+    enrichedExam.total_marks != null ? toNonNegativeInteger(enrichedExam.total_marks) : 0;
 
   const createdAt =
     enrichedExam.created_at && typeof enrichedExam.created_at === "string"
@@ -206,7 +214,7 @@ function normalizeQuestionForExport(question, fallbackNumber) {
   const base = {
     id: question.slot_id ?? `q_${questionNumber}`,
     number: questionNumber,
-    marks: question.marks != null ? Number(question.marks) : 0,
+    marks: question.marks != null ? toNonNegativeInteger(question.marks) : 0,
     bloomLevelLabel: question.bloom_level_label ?? null,
     lessonName: question.lesson_name ?? null,
     text: question.question_text ?? "",

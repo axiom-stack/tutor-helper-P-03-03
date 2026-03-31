@@ -38,6 +38,7 @@ function buildExamSlotsFromQuestions(questions = []) {
     slot_id: question.slot_id,
     question_type: question.question_type,
     question_number: Number(question.question_number || index + 1),
+    marks: Number(question.marks || 0),
   }));
 }
 

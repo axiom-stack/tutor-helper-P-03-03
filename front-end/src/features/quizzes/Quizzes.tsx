@@ -140,6 +140,18 @@ interface PaperQuestionSection {
   questions: PaperQuestion[];
 }
 
+function getSectionTotalMarks(section: PaperQuestionSection): number {
+  return section.questions.reduce(
+    (sum, question) => sum + (Number(question.marks) || 0),
+    0
+  );
+}
+
+function getMainQuestionOrdinal(index: number): string {
+  const ordinals = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس'];
+  return ordinals[index] ?? formatArabicNumber(index + 1);
+}
+
 function formatArabicNumber(value: number): string {
   const number = Number(value);
   if (!Number.isFinite(number)) {
@@ -256,22 +268,12 @@ function getPaperAnswerLineCount(
 
 function PaperQuestionCard({ question }: { question: PaperQuestion }) {
   const promptLines = splitPaperLines(question.question_text);
-  const questionNumber = formatArabicNumber(
-    question.displayNumber ?? question.question_number ?? 1
-  );
-  const marksLabel = Number.isFinite(question.marks)
-    ? formatArabicNumber(question.marks)
-    : '—';
+  const questionNumber = formatArabicNumber(question.displayNumber ?? 1);
 
   return (
     <article
       className={`qz__paper-question qz__paper-question--${question.question_type}`}
     >
-      <header className="qz__paper-question-header">
-        <span className="qz__paper-question-tag">السؤال {questionNumber}</span>
-        <span className="qz__paper-question-marks">الدرجة {marksLabel}</span>
-      </header>
-
       <div className="qz__paper-question-body">
         {promptLines.length > 1 ? (
           <ol className="qz__paper-question-lines">
@@ -285,7 +287,7 @@ function PaperQuestionCard({ question }: { question: PaperQuestion }) {
                 </span>
                 {question.question_type === 'true_false' ? (
                   <span className="qz__paper-blank" aria-hidden="true">
-                    ( )
+                    (              )
                   </span>
                 ) : null}
               </li>
@@ -293,10 +295,13 @@ function PaperQuestionCard({ question }: { question: PaperQuestion }) {
           </ol>
         ) : promptLines.length === 1 ? (
           <p className="qz__paper-question-text">
+            <span className="qz__paper-question-inline-number">
+              {toArabicDigits(`${questionNumber}.`)}
+            </span>
             <span>{toArabicDigits(promptLines[0])}</span>
             {question.question_type === 'true_false' ? (
               <span className="qz__paper-blank" aria-hidden="true">
-                ( )
+                (              )
               </span>
             ) : null}
           </p>
@@ -320,23 +325,6 @@ function PaperQuestionCard({ question }: { question: PaperQuestion }) {
           </ul>
         ) : null}
 
-        {question.question_type === 'true_false' && promptLines.length <= 1 ? (
-          <div className="qz__paper-true-false-legend">
-            <span className="qz__paper-true-false-choice">
-              <span className="qz__paper-blank" aria-hidden="true">
-                ( )
-              </span>
-              <span>صح</span>
-            </span>
-            <span className="qz__paper-true-false-choice">
-              <span className="qz__paper-blank" aria-hidden="true">
-                ( )
-              </span>
-              <span>خطأ</span>
-            </span>
-          </div>
-        ) : null}
-
         {question.question_type === 'fill_blank' ||
         question.question_type === 'open_ended' ? (
           <div
@@ -358,12 +346,26 @@ function PaperQuestionCard({ question }: { question: PaperQuestion }) {
   );
 }
 
-function PaperSectionBlock({ section }: { section: PaperQuestionSection }) {
+function PaperSectionBlock({
+  section,
+  sectionIndex,
+}: {
+  section: PaperQuestionSection;
+  sectionIndex: number;
+}) {
+  const sectionTotalMarks = formatArabicNumber(getSectionTotalMarks(section));
+  const mainQuestionTitle = `السؤال ${getMainQuestionOrdinal(sectionIndex)} : ${section.title}`;
+
   return (
     <section className="qz__paper-section">
-      <h2 className="qz__paper-section-title">
-        {toArabicDigits(section.title)}
-      </h2>
+      <header className="qz__paper-main-question-header">
+        <span className="qz__paper-main-question-title">
+          {toArabicDigits(mainQuestionTitle)}
+        </span>
+        <span className="qz__paper-main-question-marks">
+          {toArabicDigits(`الدرجة ${sectionTotalMarks}`)}
+        </span>
+      </header>
       <div className="qz__paper-section-questions">
         {section.questions.map((question) => (
           <PaperQuestionCard key={question.slot_id} question={question} />
@@ -452,8 +454,12 @@ function ExamPaperSheet({
 
         <div className="qz__paper-sections">
           {sections.length > 0 ? (
-            sections.map((section) => (
-              <PaperSectionBlock key={section.id} section={section} />
+            sections.map((section, index) => (
+              <PaperSectionBlock
+                key={section.id}
+                section={section}
+                sectionIndex={index}
+              />
             ))
           ) : (
             <div className="qz__paper-empty">لا توجد أسئلة لعرضها.</div>
@@ -567,7 +573,9 @@ function groupEditorQuestions(
   const knownTypes = new Set<ExamQuestion['question_type']>();
 
   PAPER_SECTION_GROUPS.forEach((section) => {
-    section.questionTypes.forEach((questionType) => knownTypes.add(questionType));
+    section.questionTypes.forEach((questionType) =>
+      knownTypes.add(questionType)
+    );
     const sectionQuestions = questions.filter((question) =>
       section.questionTypes.some(
         (questionType) => questionType === question.question_type
@@ -975,12 +983,13 @@ export default function Quizzes() {
       })),
     ];
 
-    return Array.from(new Map(options.map((teacher) => [teacher.id, teacher])).values()).sort(
-      (left, right) =>
-        (left.display_name || left.username).localeCompare(
-          right.display_name || right.username,
-          'ar'
-        )
+    return Array.from(
+      new Map(options.map((teacher) => [teacher.id, teacher])).values()
+    ).sort((left, right) =>
+      (left.display_name || left.username).localeCompare(
+        right.display_name || right.username,
+        'ar'
+      )
     );
   }, [teachers, user]);
 
@@ -1072,7 +1081,11 @@ export default function Quizzes() {
 
   const filteredExams = useMemo(() => {
     return exams.filter((exam) => {
-      if (isAdmin && filterTeacherId !== '' && exam.teacher_id !== filterTeacherId) {
+      if (
+        isAdmin &&
+        filterTeacherId !== '' &&
+        exam.teacher_id !== filterTeacherId
+      ) {
         return false;
       }
       if (filterSubjectId !== '' && exam.subject_id !== filterSubjectId) {
@@ -1836,7 +1849,10 @@ export default function Quizzes() {
                 <h5>الأسئلة والإجابات</h5>
                 {displayedExamQuestions.length > 0 ? (
                   groupedEditorQuestions.map((questionGroup) => (
-                    <section key={questionGroup.id} className="qz__questions-group">
+                    <section
+                      key={questionGroup.id}
+                      className="qz__questions-group"
+                    >
                       <h6 className="qz__questions-group-title">
                         {toArabicDigits(questionGroup.title)}
                       </h6>
@@ -1855,9 +1871,7 @@ export default function Quizzes() {
                           </div>
                           <div className="qz__question-editor">
                             <div className="qz__question-edit-grid">
-                              <label className="qz__editor-label">
-                                الدرجة
-                              </label>
+                              <label className="qz__editor-label">الدرجة</label>
                               <input
                                 type="number"
                                 className="qz__edit-input"
@@ -1918,46 +1932,52 @@ export default function Quizzes() {
                                       )
                                     }
                                   >
-                                    {(question.options ?? []).map((_, index) => (
-                                      <option
-                                        key={`${question.slot_id}-correct-${index}`}
-                                        value={index}
-                                      >
-                                        الخيار {formatArabicNumber(index + 1)}
-                                      </option>
-                                    ))}
+                                    {(question.options ?? []).map(
+                                      (_, index) => (
+                                        <option
+                                          key={`${question.slot_id}-correct-${index}`}
+                                          value={index}
+                                        >
+                                          الخيار {formatArabicNumber(index + 1)}
+                                        </option>
+                                      )
+                                    )}
                                   </select>
                                 </div>
                                 <div className="qz__options-edit">
-                                  {(question.options ?? []).map((option, index) => (
-                                    <label
-                                      key={`${question.slot_id}-opt-edit-${index}`}
-                                      className="qz__option-edit-row"
-                                    >
-                                      <span>{formatArabicNumber(index + 1)}</span>
-                                      <input
-                                        type="text"
-                                        className="qz__edit-input"
-                                        value={option}
-                                        onChange={(event) =>
-                                          updateDraftQuestion(
-                                            question.slot_id,
-                                            (current) => {
-                                              const nextOptions = [
-                                                ...(current.options ?? []),
-                                              ];
-                                              nextOptions[index] =
-                                                event.target.value;
-                                              return {
-                                                ...current,
-                                                options: nextOptions,
-                                              };
-                                            }
-                                          )
-                                        }
-                                      />
-                                    </label>
-                                  ))}
+                                  {(question.options ?? []).map(
+                                    (option, index) => (
+                                      <label
+                                        key={`${question.slot_id}-opt-edit-${index}`}
+                                        className="qz__option-edit-row"
+                                      >
+                                        <span>
+                                          {formatArabicNumber(index + 1)}
+                                        </span>
+                                        <input
+                                          type="text"
+                                          className="qz__edit-input"
+                                          value={option}
+                                          onChange={(event) =>
+                                            updateDraftQuestion(
+                                              question.slot_id,
+                                              (current) => {
+                                                const nextOptions = [
+                                                  ...(current.options ?? []),
+                                                ];
+                                                nextOptions[index] =
+                                                  event.target.value;
+                                                return {
+                                                  ...current,
+                                                  options: nextOptions,
+                                                };
+                                              }
+                                            )
+                                          }
+                                        />
+                                      </label>
+                                    )
+                                  )}
                                 </div>
                               </>
                             ) : null}
@@ -1969,7 +1989,9 @@ export default function Quizzes() {
                                 </label>
                                 <select
                                   className="qz__edit-select"
-                                  value={question.correct_answer ? 'true' : 'false'}
+                                  value={
+                                    question.correct_answer ? 'true' : 'false'
+                                  }
                                   onChange={(event) =>
                                     updateDraftQuestion(
                                       question.slot_id,
@@ -2043,7 +2065,9 @@ export default function Quizzes() {
                                         question.slot_id,
                                         (current) => ({
                                           ...current,
-                                          rubric: splitLines(event.target.value),
+                                          rubric: splitLines(
+                                            event.target.value
+                                          ),
                                         })
                                       )
                                     }
@@ -2452,10 +2476,6 @@ export default function Quizzes() {
               </div>
             </div>
 
-            <p className="qz__field-note">
-              تُوزَّع الدرجات على الأسئلة بمضاعفات 0.25.
-            </p>
-
             <section className="qz__lesson-picker">
               <h3>اختيار الدروس ({lessonIdsArray.length})</h3>
               {isLessonsLoading ? (
@@ -2548,8 +2568,8 @@ export default function Quizzes() {
                   العام الدراسي: {toArabicDigits(selectedAcademicYear)} | الفصل
                   الدراسي: {toArabicDigits(selectedSemester)} | الصف:{' '}
                   {toArabicDigits(selectedClass?.grade_label ?? '—')} | الشعبة:{' '}
-                  {toArabicDigits(selectedClassSectionLabel)}{' '}
-                  | المادة: {selectedSubject?.name ?? '—'}
+                  {toArabicDigits(selectedClassSectionLabel)} | المادة:{' '}
+                  {selectedSubject?.name ?? '—'}
                 </p>
                 <div className="qz__confirmation-actions">
                   <button
@@ -2658,7 +2678,9 @@ export default function Quizzes() {
                   </select>
                 </div>
                 <div className="qz__field">
-                  <label htmlFor="qz-filter-semester">فلترة بالفصل الدراسي</label>
+                  <label htmlFor="qz-filter-semester">
+                    فلترة بالفصل الدراسي
+                  </label>
                   <select
                     id="qz-filter-semester"
                     value={filterSemester}
@@ -2826,7 +2848,9 @@ export default function Quizzes() {
                           <button
                             type="button"
                             className="qz__card-action"
-                            onClick={() => navigate(`/quizzes/${exam.public_id}`)}
+                            onClick={() =>
+                              navigate(`/quizzes/${exam.public_id}`)
+                            }
                             disabled={isExamLoading || isEditingExam}
                           >
                             عرض

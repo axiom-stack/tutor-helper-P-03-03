@@ -123,11 +123,6 @@ function splitIntegerUnits(totalUnits, count) {
   return Array.from({ length: count }, (_, index) => base + (index < remainder ? 1 : 0));
 }
 
-function isQuarterStep(value) {
-  const scaled = Number(value) * 4;
-  return Math.abs(scaled - Math.round(scaled)) < 1e-9;
-}
-
 function buildObjectivesCountByLevel(classifiedObjectives) {
   const counts = Object.fromEntries(BLOOM_LEVELS.map((level) => [level, 0]));
   for (const objective of classifiedObjectives) {
@@ -151,11 +146,8 @@ export function buildExamBlueprint({
   if (!Number.isInteger(parsedTotalQuestions) || parsedTotalQuestions <= 0) {
     throw new Error("totalQuestions must be a positive integer");
   }
-  if (!Number.isFinite(parsedTotalMarks) || parsedTotalMarks <= 0) {
-    throw new Error("totalMarks must be a positive number");
-  }
-  if (!isQuarterStep(parsedTotalMarks)) {
-    throw new Error("totalMarks must be in increments of 0.25");
+  if (!Number.isInteger(parsedTotalMarks) || parsedTotalMarks <= 0) {
+    throw new Error("totalMarks must be a positive integer");
   }
   if (!Array.isArray(lessons) || lessons.length < 1) {
     throw new Error("lessons must contain at least one lesson");
@@ -247,9 +239,9 @@ export function buildExamBlueprint({
     0,
   );
 
-  const totalMarkUnits = Math.round(parsedTotalMarks * 4);
+  const totalMarkUnits = parsedTotalMarks;
   if (totalMarkUnits < parsedTotalQuestions) {
-    throw new Error("totalMarks must allocate at least 0.25 marks per question");
+    throw new Error("totalMarks must allocate at least 1 mark per question");
   }
 
   const extraMarkAllocationsUnits = allocateByLargestRemainder(
@@ -280,10 +272,8 @@ export function buildExamBlueprint({
     return {
       ...cell,
       question_count: questionCount,
-      cell_marks: toFixedNumber(cellMarkUnits / 4, 2),
-      per_question_marks: perQuestionUnits.map((units) =>
-        toFixedNumber(units / 4, 2),
-      ),
+      cell_marks: cellMarkUnits,
+      per_question_marks: perQuestionUnits,
     };
   });
 
@@ -307,7 +297,7 @@ export function buildExamBlueprint({
       total_objectives: totalObjectives,
       total_periods: periodTotal,
       total_questions: parsedTotalQuestions,
-      total_marks: toFixedNumber(parsedTotalMarks, 2),
+      total_marks: parsedTotalMarks,
     },
   };
 }

@@ -2,7 +2,6 @@ import {
   Document,
   Packer,
   Paragraph,
-  TextRun,
   Table,
   TableRow,
   TableCell,
@@ -20,14 +19,11 @@ import {
   extractHeaderValue,
 } from "./planHelpers.js";
 import { ensureDocxRtl } from "./docxRtl.js";
-
-const RTL_OPTS = { alignment: AlignmentType.RIGHT };
-const RTL_BIDI = { bidirectional: true };
-const RTL_PARAGRAPH = {
-  alignment: AlignmentType.RIGHT,
-  bidirectional: true,
-  bidi: true,
-};
+import {
+  createArabicCenteredParagraph,
+  createArabicParagraph,
+  createRtlTable,
+} from "./docxArabic.js";
 
 const DOC_STYLES = {
   default: {
@@ -62,18 +58,9 @@ const LANDSCAPE_SECTION = {
   bidi: true,
 };
 
-function rtlTable(options) {
-  return new Table({
-    ...options,
-    alignment: AlignmentType.RIGHT,
-    visuallyRightToLeft: true,
-  });
-}
-
 function heading(text, size = 22) {
-  return new Paragraph({
-    children: [new TextRun({ text, bold: true, size })],
-    ...RTL_PARAGRAPH,
+  return createArabicParagraph(text, {
+    textRunOptions: { bold: true, size },
     keepNext: true,
     keepLines: true,
     spacing: { before: 200, after: 120 },
@@ -81,9 +68,8 @@ function heading(text, size = 22) {
 }
 
 function subheading(text) {
-  return new Paragraph({
-    children: [new TextRun({ text, bold: true, size: 18 })],
-    ...RTL_PARAGRAPH,
+  return createArabicParagraph(text, {
+    textRunOptions: { bold: true, size: 18 },
     keepNext: true,
     keepLines: true,
     spacing: { before: 180, after: 80 },
@@ -91,9 +77,8 @@ function subheading(text) {
 }
 
 function para(text) {
-  return new Paragraph({
-    children: [new TextRun({ text: text || "—", size: 18 })],
-    ...RTL_PARAGRAPH,
+  return createArabicParagraph(text || "—", {
+    textRunOptions: { size: 18 },
     spacing: { after: 80 },
   });
 }
@@ -101,9 +86,8 @@ function para(text) {
 function bulletList(items) {
   return (items && items.length ? items : ["لا توجد بيانات."]).map(
     (item) =>
-      new Paragraph({
-        children: [new TextRun({ text: item || "—", size: 18 })],
-        ...RTL_PARAGRAPH,
+      createArabicParagraph(item || "—", {
+        textRunOptions: { size: 18 },
         bullet: { level: 0 },
         spacing: { after: 40 },
       }),
@@ -115,23 +99,20 @@ function headerCell(label, value) {
     borders: CELL_BORDER,
     verticalAlign: VerticalAlign.CENTER,
     children: [
-      new Paragraph({
-        children: [
-          new TextRun({ text: label, bold: true, size: 16, color: "000000" }),
-        ],
-        ...RTL_PARAGRAPH,
+      createArabicParagraph(label, {
+        textRunOptions: {
+          bold: true,
+          size: 16,
+          color: "000000",
+        },
         spacing: { after: 40 },
       }),
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: value || "—",
-            bold: true,
-            size: 18,
-            color: "000000",
-          }),
-        ],
-        ...RTL_PARAGRAPH,
+      createArabicParagraph(value || "—", {
+        textRunOptions: {
+          bold: true,
+          size: 18,
+          color: "000000",
+        },
       }),
     ],
   });
@@ -140,35 +121,24 @@ function headerCell(label, value) {
 function sectionCell(title, items, emptyText) {
   const list = items && items.length ? items : [];
   const content = [
-    new Paragraph({
-      children: [
-        new TextRun({ text: title, bold: true, size: 18, color: "000000" }),
-      ],
-      ...RTL_PARAGRAPH,
+    createArabicParagraph(title, {
+      textRunOptions: { bold: true, size: 18, color: "000000" },
       spacing: { after: 60 },
     }),
   ];
   if (list.length > 0) {
     list.forEach((item) => {
       content.push(
-        new Paragraph({
-          children: [new TextRun({ text: `• ${item}`, size: 17 })],
-          ...RTL_PARAGRAPH,
+        createArabicParagraph(`• ${item}`, {
+          textRunOptions: { size: 17 },
           spacing: { after: 30 },
         }),
       );
     });
   } else {
     content.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: emptyText || "لا توجد بيانات.",
-            size: 17,
-            color: "000000",
-          }),
-        ],
-        ...RTL_PARAGRAPH,
+      createArabicParagraph(emptyText || "لا توجد بيانات.", {
+        textRunOptions: { size: 17, color: "000000" },
       }),
     );
   }
@@ -232,7 +202,7 @@ export async function buildPlanDocx(enrichedPlan) {
   const children = [];
 
   if (isTraditional) {
-    const headerGrid = rtlTable({
+    const headerGrid = createRtlTable({
       rows: [
         new TableRow({
           cantSplit: true,
@@ -273,7 +243,7 @@ export async function buildPlanDocx(enrichedPlan) {
     const resources = toTextList(plan.learning_resources);
     const assessment = toTextList(plan.assessment);
 
-    const gridTable = rtlTable({
+    const gridTable = createRtlTable({
       rows: [
         new TableRow({
           cantSplit: true,
@@ -315,7 +285,7 @@ export async function buildPlanDocx(enrichedPlan) {
         enrichedPlan.lesson_name ??
         plan.header?.lesson_title,
     );
-    const footerTable = rtlTable({
+    const footerTable = createRtlTable({
       rows: [
         new TableRow({
           cantSplit: true,
@@ -323,42 +293,32 @@ export async function buildPlanDocx(enrichedPlan) {
             new TableCell({
               borders: CELL_BORDER,
               children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: "الواجب",
-                      bold: true,
-                      size: 18,
-                      color: "000000",
-                    }),
-                  ],
-                  ...RTL_PARAGRAPH,
+                createArabicParagraph("الواجب", {
+                  textRunOptions: {
+                    bold: true,
+                    size: 18,
+                    color: "000000",
+                  },
                   spacing: { after: 40 },
                 }),
-                new Paragraph({
-                  children: [new TextRun({ text: homework || "—", size: 17 })],
-                  ...RTL_PARAGRAPH,
+                createArabicParagraph(homework || "—", {
+                  textRunOptions: { size: 17 },
                 }),
               ],
             }),
             new TableCell({
               borders: CELL_BORDER,
               children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: "المصدر",
-                      bold: true,
-                      size: 18,
-                      color: "000000",
-                    }),
-                  ],
-                  ...RTL_PARAGRAPH,
+                createArabicParagraph("المصدر", {
+                  textRunOptions: {
+                    bold: true,
+                    size: 18,
+                    color: "000000",
+                  },
                   spacing: { after: 40 },
                 }),
-                new Paragraph({
-                  children: [new TextRun({ text: source || "—", size: 17 })],
-                  ...RTL_PARAGRAPH,
+                createArabicParagraph(source || "—", {
+                  textRunOptions: { size: 17 },
                 }),
               ],
             }),
@@ -373,7 +333,7 @@ export async function buildPlanDocx(enrichedPlan) {
       footerTable,
     );
   } else {
-    const headerGrid = rtlTable({
+    const headerGrid = createRtlTable({
       rows: [
         new TableRow({
           cantSplit: true,
@@ -423,9 +383,8 @@ export async function buildPlanDocx(enrichedPlan) {
               borders: CELL_BORDER,
               shading: flowHeaderShading,
               children: [
-                new Paragraph({
-                  children: [new TextRun({ text: t, bold: true, size: 17 })],
-                  ...RTL_PARAGRAPH,
+                createArabicParagraph(t, {
+                  textRunOptions: { bold: true, size: 17 },
                 }),
               ],
             }),
@@ -449,11 +408,8 @@ export async function buildPlanDocx(enrichedPlan) {
                 new TableCell({
                   borders: CELL_BORDER,
                   children: [
-                    new Paragraph({
-                      children: [
-                        new TextRun({ text: String(t ?? "—"), size: 17 }),
-                      ],
-                      ...RTL_PARAGRAPH,
+                    createArabicParagraph(String(t ?? "—"), {
+                      textRunOptions: { size: 17 },
                     }),
                   ],
                 }),
@@ -467,10 +423,7 @@ export async function buildPlanDocx(enrichedPlan) {
         new TableCell({
           borders: CELL_BORDER,
           children: [
-            new Paragraph({
-              children: [new TextRun({ text: "" })],
-              ...RTL_PARAGRAPH,
-            }),
+            createArabicParagraph("", {}),
           ],
         });
       flowTableRows.push(
@@ -480,10 +433,7 @@ export async function buildPlanDocx(enrichedPlan) {
             new TableCell({
               borders: CELL_BORDER,
               children: [
-                new Paragraph({
-                  children: [new TextRun({ text: "لا توجد بيانات تدفق." })],
-                  ...RTL_PARAGRAPH,
-                }),
+                createArabicParagraph("لا توجد بيانات تدفق.", {}),
               ],
             }),
             ...Array(5)
@@ -496,7 +446,7 @@ export async function buildPlanDocx(enrichedPlan) {
 
     children.push(
       subheading("تدفق الدرس"),
-      rtlTable({
+      createRtlTable({
         rows: flowTableRows,
         width: { size: 100, type: WidthType.PERCENTAGE },
         layout: TableLayoutType.AUTOFIT,
@@ -596,9 +546,8 @@ export async function buildExamDocx(enrichedExam, type = "answer_key") {
         (t) =>
           new TableCell({
             children: [
-              new Paragraph({
-                children: [new TextRun({ text: t, bold: true })],
-                ...RTL_PARAGRAPH,
+              createArabicParagraph(t, {
+                textRunOptions: { bold: true },
               }),
             ],
           }),
@@ -620,17 +569,14 @@ export async function buildExamDocx(enrichedExam, type = "answer_key") {
             (t) =>
               new TableCell({
                 children: [
-                  new Paragraph({
-                    children: [new TextRun({ text: String(t) })],
-                    ...RTL_PARAGRAPH,
-                  }),
+                  createArabicParagraph(String(t)),
                 ],
               }),
           ),
         }),
     );
     children.push(
-      rtlTable({
+      createRtlTable({
         rows: [headerRow, ...dataRows],
         width: { size: 100, type: WidthType.PERCENTAGE },
         layout: TableLayoutType.AUTOFIT,
@@ -658,11 +604,8 @@ export async function buildExamDocx(enrichedExam, type = "answer_key") {
       .join(" | ");
     children.push(
       para(meta),
-      new Paragraph({
-        children: [
-          new TextRun({ text: q.question_text ?? "", bold: true, size: 20 }),
-        ],
-        ...RTL_PARAGRAPH,
+      createArabicParagraph(q.question_text ?? "", {
+        textRunOptions: { bold: true, size: 20 },
         spacing: { after: 100 },
       }),
     );
@@ -681,15 +624,11 @@ export async function buildExamDocx(enrichedExam, type = "answer_key") {
 
     if (type === "answer_key") {
       children.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: "الإجابة النموذجية:",
-              bold: true,
-              color: "000000",
-            }),
-          ],
-          ...RTL_PARAGRAPH,
+        createArabicParagraph("الإجابة النموذجية:", {
+          textRunOptions: {
+            bold: true,
+            color: "000000",
+          },
           spacing: { before: 60 },
         }),
         para(q.answer_text ?? ""),
@@ -703,16 +642,11 @@ export async function buildExamDocx(enrichedExam, type = "answer_key") {
   }
 
   children.push(
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: `تم التوليد بواسطة مساعد المعلم الذكي - ${date}`,
-          size: 16,
-          color: "000000",
-        }),
-      ],
-      ...RTL_PARAGRAPH,
-      alignment: AlignmentType.CENTER,
+    createArabicCenteredParagraph(`تم التوليد بواسطة مساعد المعلم الذكي - ${date}`, {
+      textRunOptions: {
+        size: 16,
+        color: "000000",
+      },
       spacing: { before: 400 },
     }),
   );

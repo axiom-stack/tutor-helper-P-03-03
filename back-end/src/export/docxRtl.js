@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 
-const DOCUMENT_XML = "word/document.xml";
+const RTL_PART_PATH_PATTERN =
+  /^word\/(document\.xml|styles\.xml|numbering\.xml|header\d+\.xml|footer\d+\.xml)$/u;
 
 /**
  * Ensure the final Word section is marked as RTL so Word opens the document
@@ -15,66 +16,93 @@ const DOCUMENT_XML = "word/document.xml";
  */
 export async function ensureDocxRtl(buffer) {
   const zip = await JSZip.loadAsync(buffer);
-  const xmlFile = zip.file(DOCUMENT_XML);
-
-  if (!xmlFile) {
-    return buffer;
-  }
-
-  const documentXml = await xmlFile.async("string");
-  const updatedXml = addRunRtlFlags(
-    addParagraphBidiFlags(addSectionBidiFlag(documentXml)),
+  const xmlPaths = Object.keys(zip.files).filter((path) =>
+    RTL_PART_PATH_PATTERN.test(path),
   );
 
-  if (updatedXml === documentXml) {
-    return buffer;
+  if (!xmlPaths.length) return buffer;
+
+  let changed = false;
+  for (const path of xmlPaths) {
+    const xmlFile = zip.file(path);
+    if (!xmlFile) continue;
+
+    const xml = await xmlFile.async("string");
+    const updatedXml = ensureRtlInXmlPart(xml);
+    if (updatedXml !== xml) {
+      zip.file(path, updatedXml);
+      changed = true;
+    }
   }
 
-  zip.file(DOCUMENT_XML, updatedXml);
+  if (!changed) return buffer;
   return await zip.generateAsync({ type: "nodebuffer" });
 }
 
-function addSectionBidiFlag(documentXml) {
-  const startToken = "<w:sectPr>";
-  const endToken = "</w:sectPr>";
-  const startIndex = documentXml.lastIndexOf(startToken);
+function ensureRtlInXmlPart(xml) {
+  let nextXml = xml;
+  nextXml = addSectionBidiFlag(nextXml);
+  nextXml = addParagraphBidiFlags(nextXml);
+  nextXml = addRunRtlFlags(nextXml);
+  nextXml = addTableBidiVisual(nextXml);
+  return nextXml;
+}
 
-  if (startIndex === -1) {
-    return documentXml;
-  }
+function addSectionBidiFlag(xml) {
+  let nextXml = xml.replace(/<w:sectPr\b([^>]*)\/>/gu, (full, attrs) => {
+    if (full.includes("<w:bidi")) return full;
+    return `<w:sectPr${attrs}><w:bidi/></w:sectPr>`;
+  });
 
-  const endIndex = documentXml.indexOf(endToken, startIndex);
-  if (endIndex === -1) {
-    return documentXml;
-  }
-
-  const sectionXml = documentXml.slice(startIndex, endIndex + endToken.length);
-  if (sectionXml.includes("<w:bidi/>")) {
-    return documentXml;
-  }
-
-  const insertAt = startIndex + startToken.length;
-  return (
-    documentXml.slice(0, insertAt) +
-    "<w:bidi/>" +
-    documentXml.slice(insertAt)
+  nextXml = nextXml.replace(
+    /<w:sectPr\b([^>]*)>([\s\S]*?)<\/w:sectPr>/gu,
+    (full, attrs, inner) => {
+      if (inner.includes("<w:bidi")) return full;
+      return `<w:sectPr${attrs}><w:bidi/>${inner}</w:sectPr>`;
+    },
   );
+
+  return nextXml;
 }
 
-function addParagraphBidiFlags(documentXml) {
-  return documentXml.replace(/<w:pPr>([\s\S]*?)<\/w:pPr>/g, (match, inner) => {
-    if (inner.includes("<w:bidi/>")) {
-      return match;
-    }
-    return `<w:pPr><w:bidi/>${inner}</w:pPr>`;
+function addParagraphBidiFlags(xml) {
+  let nextXml = xml.replace(/<w:pPr\b([^>]*)>([\s\S]*?)<\/w:pPr>/gu, (full, attrs, inner) => {
+    if (inner.includes("<w:bidi")) return full;
+    return `<w:pPr${attrs}><w:bidi/>${inner}</w:pPr>`;
   });
+
+  nextXml = nextXml.replace(/<w:pPr\b([^>]*)\/>/gu, (full, attrs) => {
+    if (full.includes("<w:bidi")) return full;
+    return `<w:pPr${attrs}><w:bidi/></w:pPr>`;
+  });
+
+  nextXml = nextXml.replace(/<w:p\b([^>]*)>(?!\s*<w:pPr\b)/gu, "<w:p$1><w:pPr><w:bidi/></w:pPr>");
+  return nextXml;
 }
 
-function addRunRtlFlags(documentXml) {
-  return documentXml.replace(/<w:rPr>([\s\S]*?)<\/w:rPr>/g, (match, inner) => {
-    if (inner.includes("<w:rtl/>")) {
-      return match;
-    }
-    return `<w:rPr><w:rtl/>${inner}</w:rPr>`;
+function addRunRtlFlags(xml) {
+  let nextXml = xml.replace(/<w:rPr\b([^>]*)>([\s\S]*?)<\/w:rPr>/gu, (full, attrs, inner) => {
+    if (inner.includes("<w:rtl")) return full;
+    return `<w:rPr${attrs}><w:rtl/>${inner}</w:rPr>`;
   });
+
+  nextXml = nextXml.replace(/<w:rPr\b([^>]*)\/>/gu, (full, attrs) => {
+    if (full.includes("<w:rtl")) return full;
+    return `<w:rPr${attrs}><w:rtl/></w:rPr>`;
+  });
+
+  nextXml = nextXml.replace(/<w:r\b([^>]*)>(?!\s*<w:rPr\b)/gu, "<w:r$1><w:rPr><w:rtl/></w:rPr>");
+  return nextXml;
+}
+
+function addTableBidiVisual(xml) {
+  let nextXml = xml.replace(/<w:tblPr\b([^>]*)>([\s\S]*?)<\/w:tblPr>/gu, (full, attrs, inner) => {
+    if (inner.includes("<w:bidiVisual")) return full;
+    return `<w:tblPr${attrs}><w:bidiVisual/>${inner}</w:tblPr>`;
+  });
+  nextXml = nextXml.replace(/<w:tblPr\b([^>]*)\/>/gu, (full, attrs) => {
+    if (full.includes("<w:bidiVisual")) return full;
+    return `<w:tblPr${attrs}><w:bidiVisual/></w:tblPr>`;
+  });
+  return nextXml;
 }

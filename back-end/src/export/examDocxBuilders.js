@@ -23,7 +23,6 @@ import {
   TableCell,
   TableLayoutType,
   TableRow,
-  TextRun,
   VerticalAlign,
   WidthType,
 } from "docx";
@@ -34,23 +33,23 @@ import {
 } from "./examViewModel.js";
 import { parseImageDataUrl } from "../utils/imageDataUrl.js";
 import { ensureDocxRtl } from "./docxRtl.js";
+import {
+  createArabicCenteredParagraph,
+  createArabicParagraph,
+  createArabicTextRun,
+  createRtlTable,
+} from "./docxArabic.js";
 
 // ── Layout constants ────────────────────────────────────────
 // A4 portrait, 720-twip margins on all sides → content width = 11906 - 1440 = 10466 twip
 const PAGE_WIDTH_DXA = 10466;
-const SCORE_COL_DXA = 1200; // narrow left sidebar for score
-const BODY_COL_DXA = PAGE_WIDTH_DXA - SCORE_COL_DXA; // 9266
+const QUESTION_HEADER_SCORE_COL_DXA = 1600; // ~28mm like HTML/PDF
+const QUESTION_HEADER_TEXT_COL_DXA = PAGE_WIDTH_DXA - QUESTION_HEADER_SCORE_COL_DXA;
 
 // Header table: 4 equal columns
 const HEADER_COL_DXA = Math.floor(PAGE_WIDTH_DXA / 4); // 2616
 
 // ── Shared paragraph/style helpers ─────────────────────────
-const RTL_PARAGRAPH = {
-  alignment: AlignmentType.RIGHT,
-  bidirectional: true,
-  bidi: true,
-};
-
 const DOC_STYLES = {
   default: {
     document: {
@@ -65,6 +64,22 @@ const DOC_STYLES = {
     },
   },
 };
+
+function formatIntegerGrade(value) {
+  const number = Number(value);
+  const normalized = Number.isFinite(number) ? Math.max(0, Math.round(number)) : 0;
+  return formatArabicNumber(normalized);
+}
+
+function getSectionTotalMarks(section) {
+  if (!section || !Array.isArray(section.questions)) return 0;
+  return section.questions.reduce((sum, q) => sum + (Number(q?.marks) || 0), 0);
+}
+
+function getMainQuestionOrdinal(index) {
+  const ordinals = ["الأول", "الثاني", "الثالث", "الرابع", "الخامس"];
+  return ordinals[index] ?? formatArabicNumber(index + 1);
+}
 
 const PORTRAIT_SECTION = {
   page: {
@@ -98,50 +113,34 @@ const NO_BORDER = {
 
 // ── Paragraph factories ─────────────────────────────────────
 function heading(text, size = 28) {
-  return new Paragraph({
-    children: [new TextRun({ text: toArabicDigits(text), bold: true, size })],
-    ...RTL_PARAGRAPH,
+  return createArabicParagraph(toArabicDigits(text), {
+    textRunOptions: { bold: true, size },
     spacing: { before: 200, after: 100 },
   });
 }
 
 function subheading(text) {
-  return new Paragraph({
-    children: [
-      new TextRun({ text: toArabicDigits(text), bold: true, size: 24 }),
-    ],
-    ...RTL_PARAGRAPH,
+  return createArabicParagraph(toArabicDigits(text), {
+    textRunOptions: { bold: true, size: 24 },
     spacing: { before: 160, after: 80 },
   });
 }
 
 function para(text, size = 22) {
-  return new Paragraph({
-    children: [new TextRun({ text: toArabicDigits(text || "—"), size })],
-    ...RTL_PARAGRAPH,
+  return createArabicParagraph(toArabicDigits(text || "—"), {
+    textRunOptions: { size },
     spacing: { after: 80 },
   });
 }
 
 function centeredPara(text, size = 22, bold = false) {
-  return new Paragraph({
-    children: [new TextRun({ text: toArabicDigits(text || ""), bold, size })],
-    alignment: AlignmentType.CENTER,
-    bidirectional: true,
-    bidi: true,
+  return createArabicCenteredParagraph(toArabicDigits(text || ""), {
+    textRunOptions: { bold, size },
     spacing: { after: 40 },
   });
 }
 
 // ── RTL table wrapper ───────────────────────────────────────
-function rtlTable(options) {
-  return new Table({
-    ...options,
-    alignment: AlignmentType.RIGHT,
-    visuallyRightToLeft: true,
-  });
-}
-
 // ── Image helper ────────────────────────────────────────────
 function createSchoolLogoRun(logoUrl) {
   const parsedLogo = parseImageDataUrl(logoUrl);
@@ -165,28 +164,37 @@ function buildTopBanner(vm, titleText) {
   // 3-column banner: right=ministry text | center=logo | left=empty
   const logoRun = createSchoolLogoRun(e.schoolLogoUrl);
 
-  const rightCell = new TableCell({
+  const ministryCell = new TableCell({
     borders: NO_BORDER,
     verticalAlign: VerticalAlign.CENTER,
     width: { size: Math.floor(PAGE_WIDTH_DXA * 0.35), type: WidthType.DXA },
     children: [
       new Paragraph({
         children: [
-          new TextRun({ text: "الجمهورية اليمنية", bold: true, size: 22 }),
+          createArabicTextRun("الجمهورية اليمنية", { bold: true, size: 22 }),
         ],
-        ...RTL_PARAGRAPH,
+        bidirectional: true,
+        bidi: true,
+        alignment: AlignmentType.RIGHT,
         spacing: { after: 40 },
       }),
       new Paragraph({
         children: [
-          new TextRun({ text: "وزارة التربية والتعليم", bold: true, size: 22 }),
+          createArabicTextRun("وزارة التربية والتعليم", {
+            bold: true,
+            size: 22,
+          }),
         ],
-        ...RTL_PARAGRAPH,
+        bidirectional: true,
+        bidi: true,
+        alignment: AlignmentType.RIGHT,
         spacing: { after: 40 },
       }),
       new Paragraph({
-        children: [new TextRun({ text: "محافظة عدن", bold: true, size: 22 })],
-        ...RTL_PARAGRAPH,
+        children: [createArabicTextRun("محافظة عدن", { bold: true, size: 22 })],
+        bidirectional: true,
+        bidi: true,
+        alignment: AlignmentType.RIGHT,
         spacing: { after: 40 },
       }),
     ],
@@ -197,49 +205,89 @@ function buildTopBanner(vm, titleText) {
     verticalAlign: VerticalAlign.CENTER,
     width: { size: Math.floor(PAGE_WIDTH_DXA * 0.3), type: WidthType.DXA },
     children: [
+      new Paragraph({
+        children: [
+          createArabicTextRun(toArabicDigits(titleText || e.title || "اختبار"), {
+            bold: true,
+            size: 24,
+          }),
+        ],
+        alignment: AlignmentType.CENTER,
+        bidirectional: true,
+        bidi: true,
+        spacing: { after: 40 },
+      }),
+      new Paragraph({
+        children: [createArabicTextRun(toArabicDigits(e.grade || "—"), { size: 20 })],
+        alignment: AlignmentType.CENTER,
+        bidirectional: true,
+        bidi: true,
+        spacing: { after: 40 },
+      }),
+      new Paragraph({
+        children: [
+          createArabicTextRun(
+            toArabicDigits(
+              `الفصل الدراسي ${e.term || "—"} (${e.academicYear || "—"})`,
+            ),
+            { size: 20 },
+          ),
+        ],
+        alignment: AlignmentType.CENTER,
+        bidirectional: true,
+        bidi: true,
+        spacing: { after: 40 },
+      }),
+    ],
+  });
+
+  const schoolCell = new TableCell({
+    borders: NO_BORDER,
+    verticalAlign: VerticalAlign.CENTER,
+    width: { size: Math.floor(PAGE_WIDTH_DXA * 0.35), type: WidthType.DXA },
+    children: [
       logoRun
         ? new Paragraph({
             children: [logoRun],
             alignment: AlignmentType.CENTER,
             bidirectional: true,
+            bidi: true,
             spacing: { after: 40 },
           })
-        : new Paragraph({ children: [] }),
-    ],
-  });
-
-  const leftCell = new TableCell({
-    borders: NO_BORDER,
-    verticalAlign: VerticalAlign.CENTER,
-    width: { size: Math.floor(PAGE_WIDTH_DXA * 0.35), type: WidthType.DXA },
-    children: [
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: toArabicDigits(titleText || e.title || "—"),
-            bold: true,
-            size: 26,
+        : new Paragraph({
+            children: [createArabicTextRun("شعار المدرسة", { bold: true, size: 18 })],
+            alignment: AlignmentType.CENTER,
+            bidirectional: true,
+            bidi: true,
+            spacing: { after: 40 },
           }),
-        ],
-        alignment: AlignmentType.CENTER,
-        bidirectional: true,
-        spacing: { after: 40 },
-      }),
       new Paragraph({
         children: [
-          new TextRun({
-            text: toArabicDigits(`مدرسة: ${e.schoolName || "—"}`),
+          createArabicTextRun(toArabicDigits(`مدرسة: ${e.schoolName || "—"}`), {
             size: 20,
           }),
         ],
-        alignment: AlignmentType.CENTER,
+        alignment: AlignmentType.RIGHT,
         bidirectional: true,
+        bidi: true,
+        spacing: { after: 40 },
+      }),
+      new Paragraph({
+        children: [
+          createArabicTextRun(
+            toArabicDigits(`الدرجة الكلية: ${formatIntegerGrade(e.totalMarks)}`),
+            { size: 20 },
+          ),
+        ],
+        alignment: AlignmentType.RIGHT,
+        bidirectional: true,
+        bidi: true,
         spacing: { after: 40 },
       }),
     ],
   });
 
-  const bannerTable = rtlTable({
+  const bannerTable = createRtlTable({
     width: { size: PAGE_WIDTH_DXA, type: WidthType.DXA },
     columnWidths: [
       Math.floor(PAGE_WIDTH_DXA * 0.35),
@@ -249,7 +297,7 @@ function buildTopBanner(vm, titleText) {
     layout: TableLayoutType.FIXED,
     rows: [
       new TableRow({
-        children: [rightCell, centerCell, leftCell],
+        children: [ministryCell, centerCell, schoolCell],
       }),
     ],
   });
@@ -265,18 +313,12 @@ function headerCell(label, value) {
     width: { size: HEADER_COL_DXA, type: WidthType.DXA },
     margins: { top: 60, bottom: 60, left: 80, right: 80 },
     children: [
-      new Paragraph({
-        children: [
-          new TextRun({ text: toArabicDigits(label), bold: true, size: 18 }),
-        ],
-        ...RTL_PARAGRAPH,
+      createArabicParagraph(toArabicDigits(label), {
+        textRunOptions: { bold: true, size: 18 },
         spacing: { after: 30 },
       }),
-      new Paragraph({
-        children: [
-          new TextRun({ text: toArabicDigits(value || "—"), size: 20 }),
-        ],
-        ...RTL_PARAGRAPH,
+      createArabicParagraph(toArabicDigits(value || "—"), {
+        textRunOptions: { size: 20 },
       }),
     ],
   });
@@ -284,7 +326,7 @@ function headerCell(label, value) {
 
 function buildExamHeaderTable(vm) {
   const e = vm.examMeta;
-  return rtlTable({
+  return createRtlTable({
     width: { size: PAGE_WIDTH_DXA, type: WidthType.DXA },
     columnWidths: [
       HEADER_COL_DXA,
@@ -319,7 +361,7 @@ function buildExamHeaderTable(vm) {
 // ── Student info row (اسم الطالب | الشعبة) ─────────────────
 function buildStudentInfoTable() {
   const halfW = Math.floor(PAGE_WIDTH_DXA / 2);
-  return rtlTable({
+  return createRtlTable({
     width: { size: PAGE_WIDTH_DXA, type: WidthType.DXA },
     columnWidths: [halfW, halfW],
     layout: TableLayoutType.FIXED,
@@ -333,16 +375,17 @@ function buildStudentInfoTable() {
             width: { size: halfW, type: WidthType.DXA },
             margins: { top: 80, bottom: 80, left: 100, right: 100 },
             children: [
-              new Paragraph({
-                children: [
-                  new TextRun({ text: "اسم الطالب: ", bold: true, size: 20 }),
-                  new TextRun({
-                    text: "                              ",
+              createArabicParagraph(
+                [
+                  createArabicTextRun("اسم الطالب: ", { bold: true, size: 20 }),
+                  createArabicTextRun("                              ", {
                     size: 20,
                   }),
                 ],
-                ...RTL_PARAGRAPH,
-              }),
+                {
+                  spacing: { after: 0 },
+                },
+              ),
             ],
           }),
           new TableCell({
@@ -351,13 +394,15 @@ function buildStudentInfoTable() {
             width: { size: halfW, type: WidthType.DXA },
             margins: { top: 80, bottom: 80, left: 100, right: 100 },
             children: [
-              new Paragraph({
-                children: [
-                  new TextRun({ text: "الشعبة: ", bold: true, size: 20 }),
-                  new TextRun({ text: "                    ", size: 20 }),
+              createArabicParagraph(
+                [
+                  createArabicTextRun("الشعبة: ", { bold: true, size: 20 }),
+                  createArabicTextRun("                    ", { size: 20 }),
                 ],
-                ...RTL_PARAGRAPH,
-              }),
+                {
+                  spacing: { after: 0 },
+                },
+              ),
             ],
           }),
         ],
@@ -368,7 +413,7 @@ function buildStudentInfoTable() {
 
 // ── Section title (full-width shaded header) ────────────────
 function buildSectionHeaderTable(titleText) {
-  return rtlTable({
+  return createRtlTable({
     width: { size: PAGE_WIDTH_DXA, type: WidthType.DXA },
     columnWidths: [PAGE_WIDTH_DXA],
     layout: TableLayoutType.FIXED,
@@ -380,19 +425,14 @@ function buildSectionHeaderTable(titleText) {
             borders: CELL_BORDER,
             verticalAlign: VerticalAlign.CENTER,
             width: { size: PAGE_WIDTH_DXA, type: WidthType.DXA },
-            shading: { type: ShadingType.CLEAR, fill: "E8E8E8" },
+            shading: { type: ShadingType.CLEAR, fill: "FFFFFF" },
             margins: { top: 80, bottom: 80, left: 120, right: 120 },
             children: [
-              new Paragraph({
-                children: [
-                  new TextRun({
-                    text: toArabicDigits(titleText),
-                    bold: true,
-                    size: 22,
-                  }),
-                ],
-                alignment: AlignmentType.CENTER,
-                bidirectional: true,
+              createArabicCenteredParagraph(toArabicDigits(titleText), {
+                textRunOptions: {
+                  bold: true,
+                  size: 22,
+                },
               }),
             ],
           }),
@@ -402,122 +442,100 @@ function buildSectionHeaderTable(titleText) {
   });
 }
 
-// ── Per-question table (score sidebar | question body) ──────
-//
-// PDF layout per question:
-//   ┌─────────────────────────┬──────────┐
-//   │  question text + opts   │ الدرجة N │
-//   └─────────────────────────┴──────────┘
-//
-function buildQuestionTable(q, bodyChildren) {
-  const scoreText =
-    q.marks != null
-      ? `الدرجة\n${toArabicDigits(formatArabicNumber(q.marks))}`
-      : "—";
+function buildMainQuestionHeaderTable(section, sectionIndex) {
+  const title = `السؤال ${getMainQuestionOrdinal(sectionIndex)} : ${section.title}`;
+  const scoreText = `الدرجة\n${formatIntegerGrade(getSectionTotalMarks(section))}`;
 
-  const scoreCell = new TableCell({
-    borders: CELL_BORDER,
-    verticalAlign: VerticalAlign.CENTER,
-    width: { size: SCORE_COL_DXA, type: WidthType.DXA },
-    shading: { type: ShadingType.CLEAR, fill: "F5F5F5" },
-    margins: { top: 60, bottom: 60, left: 60, right: 60 },
-    children: scoreText.split("\n").map(
-      (line) =>
-        new Paragraph({
-          children: [new TextRun({ text: line, bold: true, size: 18 })],
-          alignment: AlignmentType.CENTER,
-          bidirectional: true,
-          spacing: { after: 30 },
-        }),
-    ),
-  });
-
-  const bodyCell = new TableCell({
-    borders: CELL_BORDER,
-    verticalAlign: VerticalAlign.TOP,
-    width: { size: BODY_COL_DXA, type: WidthType.DXA },
-    margins: { top: 80, bottom: 80, left: 120, right: 120 },
-    children: bodyChildren,
-  });
-
-  return rtlTable({
+  return createRtlTable({
     width: { size: PAGE_WIDTH_DXA, type: WidthType.DXA },
-    columnWidths: [BODY_COL_DXA, SCORE_COL_DXA],
+    columnWidths: [QUESTION_HEADER_TEXT_COL_DXA, QUESTION_HEADER_SCORE_COL_DXA],
     layout: TableLayoutType.FIXED,
     rows: [
       new TableRow({
-        cantSplit: false,
-        children: [bodyCell, scoreCell],
+        cantSplit: true,
+        children: [
+          new TableCell({
+            borders: CELL_BORDER,
+            verticalAlign: VerticalAlign.CENTER,
+            width: { size: QUESTION_HEADER_TEXT_COL_DXA, type: WidthType.DXA },
+            margins: { top: 60, bottom: 60, left: 80, right: 80 },
+            children: [
+              createArabicParagraph(toArabicDigits(title), {
+                textRunOptions: { bold: true, size: 22 },
+                spacing: { after: 0 },
+                alignment: AlignmentType.RIGHT,
+              }),
+            ],
+          }),
+          new TableCell({
+            borders: CELL_BORDER,
+            verticalAlign: VerticalAlign.CENTER,
+            width: { size: QUESTION_HEADER_SCORE_COL_DXA, type: WidthType.DXA },
+            margins: { top: 60, bottom: 60, left: 80, right: 80 },
+            children: scoreText.split("\n").map((line) => centeredPara(line, 20, true)),
+          }),
+        ],
       }),
     ],
   });
 }
 
 function questionNumberPara(q) {
-  const num = toArabicDigits(
-    `السؤال ${formatArabicNumber(q.displayNumber ?? q.number ?? 1)}`,
-  );
-  return new Paragraph({
-    children: [new TextRun({ text: num, bold: true, size: 20 })],
-    ...RTL_PARAGRAPH,
-    spacing: { after: 40 },
+  const num = toArabicDigits(`${formatArabicNumber(q.displayNumber ?? q.number ?? 1)}-`);
+  return createArabicParagraph(num, {
+    textRunOptions: { bold: true, size: 20 },
+    spacing: { after: 20 },
   });
 }
 
 function questionTextPara(q) {
-  return new Paragraph({
-    children: [
-      new TextRun({ text: toArabicDigits(q.text ?? ""), bold: true, size: 22 }),
-    ],
-    ...RTL_PARAGRAPH,
+  return createArabicParagraph(toArabicDigits(q.text ?? ""), {
+    textRunOptions: { bold: true, size: 22 },
     spacing: { after: 60 },
   });
 }
 
 // ── Paper question body (options / answer lines) ────────────
 function buildPaperQuestionBody(q) {
-  const children = [questionNumberPara(q), questionTextPara(q)];
+  const children = [
+    createArabicParagraph(
+      [
+        createArabicTextRun(
+          toArabicDigits(`${formatArabicNumber(q.displayNumber ?? q.number ?? 1)}- `),
+          { bold: true, size: 20 },
+        ),
+        createArabicTextRun(toArabicDigits(q.text ?? ""), { bold: true, size: 22 }),
+        ...(q.type === "true_false"
+          ? [createArabicTextRun(" (              )", { bold: true, size: 22 })]
+          : []),
+      ],
+      { spacing: { after: 60 } },
+    ),
+  ];
 
   if (q.type === "mcq" && Array.isArray(q.options)) {
     for (const opt of q.options) {
       children.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: toArabicDigits(`${opt.label ?? ""}) ${opt.text ?? ""}`),
-              size: 20,
-            }),
-          ],
-          ...RTL_PARAGRAPH,
+        createArabicParagraph(
+          toArabicDigits(`${opt.label ?? ""}) ${opt.text ?? ""}`),
+          {
+            textRunOptions: { size: 20 },
           spacing: { after: 40 },
-        }),
+          },
+        ),
       );
     }
-  } else if (q.type === "true_false") {
-    children.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: `( ${q.trueLabel ?? "صح"} )   ( ${q.falseLabel ?? "خطأ"} )`,
-            size: 20,
-          }),
-        ],
-        ...RTL_PARAGRAPH,
-        spacing: { after: 40 },
-      }),
-    );
   }
 
   if (q.type === "short_answer" || q.type === "essay") {
     const lines = q.type === "essay" ? 5 : 2;
     for (let i = 0; i < lines; i++) {
       children.push(
-        new Paragraph({
-          children: [new TextRun({ text: " ", size: 20 })],
+        createArabicParagraph(" ", {
+          textRunOptions: { size: 20 },
           border: {
             bottom: { style: BorderStyle.SINGLE, size: 2, color: "000000" },
           },
-          ...RTL_PARAGRAPH,
           spacing: { after: 80 },
         }),
       );
@@ -529,24 +547,33 @@ function buildPaperQuestionBody(q) {
 
 // ── Answer-key question body ────────────────────────────────
 function buildAnswerKeyQuestionBody(q) {
-  const children = [questionNumberPara(q), questionTextPara(q)];
+  const children = [
+    createArabicParagraph(
+      [
+        createArabicTextRun(
+          toArabicDigits(`${formatArabicNumber(q.displayNumber ?? q.number ?? 1)}- `),
+          { bold: true, size: 20 },
+        ),
+        createArabicTextRun(toArabicDigits(q.text ?? ""), { bold: true, size: 22 }),
+      ],
+      { spacing: { after: 60 } },
+    ),
+  ];
 
   if (q.type === "mcq" && Array.isArray(q.options)) {
     q.options.forEach((opt, idx) => {
       const isCorrect =
         typeof q.correctIndex === "number" && q.correctIndex === idx;
       children.push(
-        new Paragraph({
-          children: [
-            new TextRun({ text: `${opt.label ?? ""}) `, bold: isCorrect }),
-            new TextRun({
-              text: toArabicDigits(opt.text ?? ""),
+        createArabicParagraph(
+          [
+            createArabicTextRun(`${opt.label ?? ""}) `, { bold: isCorrect }),
+            createArabicTextRun(toArabicDigits(opt.text ?? ""), {
               bold: isCorrect,
             }),
             ...(isCorrect
               ? [
-                  new TextRun({
-                    text: "  ✓",
+                  createArabicTextRun("  ✓", {
                     bold: true,
                     size: 18,
                     color: "1A7C1A",
@@ -554,56 +581,41 @@ function buildAnswerKeyQuestionBody(q) {
                 ]
               : []),
           ],
-          ...RTL_PARAGRAPH,
-          spacing: { after: 40 },
-        }),
+          {
+            spacing: { after: 40 },
+          },
+        ),
       );
     });
   } else if (q.type === "true_false") {
     const correct = q.correctAnswer === true ? "صح" : "خطأ";
     children.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: toArabicDigits(`الإجابة الصحيحة: ${correct}`),
-            size: 20,
-            color: "1A7C1A",
-          }),
-        ],
-        ...RTL_PARAGRAPH,
+      createArabicParagraph(toArabicDigits(`الإجابة الصحيحة: ${correct}`), {
+        textRunOptions: { size: 20, color: "1A7C1A" },
         spacing: { after: 40 },
       }),
     );
   } else if (q.type === "short_answer" || q.type === "essay") {
     children.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: toArabicDigits(`الإجابة النموذجية: ${q.answerText ?? ""}`),
-            size: 20,
-          }),
-        ],
-        ...RTL_PARAGRAPH,
+      createArabicParagraph(
+        toArabicDigits(`الإجابة النموذجية: ${q.answerText ?? ""}`),
+        {
+          textRunOptions: { size: 20 },
         spacing: { after: 40 },
-      }),
+        },
+      ),
     );
     if (q.type === "essay" && Array.isArray(q.rubric) && q.rubric.length) {
       children.push(
-        new Paragraph({
-          children: [
-            new TextRun({ text: "معايير التصحيح:", bold: true, size: 20 }),
-          ],
-          ...RTL_PARAGRAPH,
+        createArabicParagraph("معايير التصحيح:", {
+          textRunOptions: { bold: true, size: 20 },
           spacing: { before: 60, after: 30 },
         }),
       );
       q.rubric.forEach((r) =>
         children.push(
-          new Paragraph({
-            children: [
-              new TextRun({ text: toArabicDigits(`• ${r}`), size: 18 }),
-            ],
-            ...RTL_PARAGRAPH,
+          createArabicParagraph(toArabicDigits(`• ${r}`), {
+            textRunOptions: { size: 18 },
             spacing: { after: 30 },
           }),
         ),
@@ -682,7 +694,7 @@ function buildObjectiveSectionTable(section) {
       }),
   );
 
-  return rtlTable({
+  return createRtlTable({
     width: { size: PAGE_WIDTH_DXA, type: WidthType.DXA },
     columnWidths: colWidths,
     layout: TableLayoutType.FIXED,
@@ -700,33 +712,17 @@ export async function buildExamPaperDocx(enrichedExam) {
 
   // Banner + header metadata
   children.push(...buildTopBanner(vm, vm.examMeta.title || "ورقة الاختبار"));
-  children.push(buildExamHeaderTable(vm));
-  children.push(new Paragraph({ children: [], spacing: { after: 60 } }));
   children.push(buildStudentInfoTable());
   children.push(new Paragraph({ children: [], spacing: { after: 60 } }));
 
-  // Instructions
-  children.push(
-    buildSectionHeaderTable("التعليمات"),
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: "اقرأ الأسئلة جيدًا وأجب في الأماكن المخصصة، واستخدم نموذج الإجابات للأسئلة الموضوعية.",
-          size: 20,
-        }),
-      ],
-      ...RTL_PARAGRAPH,
-      spacing: { after: 80 },
-    }),
-  );
-
   // Sections + questions
-  for (const section of vm.sections) {
-    children.push(buildSectionHeaderTable(section.title));
+  vm.sections.forEach((section, sectionIndex) => {
+    children.push(buildMainQuestionHeaderTable(section, sectionIndex));
     for (const q of section.questions) {
-      children.push(buildQuestionTable(q, buildPaperQuestionBody(q)));
+      children.push(...buildPaperQuestionBody(q));
+      children.push(new Paragraph({ children: [], spacing: { after: 80 } }));
     }
-  }
+  });
 
   const doc = new Document({
     styles: DOC_STYLES,
@@ -751,16 +747,13 @@ export async function buildExamAnswerFormDocx(enrichedExam) {
   // Instructions
   children.push(
     buildSectionHeaderTable("تعليمات تعبئة النموذج"),
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: "ظلِّل دائرة واحدة فقط لكل سؤال، ولا تظلِّل أكثر من خيار واحد لنفس السؤال.",
-          size: 20,
-        }),
-      ],
-      ...RTL_PARAGRAPH,
+    createArabicParagraph(
+      "ظلِّل دائرة واحدة فقط لكل سؤال، ولا تظلِّل أكثر من خيار واحد لنفس السؤال.",
+      {
+        textRunOptions: { size: 20 },
       spacing: { after: 80 },
-    }),
+      },
+    ),
   );
 
   const objectiveSections = vm.sections.filter(
@@ -771,15 +764,11 @@ export async function buildExamAnswerFormDocx(enrichedExam) {
     children.push(buildSectionHeaderTable("شبكة الإجابات"));
     for (const section of objectiveSections) {
       children.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: toArabicDigits(section.title),
-              bold: true,
-              size: 20,
-            }),
-          ],
-          ...RTL_PARAGRAPH,
+        createArabicParagraph(toArabicDigits(section.title), {
+          textRunOptions: {
+            bold: true,
+            size: 20,
+          },
           spacing: { before: 100, after: 40 },
         }),
       );
@@ -788,14 +777,8 @@ export async function buildExamAnswerFormDocx(enrichedExam) {
     }
   } else {
     children.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: "لا توجد أسئلة موضوعية في هذا الاختبار.",
-            size: 20,
-          }),
-        ],
-        ...RTL_PARAGRAPH,
+      createArabicParagraph("لا توجد أسئلة موضوعية في هذا الاختبار.", {
+        textRunOptions: { size: 20 },
         spacing: { after: 80 },
       }),
     );
@@ -818,26 +801,12 @@ export async function buildExamAnswerKeyDocx(enrichedExam) {
     ? `${vm.examMeta.title} - نموذج الإجابات (معلم)`
     : "نموذج الإجابات (معلم)";
   children.push(...buildTopBanner(vm, keyTitle));
-  children.push(buildExamHeaderTable(vm));
-  children.push(new Paragraph({ children: [], spacing: { after: 60 } }));
-  children.push(buildSectionHeaderTable("الأسئلة والإجابات النموذجية"));
 
   for (const section of vm.sections) {
-    children.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: toArabicDigits(section.title),
-            bold: true,
-            size: 22,
-          }),
-        ],
-        ...RTL_PARAGRAPH,
-        spacing: { before: 120, after: 60 },
-      }),
-    );
+    children.push(buildMainQuestionHeaderTable(section, vm.sections.indexOf(section)));
     for (const q of section.questions) {
-      children.push(buildQuestionTable(q, buildAnswerKeyQuestionBody(q)));
+      children.push(...buildAnswerKeyQuestionBody(q));
+      children.push(new Paragraph({ children: [], spacing: { after: 80 } }));
     }
   }
 

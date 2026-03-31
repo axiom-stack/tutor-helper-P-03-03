@@ -171,7 +171,7 @@ const EXAM_BASE_STYLES = `
 
   .exam-question-header > div {
     padding: 6px 8px;
-    text-align: center;
+    text-align: right;
     font-size: 0.94rem;
     font-weight: 800;
     line-height: 1.35;
@@ -179,6 +179,7 @@ const EXAM_BASE_STYLES = `
 
   .exam-question-header > div + div {
     border-right: 1px solid #000000;
+    text-align: center;
   }
 
   .exam-question-body {
@@ -191,6 +192,9 @@ const EXAM_BASE_STYLES = `
     margin: 0;
     font-size: 1rem;
     font-weight: 700;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.2rem;
     overflow-wrap: anywhere;
   }
 
@@ -240,9 +244,11 @@ const EXAM_BASE_STYLES = `
   }
 
   .exam-blank {
-    min-width: 20px;
+    min-width: 0;
     display: inline-block;
-    letter-spacing: 0.2em;
+    text-align: right;
+    margin-inline-start: 0.08rem;
+    letter-spacing: 0.05em;
     font-weight: 700;
   }
 
@@ -529,6 +535,22 @@ function getDisplayQuestionNumber(q) {
   return q.displayNumber ?? q.number ?? 1;
 }
 
+function formatIntegerGrade(value) {
+  const number = Number(value);
+  const normalized = Number.isFinite(number) ? Math.max(0, Math.round(number)) : 0;
+  return formatArabicNumber(normalized);
+}
+
+function getSectionTotalMarks(section) {
+  if (!section || !Array.isArray(section.questions)) return 0;
+  return section.questions.reduce((sum, q) => sum + (Number(q?.marks) || 0), 0);
+}
+
+function getMainQuestionOrdinal(index) {
+  const ordinals = ["الأول", "الثاني", "الثالث", "الرابع", "الخامس"];
+  return ordinals[index] ?? formatArabicNumber(index + 1);
+}
+
 function renderLogoHtml(schoolLogoUrl) {
   if (parseImageDataUrl(schoolLogoUrl)) {
     return `<img class="exam-header-logo" src="${escapeHtml(
@@ -546,7 +568,7 @@ function renderQuestionPrompt(q) {
   }
 
   if (lines.length === 1) {
-    const blank = q.type === "true_false" ? '<span class="exam-blank">( )</span>' : "";
+    const blank = q.type === "true_false" ? '<span class="exam-blank">(              )</span>' : "";
     return `
       <p class="exam-question-text">
         <span>${escapeHtmlAr(lines[0])}</span>
@@ -561,7 +583,7 @@ function renderQuestionPrompt(q) {
         .map((line, index) => {
           const blank =
             q.type === "true_false"
-              ? '<span class="exam-blank">( )</span>'
+              ? '<span class="exam-blank">(              )</span>'
               : "";
           return `
             <li>
@@ -596,20 +618,7 @@ function renderQuestionAnswers(q, promptLineCount = 0) {
     `;
   }
 
-  if (q.type === "true_false" && promptLineCount <= 1) {
-    return `
-      <div class="exam-true-false-legend">
-        <span class="exam-true-false-choice">
-          <span class="exam-blank">( )</span>
-          <span>صح</span>
-        </span>
-        <span class="exam-true-false-choice">
-          <span class="exam-blank">( )</span>
-          <span>خطأ</span>
-        </span>
-      </div>
-    `;
-  }
+  if (q.type === "true_false" && promptLineCount <= 1) return "";
 
   if (q.type === "short_answer") {
     return `
@@ -677,7 +686,7 @@ function renderExamHeader(examMeta) {
               <div class="exam-header-school-lines">
                 <div>مدرسة: ${escapeHtmlAr(schoolName || "—")}</div>
                 <div>الدرجة الكلية: ${escapeHtmlAr(
-                  formatArabicNumber(totalMarks),
+                  formatIntegerGrade(totalMarks),
                 )}</div>
               </div>
             </td>
@@ -710,22 +719,56 @@ function renderQuestionBlock(q) {
   const questionNumber = formatArabicNumber(getDisplayQuestionNumber(q));
   return `
     <article class="exam-question">
-      <div class="exam-question-header">
-        <div>السؤال ${questionNumber}</div>
-        <div>الدرجة ${escapeHtmlAr(formatArabicNumber(q.marks))}</div>
-      </div>
       <div class="exam-question-body">
-        ${renderQuestionPrompt(q)}
+        <p class="exam-question-text">
+          <span class="exam-question-line-index">${escapeHtmlAr(questionNumber)}.</span>
+          <span>${escapeHtmlAr(promptLines[0] ?? "")}</span>
+          ${
+            q.type === "true_false" && promptLines.length <= 1
+              ? '<span class="exam-blank">(              )</span>'
+              : ""
+          }
+        </p>
+        ${
+          promptLines.length > 1
+            ? `
+              <ol class="exam-question-lines">
+                ${promptLines
+                  .slice(1)
+                  .map(
+                    (line) => `
+                  <li>
+                    <span class="exam-question-line-text">${escapeHtmlAr(line)}</span>
+                    ${q.type === "true_false" ? '<span class="exam-blank">(              )</span>' : ""}
+                  </li>
+                `,
+                  )
+                  .join("")}
+              </ol>
+            `
+            : ""
+        }
         ${renderQuestionAnswers(q, promptLines.length)}
       </div>
     </article>
   `;
 }
 
-function renderPaperSection(section) {
+function renderMainSectionHeader(section, sectionIndex) {
+  const title = `السؤال ${getMainQuestionOrdinal(sectionIndex)} : ${section.title}`;
+  const marks = formatIntegerGrade(getSectionTotalMarks(section));
+  return `
+    <div class="exam-question-header">
+      <div class="exam-main-question-title">${escapeHtmlAr(title)}</div>
+      <div class="exam-main-question-marks">الدرجة ${escapeHtmlAr(marks)}</div>
+    </div>
+  `;
+}
+
+function renderPaperSection(section, sectionIndex) {
   return `
     <section class="exam-section">
-      ${renderSectionTitle(section.title)}
+      ${renderMainSectionHeader(section, sectionIndex)}
       <div class="exam-section-questions">
         ${section.questions.map(renderQuestionBlock).join("")}
       </div>
@@ -734,11 +777,6 @@ function renderPaperSection(section) {
 }
 
 function renderAnswerKeyQuestionBlock(q) {
-  const headerParts = [`السؤال ${formatArabicNumber(getDisplayQuestionNumber(q))}`];
-  if (q.marks != null) headerParts.push(`الدرجة ${formatArabicNumber(q.marks)}`);
-  if (q.lessonName) headerParts.push(q.lessonName);
-  const meta = headerParts.join(" | ");
-
   let answerBlock = "";
   if (q.type === "mcq" && Array.isArray(q.options) && q.options.length) {
     const optionsHtml = q.options
@@ -799,17 +837,21 @@ function renderAnswerKeyQuestionBlock(q) {
 
   return `
     <article class="question-block">
-      <div class="question-header">${escapeHtmlAr(meta)}</div>
-      <div class="question-text">${escapeHtmlAr(q.text ?? "")}</div>
+      <div class="question-text">
+        <span class="exam-question-line-index">${escapeHtmlAr(
+          formatArabicNumber(getDisplayQuestionNumber(q)),
+        )}.</span>
+        <span>${escapeHtmlAr(q.text ?? "")}</span>
+      </div>
       ${answerBlock}
     </article>
   `;
 }
 
-function renderAnswerKeySection(section) {
+function renderAnswerKeySection(section, sectionIndex) {
   return `
     <section class="exam-section">
-      ${renderSectionTitle(section.title)}
+      ${renderMainSectionHeader(section, sectionIndex)}
       <div class="exam-section-questions">
         ${section.questions.map(renderAnswerKeyQuestionBlock).join("")}
       </div>
@@ -868,7 +910,9 @@ export function buildExamPaperHtml(enrichedExam) {
   const header = renderExamHeader(vm.examMeta);
   const student = renderStudentBlock();
 
-  const sectionsHtml = vm.sections.map(renderPaperSection).join("");
+  const sectionsHtml = vm.sections
+    .map((section, index) => renderPaperSection(section, index))
+    .join("");
 
   return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -1007,7 +1051,9 @@ export function buildExamAnswerFormHtml(enrichedExam) {
 export function buildExamAnswerKeyHtml(enrichedExam) {
   const vm = buildExamExportViewModel(enrichedExam);
   const header = renderExamHeader(vm.examMeta);
-  const sectionsHtml = vm.sections.map(renderAnswerKeySection).join("");
+  const sectionsHtml = vm.sections
+    .map((section, index) => renderAnswerKeySection(section, index))
+    .join("");
 
   return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">

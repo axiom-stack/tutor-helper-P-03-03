@@ -64,8 +64,9 @@ function sampleAssignment() {
     lesson_name: "دورة الماء",
     type: "written",
     updated_at: "2026-03-10T08:00:00.000Z",
-    description: "مهمة قصيرة حول دورة الماء.",
-    content: "أجب عن الأسئلة التالية...\n1. ما هو التبخر؟",
+    description: "مهمة قصيرة حول دورة الماء Unit 3 (2026).",
+    content:
+      "أجب عن الأسئلة التالية...\n1) ما هو التبخر؟\n2) Explain evaporation in one sentence.",
   };
 }
 
@@ -83,8 +84,8 @@ function sampleExam() {
       {
         question_number: 1,
         question_type: "multiple_choice",
-        question_text: "اختر الإجابة الصحيحة",
-        options: ["التبخر", "الانصهار", "التجمد"],
+        question_text: "اختر الإجابة الصحيحة (Q1): Water cycle",
+        options: ["التبخر", "الانصهار", "التجمد", "Condensation"],
         correct_option_index: 0,
         answer_text: "التبخر",
         lesson_name: "دورة الماء",
@@ -94,7 +95,7 @@ function sampleExam() {
       {
         question_number: 2,
         question_type: "true_false",
-        question_text: "الماء يتبخر عند التسخين.",
+        question_text: "الماء يتبخر عند التسخين (100C).",
         correct_answer: true,
         answer_text: "صح",
         lesson_name: "دورة الماء",
@@ -104,7 +105,8 @@ function sampleExam() {
       {
         question_number: 3,
         question_type: "fill_blank",
-        question_text: "تسمى عملية تحول الماء من سائل إلى بخار بـ ______.",
+        question_text:
+          "تسمى عملية تحول الماء من سائل إلى بخار بـ ______. (Process ID: A-12)",
         answer_text: "التبخر",
         lesson_name: "دورة الماء",
         bloom_level_label: "الفهم",
@@ -114,9 +116,20 @@ function sampleExam() {
   };
 }
 
-async function unzipDocumentXml(buffer) {
+async function unzipXmlParts(buffer) {
   const zip = await JSZip.loadAsync(buffer);
-  return zip.file("word/document.xml")?.async("string");
+  const parts = {};
+  for (const path of Object.keys(zip.files)) {
+    if (
+      /^word\/(document\.xml|styles\.xml|numbering\.xml|header\d+\.xml|footer\d+\.xml)$/u.test(
+        path,
+      )
+    ) {
+      const file = zip.file(path);
+      if (file) parts[path] = await file.async("string");
+    }
+  }
+  return parts;
 }
 
 function assertHtmlHasRtl(html) {
@@ -125,9 +138,11 @@ function assertHtmlHasRtl(html) {
 }
 
 async function assertDocxHasRtl(buffer, { expectTableRtl = false } = {}) {
-  const documentXml = await unzipDocumentXml(buffer);
+  const parts = await unzipXmlParts(buffer);
+  const documentXml = parts["word/document.xml"];
   assert.ok(documentXml, "DOCX should contain word/document.xml");
   assert.match(documentXml, /w:bidi/u);
+  assert.match(documentXml, /w:rtl/u);
 
   const sectPrStart = documentXml.lastIndexOf("<w:sectPr>");
   assert.ok(sectPrStart >= 0, "DOCX should contain final section properties");
@@ -138,6 +153,15 @@ async function assertDocxHasRtl(buffer, { expectTableRtl = false } = {}) {
 
   if (expectTableRtl) {
     assert.match(documentXml, /w:bidiVisual/u);
+  }
+
+  for (const xml of Object.values(parts)) {
+    if (/<w:p/u.test(xml)) {
+      assert.match(xml, /w:bidi/u);
+    }
+    if (/<w:r/u.test(xml)) {
+      assert.match(xml, /w:rtl/u);
+    }
   }
 }
 

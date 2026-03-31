@@ -7,18 +7,22 @@ const slots = [
   {
     slot_id: "q_1",
     question_type: "multiple_choice",
+    marks: 2,
   },
   {
     slot_id: "q_2",
     question_type: "true_false",
+    marks: 2,
   },
   {
     slot_id: "q_3",
     question_type: "fill_blank",
+    marks: 2,
   },
   {
     slot_id: "q_4",
     question_type: "open_ended",
+    marks: 2,
   },
 ];
 

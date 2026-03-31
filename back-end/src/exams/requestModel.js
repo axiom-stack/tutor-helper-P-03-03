@@ -12,19 +12,6 @@ function parsePositiveInteger(value) {
   return n;
 }
 
-function parsePositiveNumber(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n) || n <= 0) {
-    return null;
-  }
-  return n;
-}
-
-function isQuarterStep(value) {
-  const scaled = Number(value) * 4;
-  return Math.abs(scaled - Math.round(scaled)) < 1e-9;
-}
-
 function isIsoDateString(value) {
   if (typeof value !== "string" || !value.trim()) {
     return false;
@@ -38,7 +25,7 @@ export function validateGenerateExamRequest(payload) {
 
   const subjectId = parsePositiveInteger(request.subject_id);
   const totalQuestions = parsePositiveInteger(request.total_questions);
-  const totalMarks = parsePositiveNumber(request.total_marks);
+  const totalMarks = parsePositiveInteger(request.total_marks);
   const durationMinutes = parsePositiveInteger(request.duration_minutes);
   const title = normalizeString(request.title);
 
@@ -93,19 +80,14 @@ export function validateGenerateExamRequest(payload) {
   if (!totalMarks) {
     errors.push({
       field: "total_marks",
-      message: "total_marks must be a positive number",
-    });
-  } else if (!isQuarterStep(totalMarks)) {
-    errors.push({
-      field: "total_marks",
-      message: "total_marks must be in 0.25 increments",
+      message: "total_marks must be a positive integer",
     });
   }
 
-  if (totalQuestions && totalMarks && totalMarks * 4 < totalQuestions) {
+  if (totalQuestions && totalMarks && totalMarks < totalQuestions) {
     errors.push({
       field: "total_marks",
-      message: "total_marks must allocate at least 0.25 mark per question",
+      message: "total_marks must allocate at least 1 mark per question",
     });
   }
 
