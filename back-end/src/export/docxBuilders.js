@@ -26,6 +26,7 @@ const RTL_BIDI = { bidirectional: true };
 const RTL_PARAGRAPH = {
   alignment: AlignmentType.RIGHT,
   bidirectional: true,
+  bidi: true,
 };
 
 const DOC_STYLES = {

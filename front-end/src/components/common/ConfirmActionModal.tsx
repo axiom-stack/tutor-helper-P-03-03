@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import './confirm-action-modal.css';
 
 export interface ConfirmActionContext {
@@ -34,7 +35,7 @@ export default function ConfirmActionModal({
     return null;
   }
 
-  return (
+  return createPortal(
     <div className="cam__backdrop" role="presentation" onClick={() => !isLoading && onCancel()}>
       <div className="cam__modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
         <h3>{title}</h3>
@@ -54,6 +55,7 @@ export default function ConfirmActionModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

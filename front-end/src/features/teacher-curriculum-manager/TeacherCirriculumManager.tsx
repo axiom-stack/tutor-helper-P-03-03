@@ -1642,13 +1642,20 @@ function TeacherCirriculumManager(props: {
                         selectedClassSections.length === 0
                       }
                     >
-                      <option value="">اختر الشعبة</option>
+                      <option value="">
+                        {selectedClassBaseKey === ''
+                          ? 'يرجى اختيار الصف أولاً ثم الشعبة'
+                          : 'اختر الشعبة'}
+                      </option>
                       {selectedClassSections.map((classItem) => (
                         <option key={classItem.id} value={classItem.id}>
                           {getClassSectionLabel(classItem)}
                         </option>
                       ))}
                     </select>
+                    <small className="tcm2__field-hint">
+                      يتم تمكين الشعبة بعد البدء باختيار الصف المحفوظ أعلاه.
+                    </small>
                   </div>
                 </>
               ) : (

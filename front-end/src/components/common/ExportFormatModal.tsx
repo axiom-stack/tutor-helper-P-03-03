@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import './whatsapp-export-modal.css';
 
 export interface ExportFormatSelection {
@@ -38,7 +39,7 @@ export default function ExportFormatModal({
     void Promise.resolve(onConfirm({ format }));
   };
 
-  return (
+  return createPortal(
     <div
       className="wa-export__backdrop"
       role="presentation"
@@ -92,6 +93,7 @@ export default function ExportFormatModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

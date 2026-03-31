@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { MdPhoneIphone, MdComputer, MdInfoOutline } from 'react-icons/md';
 import { isMobileDevice } from '../../utils/whatsapp';
 import './whatsapp-export-modal.css';
@@ -39,7 +40,7 @@ export default function WhatsAppExportModal({
     void Promise.resolve(onConfirm({ format }));
   };
 
-  return (
+  return createPortal(
     <div
       className="wa-export__backdrop"
       role="presentation"
@@ -141,6 +142,7 @@ export default function WhatsAppExportModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

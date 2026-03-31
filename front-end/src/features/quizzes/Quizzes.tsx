@@ -77,6 +77,13 @@ interface ExamDraft {
   questions: ExamQuestion[];
 }
 
+interface ExamEditorQuestionGroup {
+  id: string;
+  title: string;
+  questionTypes: ExamQuestion['question_type'][];
+  questions: ExamQuestion[];
+}
+
 interface ClassGroup {
   key: string;
   baseClass: Class;
@@ -545,6 +552,56 @@ function splitLines(value: string): string[] {
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean);
+}
+
+function groupEditorQuestions(
+  questions: ExamQuestion[]
+): ExamEditorQuestionGroup[] {
+  const groups: ExamEditorQuestionGroup[] = [];
+  const knownTypes = new Set<ExamQuestion['question_type']>();
+
+  PAPER_SECTION_GROUPS.forEach((section) => {
+    section.questionTypes.forEach((questionType) => knownTypes.add(questionType));
+    const sectionQuestions = questions.filter((question) =>
+      section.questionTypes.includes(question.question_type)
+    );
+    if (!sectionQuestions.length) {
+      return;
+    }
+
+    groups.push({
+      id: section.id,
+      title: section.title,
+      questionTypes: [...section.questionTypes],
+      questions: sectionQuestions,
+    });
+  });
+
+  const unknownTypes = Array.from(
+    new Set(
+      questions
+        .map((question) => question.question_type)
+        .filter((questionType) => !knownTypes.has(questionType))
+    )
+  );
+
+  unknownTypes.forEach((questionType) => {
+    const sectionQuestions = questions.filter(
+      (question) => question.question_type === questionType
+    );
+    if (!sectionQuestions.length) {
+      return;
+    }
+
+    groups.push({
+      id: `other_${questionType}`,
+      title: QUESTION_TYPE_LABELS[questionType],
+      questionTypes: [questionType],
+      questions: sectionQuestions,
+    });
+  });
+
+  return groups;
 }
 
 export default function Quizzes() {
@@ -1606,6 +1663,10 @@ export default function Quizzes() {
   const displayedExamQuestions = isEditingExam
     ? (examDraft?.questions ?? [])
     : (selectedExam?.questions ?? []);
+  const groupedEditorQuestions = useMemo(
+    () => groupEditorQuestions(displayedExamQuestions),
+    [displayedExamQuestions]
+  );
 
   const examDetailsView = selectedExam ? (
     <div
@@ -1754,236 +1815,229 @@ export default function Quizzes() {
 
           {isEditingExam ? (
             <>
-              {selectedExam.blueprint?.cells && (
-                <section className="qz__blueprint">
-                  <h5>مصفوفة جدول المواصفات</h5>
-                  <div className="qz__table-wrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>الدرس</th>
-                          <th>المستوى</th>
-                          <th>وزن الدرس</th>
-                          <th>وزن المستوى</th>
-                          <th>وزن الخلية</th>
-                          <th>الأسئلة</th>
-                          <th>الدرجات</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedExam.blueprint.cells.map((cell, index) => (
-                          <tr key={`${cell.lesson_id}-${cell.level}-${index}`}>
-                            <td>{cell.lesson_name}</td>
-                            <td>{cell.level_label}</td>
-                            <td>{cell.topic_weight}</td>
-                            <td>{cell.level_weight}</td>
-                            <td>{cell.cell_weight}</td>
-                            <td>{cell.question_count}</td>
-                            <td>{cell.cell_marks}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
-              )}
-
               <section className="qz__questions qz__questions--editor">
                 <h5>الأسئلة والإجابات</h5>
                 {displayedExamQuestions.length > 0 ? (
-                  displayedExamQuestions.map((question) => (
-                    <article
-                      key={question.slot_id}
-                      className="qz__question-card"
-                    >
-                      <div className="qz__question-meta">
-                        <strong>س{question.question_number}</strong>
-                        <span>
-                          {QUESTION_TYPE_LABELS[question.question_type]}
-                        </span>
-                        <span>{question.bloom_level_label}</span>
-                        <span>{question.marks} درجة</span>
-                        <span>{question.lesson_name}</span>
-                      </div>
-                      <div className="qz__question-editor">
-                        <label
-                          className="qz__editor-label"
-                          htmlFor={question.slot_id}
+                  groupedEditorQuestions.map((questionGroup) => (
+                    <section key={questionGroup.id} className="qz__questions-group">
+                      <h6 className="qz__questions-group-title">
+                        {toArabicDigits(questionGroup.title)}
+                      </h6>
+                      {questionGroup.questions.map((question) => (
+                        <article
+                          key={question.slot_id}
+                          className="qz__question-card"
                         >
-                          نص السؤال
-                        </label>
-                        <textarea
-                          id={question.slot_id}
-                          className="qz__edit-textarea"
-                          rows={4}
-                          value={question.question_text}
-                          onChange={(event) =>
-                            updateDraftQuestion(
-                              question.slot_id,
-                              (current) => ({
-                                ...current,
-                                question_text: event.target.value,
-                              })
-                            )
-                          }
-                        />
-
-                        {question.question_type === 'multiple_choice' ? (
-                          <>
+                          <div className="qz__question-meta">
+                            <strong>س{question.question_number}</strong>
+                            <span>
+                              {QUESTION_TYPE_LABELS[question.question_type]}
+                            </span>
+                            <span>{question.bloom_level_label}</span>
+                            <span>{question.lesson_name}</span>
+                          </div>
+                          <div className="qz__question-editor">
                             <div className="qz__question-edit-grid">
                               <label className="qz__editor-label">
-                                الخيار الصحيح
+                                الدرجة
                               </label>
-                              <select
-                                className="qz__edit-select"
-                                value={question.correct_option_index ?? 0}
+                              <input
+                                type="number"
+                                className="qz__edit-input"
+                                min={0.25}
+                                step={0.25}
+                                value={question.marks}
                                 onChange={(event) =>
                                   updateDraftQuestion(
                                     question.slot_id,
                                     (current) => ({
                                       ...current,
-                                      correct_option_index: Number(
-                                        event.target.value
-                                      ),
+                                      marks: Number(event.target.value),
                                     })
                                   )
                                 }
-                              >
-                                {(question.options ?? []).map((_, index) => (
-                                  <option
-                                    key={`${question.slot_id}-correct-${index}`}
-                                    value={index}
-                                  >
-                                    الخيار {formatArabicNumber(index + 1)}
-                                  </option>
-                                ))}
-                              </select>
+                              />
                             </div>
-                            <div className="qz__options-edit">
-                              {(question.options ?? []).map((option, index) => (
-                                <label
-                                  key={`${question.slot_id}-opt-edit-${index}`}
-                                  className="qz__option-edit-row"
-                                >
-                                  <span>{formatArabicNumber(index + 1)}</span>
-                                  <input
-                                    type="text"
-                                    className="qz__edit-input"
-                                    value={option}
-                                    onChange={(event) =>
-                                      updateDraftQuestion(
-                                        question.slot_id,
-                                        (current) => {
-                                          const nextOptions = [
-                                            ...(current.options ?? []),
-                                          ];
-                                          nextOptions[index] =
-                                            event.target.value;
-                                          return {
-                                            ...current,
-                                            options: nextOptions,
-                                          };
-                                        }
-                                      )
-                                    }
-                                  />
-                                </label>
-                              ))}
-                            </div>
-                          </>
-                        ) : null}
-
-                        {question.question_type === 'true_false' ? (
-                          <div className="qz__question-edit-grid">
-                            <label className="qz__editor-label">
-                              الإجابة الصحيحة
-                            </label>
-                            <select
-                              className="qz__edit-select"
-                              value={question.correct_answer ? 'true' : 'false'}
-                              onChange={(event) =>
-                                updateDraftQuestion(
-                                  question.slot_id,
-                                  (current) => ({
-                                    ...current,
-                                    correct_answer:
-                                      event.target.value === 'true',
-                                  })
-                                )
-                              }
+                            <label
+                              className="qz__editor-label"
+                              htmlFor={question.slot_id}
                             >
-                              <option value="true">صحيح</option>
-                              <option value="false">خطأ</option>
-                            </select>
-                          </div>
-                        ) : null}
-
-                        {question.question_type === 'fill_blank' ? (
-                          <div className="qz__question-edit-grid">
-                            <label className="qz__editor-label">
-                              الإجابة النموذجية
+                              نص السؤال
                             </label>
                             <textarea
+                              id={question.slot_id}
                               className="qz__edit-textarea"
-                              rows={3}
-                              value={question.answer_text}
+                              rows={4}
+                              value={question.question_text}
                               onChange={(event) =>
                                 updateDraftQuestion(
                                   question.slot_id,
                                   (current) => ({
                                     ...current,
-                                    answer_text: event.target.value,
+                                    question_text: event.target.value,
                                   })
                                 )
                               }
                             />
-                          </div>
-                        ) : null}
 
-                        {question.question_type === 'open_ended' ? (
-                          <>
-                            <div className="qz__question-edit-grid">
-                              <label className="qz__editor-label">
-                                الإجابة النموذجية
-                              </label>
-                              <textarea
-                                className="qz__edit-textarea"
-                                rows={4}
-                                value={question.answer_text}
-                                onChange={(event) =>
-                                  updateDraftQuestion(
-                                    question.slot_id,
-                                    (current) => ({
-                                      ...current,
-                                      answer_text: event.target.value,
-                                    })
-                                  )
-                                }
-                              />
-                            </div>
-                            <div className="qz__question-edit-grid">
-                              <label className="qz__editor-label">
-                                معيار التصحيح
-                              </label>
-                              <textarea
-                                className="qz__edit-textarea"
-                                rows={4}
-                                value={joinLines(question.rubric)}
-                                onChange={(event) =>
-                                  updateDraftQuestion(
-                                    question.slot_id,
-                                    (current) => ({
-                                      ...current,
-                                      rubric: splitLines(event.target.value),
-                                    })
-                                  )
-                                }
-                              />
-                            </div>
-                          </>
-                        ) : null}
-                      </div>
-                    </article>
+                            {question.question_type === 'multiple_choice' ? (
+                              <>
+                                <div className="qz__question-edit-grid">
+                                  <label className="qz__editor-label">
+                                    الخيار الصحيح
+                                  </label>
+                                  <select
+                                    className="qz__edit-select"
+                                    value={question.correct_option_index ?? 0}
+                                    onChange={(event) =>
+                                      updateDraftQuestion(
+                                        question.slot_id,
+                                        (current) => ({
+                                          ...current,
+                                          correct_option_index: Number(
+                                            event.target.value
+                                          ),
+                                        })
+                                      )
+                                    }
+                                  >
+                                    {(question.options ?? []).map((_, index) => (
+                                      <option
+                                        key={`${question.slot_id}-correct-${index}`}
+                                        value={index}
+                                      >
+                                        الخيار {formatArabicNumber(index + 1)}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="qz__options-edit">
+                                  {(question.options ?? []).map((option, index) => (
+                                    <label
+                                      key={`${question.slot_id}-opt-edit-${index}`}
+                                      className="qz__option-edit-row"
+                                    >
+                                      <span>{formatArabicNumber(index + 1)}</span>
+                                      <input
+                                        type="text"
+                                        className="qz__edit-input"
+                                        value={option}
+                                        onChange={(event) =>
+                                          updateDraftQuestion(
+                                            question.slot_id,
+                                            (current) => {
+                                              const nextOptions = [
+                                                ...(current.options ?? []),
+                                              ];
+                                              nextOptions[index] =
+                                                event.target.value;
+                                              return {
+                                                ...current,
+                                                options: nextOptions,
+                                              };
+                                            }
+                                          )
+                                        }
+                                      />
+                                    </label>
+                                  ))}
+                                </div>
+                              </>
+                            ) : null}
+
+                            {question.question_type === 'true_false' ? (
+                              <div className="qz__question-edit-grid">
+                                <label className="qz__editor-label">
+                                  الإجابة الصحيحة
+                                </label>
+                                <select
+                                  className="qz__edit-select"
+                                  value={question.correct_answer ? 'true' : 'false'}
+                                  onChange={(event) =>
+                                    updateDraftQuestion(
+                                      question.slot_id,
+                                      (current) => ({
+                                        ...current,
+                                        correct_answer:
+                                          event.target.value === 'true',
+                                      })
+                                    )
+                                  }
+                                >
+                                  <option value="true">صحيح</option>
+                                  <option value="false">خطأ</option>
+                                </select>
+                              </div>
+                            ) : null}
+
+                            {question.question_type === 'fill_blank' ? (
+                              <div className="qz__question-edit-grid">
+                                <label className="qz__editor-label">
+                                  الإجابة النموذجية
+                                </label>
+                                <textarea
+                                  className="qz__edit-textarea"
+                                  rows={3}
+                                  value={question.answer_text}
+                                  onChange={(event) =>
+                                    updateDraftQuestion(
+                                      question.slot_id,
+                                      (current) => ({
+                                        ...current,
+                                        answer_text: event.target.value,
+                                      })
+                                    )
+                                  }
+                                />
+                              </div>
+                            ) : null}
+
+                            {question.question_type === 'open_ended' ? (
+                              <>
+                                <div className="qz__question-edit-grid">
+                                  <label className="qz__editor-label">
+                                    الإجابة النموذجية
+                                  </label>
+                                  <textarea
+                                    className="qz__edit-textarea"
+                                    rows={4}
+                                    value={question.answer_text}
+                                    onChange={(event) =>
+                                      updateDraftQuestion(
+                                        question.slot_id,
+                                        (current) => ({
+                                          ...current,
+                                          answer_text: event.target.value,
+                                        })
+                                      )
+                                    }
+                                  />
+                                </div>
+                                <div className="qz__question-edit-grid">
+                                  <label className="qz__editor-label">
+                                    معيار التصحيح
+                                  </label>
+                                  <textarea
+                                    className="qz__edit-textarea"
+                                    rows={4}
+                                    value={joinLines(question.rubric)}
+                                    onChange={(event) =>
+                                      updateDraftQuestion(
+                                        question.slot_id,
+                                        (current) => ({
+                                          ...current,
+                                          rubric: splitLines(event.target.value),
+                                        })
+                                      )
+                                    }
+                                  />
+                                </div>
+                              </>
+                            ) : null}
+                          </div>
+                        </article>
+                      ))}
+                    </section>
                   ))
                 ) : (
                   <p>لا توجد أسئلة لعرضها.</p>

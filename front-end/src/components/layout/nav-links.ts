@@ -29,7 +29,7 @@ export const ADMIN_MAIN_LINKS: SidebarLink[] = [
   { to: '/admin', label: 'لوحة الإدارة', icon: MdHome },
   { to: '/teachers', label: 'المعلمون', icon: MdGroup },
   { to: '/curriculum', label: 'المنهج الدراسي', icon: MdSchool },
-  { to: '/plans', label: 'الخطط الدراسية', icon: MdMenuBook },
+  { to: '/plans', label: 'مكتبة الخطط', icon: MdMenuBook },
   { to: '/quizzes', label: 'الاختبارات', icon: MdQuiz },
 ];
 

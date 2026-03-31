@@ -343,6 +343,46 @@ test("uses period_order as header.time when provided", async () => {
   assert.equal(result.plan_json?.header?.time, "الخامسة");
 });
 
+test("keeps header.lesson_title from request even when LLM returns a different title", async () => {
+  const llmDraft = createTraditionalPlan();
+  llmDraft.header.lesson_title = "عنوان مختلف من النموذج";
+  const llmTuned = createTraditionalPlan();
+  llmTuned.header.lesson_title = "عنوان مختلف من النموذج";
+  const llmResponses = [llmDraft, llmTuned].map((plan) => ({
+    ok: true,
+    data: plan,
+    rawText: JSON.stringify(plan),
+  }));
+
+  const service = createLessonPlanGenerationService(
+    createBaseDependencies({
+      llmClient: {
+        generateJson: async () => llmResponses.shift(),
+      },
+      repository: {
+        create: async (payload) => ({
+          db_id: 13,
+          public_id: "trd_13",
+          plan_type: payload.planType,
+          plan_json: payload.planJson,
+          validation_status: payload.validationStatus,
+          retry_occurred: Boolean(payload.retryOccurred),
+          created_at: "2026-03-09T00:00:00.000Z",
+          updated_at: "2026-03-09T00:00:00.000Z",
+        }),
+      },
+    }),
+  );
+
+  const result = await service.generate(requestPayload, {
+    teacherId: 2,
+    logger: { info() {}, warn() {}, error() {} },
+  });
+
+  assert.equal(result.plan_json?.header?.lesson_title, requestPayload.lesson_title);
+  assert.notEqual(result.plan_json?.header?.lesson_title, "عنوان مختلف من النموذج");
+});
+
 test("persists safe timing repair without retry", async () => {
   const savedPayloads = [];
   const prompt2Candidate = createTraditionalPlan();

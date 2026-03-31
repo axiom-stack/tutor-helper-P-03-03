@@ -10,6 +10,9 @@ export interface NormalizedApiError {
 export const AI_FREE_TIER_LIMIT_MESSAGE =
   'تعذر تنفيذ الطلب الآن لأن الباقة المجانية لخدمة الذكاء الاصطناعي وصلت إلى حدها المؤقت. يرجى الانتظار قليلًا ثم إعادة المحاولة.';
 
+const NETWORK_ERROR_MESSAGE =
+  'تعذر الاتصال بالخادم. يرجى التحقق من الاتصال بالإنترنت ثم إعادة المحاولة.';
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
@@ -72,6 +75,58 @@ function detailIndicatesAiRateLimit(detail: unknown): boolean {
   return includesRateLimitSignal(code) || includesRateLimitSignal(message);
 }
 
+function localizeBackendMessage(
+  rawMessage: string,
+  fallback: string,
+  status?: number
+): string {
+  const message = rawMessage.trim();
+  if (!message) {
+    return fallback;
+  }
+
+  const normalized = message.toLowerCase();
+
+  if (
+    normalized.includes('username already exists') ||
+    normalized.includes('duplicate username')
+  ) {
+    return 'اسم المستخدم مستخدم بالفعل. يرجى اختيار اسم مستخدم آخر.';
+  }
+
+  if (
+    normalized.includes('invalid credentials') ||
+    normalized.includes('unauthorized')
+  ) {
+    return 'بيانات الدخول غير صحيحة أو انتهت جلسة العمل.';
+  }
+
+  if (normalized.includes('network error')) {
+    return NETWORK_ERROR_MESSAGE;
+  }
+
+  if (status === 409) {
+    return 'تعذر تنفيذ العملية لأن البيانات موجودة مسبقًا. يرجى مراجعة البيانات والمحاولة مرة أخرى.';
+  }
+  if (status === 401) {
+    return 'بيانات الدخول غير صحيحة أو انتهت جلسة العمل.';
+  }
+  if (status === 403) {
+    return 'ليس لديك صلاحية للوصول إلى هذا المورد.';
+  }
+  if (status === 404) {
+    return 'المورد المطلوب غير موجود.';
+  }
+  if (status === 422) {
+    return fallback;
+  }
+  if (status === 500) {
+    return 'حدث خطأ في الخادم، يرجى المحاولة لاحقاً.';
+  }
+
+  return fallback;
+}
+
 export function getLocalizedAiLimitMessage(error: unknown): string | null {
   if (typeof error === 'string') {
     return includesRateLimitSignal(error) ? AI_FREE_TIER_LIMIT_MESSAGE : null;
@@ -118,11 +173,14 @@ export function normalizeApiError(
   }
 
   if (axios.isAxiosError(error)) {
+    const status = error.response?.status;
     const apiError = extractAssignmentsApiError(error.response?.data);
     if (apiError) {
       const localizedAiLimitMessage = getLocalizedAiLimitMessage(apiError);
       return {
-        message: localizedAiLimitMessage || apiError.message.trim() || fallback,
+        message:
+          localizedAiLimitMessage ||
+          localizeBackendMessage(apiError.message, fallback, status),
         code: apiError.code,
         details: apiError.details,
       };
@@ -132,26 +190,33 @@ export function normalizeApiError(
     if (error.response?.data && typeof error.response.data === 'object') {
       const data = error.response.data as Record<string, unknown>;
       if (typeof data.error === 'string' && data.error.trim().length > 0) {
-        return { message: data.error.trim() };
+        return {
+          message: localizeBackendMessage(data.error, fallback, status),
+        };
       }
       if (typeof data.message === 'string' && data.message.trim().length > 0) {
-        return { message: data.message.trim() };
+        return {
+          message: localizeBackendMessage(data.message, fallback, status),
+        };
       }
     }
 
-    if (error.response?.status === 401) {
-      // Check if there's a specific error message from the server
-      const serverError =
-        error.response?.data?.error || error.response?.data?.message;
-      if (typeof serverError === 'string' && serverError.trim()) {
-        return { message: serverError.trim() };
-      }
+    if (status === 401) {
       return { message: 'بيانات الدخول غير صحيحة أو انتهت جلسة العمل' };
     }
-    if (error.response?.status === 403) {
+    if (status === 403) {
       return { message: 'ليس لديك صلاحية للوصول إلى هذا المورد' };
     }
-    if (error.response?.status === 500) {
+    if (status === 404) {
+      return { message: 'المورد المطلوب غير موجود.' };
+    }
+    if (status === 409) {
+      return {
+        message:
+          'تعذر تنفيذ العملية لأن البيانات موجودة مسبقًا. يرجى مراجعة البيانات والمحاولة مرة أخرى.',
+      };
+    }
+    if (status === 500) {
       return { message: 'حدث خطأ في الخادم، يرجى المحاولة لاحقاً' };
     }
 
@@ -180,7 +245,7 @@ export function normalizeApiError(
     }
 
     if (rawMessage.length > 0 && !isGenericStatusMessage) {
-      return { message: rawMessage };
+      return { message: localizeBackendMessage(rawMessage, fallback, status) };
     }
 
     return { message: fallback };
@@ -192,7 +257,9 @@ export function normalizeApiError(
       return { message: localizedAiLimitMessage };
     }
 
-    return { message: error.message.trim() };
+    return {
+      message: localizeBackendMessage(error.message, fallback),
+    };
   }
 
   if (typeof error === 'string' && error.trim().length > 0) {
@@ -201,7 +268,9 @@ export function normalizeApiError(
       return { message: localizedAiLimitMessage };
     }
 
-    return { message: error.trim() };
+    return {
+      message: localizeBackendMessage(error, fallback),
+    };
   }
 
   return { message: fallback };

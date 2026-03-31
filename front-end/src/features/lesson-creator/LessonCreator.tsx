@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router';
 import {
@@ -1328,7 +1329,11 @@ function LessonCreator() {
                 <button
                   type="button"
                   className="lcp__btn-save"
-                  onClick={() => setScreen('generated')}
+                  onClick={() => {
+                    if (generatedPlan?.id) {
+                      navigate(`/plans/${generatedPlan.id}`);
+                    }
+                  }}
                 >
                   عرض
                 </button>
@@ -1360,78 +1365,81 @@ function LessonCreator() {
         </section>
       )}
 
-      {isProgressModalOpen ? (
-        <div
-          className="lcp__progress-backdrop"
-          role="presentation"
-          onClick={dismissProgressModal}
-        >
-          <section
-            className="lcp__progress-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="lcp-progress-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="lcp__timeline-head">
-              <h2 id="lcp-progress-title">
-                <MdViewTimeline aria-hidden />
-                حالة التنفيذ
-              </h2>
-              {isGenerating ? (
-                <span className="lcp__timeline-badge">
-                  <MdHourglassTop aria-hidden />
-                  جارٍ التنفيذ
-                </span>
-              ) : null}
-              {generationState === 'success' ? (
-                <span className="lcp__timeline-badge lcp__timeline-badge--success">
-                  <MdCheckCircle aria-hidden />
-                  اكتمل
-                </span>
-              ) : null}
-            </div>
+      {isProgressModalOpen
+        ? createPortal(
+            <div
+              className="lcp__progress-backdrop"
+              role="presentation"
+              onClick={dismissProgressModal}
+            >
+              <section
+                className="lcp__progress-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="lcp-progress-title"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="lcp__timeline-head">
+                  <h2 id="lcp-progress-title">
+                    <MdViewTimeline aria-hidden />
+                    حالة التنفيذ
+                  </h2>
+                  {isGenerating ? (
+                    <span className="lcp__timeline-badge">
+                      <MdHourglassTop aria-hidden />
+                      جارٍ التنفيذ
+                    </span>
+                  ) : null}
+                  {generationState === 'success' ? (
+                    <span className="lcp__timeline-badge lcp__timeline-badge--success">
+                      <MdCheckCircle aria-hidden />
+                      اكتمل
+                    </span>
+                  ) : null}
+                </div>
 
-            <p className="lcp__timeline-summary">{timelineSummary}</p>
+                <p className="lcp__timeline-summary">{timelineSummary}</p>
 
-            <ul className="lcp__timeline-list">
-              {TIMELINE_STEPS.map((step, index) => {
-                const status = getTimelineStatus(index);
-                return (
-                  <li
-                    key={step}
-                    className={`lcp__timeline-item lcp__timeline-item--${status}`}
-                  >
-                    <span className="lcp__timeline-dot" aria-hidden />
-                    <span>{step}</span>
-                  </li>
-                );
-              })}
-            </ul>
+                <ul className="lcp__timeline-list">
+                  {TIMELINE_STEPS.map((step, index) => {
+                    const status = getTimelineStatus(index);
+                    return (
+                      <li
+                        key={step}
+                        className={`lcp__timeline-item lcp__timeline-item--${status}`}
+                      >
+                        <span className="lcp__timeline-dot" aria-hidden />
+                        <span>{step}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
 
-            {generationState === 'error' ? (
-              <div className="lcp__progress-actions">
-                <button
-                  type="button"
-                  className="lcp__generate-btn"
-                  onClick={() => void handleGeneratePlan()}
-                  disabled={!canGenerate || isGenerating}
-                >
-                  إعادة المحاولة
-                </button>
-                <button
-                  type="button"
-                  className="lcp__clear-btn"
-                  onClick={dismissProgressModal}
-                  disabled={isGenerating}
-                >
-                  إغلاق
-                </button>
-              </div>
-            ) : null}
-          </section>
-        </div>
-      ) : null}
+                {generationState === 'error' ? (
+                  <div className="lcp__progress-actions">
+                    <button
+                      type="button"
+                      className="lcp__generate-btn"
+                      onClick={() => void handleGeneratePlan()}
+                      disabled={!canGenerate || isGenerating}
+                    >
+                      إعادة المحاولة
+                    </button>
+                    <button
+                      type="button"
+                      className="lcp__clear-btn"
+                      onClick={dismissProgressModal}
+                      disabled={isGenerating}
+                    >
+                      إغلاق
+                    </button>
+                  </div>
+                ) : null}
+              </section>
+            </div>,
+            document.body
+          )
+        : null}
 
       <ExportFormatModal
         isOpen={isExportModalOpen}

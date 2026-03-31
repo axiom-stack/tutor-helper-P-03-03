@@ -22,7 +22,9 @@ export async function ensureDocxRtl(buffer) {
   }
 
   const documentXml = await xmlFile.async("string");
-  const updatedXml = addSectionBidiFlag(documentXml);
+  const updatedXml = addRunRtlFlags(
+    addParagraphBidiFlags(addSectionBidiFlag(documentXml)),
+  );
 
   if (updatedXml === documentXml) {
     return buffer;
@@ -57,4 +59,22 @@ function addSectionBidiFlag(documentXml) {
     "<w:bidi/>" +
     documentXml.slice(insertAt)
   );
+}
+
+function addParagraphBidiFlags(documentXml) {
+  return documentXml.replace(/<w:pPr>([\s\S]*?)<\/w:pPr>/g, (match, inner) => {
+    if (inner.includes("<w:bidi/>")) {
+      return match;
+    }
+    return `<w:pPr><w:bidi/>${inner}</w:pPr>`;
+  });
+}
+
+function addRunRtlFlags(documentXml) {
+  return documentXml.replace(/<w:rPr>([\s\S]*?)<\/w:rPr>/g, (match, inner) => {
+    if (inner.includes("<w:rtl/>")) {
+      return match;
+    }
+    return `<w:rPr><w:rtl/>${inner}</w:rPr>`;
+  });
 }

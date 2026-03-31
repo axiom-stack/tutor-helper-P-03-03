@@ -975,6 +975,8 @@ export function createLessonPlanGenerationService(dependencies = {}) {
       if (!isPlainObject(candidatePlan.header)) {
         candidatePlan.header = {};
       }
+      // Keep the persisted/rendered lesson title exactly as submitted in the form.
+      candidatePlan.header.lesson_title = request.lesson_title;
       candidatePlan.header.date = now.toLocaleDateString("ar-SA", {
         year: "numeric",
         month: "2-digit",
