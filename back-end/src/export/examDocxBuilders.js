@@ -33,6 +33,7 @@ import {
 } from "./examViewModel.js";
 import { parseImageDataUrl } from "../utils/imageDataUrl.js";
 import { ensureDocxRtl } from "./docxRtl.js";
+import { renderDocxWithPython } from "./pythonDocxBridge.js";
 import {
   createArabicCenteredParagraph,
   createArabicParagraph,
@@ -702,11 +703,47 @@ function buildObjectiveSectionTable(section) {
   });
 }
 
+function buildExamDocxPayload(enrichedExam, type) {
+  const viewModel = buildExamExportViewModel(enrichedExam);
+  const examMeta = viewModel.examMeta ?? {};
+
+  return {
+    type,
+    exam: {
+      public_id: enrichedExam?.public_id ?? examMeta.id ?? "exam",
+      title: examMeta.title ?? "—",
+      teacher_name: examMeta.teacherName ?? "—",
+      class_name: examMeta.className ?? "—",
+      class_grade_label: examMeta.grade ?? null,
+      class_section_label: examMeta.section ?? null,
+      subject_name: examMeta.subject ?? "—",
+      date: examMeta.date ?? "—",
+      duration_minutes: enrichedExam?.duration_minutes ?? null,
+      total_questions: examMeta.totalQuestions ?? 0,
+      total_marks: examMeta.totalMarks ?? 0,
+      term: examMeta.term ?? null,
+      academic_year: examMeta.academicYear ?? null,
+      school_name: examMeta.schoolName ?? null,
+      school_logo_url: examMeta.schoolLogoUrl ?? null,
+    },
+    viewModel,
+    blueprint: enrichedExam?.blueprint ?? null,
+  };
+}
+
+async function buildExamDocxWithPython(enrichedExam, type) {
+  return await renderDocxWithPython({
+    scriptName: "generate_exam_docx.py",
+    outputFileName: `exam_${type}.docx`,
+    payload: buildExamDocxPayload(enrichedExam, type),
+  });
+}
+
 // ═══════════════════════════════════════════════════════════
 // Exported builders
 // ═══════════════════════════════════════════════════════════
 
-export async function buildExamPaperDocx(enrichedExam) {
+async function buildExamPaperDocxJs(enrichedExam) {
   const vm = buildExamExportViewModel(enrichedExam);
   const children = [];
 
@@ -733,7 +770,7 @@ export async function buildExamPaperDocx(enrichedExam) {
   return await ensureDocxRtl(buffer);
 }
 
-export async function buildExamAnswerFormDocx(enrichedExam) {
+async function buildExamAnswerFormDocxJs(enrichedExam) {
   const vm = buildExamExportViewModel(enrichedExam);
   const children = [];
 
@@ -793,7 +830,7 @@ export async function buildExamAnswerFormDocx(enrichedExam) {
   return await ensureDocxRtl(buffer);
 }
 
-export async function buildExamAnswerKeyDocx(enrichedExam) {
+async function buildExamAnswerKeyDocxJs(enrichedExam) {
   const vm = buildExamExportViewModel(enrichedExam);
   const children = [];
 
@@ -817,4 +854,28 @@ export async function buildExamAnswerKeyDocx(enrichedExam) {
 
   const buffer = await Packer.toBuffer(doc);
   return await ensureDocxRtl(buffer);
+}
+
+export async function buildExamPaperDocx(enrichedExam) {
+  const pythonBuffer = await buildExamDocxWithPython(enrichedExam, "questions_only");
+  if (pythonBuffer) {
+    return pythonBuffer;
+  }
+  return await buildExamPaperDocxJs(enrichedExam);
+}
+
+export async function buildExamAnswerFormDocx(enrichedExam) {
+  const pythonBuffer = await buildExamDocxWithPython(enrichedExam, "answer_form");
+  if (pythonBuffer) {
+    return pythonBuffer;
+  }
+  return await buildExamAnswerFormDocxJs(enrichedExam);
+}
+
+export async function buildExamAnswerKeyDocx(enrichedExam) {
+  const pythonBuffer = await buildExamDocxWithPython(enrichedExam, "answer_key");
+  if (pythonBuffer) {
+    return pythonBuffer;
+  }
+  return await buildExamAnswerKeyDocxJs(enrichedExam);
 }
