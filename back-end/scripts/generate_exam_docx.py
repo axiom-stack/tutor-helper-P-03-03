@@ -93,6 +93,43 @@ def configure_section(section, landscape: bool = False):
     section.right_margin = Cm(1.0)
 
 
+def set_default_style_rtl(doc: Document):
+    normal = doc.styles["Normal"]
+    normal.font.name = FONT_NAME
+    normal.font.size = Pt(12)
+    normal.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+
+    rpr = normal._element.rPr
+    if rpr is None:
+        rpr = make_element("w:rPr")
+        normal._element.insert(0, rpr)
+
+    rfonts = rpr.find(qn("w:rFonts"))
+    if rfonts is None:
+        rfonts = make_element("w:rFonts")
+        rpr.insert(0, rfonts)
+
+    rfonts.set(qn("w:ascii"), FONT_NAME)
+    rfonts.set(qn("w:hAnsi"), FONT_NAME)
+    rfonts.set(qn("w:cs"), FONT_NAME)
+    rfonts.set(qn("w:eastAsia"), FONT_NAME)
+
+    ppr = normal._element.pPr
+    if ppr is None:
+        ppr = make_element("w:pPr")
+        normal._element.append(ppr)
+
+    if ppr.find(qn("w:bidi")) is None:
+        ppr.insert(0, make_element("w:bidi"))
+
+    jc = ppr.find(qn("w:jc"))
+    if jc is None:
+        jc = make_element("w:jc", {"w:val": "right"})
+        ppr.append(jc)
+    else:
+        jc.set(qn("w:val"), "right")
+
+
 def set_table_rtl(table):
     table.alignment = WD_TABLE_ALIGNMENT.RIGHT
     table.autofit = False
@@ -534,6 +571,7 @@ def add_document_header(doc: Document, exam_meta: dict[str, Any], title: str):
 def build_document(payload: dict[str, Any]) -> Document:
     doc = Document()
     configure_section(doc.sections[0], landscape=False)
+    set_default_style_rtl(doc)
     set_doc_rtl(doc)
 
     view_model = payload.get("viewModel") or {}

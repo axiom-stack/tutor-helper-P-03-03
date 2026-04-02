@@ -10,6 +10,9 @@ const SCRIPT_DIR = path.resolve(
 
 const DEFAULT_PYTHON_PATH =
   process.env.PYTHON_BIN || process.env.PYTHON_PATH || "python3";
+const EXAM_DOCX_PYTHON_ONLY = /^(1|true|yes|on)$/iu.test(
+  String(process.env.EXAM_DOCX_PYTHON_ONLY ?? ""),
+);
 
 function isMissingPythonPackageError(error) {
   const message = `${error?.message ?? ""}\n${error?.traceback ?? ""}`;
@@ -40,9 +43,20 @@ async function loadPythonShell() {
     }
   } catch (error) {
     if (isPythonUnavailableError(error)) {
+      if (EXAM_DOCX_PYTHON_ONLY) {
+        throw new Error(
+          `python-shell is unavailable and EXAM_DOCX_PYTHON_ONLY is enabled: ${error.message}`,
+        );
+      }
       return null;
     }
     throw error;
+  }
+
+  if (EXAM_DOCX_PYTHON_ONLY) {
+    throw new Error(
+      "python-shell did not expose a runnable PythonShell API and EXAM_DOCX_PYTHON_ONLY is enabled",
+    );
   }
 
   return null;
@@ -76,6 +90,11 @@ export async function renderDocxWithPython({
 }) {
   const PythonShell = await loadPythonShell();
   if (!PythonShell) {
+    if (EXAM_DOCX_PYTHON_ONLY) {
+      throw new Error(
+        "Python DOCX export is forced, but the Python bridge could not be loaded.",
+      );
+    }
     return null;
   }
 
@@ -102,6 +121,9 @@ export async function renderDocxWithPython({
     return await fs.readFile(outputPath);
   } catch (error) {
     if (isMissingPythonPackageError(error) || isPythonUnavailableError(error)) {
+      if (EXAM_DOCX_PYTHON_ONLY) {
+        throw error;
+      }
       return null;
     }
     throw error;
