@@ -7,6 +7,7 @@ import type { PreparationType, UserProfileUpdatePayload } from '../../types';
 import { PREPARATION_TYPE_OPTIONS } from '../../types';
 import { LANGUAGE_OPTIONS } from '../../constants/dropdown-options';
 import { normalizeApiError } from '../../utils/apiErrors';
+import { normalizeImageUploadError } from '../../utils/imageUploadErrors';
 import { syncDisplayLanguageCookie } from '../../utils/displayLanguage';
 import { getMyProfile, updateMyProfile } from '../users/users.services';
 import './settings.css';
@@ -27,6 +28,12 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const showLogoError = (errorValue: unknown, fallback: string) => {
+    const message = normalizeImageUploadError(errorValue, fallback);
+    setLogoError(message);
+    toast.error(message);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -81,18 +88,19 @@ export default function Settings() {
     }
 
     if (!file.type.startsWith('image/')) {
-      const message = 'يرجى اختيار ملف صورة صالح.';
-      setLogoError(message);
-      toast.error(message);
+      showLogoError(
+        { code: 'INVALID_IMAGE_TYPE' },
+        'يرجى اختيار ملف صورة صالح.'
+      );
       return;
     }
 
     const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024;
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      const message =
-        'حجم الصورة كبير جدًا. الرجاء اختيار صورة أقل من 2 ميغابايت.';
-      setLogoError(message);
-      toast.error(message);
+      showLogoError(
+        { code: 'IMAGE_FILE_TOO_LARGE' },
+        'حجم الصورة كبير جدًا. الرجاء اختيار صورة أقل من 2 ميغابايت.'
+      );
       return;
     }
 
@@ -100,9 +108,10 @@ export default function Settings() {
     reader.onload = () => {
       const result = typeof reader.result === 'string' ? reader.result : null;
       if (!result) {
-        const message = 'تعذر قراءة صورة الشعار.';
-        setLogoError(message);
-        toast.error(message);
+        showLogoError(
+          reader.error ?? { code: 'IMAGE_READ_FAILED' },
+          'تعذر قراءة صورة الشعار.'
+        );
         return;
       }
 
@@ -136,16 +145,18 @@ export default function Settings() {
         );
       };
       image.onerror = () => {
-        const message = 'الصورة تالفة أو غير قابلة للقراءة.';
-        setLogoError(message);
-        toast.error(message);
+        showLogoError(
+          { code: 'IMAGE_CORRUPT' },
+          'الصورة تالفة أو غير قابلة للقراءة.'
+        );
       };
       image.src = result;
     };
     reader.onerror = () => {
-      const message = 'تعذر قراءة صورة الشعار.';
-      setLogoError(message);
-      toast.error(message);
+      showLogoError(
+        reader.error ?? { code: 'IMAGE_READ_FAILED' },
+        'تعذر قراءة صورة الشعار.'
+      );
     };
     reader.readAsDataURL(file);
   };
@@ -182,10 +193,10 @@ export default function Settings() {
         setTimeout(() => window.location.reload(), 100);
       }
     } catch (saveError: unknown) {
-      const message = normalizeApiError(
+      const message = normalizeImageUploadError(
         saveError,
-        'فشل حفظ الإعدادات.'
-      ).message;
+        normalizeApiError(saveError, 'فشل حفظ الإعدادات.').message
+      );
       setError(message);
       toast.error(message);
     } finally {

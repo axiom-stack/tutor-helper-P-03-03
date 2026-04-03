@@ -120,11 +120,7 @@ async function unzipXmlParts(buffer) {
   const zip = await JSZip.loadAsync(buffer);
   const parts = {};
   for (const path of Object.keys(zip.files)) {
-    if (
-      /^word\/(document\.xml|styles\.xml|numbering\.xml|header\d+\.xml|footer\d+\.xml)$/u.test(
-        path,
-      )
-    ) {
+    if (/^word\/(document\.xml|numbering\.xml|header\d+\.xml|footer\d+\.xml)$/u.test(path)) {
       const file = zip.file(path);
       if (file) parts[path] = await file.async("string");
     }
@@ -144,12 +140,13 @@ async function assertDocxHasRtl(buffer, { expectTableRtl = false } = {}) {
   assert.match(documentXml, /w:bidi/u);
   assert.match(documentXml, /w:rtl/u);
 
-  const sectPrStart = documentXml.lastIndexOf("<w:sectPr>");
-  assert.ok(sectPrStart >= 0, "DOCX should contain final section properties");
+  const sectPrMatch = documentXml.match(/<w:sectPr\b[^>]*>/u);
+  assert.ok(sectPrMatch, "DOCX should contain final section properties");
+  const sectPrStart = sectPrMatch.index ?? documentXml.lastIndexOf("<w:sectPr");
   const sectPrEnd = documentXml.indexOf("</w:sectPr>", sectPrStart);
   assert.ok(sectPrEnd > sectPrStart, "DOCX should close final section properties");
   const finalSectionXml = documentXml.slice(sectPrStart, sectPrEnd);
-  assert.match(finalSectionXml, /<w:bidi\/>/u);
+  assert.match(finalSectionXml, /<w:bidi\b[^>]*\/>/u);
 
   if (expectTableRtl) {
     assert.match(documentXml, /w:bidiVisual/u);

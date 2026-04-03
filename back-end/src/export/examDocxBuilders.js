@@ -34,6 +34,7 @@ import {
 import { parseImageDataUrl } from "../utils/imageDataUrl.js";
 import { ensureDocxRtl } from "./docxRtl.js";
 import { renderDocxWithPython } from "./pythonDocxBridge.js";
+import { renderExamDocxFromTemplate } from "./examTemplateDocx.js";
 import {
   createArabicCenteredParagraph,
   createArabicParagraph,
@@ -857,11 +858,7 @@ async function buildExamAnswerKeyDocxJs(enrichedExam) {
 }
 
 export async function buildExamPaperDocx(enrichedExam) {
-  const pythonBuffer = await buildExamDocxWithPython(enrichedExam, "questions_only");
-  if (pythonBuffer) {
-    return pythonBuffer;
-  }
-  return await buildExamPaperDocxJs(enrichedExam);
+  return await renderExamDocxFromTemplate(enrichedExam);
 }
 
 export async function buildExamAnswerFormDocx(enrichedExam) {

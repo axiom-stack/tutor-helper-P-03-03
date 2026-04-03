@@ -13,6 +13,9 @@ export const AI_FREE_TIER_LIMIT_MESSAGE =
 const NETWORK_ERROR_MESSAGE =
   'تعذر الاتصال بالخادم. يرجى التحقق من الاتصال بالإنترنت ثم إعادة المحاولة.';
 
+const PAYLOAD_TOO_LARGE_MESSAGE =
+  'حجم الصورة أو البيانات المرسلة كبير جدًا. يرجى استخدام نسخة أصغر.';
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
@@ -117,6 +120,9 @@ function localizeBackendMessage(
   if (status === 404) {
     return 'المورد المطلوب غير موجود.';
   }
+  if (status === 413) {
+    return PAYLOAD_TOO_LARGE_MESSAGE;
+  }
   if (status === 422) {
     return fallback;
   }
@@ -189,14 +195,17 @@ export function normalizeApiError(
     // Handle generic axios errors with status codes
     if (error.response?.data && typeof error.response.data === 'object') {
       const data = error.response.data as Record<string, unknown>;
+      const code = typeof data.code === 'string' ? data.code : undefined;
       if (typeof data.error === 'string' && data.error.trim().length > 0) {
         return {
           message: localizeBackendMessage(data.error, fallback, status),
+          code,
         };
       }
       if (typeof data.message === 'string' && data.message.trim().length > 0) {
         return {
           message: localizeBackendMessage(data.message, fallback, status),
+          code,
         };
       }
     }
@@ -234,6 +243,9 @@ export function normalizeApiError(
     if (isGenericStatusMessage) {
       if (error.response?.status === 401) {
         return { message: 'بيانات الدخول غير صحيحة أو انتهت جلسة العمل' };
+      }
+      if (error.response?.status === 413) {
+        return { message: PAYLOAD_TOO_LARGE_MESSAGE };
       }
       if (error.response?.status === 422) {
         return { message: fallback };

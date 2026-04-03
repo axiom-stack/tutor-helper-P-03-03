@@ -6,11 +6,26 @@ import pinoHttp from "pino-http";
 import routes from "./routes/index.js";
 
 const app = express();
+const JSON_BODY_LIMIT = "5mb";
+
+function isPayloadTooLargeError(error) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  return (
+    error.type === "entity.too.large" ||
+    error.status === 413 ||
+    error.statusCode === 413
+  );
+}
 
 app.use(helmet());
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Settings stores school logos as base64 data URLs, so we need more than the
+// default 100KB JSON limit that Express ships with.
+app.use(express.json({ limit: JSON_BODY_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: JSON_BODY_LIMIT }));
 
 // Configure pino-http for cleaner, more readable logs
 app.use(
@@ -49,6 +64,27 @@ app.get("/health", (req, res) => {
     ok: true,
     message: "Server is running",
   });
+});
+
+app.use((error, req, res, next) => {
+  if (isPayloadTooLargeError(error)) {
+    req.log?.warn?.(
+      {
+        type: error.type,
+        status: error.status,
+        limit: JSON_BODY_LIMIT,
+      },
+      "Request body exceeded the configured limit",
+    );
+
+    return res.status(413).json({
+      error:
+        "حجم الطلب كبير جدًا. الرجاء تقليل حجم الصورة أو استخدام نسخة أصغر.",
+      code: "PAYLOAD_TOO_LARGE",
+    });
+  }
+
+  return next(error);
 });
 
 export default app;

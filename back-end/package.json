@@ -20,6 +20,7 @@
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "docx": "^9.6.0",
+    "docxtemplater": "^3.68.3",
     "express": "^5.2.1",
     "helmet": "^8.1.0",
     "jose": "^6.2.0",
@@ -27,6 +28,7 @@
     "multer": "^2.1.1",
     "pdf-parse": "^2.4.5",
     "pino-http": "^11.0.0",
+    "pizzip": "^3.2.0",
     "puppeteer-core": "^24.0.0",
     "python-shell": "^5.0.0"
   },

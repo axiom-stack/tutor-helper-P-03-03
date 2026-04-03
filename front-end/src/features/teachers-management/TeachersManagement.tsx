@@ -70,6 +70,122 @@ function toEditDraft(teacher: TeacherManagementRow): EditDraft {
   };
 }
 
+function useIsMobile(breakpoint = 640): boolean {
+  const getMatches = () =>
+    typeof window !== 'undefined' &&
+    window.matchMedia(`(max-width: ${breakpoint}px)`).matches;
+
+  const [isMobile, setIsMobile] = useState(getMatches);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia(`(max-width: ${breakpoint}px)`);
+    const handleChange = () => {
+      setIsMobile(mediaQuery.matches);
+    };
+
+    handleChange();
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [breakpoint]);
+
+  return isMobile;
+}
+
+interface TeacherActionsProps {
+  variant: 'table' | 'mobile';
+  onEdit: () => void;
+  onReset: () => void;
+  onDelete: () => void;
+}
+
+function TeacherActions({
+  variant,
+  onEdit,
+  onReset,
+  onDelete,
+}: TeacherActionsProps) {
+  const isMobile = variant === 'mobile';
+  const resetLabel = isMobile ? 'إعادة تعيين' : 'إعادة تعيين كلمة المرور';
+
+  return (
+    <div className={isMobile ? 'tm__mobile-actions' : 'tm__actions'}>
+      <button
+        type="button"
+        className="tm__action-btn tm__action-btn--edit"
+        onClick={onEdit}
+      >
+        <MdEdit aria-hidden />
+        تعديل
+      </button>
+      <button
+        type="button"
+        className="tm__action-btn tm__action-btn--secondary"
+        onClick={onReset}
+        title="إعادة تعيين كلمة المرور"
+      >
+        <MdLockReset aria-hidden />
+        {resetLabel}
+      </button>
+      <button
+        type="button"
+        className="tm__action-btn tm__action-btn--delete"
+        onClick={onDelete}
+      >
+        <MdDeleteOutline aria-hidden />
+        حذف
+      </button>
+    </div>
+  );
+}
+
+interface TeacherMobileCardProps {
+  teacher: TeacherManagementRow;
+  selected: boolean;
+  onEdit: () => void;
+  onReset: () => void;
+  onDelete: () => void;
+}
+
+function TeacherMobileCard({
+  teacher,
+  selected,
+  onEdit,
+  onReset,
+  onDelete,
+}: TeacherMobileCardProps) {
+  return (
+    <article
+      className={`tm__mobile-card${
+        selected ? ' tm__mobile-card--selected' : ''
+      } animate-fadeIn`}
+    >
+      <div className="tm__mobile-card__header">
+        <div className="tm__mobile-card__teacher">
+          <strong>{teacher.display_name}</strong>
+          <small>{teacher.username}</small>
+          <small>منذ {formatDateAr(teacher.created_at)}</small>
+        </div>
+
+        <div className="tm__mobile-card__subject">
+          <span>المادة</span>
+          <strong>{teacher.profile.subject || '—'}</strong>
+        </div>
+      </div>
+
+      <TeacherActions
+        variant="mobile"
+        onEdit={onEdit}
+        onReset={onReset}
+        onDelete={onDelete}
+      />
+    </article>
+  );
+}
+
 export default function TeachersManagement() {
   const [teachers, setTeachers] = useState<TeacherManagementRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -306,6 +422,7 @@ export default function TeachersManagement() {
   const selectedTeacher = editDraft
     ? (teacherById.get(editDraft.teacherId) ?? null)
     : null;
+  const isMobile = useIsMobile();
 
   if (loading && teachers.length === 0) {
     return (
@@ -350,6 +467,33 @@ export default function TeachersManagement() {
             <p className="tm__state">جاري التحميل...</p>
           ) : teachers.length === 0 ? (
             <p className="tm__state">لا يوجد معلمون حتى الآن.</p>
+          ) : isMobile ? (
+            <div className="tm__mobile-list">
+              {teachers.map((teacher) => (
+                <TeacherMobileCard
+                  key={teacher.id}
+                  teacher={teacher}
+                  selected={editDraft?.teacherId === teacher.id}
+                  onEdit={() => setEditDraft(toEditDraft(teacher))}
+                  onReset={() => {
+                    setResetDraft({
+                      teacherId: teacher.id,
+                      username: teacher.username,
+                      display_name: teacher.display_name,
+                    });
+                    setResetNewPassword('');
+                    setResetConfirmPassword('');
+                  }}
+                  onDelete={() =>
+                    setDeleteDraft({
+                      teacherId: teacher.id,
+                      username: teacher.username,
+                      display_name: teacher.display_name,
+                    })
+                  }
+                />
+              ))}
+            </div>
           ) : (
             <div className="tm__table-wrap">
               <table>
@@ -372,58 +516,37 @@ export default function TeachersManagement() {
                           : 'tm__row animate-fadeIn'
                       }
                     >
-                      <td>
+                      <td data-label="المعلم">
                         <div className="tm__teacher-cell">
                           <strong>{teacher.display_name}</strong>
                           <small>{teacher.username}</small>
                           <small>منذ {formatDateAr(teacher.created_at)}</small>
                         </div>
                       </td>
-                      <td>{teacher.profile.subject || '—'}</td>
-                      <td>{teacher.usage.generated_plans_count}</td>
-                      <td>{teacher.usage.generated_exams_count}</td>
-                      <td>
-                        <div className="tm__actions">
-                          <button
-                            type="button"
-                            className="tm__action-btn tm__action-btn--edit"
-                            onClick={() => setEditDraft(toEditDraft(teacher))}
-                          >
-                            <MdEdit aria-hidden />
-                            تعديل
-                          </button>
-                          <button
-                            type="button"
-                            className="tm__action-btn tm__action-btn--secondary"
-                            onClick={() => {
-                              setResetDraft({
-                                teacherId: teacher.id,
-                                username: teacher.username,
-                                display_name: teacher.display_name,
-                              });
-                              setResetNewPassword('');
-                              setResetConfirmPassword('');
-                            }}
-                            title="إعادة تعيين كلمة المرور"
-                          >
-                            <MdLockReset aria-hidden />
-                            إعادة تعيين كلمة المرور
-                          </button>
-                          <button
-                            type="button"
-                            className="tm__action-btn tm__action-btn--delete"
-                            onClick={() =>
-                              setDeleteDraft({
-                                teacherId: teacher.id,
-                                username: teacher.username,
-                                display_name: teacher.display_name,
-                              })
-                            }
-                          >
-                            <MdDeleteOutline aria-hidden />
-                            حذف
-                          </button>
-                        </div>
+                      <td data-label="المادة">{teacher.profile.subject || '—'}</td>
+                      <td data-label="الخطط">{teacher.usage.generated_plans_count}</td>
+                      <td data-label="الاختبارات">{teacher.usage.generated_exams_count}</td>
+                      <td data-label="الإجراءات">
+                        <TeacherActions
+                          variant="table"
+                          onEdit={() => setEditDraft(toEditDraft(teacher))}
+                          onReset={() => {
+                            setResetDraft({
+                              teacherId: teacher.id,
+                              username: teacher.username,
+                              display_name: teacher.display_name,
+                            });
+                            setResetNewPassword('');
+                            setResetConfirmPassword('');
+                          }}
+                          onDelete={() =>
+                            setDeleteDraft({
+                              teacherId: teacher.id,
+                              username: teacher.username,
+                              display_name: teacher.display_name,
+                            })
+                          }
+                        />
                       </td>
                     </tr>
                   ))}
