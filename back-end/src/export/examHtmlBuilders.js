@@ -51,9 +51,10 @@ const EXAM_BASE_STYLES = `
     border-left: 1px solid #000000;
     vertical-align: middle;
     padding: 10px 12px;
+    text-align: center;
   }
 
-  .exam-header-table td:first-child {
+  .exam-header-table td:last-child {
     border-left: none;
   }
 
@@ -62,7 +63,7 @@ const EXAM_BASE_STYLES = `
   }
 
   .exam-header-cell--school {
-    text-align: right;
+    text-align: center;
   }
 
   .exam-header-ministry {
@@ -96,16 +97,18 @@ const EXAM_BASE_STYLES = `
     font-weight: 800;
     color: #000000;
     line-height: 1.4;
+    text-align: center;
   }
 
   .exam-header-line {
     font-size: 0.95rem;
     font-weight: 700;
     line-height: 1.5;
+    text-align: center;
   }
 
   .exam-header-school-lines {
-    text-align: right;
+    text-align: center;
     font-size: 0.95rem;
     font-weight: 700;
     line-height: 1.5;
