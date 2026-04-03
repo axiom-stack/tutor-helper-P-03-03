@@ -7,7 +7,10 @@ import os from "node:os";
 import JSZip from "jszip";
 import sharp from "sharp";
 
-import { renderExamDocxFromTemplate } from "../src/export/examTemplateDocx.js";
+import {
+  renderExamDocxFromTemplate,
+  templateSupportsDynamicQuestionLoops,
+} from "../src/export/examTemplateDocx.js";
 
 const SAMPLE_LOGO_DATA_URL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=";
@@ -247,4 +250,26 @@ test("renderExamDocxFromTemplate supports logo placeholders with bidi controls a
   });
   const { mediaFiles } = await listMediaFiles(buffer);
   assert.ok(mediaFiles.length > 0, "expected embedded logo media when tag has bidi/spacing noise");
+});
+
+test("templateSupportsDynamicQuestionLoops detects fixed-slot templates", async () => {
+  const supportsLoops = await templateSupportsDynamicQuestionLoops({
+    templatePath: path.resolve(process.cwd(), "template.docx"),
+  });
+  assert.equal(supportsLoops, false);
+});
+
+test("templateSupportsDynamicQuestionLoops detects loop-enabled templates", async () => {
+  const mutatedTemplatePath = await writeMutatedTemplateToTempFile((documentXml) =>
+    documentXml
+      .replace("tf_1_text", "#true_false_questions")
+      .replace("tf_3_text", "/true_false_questions")
+      .replace("mcq_1_text", "#mcq_questions")
+      .replace("mcq_3_text", "/mcq_questions"),
+  );
+
+  const supportsLoops = await templateSupportsDynamicQuestionLoops({
+    templatePath: mutatedTemplatePath,
+  });
+  assert.equal(supportsLoops, true);
 });

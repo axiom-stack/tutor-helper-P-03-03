@@ -307,3 +307,22 @@ test("updateMyProfile rejects malformed school logo values", async () => {
   assert.equal(res.statusCode, 400);
   assert.match(res.payload?.error || "", /school_logo_url must be a base64 image data URL/i);
 });
+
+test("updateMyProfile rejects unreadable image payloads even when data URL syntax is valid", async () => {
+  const controller = createUsersController({
+    async updateProfileByUserId() {
+      throw new Error("repository should not be called for unreadable logo payload");
+    },
+  });
+
+  const req = {
+    user: { id: 2, role: "teacher" },
+    body: { school_logo_url: "data:image/png;base64,AAAAAAAAAAAAAAAAAAAA" },
+  };
+  const res = createMockRes();
+
+  await controller.updateMyProfile(req, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.match(res.payload?.error || "", /unreadable image data/i);
+});

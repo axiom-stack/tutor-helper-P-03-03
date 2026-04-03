@@ -34,7 +34,11 @@ import {
 import { parseImageDataUrl } from "../utils/imageDataUrl.js";
 import { ensureDocxRtl } from "./docxRtl.js";
 import { renderDocxWithPython } from "./pythonDocxBridge.js";
-import { renderExamDocxFromTemplate } from "./examTemplateDocx.js";
+import {
+  QUESTION_SLOT_COUNTS as TEMPLATE_QUESTION_SLOT_COUNTS,
+  renderExamDocxFromTemplate,
+  templateSupportsDynamicQuestionLoops,
+} from "./examTemplateDocx.js";
 import { resolveSchoolLogoForExport } from "./schoolLogoResolver.js";
 import {
   createArabicCenteredParagraph,
@@ -741,6 +745,76 @@ async function buildExamDocxWithPython(enrichedExam, type) {
   });
 }
 
+function normalizeQuestionTypeForTemplate(question) {
+  const rawType = String(question?.question_type ?? question?.type ?? "").trim().toLowerCase();
+  if (!rawType) {
+    return "unknown";
+  }
+
+  if (rawType === "true_false" || rawType === "truefalse" || rawType === "tf") {
+    return "true_false";
+  }
+
+  if (
+    rawType === "multiple_choice" ||
+    rawType === "multiple-choice" ||
+    rawType === "mcq"
+  ) {
+    return "mcq";
+  }
+
+  if (rawType === "fill_blank" || rawType === "fillblank" || rawType === "fill-in-blank") {
+    return "fill_blank";
+  }
+
+  if (
+    rawType === "open_ended" ||
+    rawType === "open-ended" ||
+    rawType === "essay" ||
+    rawType === "written" ||
+    rawType === "short_answer"
+  ) {
+    return "written";
+  }
+
+  return "unknown";
+}
+
+function computeTemplateQuestionCounts(enrichedExam) {
+  const counts = {
+    true_false: 0,
+    mcq: 0,
+    fill_blank: 0,
+    written: 0,
+    unknown: 0,
+  };
+
+  for (const question of Array.isArray(enrichedExam?.questions) ? enrichedExam.questions : []) {
+    const normalizedType = normalizeQuestionTypeForTemplate(question);
+    if (Object.prototype.hasOwnProperty.call(counts, normalizedType)) {
+      counts[normalizedType] += 1;
+    } else {
+      counts.unknown += 1;
+    }
+  }
+
+  return counts;
+}
+
+function computeTemplateOverflow(counts) {
+  return {
+    true_false: Math.max(0, counts.true_false - TEMPLATE_QUESTION_SLOT_COUNTS.true_false),
+    mcq: Math.max(0, counts.mcq - TEMPLATE_QUESTION_SLOT_COUNTS.mcq),
+    fill_blank: Math.max(0, counts.fill_blank - TEMPLATE_QUESTION_SLOT_COUNTS.fill_blank),
+    written: Math.max(0, counts.written - TEMPLATE_QUESTION_SLOT_COUNTS.written),
+    unknown: counts.unknown,
+  };
+}
+
+function hasTemplateOverflow(overflow) {
+  return Object.values(overflow).some((value) => Number(value) > 0);
+}
+
 // ═══════════════════════════════════════════════════════════
 // Exported builders
 // ═══════════════════════════════════════════════════════════
@@ -858,9 +932,48 @@ async function buildExamAnswerKeyDocxJs(enrichedExam) {
   return await ensureDocxRtl(buffer);
 }
 
-export async function buildExamPaperDocx(enrichedExam) {
-  const { exam: logoReadyExam } = await resolveSchoolLogoForExport(enrichedExam);
-  return await renderExamDocxFromTemplate(logoReadyExam);
+export async function buildExamPaperDocx(enrichedExam, options = {}) {
+  const { exam: logoReadyExam } = await resolveSchoolLogoForExport(enrichedExam, {
+    logger: options.logger,
+  });
+
+  const templateQuestionCounts = computeTemplateQuestionCounts(logoReadyExam);
+  const templateOverflow = computeTemplateOverflow(templateQuestionCounts);
+  const needsDynamicFallback = hasTemplateOverflow(templateOverflow);
+
+  if (needsDynamicFallback) {
+    let supportsDynamicTemplateLoops = false;
+    try {
+      supportsDynamicTemplateLoops = await templateSupportsDynamicQuestionLoops({
+        templatePath: options.templatePath,
+      });
+    } catch (error) {
+      options.logger?.warn?.(
+        {
+          exam_public_id: logoReadyExam?.public_id ?? null,
+          error_message: error?.message ?? String(error),
+        },
+        "Could not detect dynamic question loops in exam DOCX template",
+      );
+    }
+
+    if (!supportsDynamicTemplateLoops) {
+      options.logger?.warn?.(
+        {
+          exam_public_id: logoReadyExam?.public_id ?? null,
+          template_overflow: templateOverflow,
+          question_counts: templateQuestionCounts,
+        },
+        "Exam DOCX template has fixed question slots; falling back to dynamic DOCX builder",
+      );
+      return await buildExamPaperDocxJs(logoReadyExam);
+    }
+  }
+
+  return await renderExamDocxFromTemplate(logoReadyExam, {
+    logger: options.logger,
+    templatePath: options.templatePath,
+  });
 }
 
 export async function buildExamAnswerFormDocx(enrichedExam) {

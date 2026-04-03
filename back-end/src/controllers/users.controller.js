@@ -5,6 +5,7 @@ import {
   normalizeOptionalText,
 } from "../utils/normalization.js";
 import { normalizeOptionalImageDataUrl } from "../utils/imageDataUrl.js";
+import { inspectSchoolLogoValue } from "../export/schoolLogoResolver.js";
 
 const MIN_PASSWORD_LENGTH = 6;
 
@@ -108,6 +109,31 @@ function buildProfileUpdates(body = {}, options = {}) {
     updates,
     errors,
   };
+}
+
+async function validateAndNormalizeSchoolLogoUpdate(updates = {}) {
+  if (!Object.prototype.hasOwnProperty.call(updates, "school_logo_url")) {
+    return { ok: true };
+  }
+
+  const logoValue = updates.school_logo_url;
+  if (logoValue == null) {
+    return { ok: true };
+  }
+
+  const inspection = await inspectSchoolLogoValue(logoValue);
+  if (inspection.status === "invalid") {
+    return {
+      ok: false,
+      error: `school_logo_url contains unreadable image data (${inspection.reason ?? "invalid_logo_payload"})`,
+    };
+  }
+
+  if (inspection.status === "recovered" && inspection.normalizedDataUrl) {
+    updates.school_logo_url = inspection.normalizedDataUrl;
+  }
+
+  return { ok: true };
 }
 
 export function createUsersController(
@@ -229,6 +255,13 @@ export function createUsersController(
           return res.status(400).json({ error: validation.errors.join(", ") });
         }
 
+        const schoolLogoValidation = await validateAndNormalizeSchoolLogoUpdate(
+          validation.updates,
+        );
+        if (!schoolLogoValidation.ok) {
+          return res.status(400).json({ error: schoolLogoValidation.error });
+        }
+
         const profile = await usersRepository.updateProfileByUserId(
           req.user.id,
           validation.updates,
@@ -312,6 +345,13 @@ export function createUsersController(
         });
         if (!validation.ok) {
           return res.status(400).json({ error: validation.errors.join(", ") });
+        }
+
+        const schoolLogoValidation = await validateAndNormalizeSchoolLogoUpdate(
+          validation.updates,
+        );
+        if (!schoolLogoValidation.ok) {
+          return res.status(400).json({ error: schoolLogoValidation.error });
         }
 
         if (

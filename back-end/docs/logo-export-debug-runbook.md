@@ -50,6 +50,14 @@ EXAM_DOCX_STRICT_LOGO_PLACEHOLDER=1
 ```
 When enabled, export fails fast if no school-logo placeholder is present in the template.
 
+## Question overflow behavior (DOCX paper)
+- If the template uses fixed slots (for example `tf_1_text`, `tf_2_text`, `tf_3_text`) and the exam has more questions than slots, the system automatically falls back to the dynamic JS DOCX builder so no questions are dropped.
+- If you want unlimited questions while staying fully template-driven, use loop tags in the template such as:
+  - `{{#true_false_questions}} ... {{/true_false_questions}}`
+  - `{{#mcq_questions}} ... {{/mcq_questions}}`
+  - `{{#fill_blank_questions}} ... {{/fill_blank_questions}}`
+  - `{{#written_questions}} ... {{/written_questions}}`
+
 ## Python DOCX path
 - Python generator now supports embedding logo from `examMeta.schoolLogoUrl`.
 - If image decode fails, Python output shows text placeholder (`شعار المدرسة`) instead of crashing export.

@@ -45,7 +45,7 @@ const EMPTY_LOGO_DATA_URL = `data:image/png;base64,${EMPTY_LOGO_PNG_BASE64}`;
 const SCHOOL_LOGO_SIZE = Object.freeze([44, 44]);
 const DEFAULT_MINISTRY_NAME = "وزارة التربية والتعليم";
 const DEFAULT_GOVERNORATE_NAME = "محافظة عدن";
-const QUESTION_SLOT_COUNTS = Object.freeze({
+export const QUESTION_SLOT_COUNTS = Object.freeze({
   true_false: 3,
   mcq: 3,
   fill_blank: 2,
@@ -76,9 +76,16 @@ const SCHOOL_LOGO_MIME_EXTENSION_MAP = Object.freeze({
 const TEMPLATE_LOGO_TOKEN_PATTERN = /school_logo(?:_url)?/iu;
 const TEMPLATE_TAG_PATTERN = /\{\{\s*([^{}]+?)\s*\}\}/gu;
 const BIDI_CONTROL_CHAR_PATTERN = /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu;
+const DYNAMIC_QUESTION_LOOP_PATHS = Object.freeze([
+  "true_false_questions",
+  "mcq_questions",
+  "fill_blank_questions",
+  "written_questions",
+]);
 const EXAM_DOCX_STRICT_LOGO_PLACEHOLDER = /^(1|true|yes|on)$/iu.test(
   String(process.env.EXAM_DOCX_STRICT_LOGO_PLACEHOLDER ?? ""),
 );
+const templateQuestionLoopSupportCache = new Map();
 
 function safeText(value, fallback = "") {
   if (value === null || value === undefined) {
@@ -571,6 +578,72 @@ function templateContainsSchoolLogoPlaceholder(zip) {
     hasSupportedLogoTag,
     unrecognizedTags: Array.from(unrecognizedTags).slice(0, 6),
   };
+}
+
+function normalizeTemplateTagText(value) {
+  return safeText(value)
+    .replace(BIDI_CONTROL_CHAR_PATTERN, "")
+    .replace(/\s+/gu, "")
+    .toLowerCase();
+}
+
+function collectTemplateTags(zip) {
+  const xmlNames = Object.keys(zip.files).filter((name) =>
+    /^word\/(document|header\d+|footer\d+)\.xml$/u.test(name),
+  );
+
+  const tags = [];
+  for (const fileName of xmlNames) {
+    const file = zip.file(fileName);
+    const xml = file?.asText?.() ?? "";
+    const tagSources = [xml, extractVisibleWordText(xml)];
+
+    for (const source of tagSources) {
+      for (const match of source.matchAll(TEMPLATE_TAG_PATTERN)) {
+        const normalized = normalizeTemplateTagText(match[1]);
+        if (normalized) {
+          tags.push(normalized);
+        }
+      }
+    }
+  }
+
+  return tags;
+}
+
+function detectDynamicQuestionLoopSupport(zip) {
+  const tags = collectTemplateTags(zip);
+  const tagSet = new Set(tags);
+
+  const hasExplicitQuestionLoops = DYNAMIC_QUESTION_LOOP_PATHS.some(
+    (path) => tagSet.has(`#${path}`) && tagSet.has(`/${path}`),
+  );
+  if (hasExplicitQuestionLoops) {
+    return true;
+  }
+
+  const hasSectionsLoop = tagSet.has("#sections") && tagSet.has("/sections");
+  const hasQuestionLoop = tagSet.has("#questions") && tagSet.has("/questions");
+  return hasSectionsLoop && hasQuestionLoop;
+}
+
+export async function templateSupportsDynamicQuestionLoops(options = {}) {
+  const templatePath =
+    options.templatePath ?? process.env.EXAM_DOCX_TEMPLATE_PATH ?? DEFAULT_TEMPLATE_PATH;
+
+  if (!templateQuestionLoopSupportCache.has(templatePath)) {
+    const task = (async () => {
+      const templateBuffer = await fs.readFile(templatePath);
+      const zip = new PizZip(templateBuffer);
+      return detectDynamicQuestionLoopSupport(zip);
+    })().catch((error) => {
+      templateQuestionLoopSupportCache.delete(templatePath);
+      throw error;
+    });
+    templateQuestionLoopSupportCache.set(templatePath, task);
+  }
+
+  return await templateQuestionLoopSupportCache.get(templatePath);
 }
 
 export function buildExamTemplateContext(enrichedExam) {

@@ -120,7 +120,9 @@ export async function exportExam(enrichedExam, format, type = "answer_key", opti
       };
     }
     if (format === "docx") {
-      const buffer = await buildExamPaperDocx(logoReadyExam);
+      const buffer = await buildExamPaperDocx(logoReadyExam, {
+        logger: options.logger,
+      });
       return {
         buffer,
         mimeType: MIME_DOCX,

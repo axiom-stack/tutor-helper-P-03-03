@@ -192,7 +192,10 @@ export async function exportExamHandler(req, res) {
       });
     }
 
-    const enriched = await enrichExam(exam, { logger: req.log });
+    const enriched = await enrichExam(exam, {
+      logger: req.log,
+      requesterUserId: req.user?.id,
+    });
     const { buffer, mimeType, suggestedFilename, diagnostics } = await exportExam(
       enriched,
       format,

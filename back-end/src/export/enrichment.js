@@ -1,5 +1,23 @@
 import { turso } from "../lib/turso.js";
 
+function normalizeTrimmedString(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function pickFirstNonEmpty(...values) {
+  for (const value of values) {
+    const normalized = normalizeTrimmedString(value);
+    if (normalized) {
+      return normalized;
+    }
+  }
+  return null;
+}
+
 /**
  * Get teacher display name (username) by user id.
  * @param {number} teacherId
@@ -175,15 +193,56 @@ export async function enrichAssignment(assignment) {
  */
 export async function enrichExam(exam, options = {}) {
   if (!exam) return exam;
-  const [teacherName, classInfo, subjectName, schoolSettings] = await Promise.all([
+  const teacherId = Number(exam.teacher_id);
+  const requesterUserId = Number(options.requesterUserId);
+  const [teacherName, classInfo, subjectName, teacherSchoolSettings] = await Promise.all([
     getTeacherName(exam.teacher_id),
     getClassInfo(exam.class_id),
     getSubjectName(exam.subject_id),
-    getSchoolSettings(exam.teacher_id, {
+    getSchoolSettings(teacherId, {
       logger: options.logger,
       examPublicId: exam.public_id,
     }),
   ]);
+
+  let fallbackSchoolSettings = null;
+  const canTryRequesterFallback =
+    Number.isInteger(requesterUserId) &&
+    requesterUserId > 0 &&
+    requesterUserId !== teacherId;
+
+  const teacherSchoolName = normalizeTrimmedString(teacherSchoolSettings?.school_name);
+  const teacherSchoolLogo = normalizeTrimmedString(teacherSchoolSettings?.school_logo_url);
+  const teacherSettingsIncomplete = !teacherSchoolName || !teacherSchoolLogo;
+
+  if (canTryRequesterFallback && (teacherSchoolSettings?.status === "error" || teacherSettingsIncomplete)) {
+    fallbackSchoolSettings = await getSchoolSettings(requesterUserId, {
+      logger: options.logger,
+      examPublicId: exam.public_id,
+    });
+  }
+
+  const fallbackSchoolName = normalizeTrimmedString(fallbackSchoolSettings?.school_name);
+  const fallbackSchoolLogo = normalizeTrimmedString(fallbackSchoolSettings?.school_logo_url);
+  const fallbackApplied = Boolean(
+    (teacherSchoolSettings?.status === "error" || teacherSettingsIncomplete) &&
+      (fallbackSchoolName || fallbackSchoolLogo),
+  );
+
+  const resolvedSchoolName = pickFirstNonEmpty(teacherSchoolName, fallbackSchoolName);
+  const resolvedSchoolLogo = pickFirstNonEmpty(teacherSchoolLogo, fallbackSchoolLogo);
+  const schoolSettingsSource = fallbackApplied
+    ? "request_user_profile_fallback"
+    : (teacherSchoolSettings?.source ?? "user_profile");
+  const schoolSettingsStatus =
+    teacherSchoolSettings?.status === "error" && fallbackApplied
+      ? "ok"
+      : (teacherSchoolSettings?.status ?? "missing");
+  const schoolSettingsReason =
+    teacherSchoolSettings?.status === "error" && !fallbackApplied
+      ? (teacherSchoolSettings?.error ?? "school_settings_lookup_failed")
+      : null;
+
   const className =
     classInfo?.gradeLabel && classInfo?.sectionLabel
       ? `${classInfo.gradeLabel} - ${classInfo.sectionLabel}`
@@ -197,12 +256,13 @@ export async function enrichExam(exam, options = {}) {
     academic_year: classInfo?.academicYear ?? null,
     semester: classInfo?.semester ?? null,
     subject_name: subjectName ?? "—",
-    school_name: schoolSettings?.school_name ?? null,
-    school_logo_url: schoolSettings?.school_logo_url ?? null,
+    school_name: resolvedSchoolName,
+    school_logo_url: resolvedSchoolLogo,
     _school_settings_diagnostics: {
-      status: schoolSettings?.status ?? "missing",
-      source: schoolSettings?.source ?? "user_profile",
-      reason: schoolSettings?.error ?? null,
+      status: schoolSettingsStatus,
+      source: schoolSettingsSource,
+      reason: schoolSettingsReason,
+      fallback_applied: fallbackApplied,
     },
   };
 }
