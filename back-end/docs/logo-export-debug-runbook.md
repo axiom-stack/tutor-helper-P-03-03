@@ -38,6 +38,12 @@ Notes:
 
 ## Template validation
 - DOCX template logo placeholder is checked automatically in `renderExamDocxFromTemplate`.
+- Supported school-logo tags include:
+  - `{{school_logo}}`
+  - `{{%school_logo}}`
+  - `{{%%school_logo}}`
+  - `{{school_logo%%}}`
+- The parser tolerates extra whitespace and bidi control chars around the token.
 - Optional strict mode:
 ```bash
 EXAM_DOCX_STRICT_LOGO_PLACEHOLDER=1

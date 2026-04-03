@@ -1,5 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import path from "node:path";
+import os from "node:os";
 
 import JSZip from "jszip";
 import sharp from "sharp";
@@ -98,6 +101,19 @@ async function listMediaFiles(buffer) {
   const zip = await JSZip.loadAsync(buffer);
   const mediaFiles = Object.keys(zip.files).filter((name) => name.startsWith("word/media/"));
   return { zip, mediaFiles };
+}
+
+async function writeMutatedTemplateToTempFile(mutator) {
+  const templatePath = path.resolve(process.cwd(), "template.docx");
+  const templateBuffer = await fs.readFile(templatePath);
+  const zip = await JSZip.loadAsync(templateBuffer);
+  const documentXml = await zip.file("word/document.xml").async("string");
+  const nextDocumentXml = mutator(documentXml);
+  zip.file("word/document.xml", nextDocumentXml);
+  const mutatedTemplate = await zip.generateAsync({ type: "nodebuffer" });
+  const outPath = path.join(os.tmpdir(), `template-mutated-${Date.now()}-${Math.random()}.docx`);
+  await fs.writeFile(outPath, mutatedTemplate);
+  return outPath;
 }
 
 function decodeXmlEntities(text) {
@@ -209,4 +225,26 @@ test("renderExamDocxFromTemplate falls back safely for malformed logo data URLs"
   const buffer = await renderExamDocxFromTemplate(exam);
   const { mediaFiles } = await listMediaFiles(buffer);
   assert.ok(mediaFiles.length > 0, "expected fallback logo media in rendered DOCX");
+});
+
+test("renderExamDocxFromTemplate supports trailing-percent logo placeholders", async () => {
+  const mutatedTemplatePath = await writeMutatedTemplateToTempFile((documentXml) =>
+    documentXml.replace("{{%%school_logo}}", "{{school_logo%%}}"),
+  );
+  const buffer = await renderExamDocxFromTemplate(sampleExam(), {
+    templatePath: mutatedTemplatePath,
+  });
+  const { mediaFiles } = await listMediaFiles(buffer);
+  assert.ok(mediaFiles.length > 0, "expected embedded logo media when tag uses trailing % variant");
+});
+
+test("renderExamDocxFromTemplate supports logo placeholders with bidi controls and spaces", async () => {
+  const mutatedTemplatePath = await writeMutatedTemplateToTempFile((documentXml) =>
+    documentXml.replace("{{%%school_logo}}", "{{ \u200f school_logo %% }}"),
+  );
+  const buffer = await renderExamDocxFromTemplate(sampleExam(), {
+    templatePath: mutatedTemplatePath,
+  });
+  const { mediaFiles } = await listMediaFiles(buffer);
+  assert.ok(mediaFiles.length > 0, "expected embedded logo media when tag has bidi/spacing noise");
 });

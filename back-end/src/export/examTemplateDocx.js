@@ -74,6 +74,8 @@ const SCHOOL_LOGO_MIME_EXTENSION_MAP = Object.freeze({
   "image/svg+xml": "png",
 });
 const TEMPLATE_LOGO_TOKEN_PATTERN = /school_logo(?:_url)?/iu;
+const TEMPLATE_TAG_PATTERN = /\{\{\s*([^{}]+?)\s*\}\}/gu;
+const BIDI_CONTROL_CHAR_PATTERN = /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu;
 const EXAM_DOCX_STRICT_LOGO_PLACEHOLDER = /^(1|true|yes|on)$/iu.test(
   String(process.env.EXAM_DOCX_STRICT_LOGO_PLACEHOLDER ?? ""),
 );
@@ -327,6 +329,44 @@ function buildSchoolLogoError(message) {
   return new Error(`school_logo render failed: ${message}`);
 }
 
+function decodeXmlEntities(text) {
+  return String(text ?? "")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&amp;", "&")
+    .replaceAll("&quot;", "\"")
+    .replaceAll("&apos;", "'");
+}
+
+function extractVisibleWordText(xmlText) {
+  return Array.from(String(xmlText ?? "").matchAll(/<w:t[^>]*>(.*?)<\/w:t>/gs))
+    .map((match) => decodeXmlEntities(match[1]))
+    .join("");
+}
+
+function normalizeSchoolLogoPlaceholderTag(placeHolderContent) {
+  const compact = safeText(placeHolderContent)
+    .replace(BIDI_CONTROL_CHAR_PATTERN, "")
+    .replace(/\s+/gu, "")
+    .replace(/^\{+|\}+$/gu, "")
+    .toLowerCase();
+
+  if (!compact) {
+    return null;
+  }
+
+  const match = compact.match(/^(%*)(school_logo(?:_url)?)(%*)$/u);
+  if (!match) {
+    return null;
+  }
+
+  const totalPercentCount = (match[1]?.length ?? 0) + (match[3]?.length ?? 0);
+  return {
+    value: "school_logo",
+    centered: totalPercentCount >= 2,
+  };
+}
+
 async function getFallbackSchoolLogoBuffer() {
   const fallbackDataUrl = await getVisiblePlaceholderDataUrl();
   const parsedFallback = parseImageDataUrl(fallbackDataUrl);
@@ -415,35 +455,13 @@ function createSchoolLogoModule() {
     centered: false,
     fileType: "docx",
     setParser(placeHolderContent) {
-      const tag = safeText(placeHolderContent);
-      if (!tag) {
-        return null;
-      }
-
-      if (tag === "school_logo" || tag === "school_logo_url") {
+      const normalizedTag = normalizeSchoolLogoPlaceholderTag(placeHolderContent);
+      if (normalizedTag) {
         return {
           type: "placeholder",
-          value: "school_logo",
+          value: normalizedTag.value,
           module: IMAGE_MODULE_NAME,
-          centered: false,
-        };
-      }
-
-      if (tag === "%school_logo" || tag === "%school_logo_url") {
-        return {
-          type: "placeholder",
-          value: "school_logo",
-          module: IMAGE_MODULE_NAME,
-          centered: false,
-        };
-      }
-
-      if (tag === "%%school_logo" || tag === "%%school_logo_url") {
-        return {
-          type: "placeholder",
-          value: "school_logo",
-          module: IMAGE_MODULE_NAME,
-          centered: true,
+          centered: normalizedTag.centered,
         };
       }
 
@@ -524,11 +542,35 @@ function templateContainsSchoolLogoPlaceholder(zip) {
     /^word\/(document|header\d+|footer\d+)\.xml$/u.test(name),
   );
 
-  return xmlNames.some((fileName) => {
+  const unrecognizedTags = new Set();
+  let hasSupportedLogoTag = false;
+
+  for (const fileName of xmlNames) {
     const file = zip.file(fileName);
     const xml = file?.asText?.() ?? "";
-    return TEMPLATE_LOGO_TOKEN_PATTERN.test(xml);
-  });
+    const tagSources = [xml, extractVisibleWordText(xml)];
+
+    for (const source of tagSources) {
+      for (const match of source.matchAll(TEMPLATE_TAG_PATTERN)) {
+        const tagContent = safeText(match[1]);
+        if (!tagContent || !TEMPLATE_LOGO_TOKEN_PATTERN.test(tagContent)) {
+          continue;
+        }
+
+        const normalized = normalizeSchoolLogoPlaceholderTag(tagContent);
+        if (normalized) {
+          hasSupportedLogoTag = true;
+        } else {
+          unrecognizedTags.add(tagContent);
+        }
+      }
+    }
+  }
+
+  return {
+    hasSupportedLogoTag,
+    unrecognizedTags: Array.from(unrecognizedTags).slice(0, 6),
+  };
 }
 
 export function buildExamTemplateContext(enrichedExam) {
@@ -640,9 +682,18 @@ export async function renderExamDocxFromTemplate(enrichedExam, options = {}) {
   }
 
   const zip = new PizZip(templateBuffer);
-  const hasLogoPlaceholder = templateContainsSchoolLogoPlaceholder(zip);
-  if (!hasLogoPlaceholder) {
-    const message = `Exam DOCX template "${templatePath}" does not include a school logo placeholder tag`;
+  const logoTagInfo = templateContainsSchoolLogoPlaceholder(zip);
+  if (!logoTagInfo.hasSupportedLogoTag) {
+    const examplesSuffix =
+      logoTagInfo.unrecognizedTags.length > 0
+        ? ` Found unrecognized logo tags: ${logoTagInfo.unrecognizedTags
+            .map((tag) => `"${tag}"`)
+            .join(", ")}.`
+        : "";
+    const message =
+      `Exam DOCX template "${templatePath}" does not include a supported school logo placeholder tag.` +
+      " Supported variants: {{school_logo}}, {{%school_logo}}, {{%%school_logo}}, {{school_logo%%}}." +
+      examplesSuffix;
     if (EXAM_DOCX_STRICT_LOGO_PLACEHOLDER) {
       throw new Error(message);
     }
@@ -650,6 +701,20 @@ export async function renderExamDocxFromTemplate(enrichedExam, options = {}) {
       options.logger.warn({ template_path: templatePath }, message);
     } else {
       console.warn(message);
+    }
+  } else if (logoTagInfo.unrecognizedTags.length > 0) {
+    const message =
+      `Exam DOCX template "${templatePath}" contains unrecognized school logo placeholders that were ignored.`;
+    if (options.logger?.warn) {
+      options.logger.warn(
+        {
+          template_path: templatePath,
+          unrecognized_logo_tags: logoTagInfo.unrecognizedTags,
+        },
+        message,
+      );
+    } else {
+      console.warn(`${message} Tags: ${logoTagInfo.unrecognizedTags.join(", ")}`);
     }
   }
 
