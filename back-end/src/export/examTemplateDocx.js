@@ -3,12 +3,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import Docxtemplater from "docxtemplater";
+import ImageModule from "docxtemplater-image-module-free";
 import PizZip from "pizzip";
+import sharp from "sharp";
 
 import { QUESTION_TYPES } from "../exams/types.js";
+import { parseImageDataUrl } from "../utils/imageDataUrl.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_TEMPLATE_PATH = path.resolve(__dirname, "../../template.docx");
+const IMAGE_MODULE_NAME = "open-xml-templating/docxtemplater-image-module";
 
 const ARABIC_DIGITS = Object.freeze({
   0: "٠",
@@ -28,6 +32,42 @@ const SECTION_TITLES = Object.freeze({
   mcq: "اختر الإجابة الصحيحة",
   fill_blank: "أكمل الفراغ",
   written: "أجب عن الأسئلة الآتية",
+});
+
+const EMPTY_LOGO_PNG_BASE64 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=";
+const EMPTY_LOGO_BUFFER = Buffer.from(EMPTY_LOGO_PNG_BASE64, "base64");
+const EMPTY_LOGO_DATA_URL = `data:image/png;base64,${EMPTY_LOGO_PNG_BASE64}`;
+const SCHOOL_LOGO_SIZE = Object.freeze([44, 44]);
+const DEFAULT_MINISTRY_NAME = "وزارة التربية والتعليم";
+const DEFAULT_GOVERNORATE_NAME = "محافظة عدن";
+const QUESTION_SLOT_COUNTS = Object.freeze({
+  true_false: 3,
+  mcq: 3,
+  fill_blank: 2,
+  written: 2,
+});
+const HEADER_NAMESPACE_DECLARATIONS = Object.freeze([
+  [
+    "wp",
+    "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing",
+  ],
+  [
+    "r",
+    "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+  ],
+]);
+const SCHOOL_LOGO_MIME_EXTENSION_MAP = Object.freeze({
+  "image/png": "png",
+  "image/jpeg": "jpeg",
+  "image/jpg": "jpeg",
+  "image/webp": "png",
+  "image/gif": "png",
+  "image/bmp": "png",
+  "image/tiff": "png",
+  "image/x-icon": "png",
+  "image/vnd.microsoft.icon": "png",
+  "image/svg+xml": "png",
 });
 
 function safeText(value, fallback = "") {
@@ -51,8 +91,33 @@ function displayIdentifier(value, fallback = "") {
   return safeText(value, fallback);
 }
 
+function rawText(value) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  return String(value).replace(/\r\n/g, "\n");
+}
+
 function normalizeQuestionType(question) {
   return safeText(question?.question_type ?? question?.type).toLowerCase();
+}
+
+function splitFillBlankQuestionText(questionText) {
+  const text = rawText(questionText);
+  const match = text.match(/^(.*?)(_+)(.*)$/s);
+
+  if (!match) {
+    return {
+      prefix: displayText(text, ""),
+      suffix: "",
+    };
+  }
+
+  return {
+    prefix: displayText(match[1], ""),
+    suffix: displayText(match[3], ""),
+  };
 }
 
 function normalizeOptions(question) {
@@ -68,6 +133,7 @@ function normalizeOptions(question) {
 function normalizeQuestion(question, displayNumber) {
   const questionType = normalizeQuestionType(question);
   const markRaw = Number(question?.marks ?? question?.mark ?? 0) || 0;
+  const questionTextRaw = rawText(question?.question_text ?? question?.text);
   const options = normalizeOptions(question);
   const correctOptionIndex = Number.isInteger(question?.correct_option_index)
     ? question.correct_option_index
@@ -81,11 +147,17 @@ function normalizeQuestion(question, displayNumber) {
         ? question.correctAnswer
         : null;
   const answerText = displayText(question?.answer_text ?? question?.answerText);
+  const fillBlankParts =
+    questionType === QUESTION_TYPES.FILL_BLANK
+      ? splitFillBlankQuestionText(questionTextRaw)
+      : { prefix: "", suffix: "" };
 
   return {
     number_raw: displayNumber,
     number: toArabicDigits(displayNumber),
-    text: displayText(question?.question_text ?? question?.text),
+    text: displayText(questionTextRaw),
+    prefix: fillBlankParts.prefix,
+    suffix: fillBlankParts.suffix,
     mark_raw: markRaw,
     mark: toArabicDigits(markRaw),
     options,
@@ -170,10 +242,14 @@ function buildSummaryFields(prefix, questions) {
   };
 }
 
-function buildLegacyFields(prefix, questions, { includeOptions = false } = {}) {
+function buildLegacyFields(
+  prefix,
+  questions,
+  { slotCount = 2, includeOptions = false, includeFillParts = false } = {},
+) {
   const fields = {};
 
-  for (let index = 0; index < 2; index += 1) {
+  for (let index = 0; index < slotCount; index += 1) {
     const question = questions[index];
     const slot = index + 1;
 
@@ -186,6 +262,11 @@ function buildLegacyFields(prefix, questions, { includeOptions = false } = {}) {
       fields[`${prefix}_${slot}_option_b`] = question?.option_b ?? "";
       fields[`${prefix}_${slot}_option_c`] = question?.option_c ?? "";
       fields[`${prefix}_${slot}_option_d`] = question?.option_d ?? "";
+    }
+
+    if (includeFillParts) {
+      fields[`${prefix}_${slot}_prefix`] = question?.prefix ?? "";
+      fields[`${prefix}_${slot}_suffix`] = question?.suffix ?? "";
     }
 
     if (prefix === "fill" || prefix === "written") {
@@ -234,6 +315,189 @@ function buildSectionQuestions(title, questions, type) {
   };
 }
 
+function buildSchoolLogoError(message) {
+  return new Error(`school_logo render failed: ${message}`);
+}
+
+function normalizeSchoolLogoMimeType(mimeType) {
+  const normalizedMimeType = safeText(mimeType).toLowerCase();
+  if (!normalizedMimeType) {
+    throw buildSchoolLogoError("missing image MIME type");
+  }
+
+  if (!SCHOOL_LOGO_MIME_EXTENSION_MAP[normalizedMimeType]) {
+    throw buildSchoolLogoError(
+      `unsupported image MIME type "${normalizedMimeType}". Use PNG, JPG, or JPEG.`,
+    );
+  }
+
+  return {
+    mimeType: normalizedMimeType,
+  };
+}
+
+async function normalizeSchoolLogoBuffer(tagValue) {
+  const rawTagValue = typeof tagValue === "string" ? tagValue.trim() : "";
+  if (!rawTagValue) {
+    return {
+      buffer: EMPTY_LOGO_BUFFER,
+      extension: "png",
+    };
+  }
+
+  const parsedLogo = parseImageDataUrl(rawTagValue);
+  if (!parsedLogo) {
+    throw buildSchoolLogoError(
+      "placeholder value must be a base64 image data URL (data:image/...;base64,...)",
+    );
+  }
+
+  const { mimeType } = normalizeSchoolLogoMimeType(parsedLogo.mimeType);
+
+  let imageBuffer;
+  try {
+    imageBuffer = Buffer.from(parsedLogo.base64Data, "base64");
+  } catch (error) {
+    throw buildSchoolLogoError(`invalid base64 payload (${error?.message ?? error})`);
+  }
+
+  if (!imageBuffer.length) {
+    throw buildSchoolLogoError("decoded image payload is empty");
+  }
+
+  if (mimeType === "image/png") {
+    return {
+      buffer: imageBuffer,
+      extension: "png",
+    };
+  }
+
+  try {
+    const pngBuffer = await sharp(imageBuffer).png().toBuffer();
+    return {
+      buffer: pngBuffer,
+      extension: "png",
+    };
+  } catch (error) {
+    throw buildSchoolLogoError(
+      `unable to convert "${mimeType}" logo to PNG (${error?.message ?? error})`,
+    );
+  }
+}
+
+function createSchoolLogoModule() {
+  const runtimeState = {
+    nextImageExtension: "png",
+  };
+
+  const imageModule = new ImageModule({
+    centered: false,
+    fileType: "docx",
+    setParser(placeHolderContent) {
+      const tag = safeText(placeHolderContent);
+      if (!tag) {
+        return null;
+      }
+
+      if (tag === "school_logo" || tag === "school_logo_url") {
+        return {
+          type: "placeholder",
+          value: "school_logo",
+          module: IMAGE_MODULE_NAME,
+          centered: false,
+        };
+      }
+
+      if (tag === "%school_logo" || tag === "%school_logo_url") {
+        return {
+          type: "placeholder",
+          value: "school_logo",
+          module: IMAGE_MODULE_NAME,
+          centered: false,
+        };
+      }
+
+      if (tag === "%%school_logo" || tag === "%%school_logo_url") {
+        return {
+          type: "placeholder",
+          value: "school_logo",
+          module: IMAGE_MODULE_NAME,
+          centered: true,
+        };
+      }
+
+      return null;
+    },
+    async getImage(tagValue) {
+      const normalizedLogo = await normalizeSchoolLogoBuffer(tagValue);
+      runtimeState.nextImageExtension = normalizedLogo.extension;
+      return normalizedLogo.buffer;
+    },
+    getSize() {
+      return SCHOOL_LOGO_SIZE;
+    },
+  });
+
+  imageModule.getNextImageName = function getNextImageNameWithMime() {
+    const extension = runtimeState.nextImageExtension || "png";
+    const name = `image_generated_${this.imageNumber}.${extension}`;
+    this.imageNumber += 1;
+    runtimeState.nextImageExtension = "png";
+    return name;
+  };
+
+  return imageModule;
+}
+
+function ensureHeaderNamespaceDeclarations(xmlText) {
+  const rootStart = xmlText.indexOf("<w:hdr");
+  if (rootStart < 0) {
+    return xmlText;
+  }
+
+  const rootEnd = xmlText.indexOf(">", rootStart);
+  if (rootEnd < 0) {
+    return xmlText;
+  }
+
+  const openingTag = xmlText.slice(rootStart, rootEnd);
+  let patched = xmlText;
+  let offset = 0;
+
+  for (const [prefix, uri] of HEADER_NAMESPACE_DECLARATIONS) {
+    if (openingTag.includes(`xmlns:${prefix}=`)) {
+      continue;
+    }
+
+    const insertion = ` xmlns:${prefix}="${uri}"`;
+    patched =
+      patched.slice(0, rootEnd + offset) + insertion + patched.slice(rootEnd + offset);
+    offset += insertion.length;
+  }
+
+  return patched;
+}
+
+function patchRenderedHeaderNamespaces(zip) {
+  const headerFileNames = Object.keys(zip.files).filter((name) =>
+    /^word\/header\d+\.xml$/.test(name),
+  );
+
+  for (const fileName of headerFileNames) {
+    const file = zip.file(fileName);
+    if (!file) {
+      continue;
+    }
+
+    const headerXml = file.asText();
+    if (headerXml.includes('xmlns:wp=') && headerXml.includes('xmlns:r=')) {
+      continue;
+    }
+
+    zip.file(fileName, ensureHeaderNamespaceDeclarations(headerXml));
+  }
+}
+
 export function buildExamTemplateContext(enrichedExam) {
   const rawQuestions = Array.isArray(enrichedExam?.questions) ? enrichedExam.questions : [];
   const buckets = bucketQuestions(rawQuestions);
@@ -251,9 +515,18 @@ export function buildExamTemplateContext(enrichedExam) {
   ]);
   const totalQuestions = Number(enrichedExam?.total_questions ?? rawQuestions.length) || 0;
   const totalMarks = Number(enrichedExam?.total_marks ?? computedTotalMarks) || computedTotalMarks;
+  const q1Marks = sumMarks(trueFalseQuestions);
+  const q2Marks = sumMarks(mcqQuestions);
+  const q3Marks = sumMarks([...fillBlankQuestions, ...writtenQuestions]);
 
   return {
-    institution_name: displayText(enrichedExam?.school_name ?? enrichedExam?.institution_name, ""),
+    institution_name: displayText(
+      enrichedExam?.institution_name ?? enrichedExam?.school_name,
+      "",
+    ),
+    school_name: displayText(enrichedExam?.school_name ?? enrichedExam?.institution_name, ""),
+    ministry_name: displayText(enrichedExam?.ministry_name, DEFAULT_MINISTRY_NAME),
+    governorate_name: displayText(enrichedExam?.governorate_name, DEFAULT_GOVERNORATE_NAME),
     faculty_name: displayText(enrichedExam?.faculty_name, ""),
     department_name: displayText(enrichedExam?.department_name, ""),
     exam_title: displayText(enrichedExam?.title, "—"),
@@ -271,22 +544,40 @@ export function buildExamTemplateContext(enrichedExam) {
 
     student_name: displayText(enrichedExam?.student_name, ""),
     student_id: displayIdentifier(enrichedExam?.student_id, ""),
-    student_section: displayText(enrichedExam?.student_section, ""),
+    student_section: displayText(
+      enrichedExam?.student_section ?? enrichedExam?.class_section_label,
+      "",
+    ),
     seat_number: displayIdentifier(enrichedExam?.seat_number, ""),
 
     reviewer_name: displayText(enrichedExam?.reviewer_name, ""),
     approver_name: displayText(enrichedExam?.approver_name, ""),
     footer_note: displayText(enrichedExam?.footer_note, ""),
+    school_logo_url: safeText(enrichedExam?.school_logo_url, ""),
+    school_logo: safeText(enrichedExam?.school_logo_url, EMPTY_LOGO_DATA_URL),
+    q1_marks: toArabicDigits(q1Marks),
+    q2_marks: toArabicDigits(q2Marks),
+    q3_marks: toArabicDigits(q3Marks),
 
     ...buildSummaryFields("true_false", trueFalseQuestions),
     ...buildSummaryFields("mcq", mcqQuestions),
     ...buildSummaryFields("fill_blank", fillBlankQuestions),
     ...buildSummaryFields("written", writtenQuestions),
 
-    ...buildLegacyFields("tf", trueFalseQuestions),
-    ...buildLegacyFields("mcq", mcqQuestions, { includeOptions: true }),
-    ...buildLegacyFields("fill", fillBlankQuestions),
-    ...buildLegacyFields("written", writtenQuestions),
+    ...buildLegacyFields("tf", trueFalseQuestions, {
+      slotCount: QUESTION_SLOT_COUNTS.true_false,
+    }),
+    ...buildLegacyFields("mcq", mcqQuestions, {
+      slotCount: QUESTION_SLOT_COUNTS.mcq,
+      includeOptions: true,
+    }),
+    ...buildLegacyFields("fill", fillBlankQuestions, {
+      slotCount: QUESTION_SLOT_COUNTS.fill_blank,
+      includeFillParts: true,
+    }),
+    ...buildLegacyFields("written", writtenQuestions, {
+      slotCount: QUESTION_SLOT_COUNTS.written,
+    }),
 
     true_false_questions: trueFalseQuestions,
     mcq_questions: mcqQuestions,
@@ -316,7 +607,9 @@ export async function renderExamDocxFromTemplate(enrichedExam, options = {}) {
   }
 
   const zip = new PizZip(templateBuffer);
+  const imageModule = createSchoolLogoModule();
   const doc = new Docxtemplater(zip, {
+    modules: [imageModule],
     paragraphLoop: true,
     linebreaks: true,
     delimiters: { start: "{{", end: "}}" },
@@ -326,7 +619,7 @@ export async function renderExamDocxFromTemplate(enrichedExam, options = {}) {
   const context = buildExamTemplateContext(enrichedExam);
 
   try {
-    doc.render(context);
+    await doc.renderAsync(context);
   } catch (error) {
     const details = error?.properties?.errors
       ?.map((item) => item?.message ?? item?.explanation ?? item?.properties?.explanation)
@@ -340,8 +633,11 @@ export async function renderExamDocxFromTemplate(enrichedExam, options = {}) {
     throw new Error(`Failed to render exam template: ${message}`);
   }
 
+  const renderedZip = doc.getZip();
+  patchRenderedHeaderNamespaces(renderedZip);
+
   return Buffer.from(
-    doc.getZip().generate({
+    renderedZip.generate({
       type: "nodebuffer",
       compression: "DEFLATE",
     }),

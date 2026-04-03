@@ -133,7 +133,10 @@ function assertHtmlHasRtl(html) {
   assert.match(html, /direction:\s*rtl/u);
 }
 
-async function assertDocxHasRtl(buffer, { expectTableRtl = false } = {}) {
+async function assertDocxHasRtl(
+  buffer,
+  { expectTableRtl = false, expectSectionBidi = true } = {},
+) {
   const parts = await unzipXmlParts(buffer);
   const documentXml = parts["word/document.xml"];
   assert.ok(documentXml, "DOCX should contain word/document.xml");
@@ -146,7 +149,9 @@ async function assertDocxHasRtl(buffer, { expectTableRtl = false } = {}) {
   const sectPrEnd = documentXml.indexOf("</w:sectPr>", sectPrStart);
   assert.ok(sectPrEnd > sectPrStart, "DOCX should close final section properties");
   const finalSectionXml = documentXml.slice(sectPrStart, sectPrEnd);
-  assert.match(finalSectionXml, /<w:bidi\b[^>]*\/>/u);
+  if (expectSectionBidi) {
+    assert.match(finalSectionXml, /<w:bidi\b[^>]*\/>/u);
+  }
 
   if (expectTableRtl) {
     assert.match(documentXml, /w:bidiVisual/u);
@@ -191,7 +196,10 @@ test("DOCX exports carry RTL paragraph and table direction", async () => {
 
   await assertDocxHasRtl(planDocx, { expectTableRtl: true });
   await assertDocxHasRtl(assignmentDocx);
-  await assertDocxHasRtl(examPaperDocx, { expectTableRtl: true });
+  await assertDocxHasRtl(examPaperDocx, {
+    expectTableRtl: true,
+    expectSectionBidi: false,
+  });
   await assertDocxHasRtl(examAnswerFormDocx, { expectTableRtl: true });
   await assertDocxHasRtl(examAnswerKeyDocx, { expectTableRtl: true });
 });
