@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import base64
+import io
 import json
+import re
 import sys
 from typing import Any
 
@@ -14,6 +17,10 @@ from docx.shared import Cm, Pt, RGBColor
 
 FONT_NAME = "Arial"
 ARABIC_DIGITS = str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩")
+IMAGE_DATA_URL_PATTERN = re.compile(
+    r"^data:\s*image/[\w.+-]+(?:\s*;[^;,=\s]+=[^;,]+)*\s*;\s*base64\s*,\s*([A-Za-z0-9+/=\s]+)\s*$",
+    re.IGNORECASE,
+)
 
 
 def to_arabic_digits(value: Any) -> str:
@@ -24,6 +31,38 @@ def normalize_text(value: Any) -> str:
     if value is None:
         return ""
     return to_arabic_digits(value)
+
+
+def parse_image_data_url(value: Any) -> io.BytesIO | None:
+    if not isinstance(value, str):
+        return None
+
+    text = value.strip()
+    if not text:
+        return None
+
+    if (text.startswith('"') and text.endswith('"')) or (text.startswith("'") and text.endswith("'")):
+        text = text[1:-1].strip()
+
+    match = IMAGE_DATA_URL_PATTERN.match(text)
+    if not match:
+        return None
+
+    base64_payload = re.sub(r"\s+", "", match.group(1))
+    if not base64_payload:
+        return None
+
+    try:
+        decoded = base64.b64decode(base64_payload, validate=False)
+    except Exception:
+        return None
+
+    if not decoded:
+        return None
+
+    stream = io.BytesIO(decoded)
+    stream.seek(0)
+    return stream
 
 
 def make_element(tag: str, attribs: dict[str, str] | None = None):
@@ -557,6 +596,18 @@ def add_document_header(doc: Document, exam_meta: dict[str, Any], title: str):
     add_rtl_paragraph(doc, "الجمهورية اليمنية", bold=True, size=12, align=WD_ALIGN_PARAGRAPH.CENTER)
     add_rtl_paragraph(doc, "وزارة التربية والتعليم", bold=True, size=12, align=WD_ALIGN_PARAGRAPH.CENTER)
     add_rtl_paragraph(doc, "محافظة عدن", bold=True, size=11, align=WD_ALIGN_PARAGRAPH.CENTER)
+
+    logo_value = exam_meta.get("schoolLogoUrl") or exam_meta.get("school_logo_url")
+    logo_paragraph = doc.add_paragraph()
+    set_para_rtl(logo_paragraph)
+    logo_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    logo_stream = parse_image_data_url(logo_value)
+    if logo_stream is not None:
+        run = logo_paragraph.add_run()
+        run.add_picture(logo_stream, width=Cm(1.6), height=Cm(1.6))
+    else:
+        add_text_run(logo_paragraph, "شعار المدرسة", bold=True, size=10)
+
     if exam_meta.get("schoolName"):
         add_rtl_paragraph(
             doc,

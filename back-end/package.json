@@ -7,7 +7,9 @@
     "dev": "nodemon --watch src --watch .env --env-file=.env src/server.js",
     "start": "node src/server.js",
     "seed": "node --env-file=.env src/scripts/seed.js",
-    "test": "TURSO_DATABASE_URL=http://localhost TURSO_AUTH_TOKEN=test-token node --test"
+    "test": "TURSO_DATABASE_URL=http://localhost TURSO_AUTH_TOKEN=test-token node --test",
+    "logo:audit": "node --env-file=.env scripts/audit_school_logos.js",
+    "logo:cleanup": "node --env-file=.env scripts/audit_school_logos.js --apply"
   },
   "keywords": [],
   "author": "",

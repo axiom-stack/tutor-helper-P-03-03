@@ -1,16 +1,41 @@
-const IMAGE_DATA_URL_PATTERN = /^data:(image\/[\w.+-]+);base64,([A-Za-z0-9+/=\s]+)$/u;
+const IMAGE_DATA_URL_PATTERN =
+  /^data:\s*(image\/[\w.+-]+)(?:\s*;[^;,=\s]+=[^;,]+)*\s*;\s*base64\s*,\s*([A-Za-z0-9+/=\s]+)$/iu;
+
+function unwrapQuotedText(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  const first = trimmed[0];
+  const last = trimmed[trimmed.length - 1];
+  if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+    return trimmed.slice(1, -1).trim();
+  }
+
+  return trimmed;
+}
 
 export function normalizeOptionalImageDataUrl(value) {
   if (value === null) return null;
   if (value === undefined) return undefined;
   if (typeof value !== "string") return NaN;
 
-  const trimmed = value.trim();
+  const trimmed = unwrapQuotedText(value);
   if (trimmed.length === 0) {
     return null;
   }
 
-  return IMAGE_DATA_URL_PATTERN.test(trimmed) ? trimmed : NaN;
+  const parsed = parseImageDataUrl(trimmed);
+  if (!parsed) {
+    return NaN;
+  }
+
+  return `data:${parsed.mimeType};base64,${parsed.base64Data}`;
 }
 
 export function parseImageDataUrl(value) {
@@ -18,7 +43,7 @@ export function parseImageDataUrl(value) {
     return null;
   }
 
-  const trimmed = value.trim();
+  const trimmed = unwrapQuotedText(value);
   const match = trimmed.match(IMAGE_DATA_URL_PATTERN);
   if (!match) {
     return null;
@@ -30,7 +55,7 @@ export function parseImageDataUrl(value) {
   }
 
   return {
-    mimeType,
+    mimeType: mimeType.trim().toLowerCase(),
     base64Data: base64Data.replace(/\s+/gu, ""),
   };
 }

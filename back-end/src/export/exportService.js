@@ -15,6 +15,7 @@ import {
   buildExamAnswerFormDocx,
   buildExamAnswerKeyDocx,
 } from "./examDocxBuilders.js";
+import { resolveSchoolLogoForExport } from "./schoolLogoResolver.js";
 
 const MIME_PDF = "application/pdf";
 const MIME_DOCX =
@@ -81,61 +82,70 @@ export async function exportAssignment(enrichedAssignment, format) {
  * - "answer_form"     → نموذج الإجابات (answer sheet)
  * - "answer_key"      → نموذج الإجابات للمعلم (answer key)
  */
-export async function exportExam(enrichedExam, format, type = "answer_key") {
-  const id = enrichedExam.public_id ?? "exam";
+export async function exportExam(enrichedExam, format, type = "answer_key", options = {}) {
+  const { exam: logoReadyExam, logoResolution } =
+    await resolveSchoolLogoForExport(enrichedExam, { logger: options.logger });
+  const id = logoReadyExam.public_id ?? "exam";
+  const diagnostics = { logo: logoResolution };
 
   if (type === "answer_form") {
     if (format === "pdf") {
-      const html = buildExamAnswerFormHtml(enrichedExam);
+      const html = buildExamAnswerFormHtml(logoReadyExam);
       const buffer = await htmlToPdf(html, { landscape: false });
       return {
         buffer,
         mimeType: MIME_PDF,
         suggestedFilename: `exam_${id}_answer_form.pdf`,
+        diagnostics,
       };
     }
     if (format === "docx") {
-      const buffer = await buildExamAnswerFormDocx(enrichedExam);
+      const buffer = await buildExamAnswerFormDocx(logoReadyExam);
       return {
         buffer,
         mimeType: MIME_DOCX,
         suggestedFilename: `exam_${id}_answer_form.docx`,
+        diagnostics,
       };
     }
   } else if (type === "questions_only") {
     if (format === "pdf") {
-      const html = buildExamPaperHtml(enrichedExam);
+      const html = buildExamPaperHtml(logoReadyExam);
       const buffer = await htmlToPdf(html, { landscape: false });
       return {
         buffer,
         mimeType: MIME_PDF,
         suggestedFilename: `exam_${id}_questions_only.pdf`,
+        diagnostics,
       };
     }
     if (format === "docx") {
-      const buffer = await buildExamPaperDocx(enrichedExam);
+      const buffer = await buildExamPaperDocx(logoReadyExam);
       return {
         buffer,
         mimeType: MIME_DOCX,
         suggestedFilename: `exam_${id}_questions_only.docx`,
+        diagnostics,
       };
     }
   } else if (type === "answer_key") {
     if (format === "pdf") {
-      const html = buildExamAnswerKeyHtml(enrichedExam);
+      const html = buildExamAnswerKeyHtml(logoReadyExam);
       const buffer = await htmlToPdf(html, { landscape: false });
       return {
         buffer,
         mimeType: MIME_PDF,
         suggestedFilename: `exam_${id}_answer_key.pdf`,
+        diagnostics,
       };
     }
     if (format === "docx") {
-      const buffer = await buildExamAnswerKeyDocx(enrichedExam);
+      const buffer = await buildExamAnswerKeyDocx(logoReadyExam);
       return {
         buffer,
         mimeType: MIME_DOCX,
         suggestedFilename: `exam_${id}_answer_key.docx`,
+        diagnostics,
       };
     }
   }

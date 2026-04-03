@@ -15,6 +15,25 @@ const examsRepository = createExamsRepository();
 
 const VALID_FORMATS = ["pdf", "docx"];
 
+function setExamLogoDiagnosticsHeaders(res, diagnostics) {
+  const logo = diagnostics?.logo;
+  if (!logo || typeof logo !== "object") {
+    return;
+  }
+
+  if (typeof logo.status === "string" && logo.status) {
+    res.setHeader("X-Exam-Logo-Status", logo.status);
+  }
+  if (typeof logo.source === "string" && logo.source) {
+    res.setHeader("X-Exam-Logo-Source", logo.source);
+  }
+  if (typeof logo.reason === "string" && logo.reason) {
+    res.setHeader("X-Exam-Logo-Reason", logo.reason);
+  }
+  res.setHeader("X-Exam-Logo-Recovered", logo.recovered ? "1" : "0");
+  res.setHeader("X-Exam-Logo-Fallback", logo.fallback_used ? "1" : "0");
+}
+
 /**
  * GET /api/plans/:id/export?format=pdf|docx
  */
@@ -173,11 +192,17 @@ export async function exportExamHandler(req, res) {
       });
     }
 
-    const enriched = await enrichExam(exam);
-    const { buffer, mimeType, suggestedFilename } = await exportExam(enriched, format, type);
+    const enriched = await enrichExam(exam, { logger: req.log });
+    const { buffer, mimeType, suggestedFilename, diagnostics } = await exportExam(
+      enriched,
+      format,
+      type,
+      { logger: req.log },
+    );
 
     res.setHeader("Content-Type", mimeType);
     res.setHeader("Content-Disposition", `attachment; filename="${suggestedFilename}"`);
+    setExamLogoDiagnosticsHeaders(res, diagnostics);
     res.send(buffer);
   } catch (err) {
     req.log?.error?.({ err }, "Export exam failure");

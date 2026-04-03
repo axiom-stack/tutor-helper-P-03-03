@@ -9,6 +9,10 @@ import sharp from "sharp";
 
 import { QUESTION_TYPES } from "../exams/types.js";
 import { parseImageDataUrl } from "../utils/imageDataUrl.js";
+import {
+  getVisiblePlaceholderDataUrl,
+  resolveSchoolLogoForExport,
+} from "./schoolLogoResolver.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_TEMPLATE_PATH = path.resolve(__dirname, "../../template.docx");
@@ -69,6 +73,10 @@ const SCHOOL_LOGO_MIME_EXTENSION_MAP = Object.freeze({
   "image/vnd.microsoft.icon": "png",
   "image/svg+xml": "png",
 });
+const TEMPLATE_LOGO_TOKEN_PATTERN = /school_logo(?:_url)?/iu;
+const EXAM_DOCX_STRICT_LOGO_PLACEHOLDER = /^(1|true|yes|on)$/iu.test(
+  String(process.env.EXAM_DOCX_STRICT_LOGO_PLACEHOLDER ?? ""),
+);
 
 function safeText(value, fallback = "") {
   if (value === null || value === undefined) {
@@ -319,6 +327,21 @@ function buildSchoolLogoError(message) {
   return new Error(`school_logo render failed: ${message}`);
 }
 
+async function getFallbackSchoolLogoBuffer() {
+  const fallbackDataUrl = await getVisiblePlaceholderDataUrl();
+  const parsedFallback = parseImageDataUrl(fallbackDataUrl);
+  if (!parsedFallback) {
+    return {
+      buffer: EMPTY_LOGO_BUFFER,
+      extension: "png",
+    };
+  }
+  return {
+    buffer: Buffer.from(parsedFallback.base64Data, "base64"),
+    extension: "png",
+  };
+}
+
 function normalizeSchoolLogoMimeType(mimeType) {
   const normalizedMimeType = safeText(mimeType).toLowerCase();
   if (!normalizedMimeType) {
@@ -339,30 +362,30 @@ function normalizeSchoolLogoMimeType(mimeType) {
 async function normalizeSchoolLogoBuffer(tagValue) {
   const rawTagValue = typeof tagValue === "string" ? tagValue.trim() : "";
   if (!rawTagValue) {
-    return {
-      buffer: EMPTY_LOGO_BUFFER,
-      extension: "png",
-    };
+    return await getFallbackSchoolLogoBuffer();
   }
 
   const parsedLogo = parseImageDataUrl(rawTagValue);
   if (!parsedLogo) {
-    throw buildSchoolLogoError(
-      "placeholder value must be a base64 image data URL (data:image/...;base64,...)",
-    );
+    return await getFallbackSchoolLogoBuffer();
   }
 
-  const { mimeType } = normalizeSchoolLogoMimeType(parsedLogo.mimeType);
+  let mimeType;
+  try {
+    mimeType = normalizeSchoolLogoMimeType(parsedLogo.mimeType).mimeType;
+  } catch {
+    return await getFallbackSchoolLogoBuffer();
+  }
 
   let imageBuffer;
   try {
     imageBuffer = Buffer.from(parsedLogo.base64Data, "base64");
-  } catch (error) {
-    throw buildSchoolLogoError(`invalid base64 payload (${error?.message ?? error})`);
+  } catch {
+    return await getFallbackSchoolLogoBuffer();
   }
 
   if (!imageBuffer.length) {
-    throw buildSchoolLogoError("decoded image payload is empty");
+    return await getFallbackSchoolLogoBuffer();
   }
 
   if (mimeType === "image/png") {
@@ -378,10 +401,8 @@ async function normalizeSchoolLogoBuffer(tagValue) {
       buffer: pngBuffer,
       extension: "png",
     };
-  } catch (error) {
-    throw buildSchoolLogoError(
-      `unable to convert "${mimeType}" logo to PNG (${error?.message ?? error})`,
-    );
+  } catch {
+    return await getFallbackSchoolLogoBuffer();
   }
 }
 
@@ -498,6 +519,18 @@ function patchRenderedHeaderNamespaces(zip) {
   }
 }
 
+function templateContainsSchoolLogoPlaceholder(zip) {
+  const xmlNames = Object.keys(zip.files).filter((name) =>
+    /^word\/(document|header\d+|footer\d+)\.xml$/u.test(name),
+  );
+
+  return xmlNames.some((fileName) => {
+    const file = zip.file(fileName);
+    const xml = file?.asText?.() ?? "";
+    return TEMPLATE_LOGO_TOKEN_PATTERN.test(xml);
+  });
+}
+
 export function buildExamTemplateContext(enrichedExam) {
   const rawQuestions = Array.isArray(enrichedExam?.questions) ? enrichedExam.questions : [];
   const buckets = bucketQuestions(rawQuestions);
@@ -607,6 +640,19 @@ export async function renderExamDocxFromTemplate(enrichedExam, options = {}) {
   }
 
   const zip = new PizZip(templateBuffer);
+  const hasLogoPlaceholder = templateContainsSchoolLogoPlaceholder(zip);
+  if (!hasLogoPlaceholder) {
+    const message = `Exam DOCX template "${templatePath}" does not include a school logo placeholder tag`;
+    if (EXAM_DOCX_STRICT_LOGO_PLACEHOLDER) {
+      throw new Error(message);
+    }
+    if (options.logger?.warn) {
+      options.logger.warn({ template_path: templatePath }, message);
+    } else {
+      console.warn(message);
+    }
+  }
+
   const imageModule = createSchoolLogoModule();
   const doc = new Docxtemplater(zip, {
     modules: [imageModule],
@@ -616,7 +662,10 @@ export async function renderExamDocxFromTemplate(enrichedExam, options = {}) {
     nullGetter: () => "",
   });
 
-  const context = buildExamTemplateContext(enrichedExam);
+  const { exam: logoReadyExam } = await resolveSchoolLogoForExport(enrichedExam, {
+    logger: options.logger,
+  });
+  const context = buildExamTemplateContext(logoReadyExam);
 
   try {
     await doc.renderAsync(context);

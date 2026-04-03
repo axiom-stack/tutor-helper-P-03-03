@@ -35,6 +35,7 @@ import { parseImageDataUrl } from "../utils/imageDataUrl.js";
 import { ensureDocxRtl } from "./docxRtl.js";
 import { renderDocxWithPython } from "./pythonDocxBridge.js";
 import { renderExamDocxFromTemplate } from "./examTemplateDocx.js";
+import { resolveSchoolLogoForExport } from "./schoolLogoResolver.js";
 import {
   createArabicCenteredParagraph,
   createArabicParagraph,
@@ -858,21 +859,24 @@ async function buildExamAnswerKeyDocxJs(enrichedExam) {
 }
 
 export async function buildExamPaperDocx(enrichedExam) {
-  return await renderExamDocxFromTemplate(enrichedExam);
+  const { exam: logoReadyExam } = await resolveSchoolLogoForExport(enrichedExam);
+  return await renderExamDocxFromTemplate(logoReadyExam);
 }
 
 export async function buildExamAnswerFormDocx(enrichedExam) {
-  const pythonBuffer = await buildExamDocxWithPython(enrichedExam, "answer_form");
+  const { exam: logoReadyExam } = await resolveSchoolLogoForExport(enrichedExam);
+  const pythonBuffer = await buildExamDocxWithPython(logoReadyExam, "answer_form");
   if (pythonBuffer) {
     return pythonBuffer;
   }
-  return await buildExamAnswerFormDocxJs(enrichedExam);
+  return await buildExamAnswerFormDocxJs(logoReadyExam);
 }
 
 export async function buildExamAnswerKeyDocx(enrichedExam) {
-  const pythonBuffer = await buildExamDocxWithPython(enrichedExam, "answer_key");
+  const { exam: logoReadyExam } = await resolveSchoolLogoForExport(enrichedExam);
+  const pythonBuffer = await buildExamDocxWithPython(logoReadyExam, "answer_key");
   if (pythonBuffer) {
     return pythonBuffer;
   }
-  return await buildExamAnswerKeyDocxJs(enrichedExam);
+  return await buildExamAnswerKeyDocxJs(logoReadyExam);
 }

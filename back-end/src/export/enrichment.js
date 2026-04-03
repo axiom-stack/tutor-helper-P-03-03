@@ -51,9 +51,10 @@ export async function getClassInfo(classId) {
 /**
  * Get school settings by teacher id.
  * @param {number} teacherId
- * @returns {Promise<{ school_name: string|null, school_logo_url: string|null }|null>}
+ * @param {{ logger?: object, examPublicId?: string }} [options]
+ * @returns {Promise<{ school_name: string|null, school_logo_url: string|null, status: string, error?: string, source: string }|null>}
  */
-export async function getSchoolSettings(teacherId) {
+export async function getSchoolSettings(teacherId, options = {}) {
   if (teacherId == null) return null;
   try {
     const result = await turso.execute({
@@ -69,9 +70,25 @@ export async function getSchoolSettings(teacherId) {
     return {
       school_name: row?.school_name ?? null,
       school_logo_url: row?.school_logo_url ?? null,
+      status: "ok",
+      source: "user_profile",
     };
-  } catch {
-    return null;
+  } catch (error) {
+    options.logger?.warn?.(
+      {
+        teacher_id: Number(teacherId),
+        exam_public_id: options.examPublicId ?? null,
+        error_message: error?.message ?? String(error),
+      },
+      "Failed to load school settings for exam export",
+    );
+    return {
+      school_name: null,
+      school_logo_url: null,
+      status: "error",
+      error: "school_settings_lookup_failed",
+      source: "user_profile",
+    };
   }
 }
 
@@ -153,15 +170,19 @@ export async function enrichAssignment(assignment) {
 /**
  * Enrich exam for export: add teacher_name, class_name, subject_name.
  * @param {object} exam - Exam record from repository (with blueprint, questions)
+ * @param {{ logger?: object }} [options]
  * @returns {Promise<object>} exam with teacher_name, class_name, subject_name attached
  */
-export async function enrichExam(exam) {
+export async function enrichExam(exam, options = {}) {
   if (!exam) return exam;
   const [teacherName, classInfo, subjectName, schoolSettings] = await Promise.all([
     getTeacherName(exam.teacher_id),
     getClassInfo(exam.class_id),
     getSubjectName(exam.subject_id),
-    getSchoolSettings(exam.teacher_id),
+    getSchoolSettings(exam.teacher_id, {
+      logger: options.logger,
+      examPublicId: exam.public_id,
+    }),
   ]);
   const className =
     classInfo?.gradeLabel && classInfo?.sectionLabel
@@ -178,5 +199,10 @@ export async function enrichExam(exam) {
     subject_name: subjectName ?? "—",
     school_name: schoolSettings?.school_name ?? null,
     school_logo_url: schoolSettings?.school_logo_url ?? null,
+    _school_settings_diagnostics: {
+      status: schoolSettings?.status ?? "missing",
+      source: schoolSettings?.source ?? "user_profile",
+      reason: schoolSettings?.error ?? null,
+    },
   };
 }

@@ -23,6 +23,7 @@ export default function Settings() {
   );
   const [schoolName, setSchoolName] = useState('');
   const [schoolLogoUrl, setSchoolLogoUrl] = useState<string | null>(null);
+  const [logoDirty, setLogoDirty] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -57,6 +58,7 @@ export default function Settings() {
         );
         setSchoolName(profile.school_name?.trim() ?? '');
         setSchoolLogoUrl(profile.school_logo_url ?? null);
+        setLogoDirty(false);
       })
       .catch((loadError: unknown) => {
         if (!cancelled) {
@@ -139,6 +141,7 @@ export default function Settings() {
         }
 
         setSchoolLogoUrl(result);
+        setLogoDirty(true);
         setLogoError(null);
         toast.success(
           `تم قبول الصورة: ${width}×${height} بكسل. الأبعاد الموصى بها مناسبة.`
@@ -163,6 +166,7 @@ export default function Settings() {
 
   const clearLogo = () => {
     setSchoolLogoUrl(null);
+    setLogoDirty(true);
     setLogoError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -178,16 +182,51 @@ export default function Settings() {
       language,
       preparation_type: preparationType || null,
       school_name: schoolName.trim() || null,
-      school_logo_url: schoolLogoUrl,
     };
+    if (logoDirty) {
+      payload.school_logo_url = schoolLogoUrl;
+    }
 
     try {
       const response = await updateMyProfile(payload);
-      updateUserProfile(response.profile);
+      let persistedProfile = response.profile;
+      try {
+        const persisted = await getMyProfile();
+        persistedProfile = persisted.profile;
+      } catch {
+        // Keep API update response as fallback when immediate refetch fails.
+      }
 
-      const needsReload = syncDisplayLanguageCookie(response.profile.language);
-      setSuccess('تم حفظ الإعدادات بنجاح.');
-      toast.success('تم حفظ الإعدادات بنجاح.');
+      updateUserProfile(persistedProfile);
+
+      const expectedLogoPresence = logoDirty ? Boolean(schoolLogoUrl) : null;
+      const actualLogoPresence =
+        persistedProfile.school_logo_url != null &&
+        persistedProfile.school_logo_url.trim().length > 0;
+      const logoPersisted =
+        expectedLogoPresence == null
+          ? true
+          : expectedLogoPresence
+            ? actualLogoPresence
+            : !actualLogoPresence;
+
+      setSchoolLogoUrl(persistedProfile.school_logo_url ?? null);
+      setLogoDirty(false);
+
+      const needsReload = syncDisplayLanguageCookie(persistedProfile.language);
+      const successMessage =
+        logoDirty && logoPersisted
+          ? 'تم حفظ الإعدادات بنجاح وتم التحقق من حفظ الشعار.'
+          : 'تم حفظ الإعدادات بنجاح.';
+      setSuccess(successMessage);
+      toast.success(successMessage);
+
+      if (logoDirty && !logoPersisted) {
+        const persistenceError =
+          'تم حفظ الإعدادات لكن لم يتم تأكيد حفظ الشعار. أعد رفع الشعار ثم حاول مرة أخرى.';
+        setError(persistenceError);
+        toast.error(persistenceError);
+      }
 
       if (needsReload) {
         setTimeout(() => window.location.reload(), 100);

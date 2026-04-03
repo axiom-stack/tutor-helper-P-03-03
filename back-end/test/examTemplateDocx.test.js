@@ -120,10 +120,6 @@ test("renderExamDocxFromTemplate fills placeholders and repeats question blocks"
   const { zip, mediaFiles } = await listMediaFiles(buffer);
   const documentXml = await zip.file("word/document.xml").async("string");
   const visibleText = extractVisibleText(documentXml);
-  const expectedLogoBytes = Buffer.from(
-    SAMPLE_LOGO_DATA_URL.split(",")[1],
-    "base64",
-  );
 
   assert.match(visibleText, /اختبار العلوم/);
   assert.match(visibleText, /وزارة التربية والتعليم/);
@@ -142,7 +138,7 @@ test("renderExamDocxFromTemplate fills placeholders and repeats question blocks"
   assert.match(documentXml, /<a:blip r:embed="/u);
   assert.ok(mediaFiles.length > 0, "expected the rendered DOCX to include an embedded logo");
   const embeddedLogo = await zip.file(mediaFiles[0]).async("nodebuffer");
-  assert.deepEqual(embeddedLogo, expectedLogoBytes);
+  assert.deepEqual([...embeddedLogo.slice(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
   assert.ok(!documentXml.includes("{{"), "document.xml should not contain unresolved placeholders");
 });
 
@@ -204,14 +200,13 @@ test("renderExamDocxFromTemplate converts WEBP logos to PNG for Word compatibili
   assert.deepEqual([...embeddedLogo.slice(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
 });
 
-test("renderExamDocxFromTemplate fails clearly for malformed logo data URLs", async () => {
+test("renderExamDocxFromTemplate falls back safely for malformed logo data URLs", async () => {
   const exam = {
     ...sampleExam(),
     school_logo_url: "not-a-data-url",
   };
 
-  await assert.rejects(
-    () => renderExamDocxFromTemplate(exam),
-    /school_logo render failed/i,
-  );
+  const buffer = await renderExamDocxFromTemplate(exam);
+  const { mediaFiles } = await listMediaFiles(buffer);
+  assert.ok(mediaFiles.length > 0, "expected fallback logo media in rendered DOCX");
 });

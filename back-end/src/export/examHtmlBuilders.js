@@ -112,6 +112,25 @@ const EXAM_BASE_STYLES = `
     color: #000000;
   }
 
+  .answer-form-brand {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .answer-form-brand .exam-header-logo {
+    margin: 0;
+  }
+
+  .answer-form-brand__lines {
+    text-align: right;
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1.45;
+  }
+
   .exam-student-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 48mm;
@@ -942,6 +961,14 @@ function renderAnswerFormHeader(vm) {
         <h2 style="margin:0 0 6px 0;font-size:18px;">${escapeHtmlAr(
           `نموذج الإجابات${e.title ? ` - ${e.title}` : ""}`,
         )}</h2>
+        <div class="answer-form-brand">
+          ${renderLogoHtml(e.schoolLogoUrl)}
+          <div class="answer-form-brand__lines">
+            <div>مدرسة: ${escapeHtmlAr(e.schoolName ?? "—")}</div>
+            <div>الفصل الدراسي: ${escapeHtmlAr(e.term ?? "—")}</div>
+            <div>العام الدراسي: ${escapeHtmlAr(e.academicYear ?? "—")}</div>
+          </div>
+        </div>
         <div class="answer-form-header__meta-grid">
           <div class="meta-field">
             <label>${escapeHtml(meta.studentNameLabel)}</label>
