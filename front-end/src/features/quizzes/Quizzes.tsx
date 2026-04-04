@@ -287,7 +287,7 @@ function PaperQuestionCard({ question }: { question: PaperQuestion }) {
                 </span>
                 {question.question_type === 'true_false' ? (
                   <span className="qz__paper-blank" aria-hidden="true">
-                    (              )
+                    ( )
                   </span>
                 ) : null}
               </li>
@@ -301,7 +301,7 @@ function PaperQuestionCard({ question }: { question: PaperQuestion }) {
             <span>{toArabicDigits(promptLines[0])}</span>
             {question.question_type === 'true_false' ? (
               <span className="qz__paper-blank" aria-hidden="true">
-                (              )
+                ( )
               </span>
             ) : null}
           </p>
@@ -2258,7 +2258,7 @@ export default function Quizzes() {
           <p>
             {isCreateRoute
               ? 'اختر العام الدراسي والفصل والصف والمادة والدروس، ثم حدد عدد الأسئلة والدرجة الكلية ليتم توليد اختبار موزون بشكل آلي وحفظه.'
-              : 'عرض نظامي لجميع الاختبارات المولدة مع الفلترة والتفاصيل والتصدير.'}
+              : 'عرض نظامي لجميع الاختبارات المولدة مع فلترة العرض والتفاصيل والتصدير.'}
           </p>
         </div>
       </header>

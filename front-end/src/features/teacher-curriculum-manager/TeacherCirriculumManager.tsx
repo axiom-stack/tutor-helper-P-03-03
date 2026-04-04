@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router';
 import {
@@ -399,10 +393,7 @@ function TeacherCirriculumManager(props: {
         null);
 
   const classGroups = useMemo(() => {
-    const grouped = new Map<
-      string,
-      { baseClass: Class; sections: Class[] }
-    >();
+    const grouped = new Map<string, { baseClass: Class; sections: Class[] }>();
 
     filteredExistingClasses.forEach((classItem) => {
       const baseKey = getClassBaseKey(classItem);
@@ -442,8 +433,10 @@ function TeacherCirriculumManager(props: {
       return [];
     }
 
-    return classGroups.find((group) => group.key === selectedClassBaseKey)
-      ?.sections ?? [];
+    return (
+      classGroups.find((group) => group.key === selectedClassBaseKey)
+        ?.sections ?? []
+    );
   }, [classGroups, selectedClassBaseKey]);
 
   const selectedSubjectUnits = useMemo(
@@ -514,7 +507,6 @@ function TeacherCirriculumManager(props: {
     });
   }, [orderedSubjects, selectedClassBaseKey, selectedClassId, classByIdMap]);
 
-
   const quickAddSubjectSuggestions = useMemo<SearchSuggestion[]>(() => {
     if (
       !quickAddDraft ||
@@ -578,7 +570,6 @@ function TeacherCirriculumManager(props: {
       toast.success(success);
     }
   }, [success]);
-
 
   const isQuickAddValid = (() => {
     if (!quickAddDraft) {
@@ -731,7 +722,6 @@ function TeacherCirriculumManager(props: {
     },
     [classes, selectedClassBaseKey, units]
   );
-
 
   useEffect(() => {
     if (!user) {
@@ -1121,7 +1111,7 @@ function TeacherCirriculumManager(props: {
             unit_id: quickAddDraft.unitId,
           });
           if (response.lesson) {
-          setLessons((previous) => [...previous, response.lesson as Lesson]);
+            setLessons((previous) => [...previous, response.lesson as Lesson]);
           }
           ensureUnitExpanded(targetUnit.id);
           setSelectedClassId(targetClass.id);
@@ -1472,7 +1462,6 @@ function TeacherCirriculumManager(props: {
     });
   };
 
-
   return (
     <div className="tcm2 ui-loaded">
       <nav aria-label="breadcrumb">
@@ -1628,7 +1617,9 @@ function TeacherCirriculumManager(props: {
                         </option>
                       ))}
                     </select>
-                    <label htmlFor="active-class-section">الشعبة المحفوظة</label>
+                    <label htmlFor="active-class-section">
+                      الشعبة المحفوظة
+                    </label>
                     <select
                       id="active-class-section"
                       value={selectedClassId}
@@ -1726,24 +1717,6 @@ function TeacherCirriculumManager(props: {
                         }
                         placeholder="مثال: أ"
                       />
-                    </div>
-                    <div className="tcm2__field">
-                      <label htmlFor="new-class-duration">
-                        مدة الحصة الافتراضية (دقيقة)
-                      </label>
-                      <select
-                        id="new-class-duration"
-                        value={newClassDefaultDuration}
-                        onChange={(event) =>
-                          setNewClassDefaultDuration(Number(event.target.value))
-                        }
-                      >
-                        {LESSON_DURATION_OPTIONS.map((durationOption) => (
-                          <option key={durationOption} value={durationOption}>
-                            {durationOption} دقيقة
-                          </option>
-                        ))}
-                      </select>
                     </div>
                   </div>
 
@@ -2065,7 +2038,6 @@ function TeacherCirriculumManager(props: {
             </div>
           )}
         </section>
-
       </div>
 
       <ConfirmActionModal
@@ -2313,33 +2285,6 @@ function TeacherCirriculumManager(props: {
                       )
                     }
                   />
-                </div>
-                <div className="tcm2__field">
-                  <label htmlFor="quick-add-class-duration">
-                    مدة الحصة الافتراضية (دقيقة) *
-                  </label>
-                  <select
-                    id="quick-add-class-duration"
-                    value={quickAddDraft.defaultDurationMinutes ?? 45}
-                    onChange={(event) =>
-                      setQuickAddDraft((previous) =>
-                        previous
-                          ? {
-                              ...previous,
-                              defaultDurationMinutes: Number(
-                                event.target.value
-                              ),
-                            }
-                          : previous
-                      )
-                    }
-                  >
-                    {LESSON_DURATION_OPTIONS.map((d) => (
-                      <option key={d} value={d}>
-                        {d} دقيقة
-                      </option>
-                    ))}
-                  </select>
                 </div>
               </div>
             )}

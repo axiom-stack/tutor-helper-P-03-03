@@ -6,12 +6,22 @@ import ConfirmActionModal from '../../components/common/ConfirmActionModal';
 import ExportFormatModal from '../../components/common/ExportFormatModal';
 import { SyncStatusBadge } from '../../components/common/SyncStatusBadge';
 import { useAuth } from '../../context/AuthContext';
-import type { Class, Lesson, Subject, TeacherManagementRow, Unit } from '../../types';
+import type {
+  Class,
+  Lesson,
+  Subject,
+  TeacherManagementRow,
+  Unit,
+} from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
 import { useOffline } from '../../offline/useOffline';
 import { isLocalOnlyId } from '../../offline/utils';
 import type { OfflineLessonPlanRecord } from '../../offline/types';
-import { asRecord, toDisplayText, toPlanTypeLabel } from '../lesson-plans/planDisplay';
+import {
+  asRecord,
+  toDisplayText,
+  toPlanTypeLabel,
+} from '../lesson-plans/planDisplay';
 import {
   getAllClasses,
   getAllSubjects,
@@ -41,11 +51,7 @@ function getPlanHeader(plan: OfflineLessonPlanRecord): Record<string, unknown> {
 
 function getPlanSemester(plan: OfflineLessonPlanRecord): string | null {
   const header = getPlanHeader(plan);
-  return (
-    toOptionalText(header.semester) ??
-    toOptionalText(header.term) ??
-    null
-  );
+  return toOptionalText(header.semester) ?? toOptionalText(header.term) ?? null;
 }
 
 function getPlanAcademicYear(plan: OfflineLessonPlanRecord): string | null {
@@ -57,7 +63,9 @@ function getPlanAcademicYear(plan: OfflineLessonPlanRecord): string | null {
   );
 }
 
-function getClassSemesterLabel(classItem: Class | null | undefined): string | null {
+function getClassSemesterLabel(
+  classItem: Class | null | undefined
+): string | null {
   if (!classItem) {
     return null;
   }
@@ -345,7 +353,9 @@ export default function PlansManagerListPage() {
           return;
         }
 
-        const nextUnits = unitsResponses.flatMap((response) => response.units ?? []);
+        const nextUnits = unitsResponses.flatMap(
+          (response) => response.units ?? []
+        );
         setUnits(nextUnits);
 
         const lessonsResponses = await Promise.all(
@@ -446,9 +456,9 @@ export default function PlansManagerListPage() {
         <div>
           <h1>مكتبة الخطط</h1>
           <p>
-            استعرض الخطط المولدة بسرعة، وفلترها حسب المادة أو الصف أو النوع أو
-            الفصل الدراسي أو السنة الدراسية، ثم افتح أي خطة في صفحة مستقلة
-            بنفس قالب العرض الحالي.
+            استعرض الخطط المولدة بسرعة، مع فلترة بالمادة أو الصف أو النوع أو
+            الفصل الدراسي أو العام الدراسي، ثم افتح أي خطة في صفحة مستقلة بنفس
+            قالب العرض الحالي.
           </p>
         </div>
       </header>
@@ -461,7 +471,7 @@ export default function PlansManagerListPage() {
 
       <section className="pm__filters" aria-label="فلاتر الخطط">
         <div className="pm__field">
-          <label htmlFor="pm-plan-type">عرض بالنوع</label>
+          <label htmlFor="pm-plan-type">فلترة بالنوع</label>
           <select
             id="pm-plan-type"
             value={planType}
@@ -477,7 +487,7 @@ export default function PlansManagerListPage() {
         </div>
 
         <div className="pm__field">
-          <label htmlFor="pm-subject">عرض بالمادة</label>
+          <label htmlFor="pm-subject">فلترة بالمادة</label>
           <select
             id="pm-subject"
             value={subject}
@@ -494,7 +504,7 @@ export default function PlansManagerListPage() {
         </div>
 
         <div className="pm__field">
-          <label htmlFor="pm-grade">عرض بالصف</label>
+          <label htmlFor="pm-grade">فلترة بالصف</label>
           <select
             id="pm-grade"
             value={grade}
@@ -507,11 +517,11 @@ export default function PlansManagerListPage() {
                 {option}
               </option>
             ))}
-            </select>
+          </select>
         </div>
 
         <div className="pm__field">
-          <label htmlFor="pm-semester">عرض بالفصل الدراسي</label>
+          <label htmlFor="pm-semester">فلترة بالفصل الدراسي</label>
           <select
             id="pm-semester"
             value={semester}
@@ -528,7 +538,7 @@ export default function PlansManagerListPage() {
         </div>
 
         <div className="pm__field">
-          <label htmlFor="pm-academic-year">عرض بالسنة الدراسية</label>
+          <label htmlFor="pm-academic-year">فلترة بالعام الدراسي</label>
           <select
             id="pm-academic-year"
             value={academicYear}
@@ -608,7 +618,10 @@ export default function PlansManagerListPage() {
                         </Link>
                       </h3>
 
-                      <div className="pm__card-meta-line" aria-label="تفاصيل الخطة">
+                      <div
+                        className="pm__card-meta-line"
+                        aria-label="تفاصيل الخطة"
+                      >
                         {metaParts.map((part, index) => (
                           <Fragment key={`${plan.public_id}-${part}-${index}`}>
                             {index > 0 ? (

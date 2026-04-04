@@ -199,7 +199,7 @@ export default function ControlDashboard() {
     {
       path: '/quizzes',
       title: 'مكتبة الاختبارات',
-      description: 'استعرض الاختبارات المحفوظة مع الفلترة حسب المادة والصف.',
+      description: 'استعرض الاختبارات المحفوظة مع فلترة بالمادة والصف.',
       icon: MdQuiz,
     },
     {
