@@ -1,6 +1,6 @@
 import { authAxios } from '../auth/auth.services';
 import type { LessonPlanRecord, PlanType } from '../../types';
-import { isOfflineError } from '../../offline/network';
+import { getIsOnline, isOfflineError } from '../../offline/network';
 import { getCachedPlanById, getCachedPlans, cachePlan, cachePlans, deletePlanLocally, duplicatePlanLocally, savePlanOffline } from '../../offline/plans';
 import { upsertPendingEntityAction } from '../../offline/queue';
 import { isLocalOnlyId } from '../../offline/utils';
@@ -146,11 +146,21 @@ export async function deletePlanById(planId: string): Promise<{ deleted: boolean
 }
 
 export async function getPlanExportBlob(planId: string, format: 'pdf' | 'docx'): Promise<Blob> {
-  const response = await api().get(`/api/plans/${planId}/export`, {
-    params: { format },
-    responseType: 'blob',
-  });
-  return response.data as Blob;
+  // Online: unchanged API-only path (no static link to offline export code).
+  if (getIsOnline()) {
+    const response = await api().get(`/api/plans/${planId}/export`, {
+      params: { format },
+      responseType: 'blob',
+    });
+    return response.data as Blob;
+  }
+
+  const cached = await getCachedPlanById(planId);
+  if (!cached) {
+    throw new Error('تعذّر التصدير دون اتصال: الخطة غير محفوظة محليًا.');
+  }
+  const { exportCachedLessonPlanToBlob } = await import('../../offline/exportGenerator');
+  return exportCachedLessonPlanToBlob(cached, format);
 }
 
 export async function exportPlan(planId: string, format: 'pdf' | 'docx'): Promise<void> {
@@ -168,11 +178,7 @@ export async function exportPlan(planId: string, format: 'pdf' | 'docx'): Promis
 }
 
 export async function sharePlan(planId: string, format: 'pdf' | 'docx', title?: string): Promise<void> {
-  const response = await api().get(`/api/plans/${planId}/export`, {
-    params: { format },
-    responseType: 'blob',
-  });
-  const blob = response.data as Blob;
+  const blob = await getPlanExportBlob(planId, format);
   const ext = format === 'pdf' ? 'pdf' : 'docx';
   const filename = `plan_${planId}.${ext}`;
   const { shareOrDownload } = await import('../../utils/share');

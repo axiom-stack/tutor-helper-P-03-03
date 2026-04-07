@@ -2,14 +2,14 @@
 
 export type UserRole = 'teacher' | 'admin';
 
-export type PreparationType = 'daily' | 'weekly' | 'other';
+export type PreparationType = 'active_learning' | 'traditional' | 'other';
 
 export const PREPARATION_TYPE_OPTIONS: {
   value: PreparationType;
   label: string;
 }[] = [
-  { value: 'daily', label: 'تحضير يومي' },
-  { value: 'weekly', label: 'تحضير أسبوعي' },
+  { value: 'active_learning', label: 'خطة تعلم نشط' },
+  { value: 'traditional', label: 'خطة تعلم تقليدية' },
   { value: 'other', label: 'غير ذلك' },
 ];
 

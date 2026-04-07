@@ -10,6 +10,7 @@ import {
   MdMenuBook,
   MdSchool,
   MdSubject,
+  MdVisibility,
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
 import ConfirmActionModal from '../../components/common/ConfirmActionModal';
@@ -136,6 +137,13 @@ interface DeleteRequestDraft {
   label: string;
   endpoint: string;
   payload?: Record<string, unknown>;
+}
+
+interface LessonLibraryRow {
+  lesson: Lesson;
+  unit: Unit | null;
+  subject: Subject | null;
+  classItem: Class | null;
 }
 
 const MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024;
@@ -345,6 +353,16 @@ function TeacherCirriculumManager(props: {
     null
   );
 
+  const [activeTab, setActiveTab] = useState<'structure' | 'library'>(
+    'structure'
+  );
+  const [libraryGradeFilter, setLibraryGradeFilter] = useState('');
+  const [librarySubjectIdFilter, setLibrarySubjectIdFilter] =
+    useState<SelectValue>('');
+  const [librarySemesterFilter, setLibrarySemesterFilter] = useState('');
+  const [librarySearchQuery, setLibrarySearchQuery] = useState('');
+  const [viewLessonDetail, setViewLessonDetail] = useState<Lesson | null>(null);
+
   const filteredExistingClasses = classes.filter((classItem) => {
     if (
       existingClassYearFilter &&
@@ -506,6 +524,100 @@ function TeacherCirriculumManager(props: {
       );
     });
   }, [orderedSubjects, selectedClassBaseKey, selectedClassId, classByIdMap]);
+
+  const lessonLibraryRows = useMemo<LessonLibraryRow[]>(() => {
+    return lessons.map((lessonItem) => {
+      const unitItem =
+        units.find((unitRow) => unitRow.id === lessonItem.unit_id) ?? null;
+      const subjectItem = unitItem
+        ? (subjects.find((s) => s.id === unitItem.subject_id) ?? null)
+        : null;
+      const classItem = subjectItem
+        ? (classes.find((c) => c.id === subjectItem.class_id) ?? null)
+        : null;
+      return {
+        lesson: lessonItem,
+        unit: unitItem,
+        subject: subjectItem,
+        classItem,
+      };
+    });
+  }, [lessons, units, subjects, classes]);
+
+  const librarySubjectOptions = useMemo(() => {
+    const map = new Map<number, Subject>();
+    lessonLibraryRows.forEach((row) => {
+      if (row.subject) {
+        map.set(row.subject.id, row.subject);
+      }
+    });
+    return Array.from(map.values()).sort((a, b) =>
+      a.name.localeCompare(b.name, 'ar')
+    );
+  }, [lessonLibraryRows]);
+
+  const libraryGradeOptions = useMemo(() => {
+    const set = new Set<string>();
+    lessonLibraryRows.forEach((row) => {
+      const label = row.classItem?.grade_label?.trim();
+      if (label) {
+        set.add(label);
+      }
+    });
+    return Array.from(set).sort((a, b) =>
+      a.localeCompare(b, 'ar', { numeric: true })
+    );
+  }, [lessonLibraryRows]);
+
+  const librarySemesterOptions = useMemo(() => {
+    const set = new Set<string>();
+    lessonLibraryRows.forEach((row) => {
+      if (row.classItem?.semester) {
+        set.add(normalizeSemesterLabel(row.classItem.semester));
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ar'));
+  }, [lessonLibraryRows]);
+
+  const filteredLessonLibraryRows = useMemo(() => {
+    return lessonLibraryRows.filter((row) => {
+      const { lesson: lessonItem, subject: subjectItem, classItem } = row;
+      if (librarySearchQuery.trim()) {
+        const q = normalizeLookupText(librarySearchQuery).toLowerCase();
+        if (
+          !normalizeLookupText(lessonItem.name).toLowerCase().includes(q)
+        ) {
+          return false;
+        }
+      }
+      if (
+        libraryGradeFilter &&
+        (classItem?.grade_label?.trim() ?? '') !== libraryGradeFilter
+      ) {
+        return false;
+      }
+      if (librarySemesterFilter && classItem) {
+        if (
+          normalizeSemesterLabel(classItem.semester) !== librarySemesterFilter
+        ) {
+          return false;
+        }
+      }
+      if (
+        librarySubjectIdFilter !== '' &&
+        subjectItem?.id !== librarySubjectIdFilter
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [
+    lessonLibraryRows,
+    librarySearchQuery,
+    libraryGradeFilter,
+    librarySemesterFilter,
+    librarySubjectIdFilter,
+  ]);
 
   const quickAddSubjectSuggestions = useMemo<SearchSuggestion[]>(() => {
     if (
@@ -721,6 +833,26 @@ function TeacherCirriculumManager(props: {
       );
     },
     [classes, selectedClassBaseKey, units]
+  );
+
+  const goToLessonInStructure = useCallback(
+    (lessonItem: Lesson) => {
+      const unitItem =
+        units.find((unitRow) => unitRow.id === lessonItem.unit_id) ?? null;
+      if (!unitItem) {
+        return;
+      }
+      const subjectItem =
+        subjects.find((subjectRow) => subjectRow.id === unitItem.subject_id) ??
+        null;
+      if (!subjectItem) {
+        return;
+      }
+      activateSubjectView(subjectItem.id, subjectItem.class_id);
+      ensureUnitExpanded(unitItem.id);
+      setActiveTab('structure');
+    },
+    [units, subjects, activateSubjectView, ensureUnitExpanded]
   );
 
   useEffect(() => {
@@ -1478,7 +1610,263 @@ function TeacherCirriculumManager(props: {
         <p>إدارة الصفوف والمواد والوحدات والدروس من صفحة واحدة.</p>
       </header>
 
-      <div className="tcm2__grid">
+      <div
+        className="tcm2__tabs"
+        role="tablist"
+        aria-label="أقسام إدارة المنهج"
+      >
+        <button
+          type="button"
+          role="tab"
+          id="tcm-tab-structure"
+          aria-selected={activeTab === 'structure'}
+          className={
+            activeTab === 'structure'
+              ? 'tcm2__tab tcm2__tab--active'
+              : 'tcm2__tab'
+          }
+          onClick={() => setActiveTab('structure')}
+        >
+          هيكل المنهج
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="tcm-tab-library"
+          aria-selected={activeTab === 'library'}
+          className={
+            activeTab === 'library' ? 'tcm2__tab tcm2__tab--active' : 'tcm2__tab'
+          }
+          onClick={() => setActiveTab('library')}
+        >
+          دروسي
+        </button>
+      </div>
+
+      {activeTab === 'library' ? (
+        <section
+          className="tcm2__library"
+          role="tabpanel"
+          id="tcm-panel-library"
+          aria-labelledby="tcm-tab-library"
+        >
+          <div className="tcm2__library-intro">
+            <h2 className="tcm2__library-title">مكتبة الدروس</h2>
+            <p className="tcm2__library-desc">
+              جميع الدروس التي أدخلتها مع إمكانية البحث والفلترة بالصف أو المادة
+              أو الفصل الدراسي، ثم المراجعة أو التعديل أو الحذف أو الانتقال إلى
+              موضع الدرس في الهيكل.
+            </p>
+          </div>
+
+          <div className="tcm2__library-filters" aria-label="فلترة الدروس">
+            <div className="tcm2__field">
+              <label htmlFor="tcm-lib-search">بحث باسم الدرس</label>
+              <input
+                id="tcm-lib-search"
+                type="search"
+                value={librarySearchQuery}
+                onChange={(event) => setLibrarySearchQuery(event.target.value)}
+                placeholder="اكتب جزءًا من اسم الدرس"
+                autoComplete="off"
+              />
+            </div>
+            <div className="tcm2__field">
+              <label htmlFor="tcm-lib-grade">الصف</label>
+              <select
+                id="tcm-lib-grade"
+                value={libraryGradeFilter}
+                onChange={(event) => setLibraryGradeFilter(event.target.value)}
+              >
+                <option value="">الكل</option>
+                {libraryGradeOptions.map((gradeOption) => (
+                  <option key={gradeOption} value={gradeOption}>
+                    {gradeOption}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="tcm2__field">
+              <label htmlFor="tcm-lib-subject">المادة</label>
+              <select
+                id="tcm-lib-subject"
+                value={
+                  librarySubjectIdFilter === ''
+                    ? ''
+                    : String(librarySubjectIdFilter)
+                }
+                onChange={(event) =>
+                  setLibrarySubjectIdFilter(
+                    event.target.value ? Number(event.target.value) : ''
+                  )
+                }
+              >
+                <option value="">الكل</option>
+                {librarySubjectOptions.map((subjectOption) => (
+                  <option key={subjectOption.id} value={subjectOption.id}>
+                    {formatSubjectSelectLabel(
+                      subjectOption,
+                      classByIdMap.get(subjectOption.class_id) ?? null
+                    )}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="tcm2__field">
+              <label htmlFor="tcm-lib-semester">الفصل الدراسي</label>
+              <select
+                id="tcm-lib-semester"
+                value={librarySemesterFilter}
+                onChange={(event) =>
+                  setLibrarySemesterFilter(event.target.value)
+                }
+              >
+                <option value="">الكل</option>
+                {librarySemesterOptions.map((semesterOption) => (
+                  <option key={semesterOption} value={semesterOption}>
+                    {semesterOption}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="tcm2__library-filter-actions">
+              <button
+                type="button"
+                className="tcm2__primary-soft"
+                onClick={() => {
+                  setLibrarySearchQuery('');
+                  setLibraryGradeFilter('');
+                  setLibrarySubjectIdFilter('');
+                  setLibrarySemesterFilter('');
+                }}
+                disabled={
+                  !librarySearchQuery &&
+                  !libraryGradeFilter &&
+                  librarySubjectIdFilter === '' &&
+                  !librarySemesterFilter
+                }
+              >
+                مسح الفلاتر
+              </button>
+              <button
+                type="button"
+                onClick={() => void loadCurriculumData()}
+                disabled={loading || saving}
+              >
+                تحديث القائمة
+              </button>
+            </div>
+          </div>
+
+          <div className="tcm2__library-list-head">
+            <span>{filteredLessonLibraryRows.length} درس</span>
+          </div>
+
+          {filteredLessonLibraryRows.length === 0 ? (
+            <p className="tcm2__empty tcm2__library-empty">
+              لا توجد دروس مطابقة. جرّب تغيير الفلاتر أو إضافة دروس من تبويب هيكل
+              المنهج.
+            </p>
+          ) : (
+            <div className="tcm2__library-cards" role="list">
+              {filteredLessonLibraryRows.map((row) => {
+                const {
+                  lesson: lessonItem,
+                  unit: unitItem,
+                  subject: subjectItem,
+                  classItem: classRow,
+                } = row;
+                return (
+                  <article
+                    key={lessonItem.id}
+                    className="tcm2__library-card animate-fadeIn"
+                    role="listitem"
+                  >
+                    <div className="tcm2__library-card-main">
+                      <h3 className="tcm2__library-card-title">
+                        {lessonItem.name}
+                      </h3>
+                      <div
+                        className="tcm2__library-card-meta"
+                        aria-label="تفاصيل الدرس"
+                      >
+                        {classRow ? (
+                          <span>{formatClassShortLabel(classRow)}</span>
+                        ) : null}
+                        {subjectItem ? (
+                          <>
+                            <span className="tcm2__meta-separator" aria-hidden>
+                              |
+                            </span>
+                            <span>{subjectItem.name}</span>
+                          </>
+                        ) : null}
+                        {unitItem ? (
+                          <>
+                            <span className="tcm2__meta-separator" aria-hidden>
+                              |
+                            </span>
+                            <span>{unitItem.name}</span>
+                          </>
+                        ) : null}
+                      </div>
+                      {lessonItem.description?.trim() ? (
+                        <p className="tcm2__library-card-desc">
+                          {lessonItem.description}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="tcm2__library-card-actions">
+                      <button
+                        type="button"
+                        onClick={() => setViewLessonDetail(lessonItem)}
+                      >
+                        <MdVisibility aria-hidden />
+                        عرض
+                      </button>
+                      <button
+                        type="button"
+                        className="tcm2__primary-soft"
+                        onClick={() => goToLessonInStructure(lessonItem)}
+                      >
+                        في الهيكل
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openEditForLesson(lessonItem)}
+                      >
+                        <MdEdit aria-hidden />
+                        تعديل
+                      </button>
+                      <button
+                        type="button"
+                        className="tcm2__danger"
+                        onClick={() =>
+                          requestDeleteEntity(
+                            'lesson',
+                            lessonItem.id,
+                            'هذا الدرس'
+                          )
+                        }
+                        disabled={saving}
+                      >
+                        <MdDelete aria-hidden />
+                        حذف
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      ) : (
+        <div
+          className="tcm2__grid"
+          role="tabpanel"
+          id="tcm-panel-structure"
+          aria-labelledby="tcm-tab-structure"
+        >
         <section className="tcm2__panel">
           <div className="tcm2__panel-head">
             <h2>
@@ -2039,6 +2427,7 @@ function TeacherCirriculumManager(props: {
           )}
         </section>
       </div>
+      )}
 
       <ConfirmActionModal
         isOpen={Boolean(deleteRequest)}
@@ -2060,6 +2449,84 @@ function TeacherCirriculumManager(props: {
           setDeleteRequest(null);
         }}
       />
+
+      {viewLessonDetail ? (
+        <div
+          className="tcm2__modal-backdrop"
+          onClick={() => setViewLessonDetail(null)}
+          role="presentation"
+        >
+          <div
+            className="tcm2__modal tcm2__modal--view-lesson"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3>مراجعة الدرس</h3>
+            {(() => {
+              const detailRow = lessonLibraryRows.find(
+                (row) => row.lesson.id === viewLessonDetail.id
+              );
+              return (
+                <>
+                  <p className="tcm2__view-lesson-title">
+                    <strong>{viewLessonDetail.name}</strong>
+                  </p>
+                  <ul className="tcm2__view-lesson-meta">
+                    {detailRow?.classItem ? (
+                      <li>
+                        الصف: {formatClassShortLabel(detailRow.classItem)}
+                      </li>
+                    ) : null}
+                    {detailRow?.subject ? (
+                      <li>المادة: {detailRow.subject.name}</li>
+                    ) : null}
+                    {detailRow?.unit ? (
+                      <li>الوحدة: {detailRow.unit.name}</li>
+                    ) : null}
+                    <li>
+                      الحصة: {Number(viewLessonDetail.period_number ?? 1)} | عدد
+                      الحصص: {Number(viewLessonDetail.number_of_periods ?? 1)}
+                    </li>
+                  </ul>
+                  {viewLessonDetail.description?.trim() ? (
+                    <div className="tcm2__field">
+                      <span className="tcm2__view-label">الوصف</span>
+                      <p className="tcm2__view-text">
+                        {viewLessonDetail.description}
+                      </p>
+                    </div>
+                  ) : null}
+                  <div className="tcm2__field">
+                    <span className="tcm2__view-label">المحتوى النصي</span>
+                    <pre className="tcm2__view-content-pre" dir="auto">
+                      {viewLessonDetail.content?.trim()
+                        ? viewLessonDetail.content
+                        : 'لا يوجد نص محفوظ للعرض (قد يكون الدرس مرفقًا كملف PDF أو Word).'}
+                    </pre>
+                  </div>
+                </>
+              );
+            })()}
+            <div className="tcm2__form-actions">
+              <button
+                type="button"
+                onClick={() => setViewLessonDetail(null)}
+              >
+                إغلاق
+              </button>
+              <button
+                type="button"
+                className="tcm2__primary"
+                onClick={() => {
+                  openEditForLesson(viewLessonDetail);
+                  setViewLessonDetail(null);
+                }}
+              >
+                تعديل
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {quickAddDraft && (
         <div

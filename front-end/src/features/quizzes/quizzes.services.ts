@@ -8,7 +8,7 @@ import type {
   Unit,
 } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
-import { isOfflineError } from '../../offline/network';
+import { getIsOnline, isOfflineError } from '../../offline/network';
 import { enqueueOfflineAction, upsertPendingEntityAction } from '../../offline/queue';
 import { getReference, putReference } from '../../offline/references';
 import {
@@ -274,11 +274,21 @@ export async function getExamExportBlob(
   format: 'pdf' | 'docx',
   type: 'answer_key' | 'questions_only' | 'answer_form' = 'answer_key'
 ): Promise<Blob> {
-  const response = await api().get(`/api/exams/${examId}/export`, {
-    params: { format, type },
-    responseType: 'blob',
-  });
-  return response.data as Blob;
+  // Online: unchanged API-only path (no static link to offline export code).
+  if (getIsOnline()) {
+    const response = await api().get(`/api/exams/${examId}/export`, {
+      params: { format, type },
+      responseType: 'blob',
+    });
+    return response.data as Blob;
+  }
+
+  const cached = await getCachedExamById(examId);
+  if (!cached) {
+    throw new Error('تعذّر التصدير دون اتصال: الاختبار غير محفوظ محليًا.');
+  }
+  const { exportCachedExamToBlob } = await import('../../offline/exportGenerator');
+  return exportCachedExamToBlob(cached, format, type);
 }
 
 /**
@@ -311,11 +321,7 @@ export async function shareExam(
   title?: string,
   type: 'answer_key' | 'questions_only' | 'answer_form' = 'answer_key'
 ): Promise<void> {
-  const response = await api().get(`/api/exams/${examId}/export`, {
-    params: { format, type },
-    responseType: 'blob',
-  });
-  const blob = response.data as Blob;
+  const blob = await getExamExportBlob(examId, format, type);
   const ext = format === 'pdf' ? 'pdf' : 'docx';
   const filename = `exam_${examId}_${type}.${ext}`;
   const { shareOrDownload } = await import('../../utils/share');

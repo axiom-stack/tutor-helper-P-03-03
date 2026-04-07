@@ -1,6 +1,6 @@
 import { VALID_PLAN_TYPES } from "./types.js";
 
-const VALID_PREPARATION_TYPES = ["daily", "weekly", "other"];
+const VALID_PREPARATION_TYPES = ["active_learning", "traditional", "other"];
 const VALID_PERIOD_ORDER_OPTIONS = [
   "الأولى",
   "الثانية",

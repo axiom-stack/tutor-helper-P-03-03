@@ -1,6 +1,6 @@
 import { authAxios, getStoredUser } from '../auth/auth.services';
 import type { Class, Lesson, LessonPlanRecord, Subject, Unit, PreparationType } from '../../types';
-import { isOfflineError } from '../../offline/network';
+import { getIsOnline, isOfflineError } from '../../offline/network';
 import { enqueueOfflineAction } from '../../offline/queue';
 import { cachePlan, getCachedPlanById } from '../../offline/plans';
 import { getReference, putReference } from '../../offline/references';
@@ -278,19 +278,35 @@ export async function getPlanById(
  * @param format - 'pdf' | 'docx'
  */
 export async function exportPlan(planId: string, format: 'pdf' | 'docx'): Promise<void> {
-  const response = await api().get(`/api/plans/${planId}/export`, {
-    params: { format },
-    responseType: 'blob',
-  });
-  const blob = response.data as Blob;
   const ext = format === 'pdf' ? 'pdf' : 'docx';
   const filename = `plan_${planId}.${ext}`;
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+
+  const downloadBlob = (blob: Blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Online: unchanged API-only path (no static link to offline export code).
+  if (getIsOnline()) {
+    const response = await api().get(`/api/plans/${planId}/export`, {
+      params: { format },
+      responseType: 'blob',
+    });
+    downloadBlob(response.data as Blob);
+    return;
+  }
+
+  const cached = await getCachedPlanById(planId);
+  if (!cached) {
+    throw new Error('تعذّر التصدير دون اتصال: الخطة غير محفوظة محليًا.');
+  }
+  const { exportCachedLessonPlanToBlob } = await import('../../offline/exportGenerator');
+  const blob = await exportCachedLessonPlanToBlob(cached, format);
+  downloadBlob(blob);
 }

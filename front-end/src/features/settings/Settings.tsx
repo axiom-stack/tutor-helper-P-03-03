@@ -50,8 +50,8 @@ export default function Settings() {
         const profile = response.profile;
         setLanguage(profile.language === 'en' ? 'en' : 'ar');
         setPreparationType(
-          profile.preparation_type === 'daily' ||
-            profile.preparation_type === 'weekly' ||
+          profile.preparation_type === 'active_learning' ||
+            profile.preparation_type === 'traditional' ||
             profile.preparation_type === 'other'
             ? profile.preparation_type
             : ''
@@ -262,7 +262,7 @@ export default function Settings() {
       <header className="st__header page-header">
         <div>
           <h1>الإعدادات</h1>
-          <p>اضبط اللغة، ونوع التحضير، واسم المدرسة، وشعارها من هنا.</p>
+          <p>اضبط اللغة، ونوع الخطة المعتمده، واسم المدرسة، وشعارها من هنا.</p>
         </div>
 
         <div className="st__role-chip">
@@ -318,7 +318,7 @@ export default function Settings() {
             </label>
 
             <label className="st__field" htmlFor="settings-preparation-type">
-              <span>نوع التحضير *</span>
+              <span>نوع الخطة المعتمده *</span>
               <div className="st__select-shell">
                 <select
                   id="settings-preparation-type"
@@ -331,7 +331,7 @@ export default function Settings() {
                     )
                   }
                 >
-                  <option value="">-- اختر نوع التحضير --</option>
+                  <option value="">-- اختر نوع الخطة المعتمده --</option>
                   {PREPARATION_TYPE_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
