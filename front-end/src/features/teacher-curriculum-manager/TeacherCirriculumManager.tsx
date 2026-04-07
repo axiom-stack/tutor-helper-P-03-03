@@ -1792,105 +1792,112 @@ function TeacherCirriculumManager(props: {
             </div>
           </div>
 
-          <div className="tcm2__library-list-head">
-            <span>{filteredLessonLibraryRows.length} درس</span>
-          </div>
-
           {filteredLessonLibraryRows.length === 0 ? (
             <p className="tcm2__empty tcm2__library-empty">
               لا توجد دروس مطابقة. جرّب تغيير الفلاتر أو إضافة دروس من تبويب هيكل
               المنهج.
             </p>
           ) : (
-            <div className="tcm2__library-cards" role="list">
-              {filteredLessonLibraryRows.map((row) => {
-                const {
-                  lesson: lessonItem,
-                  unit: unitItem,
-                  subject: subjectItem,
-                  classItem: classRow,
-                } = row;
-                return (
-                  <article
-                    key={lessonItem.id}
-                    className="tcm2__library-card animate-fadeIn"
-                    role="listitem"
-                  >
-                    <div className="tcm2__library-card-main">
-                      <h3 className="tcm2__library-card-title">
-                        {lessonItem.name}
-                      </h3>
-                      <div
-                        className="tcm2__library-card-meta"
-                        aria-label="تفاصيل الدرس"
-                      >
-                        {classRow ? (
-                          <span>{formatClassShortLabel(classRow)}</span>
-                        ) : null}
-                        {subjectItem ? (
-                          <>
-                            <span className="tcm2__meta-separator" aria-hidden>
-                              |
-                            </span>
-                            <span>{subjectItem.name}</span>
-                          </>
-                        ) : null}
-                        {unitItem ? (
-                          <>
-                            <span className="tcm2__meta-separator" aria-hidden>
-                              |
-                            </span>
-                            <span>{unitItem.name}</span>
-                          </>
-                        ) : null}
-                      </div>
-                      {lessonItem.description?.trim() ? (
-                        <p className="tcm2__library-card-desc">
-                          {lessonItem.description}
-                        </p>
-                      ) : null}
-                    </div>
-                    <div className="tcm2__library-card-actions">
-                      <button
-                        type="button"
-                        onClick={() => setViewLessonDetail(lessonItem)}
-                      >
-                        <MdVisibility aria-hidden />
-                        عرض
-                      </button>
-                      <button
-                        type="button"
-                        className="tcm2__primary-soft"
-                        onClick={() => goToLessonInStructure(lessonItem)}
-                      >
-                        في الهيكل
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openEditForLesson(lessonItem)}
-                      >
-                        <MdEdit aria-hidden />
-                        تعديل
-                      </button>
-                      <button
-                        type="button"
-                        className="tcm2__danger"
-                        onClick={() =>
-                          requestDeleteEntity(
-                            'lesson',
-                            lessonItem.id,
-                            'هذا الدرس'
-                          )
-                        }
-                        disabled={saving}
-                      >
-                        <MdDelete aria-hidden />
-                        حذف
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
+            <div className="tcm2__library-table-scroll">
+              <table className="tcm2__library-table">
+                <caption className="tcm2__library-table-caption">
+                  {filteredLessonLibraryRows.length} درس محفوظ
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">اسم الدرس</th>
+                    <th scope="col">الصف والمادة والوحدة</th>
+                    <th scope="col">الوصف</th>
+                    <th scope="col">الإجراءات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredLessonLibraryRows.map((row) => {
+                    const {
+                      lesson: lessonItem,
+                      unit: unitItem,
+                      subject: subjectItem,
+                      classItem: classRow,
+                    } = row;
+                    const metaParts: string[] = [];
+                    if (classRow) {
+                      metaParts.push(formatClassShortLabel(classRow));
+                    }
+                    if (subjectItem) {
+                      metaParts.push(subjectItem.name);
+                    }
+                    if (unitItem) {
+                      metaParts.push(unitItem.name);
+                    }
+                    const metaLine =
+                      metaParts.length > 0 ? metaParts.join(' · ') : '—';
+                    const descText = lessonItem.description?.trim() || '—';
+                    return (
+                      <tr key={lessonItem.id} className="animate-fadeIn">
+                        <td data-label="اسم الدرس">
+                          <span className="tcm2__library-table-lesson-name">
+                            {lessonItem.name}
+                          </span>
+                        </td>
+                        <td data-label="الصف والمادة والوحدة">
+                          <span className="tcm2__library-table-meta">
+                            {metaLine}
+                          </span>
+                        </td>
+                        <td data-label="الوصف">
+                          <span className="tcm2__library-table-desc">
+                            {descText}
+                          </span>
+                        </td>
+                        <td data-label="الإجراءات">
+                          <div className="tcm2__library-table-actions">
+                            <button
+                              type="button"
+                              className="tcm2__library-table-btn"
+                              onClick={() => setViewLessonDetail(lessonItem)}
+                            >
+                              <MdVisibility aria-hidden />
+                              عرض
+                            </button>
+                            <button
+                              type="button"
+                              className="tcm2__library-table-btn tcm2__library-table-btn--soft"
+                              onClick={() =>
+                                goToLessonInStructure(lessonItem)
+                              }
+                            >
+                              في الهيكل
+                            </button>
+                            <button
+                              type="button"
+                              className="tcm2__library-table-btn"
+                              onClick={() => openEditForLesson(lessonItem)}
+                            >
+                              <MdEdit aria-hidden />
+                              تعديل
+                            </button>
+                            <button
+                              type="button"
+                              className="tcm2__library-table-btn tcm2__library-table-btn--danger"
+                              onClick={() =>
+                                requestDeleteEntity(
+                                  'lesson',
+                                  lessonItem.id,
+                                  'هذا الدرس'
+                                )
+                              }
+                              disabled={saving}
+                            >
+                              <MdDelete aria-hidden />
+                              حذف
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </section>
