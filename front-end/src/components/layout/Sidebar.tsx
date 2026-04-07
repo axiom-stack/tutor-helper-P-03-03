@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router';
+import { NavLink, useLocation } from 'react-router';
 import { useAuth } from '../../context/AuthContext';
 import {
   ADMIN_MAIN_LINKS,
@@ -14,6 +14,7 @@ interface SidebarProps {
 
 export function Sidebar({ variant = 'teacher' }: SidebarProps) {
   const { user } = useAuth();
+  const location = useLocation();
 
   const mainLinks =
     user?.userRole === 'admin' ? ADMIN_MAIN_LINKS : TEACHER_MAIN_LINKS;
@@ -43,13 +44,19 @@ export function Sidebar({ variant = 'teacher' }: SidebarProps) {
 
       <nav className="sidebar__nav">
         <ul className="sidebar__list">
-          {mainLinks.map(({ to, label, icon: Icon }) => (
+          {mainLinks.map(({ to, label, icon: Icon, isActiveMatch }) => (
             <li key={to} className="sidebar__item">
               <NavLink
                 to={to}
-                className={({ isActive }) =>
-                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
-                }
+                className={({ isActive }) => {
+                  const active = isActiveMatch
+                    ? isActiveMatch({
+                        pathname: location.pathname,
+                        search: location.search,
+                      })
+                    : isActive;
+                  return `sidebar__link ${active ? 'sidebar__link--active' : ''}`;
+                }}
                 end={to === '/'}
               >
                 <Icon className="sidebar__link-icon" aria-hidden />
@@ -66,13 +73,19 @@ export function Sidebar({ variant = 'teacher' }: SidebarProps) {
             </div>
 
             <ul className="sidebar__list">
-              {secondaryLinks.map(({ to, label, icon: Icon }) => (
+              {secondaryLinks.map(({ to, label, icon: Icon, isActiveMatch }) => (
                 <li key={to} className="sidebar__item">
                   <NavLink
                     to={to}
-                    className={({ isActive }) =>
-                      `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
-                    }
+                    className={({ isActive }) => {
+                      const active = isActiveMatch
+                        ? isActiveMatch({
+                            pathname: location.pathname,
+                            search: location.search,
+                          })
+                        : isActive;
+                      return `sidebar__link ${active ? 'sidebar__link--active' : ''}`;
+                    }}
                   >
                     <Icon className="sidebar__link-icon" aria-hidden />
                     <span>{label}</span>

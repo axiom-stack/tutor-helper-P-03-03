@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import {
   MdAdd,
   MdDelete,
@@ -300,6 +300,7 @@ function TeacherCirriculumManager(props: {
   const { scope } = props;
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const curriculumLoadRequestIdRef = useRef(0);
 
   const teacherId =
@@ -353,8 +354,8 @@ function TeacherCirriculumManager(props: {
     null
   );
 
-  const [activeTab, setActiveTab] = useState<'structure' | 'library'>(
-    'structure'
+  const [activeTab, setActiveTab] = useState<'structure' | 'library'>(() =>
+    searchParams.get('tab') === 'library' ? 'library' : 'structure'
   );
   const [libraryGradeFilter, setLibraryGradeFilter] = useState('');
   const [librarySubjectIdFilter, setLibrarySubjectIdFilter] =
@@ -851,9 +852,22 @@ function TeacherCirriculumManager(props: {
       activateSubjectView(subjectItem.id, subjectItem.class_id);
       ensureUnitExpanded(unitItem.id);
       setActiveTab('structure');
+      setSearchParams(
+        (previous) => {
+          const next = new URLSearchParams(previous);
+          next.delete('tab');
+          return next;
+        },
+        { replace: true }
+      );
     },
-    [units, subjects, activateSubjectView, ensureUnitExpanded]
+    [units, subjects, activateSubjectView, ensureUnitExpanded, setSearchParams]
   );
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    setActiveTab(tab === 'library' ? 'library' : 'structure');
+  }, [searchParams]);
 
   useEffect(() => {
     if (!user) {
@@ -1625,7 +1639,17 @@ function TeacherCirriculumManager(props: {
               ? 'tcm2__tab tcm2__tab--active'
               : 'tcm2__tab'
           }
-          onClick={() => setActiveTab('structure')}
+          onClick={() => {
+            setActiveTab('structure');
+            setSearchParams(
+              (previous) => {
+                const next = new URLSearchParams(previous);
+                next.delete('tab');
+                return next;
+              },
+              { replace: true }
+            );
+          }}
         >
           هيكل المنهج
         </button>
@@ -1637,7 +1661,17 @@ function TeacherCirriculumManager(props: {
           className={
             activeTab === 'library' ? 'tcm2__tab tcm2__tab--active' : 'tcm2__tab'
           }
-          onClick={() => setActiveTab('library')}
+          onClick={() => {
+            setActiveTab('library');
+            setSearchParams(
+              (previous) => {
+                const next = new URLSearchParams(previous);
+                next.set('tab', 'library');
+                return next;
+              },
+              { replace: true }
+            );
+          }}
         >
           دروسي
         </button>

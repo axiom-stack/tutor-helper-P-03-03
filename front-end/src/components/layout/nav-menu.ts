@@ -1,6 +1,7 @@
 export type HeaderNavKey =
   | 'home'
   | 'curriculum'
+  | 'lesson_library'
   | 'lesson_create'
   | 'exam_create'
   | 'assignments'
@@ -18,6 +19,11 @@ export interface HeaderNavItem {
 const TEACHER_HEADER_NAV_ITEMS: HeaderNavItem[] = [
   { key: 'home', label: 'الرئيسية', path: '/' },
   { key: 'curriculum', label: 'إدارة المنهج', path: '/curriculum' },
+  {
+    key: 'lesson_library',
+    label: 'مكتبة الدروس',
+    path: '/curriculum?tab=library',
+  },
   { key: 'lesson_create', label: 'إنشاء خطة درس', path: '/lessons' },
   { key: 'exam_create', label: 'إنشاء اختبار', path: '/quizzes/create' },
   { key: 'plan_library', label: 'مكتبة الخطط', path: '/plans' },

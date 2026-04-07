@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { NavLink } from 'react-router';
+import { NavLink, useLocation } from 'react-router';
 import { useAuth } from '../../context/AuthContext';
 import {
   ADMIN_MAIN_LINKS,
@@ -30,6 +30,7 @@ export function MobileNavDrawer({
       : TEACHER_SECONDARY_LINKS;
   const isAdminDrawer = variant === 'admin';
   const displayName = user?.display_name || user?.username || 'مستخدم';
+  const location = useLocation();
 
   useEffect(() => {
     if (!open) return;
@@ -87,13 +88,19 @@ export function MobileNavDrawer({
         </div>
         <nav className="mobile-drawer__nav">
           <ul className="mobile-drawer__list">
-            {mainLinks.map(({ to, label, icon: Icon }) => (
+            {mainLinks.map(({ to, label, icon: Icon, isActiveMatch }) => (
               <li key={to} className="mobile-drawer__item">
                 <NavLink
                   to={to}
-                  className={({ isActive }) =>
-                    `mobile-drawer__link ${isActive ? 'mobile-drawer__link--active' : ''}`
-                  }
+                  className={({ isActive }) => {
+                    const active = isActiveMatch
+                      ? isActiveMatch({
+                          pathname: location.pathname,
+                          search: location.search,
+                        })
+                      : isActive;
+                    return `mobile-drawer__link ${active ? 'mobile-drawer__link--active' : ''}`;
+                  }}
                   end={to === '/'}
                   onClick={onClose}
                 >
@@ -109,13 +116,19 @@ export function MobileNavDrawer({
                 <hr className="mobile-drawer__divider" />
               </div>
               <ul className="mobile-drawer__list">
-                {secondaryLinks.map(({ to, label, icon: Icon }) => (
+                {secondaryLinks.map(({ to, label, icon: Icon, isActiveMatch }) => (
                   <li key={to} className="mobile-drawer__item">
                     <NavLink
                       to={to}
-                      className={({ isActive }) =>
-                        `mobile-drawer__link ${isActive ? 'mobile-drawer__link--active' : ''}`
-                      }
+                      className={({ isActive }) => {
+                        const active = isActiveMatch
+                          ? isActiveMatch({
+                              pathname: location.pathname,
+                              search: location.search,
+                            })
+                          : isActive;
+                        return `mobile-drawer__link ${active ? 'mobile-drawer__link--active' : ''}`;
+                      }}
                       onClick={onClose}
                     >
                       <Icon className="mobile-drawer__link-icon" aria-hidden />

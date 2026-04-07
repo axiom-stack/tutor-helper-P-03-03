@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router';
 import {
+  MdCollectionsBookmark,
   MdInsights,
   MdLibraryBooks,
   MdMenuBook,
@@ -174,6 +175,13 @@ export default function ControlDashboard() {
       description:
         'بناء هيكل العام الدراسي والفصل والصف والشعبة والمواد والوحدات والدروس.',
       icon: MdSchool,
+    },
+    {
+      path: '/curriculum?tab=library',
+      title: 'مكتبة الدروس',
+      description:
+        'بحث وفلترة بجميع دروسك (الصف، المادة، الفصل الدراسي) مع المراجعة والتعديل والحذف.',
+      icon: MdCollectionsBookmark,
     },
     {
       path: '/lessons',

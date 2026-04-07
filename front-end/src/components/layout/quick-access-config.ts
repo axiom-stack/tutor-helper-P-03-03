@@ -7,6 +7,7 @@ import {
   MdPeople,
   MdInsights,
   MdSettings,
+  MdCollectionsBookmark,
 } from 'react-icons/md';
 
 export interface QuickAccessItem {
@@ -46,6 +47,13 @@ export const TEACHER_QUICK_ACCESS: QuickAccessItem[] = [
     icon: MdSchool,
     title: 'المنهج الدراسي',
     description: 'نظم هيكل دروسك، موادك، ووحداتك التعليمية لسهولة الوصول إليها في عمليات التوليد.',
+  },
+  {
+    path: '/curriculum?tab=library',
+    icon: MdCollectionsBookmark,
+    title: 'مكتبة الدروس',
+    description:
+      'استعرض جميع دروسك مع البحث والفلترة بالصف أو المادة أو الفصل، ثم راجعها أو عدّلها أو احذفها.',
   },
   {
     path: '/stats',
