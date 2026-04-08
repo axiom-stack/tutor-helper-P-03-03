@@ -6,6 +6,7 @@ import {
   toDisplayText,
   toTextList,
 } from '../planDisplay';
+import { formatUnitOrdinalText } from '../../../utils/unitDisplay';
 import './lesson-plan-document-view.css';
 
 interface PlanDocumentFallbackContext {
@@ -41,7 +42,19 @@ function toEditableText(value: unknown): string {
 
 function toEditableList(value: unknown): string[] {
   if (Array.isArray(value)) {
-    return toTextList(value);
+    return value
+      .map((item) => {
+        if (typeof item === 'string') {
+          return item;
+        }
+
+        if (typeof item === 'number') {
+          return String(item);
+        }
+
+        return toDisplayText(item);
+      })
+      .filter((item) => item !== '—');
   }
 
   const displayValue = toDisplayText(value);
@@ -53,10 +66,7 @@ function toEditableListText(value: unknown): string {
 }
 
 function toLines(value: string): string[] {
-  return value
-    .split(/\r?\n/u)
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0);
+  return value.split(/\r?\n/u);
 }
 
 function resolveHeaderValue(
@@ -71,6 +81,20 @@ function resolveHeaderValue(
 
   const fallbackText = toDisplayText(fallbackValue);
   return fallbackText === '—' ? '—' : fallbackText;
+}
+
+function resolveUnitValue(
+  header: Record<string, unknown>,
+  fallbackValue?: string
+): string {
+  const headerValue = formatUnitOrdinalText(
+    typeof header.unit === 'string' ? header.unit : null
+  );
+  if (headerValue !== '—') {
+    return headerValue;
+  }
+
+  return formatUnitOrdinalText(fallbackValue ?? null);
 }
 
 function resolveDurationValue(
@@ -301,7 +325,7 @@ export default function LessonPlanDocumentView({
               </div>
               <div>
                 <label>الوحدة</label>
-                <p>{resolveHeaderValue(header, 'unit', fallback?.unit ?? undefined)}</p>
+                <p>{resolveUnitValue(header, fallback?.unit ?? undefined)}</p>
               </div>
               <div>
                 <label>الوقت</label>
@@ -474,7 +498,7 @@ export default function LessonPlanDocumentView({
               </div>
               <div>
                 <label>الوحدة</label>
-                <p>{resolveHeaderValue(header, 'unit', fallback?.unit ?? undefined)}</p>
+                <p>{resolveUnitValue(header, fallback?.unit ?? undefined)}</p>
               </div>
               <div>
                 <label>الوقت</label>

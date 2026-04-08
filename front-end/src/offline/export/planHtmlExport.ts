@@ -5,6 +5,7 @@ import {
   toTextList,
   extractHeaderValue,
 } from './planHelpers';
+import { formatUnitOrdinalText } from '../../utils/unitDisplay';
 
 const BASE_STYLES = `
   * { box-sizing: border-box; }
@@ -318,7 +319,7 @@ function escapeHtml(str) {
 
 function resolveTraditionalSource(source, subject, unit, lessonTitle) {
   const subjectText = toDisplayText(subject);
-  const unitText = toDisplayText(unit);
+  const unitText = formatUnitOrdinalText(unit);
   const titleText = toDisplayText(lessonTitle);
   if (subjectText !== "—" && unitText !== "—" && titleText !== "—") {
     return `${subjectText} - ${unitText} - ${titleText}`;
@@ -347,7 +348,9 @@ export function buildOfflinePlanHtml(enrichedPlan) {
     ? `${enrichedPlan.duration_minutes} دقيقة`
     : "—";
   const grade = escapeHtml(enrichedPlan.grade ?? extractHeaderValue(header, "grade") ?? "—");
-  const unit = escapeHtml(enrichedPlan.unit ?? extractHeaderValue(header, "unit") ?? "—");
+  const unit = escapeHtml(
+    formatUnitOrdinalText(enrichedPlan.unit ?? extractHeaderValue(header, "unit") ?? null)
+  );
   const lessonTitle = escapeHtml(enrichedPlan.lesson_title ?? enrichedPlan.lesson_name ?? extractHeaderValue(header, "lesson_title") ?? "—");
   const date = escapeHtml(extractHeaderValue(header, "date"));
   const day = escapeHtml(extractHeaderValue(header, "day"));

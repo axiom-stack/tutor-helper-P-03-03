@@ -16,6 +16,7 @@ import {
 } from 'docx';
 import { toDisplayText, toTextList, extractHeaderValue } from './planHelpers';
 import { buildExamExportViewModel } from './examViewModel';
+import { formatUnitOrdinalText } from '../../utils/unitDisplay';
 
 function arPara(
   text: string,
@@ -56,7 +57,9 @@ export async function buildOfflinePlanDocx(
   const isTraditional = enrichedPlan.plan_type === 'traditional';
   const duration = enrichedPlan.duration_minutes ? `${enrichedPlan.duration_minutes} دقيقة` : '—';
   const grade = enrichedPlan.grade ?? extractHeaderValue(header, 'grade') ?? '—';
-  const unit = enrichedPlan.unit ?? extractHeaderValue(header, 'unit') ?? '—';
+  const unit = formatUnitOrdinalText(
+    enrichedPlan.unit ?? extractHeaderValue(header, 'unit') ?? null
+  );
   const lessonTitle =
     enrichedPlan.lesson_title ??
     enrichedPlan.lesson_name ??

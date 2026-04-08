@@ -51,6 +51,10 @@ import {
   getClassBaseKey,
   getClassSectionLabel,
 } from '../../utils/classDisplay';
+import {
+  formatUnitDisplayLabel,
+  formatUnitOrdinalText,
+} from '../../utils/unitDisplay';
 import './lesson-creator.css';
 
 type SelectValue = number | '';
@@ -645,7 +649,8 @@ function LessonCreator() {
       const lessonTitle =
         lesson?.name?.trim() || selectedLesson?.name?.trim() || '';
       const subjectName = selectedSubject.name?.trim() || '';
-      const unitName = selectedUnit.name?.trim() || '';
+      const rawUnitName = selectedUnit.name?.trim() || '';
+      const unitName = formatUnitOrdinalText(rawUnitName);
       const gradeValue = selectedClass.grade_label?.trim() || '';
       const classLabel = [
         selectedClass.grade_label,
@@ -662,7 +667,7 @@ function LessonCreator() {
       if (!subjectName) {
         throw new Error('تعذر تحديد اسم المادة للتوليد.');
       }
-      if (!unitName) {
+      if (!rawUnitName) {
         throw new Error('تعذر تحديد اسم الوحدة للتوليد.');
       }
       if (!gradeValue) {
@@ -1076,7 +1081,7 @@ function LessonCreator() {
                     <option value="">اختر الوحدة...</option>
                     {units.map((unitItem) => (
                       <option key={unitItem.id} value={unitItem.id}>
-                        {unitItem.name}
+                        {formatUnitDisplayLabel(unitItem.name)}
                       </option>
                     ))}
                   </select>
@@ -1279,15 +1284,15 @@ function LessonCreator() {
                       )
                   : undefined
               }
-              fallback={{
-                lessonTitle: selectedLesson?.name,
-                subject: selectedSubject?.name,
-                grade: selectedClass?.grade_label,
-                section: selectedClass?.section_label,
-                unit: selectedUnit?.name,
-                durationMinutes,
-              }}
-            />
+                fallback={{
+                  lessonTitle: selectedLesson?.name,
+                  subject: selectedSubject?.name,
+                  grade: selectedClass?.grade_label,
+                  section: selectedClass?.section_label,
+                  unit: formatUnitOrdinalText(selectedUnit?.name ?? ''),
+                  durationMinutes,
+                }}
+              />
           </article>
 
           <section className="lcp__refinement-row">
@@ -1300,7 +1305,7 @@ function LessonCreator() {
                 lesson_title: selectedLesson?.name ?? '',
                 subject: selectedSubject?.name ?? '',
                 grade: selectedClass?.grade_label ?? '',
-                unit: selectedUnit?.name ?? '',
+                unit: formatUnitOrdinalText(selectedUnit?.name ?? ''),
                 duration_minutes: durationMinutes,
                 plan_json: generatedPlan.plan_json,
               }}

@@ -69,6 +69,10 @@ import {
   normalizeAcademicYearLabel,
   normalizeSemesterLabel,
 } from '../../utils/classDisplay';
+import {
+  formatUnitDisplayLabel,
+  formatUnitOrdinalText,
+} from '../../utils/unitDisplay';
 import { listTeachers } from '../users/users.services';
 import './quizzes.css';
 
@@ -1473,7 +1477,7 @@ export default function Quizzes() {
         lessons.forEach((lesson) => {
           nextLessons.push({
             ...lesson,
-            unit_name: unit.name,
+            unit_name: formatUnitOrdinalText(unit.name),
           });
         });
       });
@@ -2818,7 +2822,7 @@ export default function Quizzes() {
               ) : (
                 groupedLessons.map(({ unit, lessons }) => (
                   <div key={unit.id} className="qz__unit-group">
-                    <h4>{unit.name}</h4>
+                    <h4>{formatUnitDisplayLabel(unit.name)}</h4>
                     {lessons.length === 0 ? (
                       <p className="qz__unit-empty">لا توجد دروس.</p>
                     ) : (

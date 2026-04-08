@@ -23,6 +23,7 @@ import {
   getClassBaseKey,
   getClassSectionLabel,
 } from '../../utils/classDisplay';
+import { formatUnitDisplayLabel } from '../../utils/unitDisplay';
 import './control-curriculum.css';
 
 type SelectValue = number | '';
@@ -507,7 +508,7 @@ function AdminCurriculumExplorer({
                     return (
                       <tr key={lessonItem.id}>
                         <td>{lessonItem.name}</td>
-                        <td>{unit?.name ?? '—'}</td>
+                        <td>{unit ? formatUnitDisplayLabel(unit.name) : '—'}</td>
                         <td>{subject?.name ?? '—'}</td>
                         <td>
                           {classItem

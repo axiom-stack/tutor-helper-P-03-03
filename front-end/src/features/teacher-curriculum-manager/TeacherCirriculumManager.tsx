@@ -20,6 +20,7 @@ import {
   LESSON_PERIOD_COUNT_OPTIONS,
   LESSON_DURATION_OPTIONS,
   PERIOD_OPTIONS,
+  UNIT_OPTIONS,
   SEMESTER_OPTIONS,
 } from '../../constants/dropdown-options';
 import type {
@@ -63,6 +64,9 @@ import {
   normalizeSemesterLabel,
 } from '../../utils/classDisplay';
 import {
+  formatUnitDisplayLabel,
+} from '../../utils/unitDisplay';
+import {
   getScopedLessons,
   getScopedUnits,
 } from '../control-dashboard/control-dashboard.services';
@@ -102,7 +106,6 @@ interface EditDraft {
   sectionLabel?: string;
   section?: string;
   academicYear?: string;
-  defaultDurationMinutes?: number;
   content?: string;
   contentType?: LessonContentType;
   file?: File | null;
@@ -1274,7 +1277,6 @@ function TeacherCirriculumManager(props: {
       sectionLabel: selectedClass.section_label,
       section: selectedClass.section,
       academicYear: selectedClass.academic_year,
-      defaultDurationMinutes: selectedClass.default_duration_minutes,
     });
   };
 
@@ -1341,13 +1343,6 @@ function TeacherCirriculumManager(props: {
         if (!editDraft.academicYear?.trim()) {
           throw new Error('العام الدراسي مطلوب.');
         }
-        if (
-          editDraft.defaultDurationMinutes !== undefined &&
-          (!Number.isInteger(editDraft.defaultDurationMinutes) ||
-            editDraft.defaultDurationMinutes <= 0)
-        ) {
-          throw new Error('المدة الافتراضية يجب أن تكون رقمًا صحيحًا موجبًا.');
-        }
       }
 
       if (editDraft.kind === 'class') {
@@ -1359,7 +1354,6 @@ function TeacherCirriculumManager(props: {
           academic_year: normalizeAcademicYearLabel(
             editDraft.academicYear?.trim() ?? ''
           ),
-          default_duration_minutes: editDraft.defaultDurationMinutes ?? 45,
         });
         setClasses((previous) =>
           previous.map((item) =>
@@ -1822,7 +1816,7 @@ function TeacherCirriculumManager(props: {
                       metaParts.push(subjectItem.name);
                     }
                     if (unitItem) {
-                      metaParts.push(unitItem.name);
+                      metaParts.push(formatUnitDisplayLabel(unitItem.name));
                     }
                     const metaLine =
                       metaParts.length > 0 ? metaParts.join(' · ') : '—';
@@ -2344,7 +2338,7 @@ function TeacherCirriculumManager(props: {
                           ) : (
                             <MdExpandMore aria-hidden />
                           )}
-                          <span>{unitItem.name}</span>
+                        <span>{formatUnitDisplayLabel(unitItem.name)}</span>
                           <small>{unitLessons.length} درس</small>
                         </button>
                         <div className="tcm2__row-actions">
@@ -2506,7 +2500,7 @@ function TeacherCirriculumManager(props: {
                       <li>المادة: {detailRow.subject.name}</li>
                     ) : null}
                     {detailRow?.unit ? (
-                      <li>الوحدة: {detailRow.unit.name}</li>
+                      <li>الوحدة: {formatUnitDisplayLabel(detailRow.unit.name)}</li>
                     ) : null}
                     <li>
                       الحصة: {Number(viewLessonDetail.period_number ?? 1)} | عدد
@@ -2631,13 +2625,11 @@ function TeacherCirriculumManager(props: {
                       }
                     >
                       <option value="">اختر الوحدة</option>
-                      {Array.from({ length: 20 }, (_, index) => index + 1).map(
-                        (unitNumber) => (
-                          <option key={unitNumber} value={String(unitNumber)}>
-                            {unitNumber}
-                          </option>
-                        )
-                      )}
+                      {UNIT_OPTIONS.map((unitLabel, index) => (
+                        <option key={unitLabel} value={String(index + 1)}>
+                          {formatUnitDisplayLabel(unitLabel)}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 ) : (
@@ -3081,35 +3073,8 @@ function TeacherCirriculumManager(props: {
                           {semesterOption}
                         </option>
                       ))}
-                    </select>
-                  </div>
-                  <div className="tcm2__field">
-                    <label htmlFor="edit-class-default-duration">
-                      المدة الافتراضية (دقيقة)
-                    </label>
-                    <select
-                      id="edit-class-default-duration"
-                      value={editDraft.defaultDurationMinutes ?? 45}
-                      onChange={(event) =>
-                        setEditDraft((previous) =>
-                          previous
-                            ? {
-                                ...previous,
-                                defaultDurationMinutes: Number(
-                                  event.target.value
-                                ),
-                              }
-                            : previous
-                        )
-                      }
-                    >
-                      {LESSON_DURATION_OPTIONS.map((d) => (
-                        <option key={d} value={d}>
-                          {d} دقيقة
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                        </select>
+                      </div>
                 </div>
               </>
             )}
@@ -3137,7 +3102,7 @@ function TeacherCirriculumManager(props: {
                     <option value="">اختر الوحدة</option>
                     {units.map((unitItem) => (
                       <option key={unitItem.id} value={unitItem.id}>
-                        {unitItem.name}
+                        {formatUnitDisplayLabel(unitItem.name)}
                       </option>
                     ))}
                   </select>
