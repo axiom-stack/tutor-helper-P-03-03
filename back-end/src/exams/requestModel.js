@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { EXAM_PUBLIC_ID_PREFIX } from "./types.js";
 
 function normalizeString(value) {
@@ -17,6 +18,27 @@ function isIsoDateString(value) {
     return false;
   }
   return /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
+}
+
+const updateExamRequestSchema = z.object({
+  title: z
+    .string({
+      required_error: "title is required",
+      invalid_type_error: "title is required",
+    })
+    .trim()
+    .min(1, { message: "title is required" }),
+  questions: z.array(z.unknown(), {
+    required_error: "questions must be an array",
+    invalid_type_error: "questions must be an array",
+  }),
+});
+
+function mapZodIssuesToRequestErrors(issues) {
+  return issues.map((issue) => ({
+    field: issue.path.length > 0 ? String(issue.path[0]) : "request",
+    message: issue.message,
+  }));
 }
 
 export function validateGenerateExamRequest(payload) {
@@ -184,34 +206,20 @@ export function validateListExamsQuery(query) {
 }
 
 export function validateUpdateExamRequest(payload) {
-  const request = payload ?? {};
-  const errors = [];
+  const result = updateExamRequestSchema.safeParse(payload ?? {});
 
-  const title = normalizeString(request.title);
-
-  if (!title) {
-    errors.push({
-      field: "title",
-      message: "title is required",
-    });
-  }
-
-  if (!Array.isArray(request.questions)) {
-    errors.push({
-      field: "questions",
-      message: "questions must be an array",
-    });
-  }
-
-  if (errors.length > 0) {
-    return { ok: false, errors };
+  if (!result.success) {
+    return {
+      ok: false,
+      errors: mapZodIssuesToRequestErrors(result.error.issues),
+    };
   }
 
   return {
     ok: true,
     value: {
-      title,
-      questions: request.questions,
+      title: result.data.title,
+      questions: result.data.questions,
     },
   };
 }
