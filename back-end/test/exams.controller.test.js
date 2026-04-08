@@ -63,18 +63,22 @@ function createExistingExam() {
   };
 }
 
-test("updateExamById persists merged exam questions and appends manual revision", async () => {
+test("updateExamById accepts added questions and appends manual revision", async () => {
   const appended = [];
+  let updatedPayload = null;
   const controller = createExamsController({
     examsRepository: {
       async getByPublicId() {
         return createExistingExam();
       },
       async updateByPublicId(_, payload) {
+        updatedPayload = payload;
         return {
           ...createExistingExam(),
           title: payload.title,
           questions: payload.questions,
+          total_questions: payload.totalQuestions,
+          total_marks: payload.totalMarks,
           updated_at: "2026-03-12T00:00:00.000Z",
         };
       },
@@ -96,6 +100,11 @@ test("updateExamById persists merged exam questions and appends manual revision"
         {
           slot_id: "q_1",
           question_type: "multiple_choice",
+          lesson_id: 11,
+          lesson_name: "الدرس",
+          bloom_level: "remember",
+          bloom_level_label: "التذكر",
+          marks: 5,
           question_text: "سؤال جديد",
           options: ["1", "2", "3", "4"],
           correct_option_index: 2,
@@ -103,9 +112,25 @@ test("updateExamById persists merged exam questions and appends manual revision"
         {
           slot_id: "q_2",
           question_type: "open_ended",
+          lesson_id: 11,
+          lesson_name: "الدرس",
+          bloom_level: "understand",
+          bloom_level_label: "الفهم",
+          marks: 5,
           question_text: "اشرح بالتفصيل",
           answer_text: "جواب جديد",
           rubric: ["معيار 1", "معيار 2"],
+        },
+        {
+          slot_id: "q_3",
+          question_type: "true_false",
+          lesson_id: 11,
+          lesson_name: "الدرس",
+          bloom_level: "apply",
+          bloom_level_label: "التطبيق",
+          marks: 2.5,
+          question_text: "سؤال مضاف",
+          correct_answer: true,
         },
       ],
     },
@@ -116,12 +141,17 @@ test("updateExamById persists merged exam questions and appends manual revision"
 
   assert.equal(res.statusCode, 200);
   assert.equal(res.payload?.exam?.title, "اختبار معدل");
+  assert.equal(res.payload?.exam?.questions?.length, 3);
   assert.equal(res.payload?.exam?.questions?.[0]?.answer_text, "3");
+  assert.equal(res.payload?.exam?.total_questions, 3);
+  assert.equal(res.payload?.exam?.total_marks, 12.5);
+  assert.equal(updatedPayload?.totalQuestions, 3);
+  assert.equal(updatedPayload?.totalMarks, 12.5);
   assert.equal(appended.length, 1);
   assert.equal(appended[0].source, "manual_edit");
 });
 
-test("updateExamById rejects slot changes that break exam validation", async () => {
+test("updateExamById accepts removed questions and recomputes totals", async () => {
   let updateCalls = 0;
   const controller = createExamsController({
     examsRepository: {
@@ -130,7 +160,27 @@ test("updateExamById rejects slot changes that break exam validation", async () 
       },
       async updateByPublicId() {
         updateCalls += 1;
-        return null;
+        return {
+          ...createExistingExam(),
+          questions: [
+            {
+              slot_id: "q_2",
+              question_number: 1,
+              lesson_id: 11,
+              lesson_name: "الدرس",
+              bloom_level: "understand",
+              bloom_level_label: "الفهم",
+              question_type: "open_ended",
+              marks: 5,
+              question_text: "اشرح بالتفصيل",
+              answer_text: "جواب جديد",
+              rubric: ["معيار 1", "معيار 2"],
+            },
+          ],
+          total_questions: 1,
+          total_marks: 5,
+          updated_at: "2026-03-12T00:00:00.000Z",
+        };
       },
     },
     revisionsRepository: {
@@ -147,15 +197,13 @@ test("updateExamById rejects slot changes that break exam validation", async () 
       title: "اختبار معدل",
       questions: [
         {
-          slot_id: "wrong_slot",
-          question_type: "multiple_choice",
-          question_text: "سؤال جديد",
-          options: ["1", "2", "3", "4"],
-          correct_option_index: 2,
-        },
-        {
           slot_id: "q_2",
           question_type: "open_ended",
+          lesson_id: 11,
+          lesson_name: "الدرس",
+          bloom_level: "understand",
+          bloom_level_label: "الفهم",
+          marks: 5,
           question_text: "اشرح بالتفصيل",
           answer_text: "جواب جديد",
           rubric: ["معيار 1", "معيار 2"],
@@ -167,7 +215,9 @@ test("updateExamById rejects slot changes that break exam validation", async () 
 
   await controller.updateExamById(req, res);
 
-  assert.equal(res.statusCode, 422);
-  assert.equal(updateCalls, 0);
-  assert.equal(res.payload?.error?.code, "invalid_exam_questions");
+  assert.equal(res.statusCode, 200);
+  assert.equal(updateCalls, 1);
+  assert.equal(res.payload?.exam?.questions?.length, 1);
+  assert.equal(res.payload?.exam?.total_questions, 1);
+  assert.equal(res.payload?.exam?.total_marks, 5);
 });

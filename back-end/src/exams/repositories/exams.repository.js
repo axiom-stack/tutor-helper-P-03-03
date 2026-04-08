@@ -272,7 +272,11 @@ export function createExamsRepository(dbClient = turso) {
       });
     },
 
-    async updateByPublicId(publicId, { title, questions }, accessContext) {
+    async updateByPublicId(
+      publicId,
+      { title, questions, totalQuestions, totalMarks },
+      accessContext,
+    ) {
       const existing = await this.getByPublicId(publicId, accessContext, {
         includePayload: true,
       });
@@ -291,6 +295,16 @@ export function createExamsRepository(dbClient = turso) {
       if (questions !== undefined) {
         updates.push("questions_json = ?");
         args.push(JSON.stringify(questions));
+      }
+
+      if (totalQuestions !== undefined) {
+        updates.push("total_questions = ?");
+        args.push(totalQuestions);
+      }
+
+      if (totalMarks !== undefined) {
+        updates.push("total_marks = ?");
+        args.push(totalMarks);
       }
 
       args.push(publicId);

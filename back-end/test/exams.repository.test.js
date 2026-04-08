@@ -113,8 +113,8 @@ test("updateByPublicId updates title and questions", async () => {
               class_id: 3,
               subject_id: 4,
               title: "اختبار معدل",
-              total_questions: 2,
-              total_marks: 10,
+              total_questions: 1,
+              total_marks: 5,
               blueprint_json: JSON.stringify({ cells: [] }),
               questions_json: JSON.stringify([
                 {
@@ -146,6 +146,8 @@ test("updateByPublicId updates title and questions", async () => {
     "exm_9",
     {
       title: "اختبار معدل",
+      totalQuestions: 1,
+      totalMarks: 5,
       questions: [
         {
           slot_id: "q_1",
@@ -161,5 +163,7 @@ test("updateByPublicId updates title and questions", async () => {
 
   assert.equal(updated.title, "اختبار معدل");
   assert.equal(updated.questions.length, 1);
+  assert.equal(updated.total_questions, 1);
+  assert.equal(updated.total_marks, 5);
   assert.ok(calls.some((call) => call.sql.includes("UPDATE Exams")));
 });

@@ -338,8 +338,7 @@ function TeacherCirriculumManager(props: {
   );
   const [newClassGradeLabel, setNewClassGradeLabel] = useState('');
   const [newClassSectionLabel, setNewClassSectionLabel] = useState('');
-  const [newClassDefaultDuration, setNewClassDefaultDuration] =
-    useState<number>(() => resolvedDefaultDuration);
+  const newClassDefaultDuration = resolvedDefaultDuration;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -585,9 +584,7 @@ function TeacherCirriculumManager(props: {
       const { lesson: lessonItem, subject: subjectItem, classItem } = row;
       if (librarySearchQuery.trim()) {
         const q = normalizeLookupText(librarySearchQuery).toLowerCase();
-        if (
-          !normalizeLookupText(lessonItem.name).toLowerCase().includes(q)
-        ) {
+        if (!normalizeLookupText(lessonItem.name).toLowerCase().includes(q)) {
           return false;
         }
       }
@@ -836,34 +833,6 @@ function TeacherCirriculumManager(props: {
     [classes, selectedClassBaseKey, units]
   );
 
-  const goToLessonInStructure = useCallback(
-    (lessonItem: Lesson) => {
-      const unitItem =
-        units.find((unitRow) => unitRow.id === lessonItem.unit_id) ?? null;
-      if (!unitItem) {
-        return;
-      }
-      const subjectItem =
-        subjects.find((subjectRow) => subjectRow.id === unitItem.subject_id) ??
-        null;
-      if (!subjectItem) {
-        return;
-      }
-      activateSubjectView(subjectItem.id, subjectItem.class_id);
-      ensureUnitExpanded(unitItem.id);
-      setActiveTab('structure');
-      setSearchParams(
-        (previous) => {
-          const next = new URLSearchParams(previous);
-          next.delete('tab');
-          return next;
-        },
-        { replace: true }
-      );
-    },
-    [units, subjects, activateSubjectView, ensureUnitExpanded, setSearchParams]
-  );
-
   useEffect(() => {
     const tab = searchParams.get('tab');
     setActiveTab(tab === 'library' ? 'library' : 'structure');
@@ -1078,15 +1047,6 @@ function TeacherCirriculumManager(props: {
       }
       return next;
     });
-  };
-
-  const openQuickAddClass = () => {
-    setClassSelectionMode('new');
-    setNewClassAcademicYear(ACADEMIC_YEAR_OPTIONS[0]);
-    setNewClassSemester(SEMESTER_OPTIONS[0]);
-    setNewClassGradeLabel('');
-    setNewClassSectionLabel('');
-    setNewClassDefaultDuration(resolvedDefaultDuration);
   };
 
   const openQuickAddSubject = (classId: number) => {
@@ -1659,7 +1619,9 @@ function TeacherCirriculumManager(props: {
           id="tcm-tab-library"
           aria-selected={activeTab === 'library'}
           className={
-            activeTab === 'library' ? 'tcm2__tab tcm2__tab--active' : 'tcm2__tab'
+            activeTab === 'library'
+              ? 'tcm2__tab tcm2__tab--active'
+              : 'tcm2__tab'
           }
           onClick={() => {
             setActiveTab('library');
@@ -1693,80 +1655,100 @@ function TeacherCirriculumManager(props: {
             </p>
           </div>
 
-          <div className="tcm2__library-filters" aria-label="فلترة الدروس">
-            <div className="tcm2__field">
-              <label htmlFor="tcm-lib-search">بحث باسم الدرس</label>
+          <section className="tcm2__library-filters" aria-label="فلترة الدروس">
+            <div className="tcm2__library-search-field">
+              <label className="tcm2__library-field-label" htmlFor="tcm-lib-search">
+                <span>بحث باسم الدرس</span>
+              </label>
               <input
                 id="tcm-lib-search"
                 type="search"
+                className="tcm2__library-search-input"
                 value={librarySearchQuery}
-                onChange={(event) => setLibrarySearchQuery(event.target.value)}
+                onChange={(event) =>
+                  setLibrarySearchQuery(event.target.value)
+                }
                 placeholder="اكتب جزءًا من اسم الدرس"
                 autoComplete="off"
               />
             </div>
-            <div className="tcm2__field">
-              <label htmlFor="tcm-lib-grade">الصف</label>
-              <select
-                id="tcm-lib-grade"
-                value={libraryGradeFilter}
-                onChange={(event) => setLibraryGradeFilter(event.target.value)}
-              >
-                <option value="">الكل</option>
-                {libraryGradeOptions.map((gradeOption) => (
-                  <option key={gradeOption} value={gradeOption}>
-                    {gradeOption}
-                  </option>
-                ))}
-              </select>
+
+            <div className="tcm2__library-filters-row">
+              <div className="tcm2__library-filter-item">
+                <label className="tcm2__library-field-label" htmlFor="tcm-lib-grade">
+                  <span>قلبة بالصف</span>
+                </label>
+                <select
+                  id="tcm-lib-grade"
+                  className="tcm2__library-select"
+                  value={libraryGradeFilter}
+                  onChange={(event) => setLibraryGradeFilter(event.target.value)}
+                >
+                  <option value="">الكل</option>
+                  {libraryGradeOptions.map((gradeOption) => (
+                    <option key={gradeOption} value={gradeOption}>
+                      {gradeOption}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="tcm2__library-filter-item">
+                <label className="tcm2__library-field-label" htmlFor="tcm-lib-subject">
+                  <span>قلبة بالمادة</span>
+                </label>
+                <select
+                  id="tcm-lib-subject"
+                  className="tcm2__library-select"
+                  value={
+                    librarySubjectIdFilter === ''
+                      ? ''
+                      : String(librarySubjectIdFilter)
+                  }
+                  onChange={(event) =>
+                    setLibrarySubjectIdFilter(
+                      event.target.value ? Number(event.target.value) : ''
+                    )
+                  }
+                >
+                  <option value="">الكل</option>
+                  {librarySubjectOptions.map((subjectOption) => (
+                    <option key={subjectOption.id} value={subjectOption.id}>
+                      {formatSubjectSelectLabel(
+                        subjectOption,
+                        classByIdMap.get(subjectOption.class_id) ?? null
+                      )}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="tcm2__library-filter-item">
+                <label className="tcm2__library-field-label" htmlFor="tcm-lib-semester">
+                  <span>قلبة بالفصل الدراسي</span>
+                </label>
+                <select
+                  id="tcm-lib-semester"
+                  className="tcm2__library-select"
+                  value={librarySemesterFilter}
+                  onChange={(event) =>
+                    setLibrarySemesterFilter(event.target.value)
+                  }
+                >
+                  <option value="">الكل</option>
+                  {librarySemesterOptions.map((semesterOption) => (
+                    <option key={semesterOption} value={semesterOption}>
+                      {semesterOption}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <div className="tcm2__field">
-              <label htmlFor="tcm-lib-subject">المادة</label>
-              <select
-                id="tcm-lib-subject"
-                value={
-                  librarySubjectIdFilter === ''
-                    ? ''
-                    : String(librarySubjectIdFilter)
-                }
-                onChange={(event) =>
-                  setLibrarySubjectIdFilter(
-                    event.target.value ? Number(event.target.value) : ''
-                  )
-                }
-              >
-                <option value="">الكل</option>
-                {librarySubjectOptions.map((subjectOption) => (
-                  <option key={subjectOption.id} value={subjectOption.id}>
-                    {formatSubjectSelectLabel(
-                      subjectOption,
-                      classByIdMap.get(subjectOption.class_id) ?? null
-                    )}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="tcm2__field">
-              <label htmlFor="tcm-lib-semester">الفصل الدراسي</label>
-              <select
-                id="tcm-lib-semester"
-                value={librarySemesterFilter}
-                onChange={(event) =>
-                  setLibrarySemesterFilter(event.target.value)
-                }
-              >
-                <option value="">الكل</option>
-                {librarySemesterOptions.map((semesterOption) => (
-                  <option key={semesterOption} value={semesterOption}>
-                    {semesterOption}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="tcm2__library-filter-actions">
+
+            <div className="tcm2__library-actions">
               <button
                 type="button"
-                className="tcm2__primary-soft"
+                className="tcm2__library-btn"
                 onClick={() => {
                   setLibrarySearchQuery('');
                   setLibraryGradeFilter('');
@@ -1784,18 +1766,19 @@ function TeacherCirriculumManager(props: {
               </button>
               <button
                 type="button"
+                className="tcm2__library-btn"
                 onClick={() => void loadCurriculumData()}
                 disabled={loading || saving}
               >
                 تحديث القائمة
               </button>
             </div>
-          </div>
+          </section>
 
           {filteredLessonLibraryRows.length === 0 ? (
             <p className="tcm2__empty tcm2__library-empty">
-              لا توجد دروس مطابقة. جرّب تغيير الفلاتر أو إضافة دروس من تبويب هيكل
-              المنهج.
+              لا توجد دروس مطابقة. جرّب تغيير الفلاتر أو إضافة دروس من تبويب
+              هيكل المنهج.
             </p>
           ) : (
             <div className="tcm2__library-table-scroll">
@@ -1861,15 +1844,6 @@ function TeacherCirriculumManager(props: {
                             </button>
                             <button
                               type="button"
-                              className="tcm2__library-table-btn tcm2__library-table-btn--soft"
-                              onClick={() =>
-                                goToLessonInStructure(lessonItem)
-                              }
-                            >
-                              في الهيكل
-                            </button>
-                            <button
-                              type="button"
                               className="tcm2__library-table-btn"
                               onClick={() => openEditForLesson(lessonItem)}
                             >
@@ -1908,566 +1882,565 @@ function TeacherCirriculumManager(props: {
           id="tcm-panel-structure"
           aria-labelledby="tcm-tab-structure"
         >
-        <section className="tcm2__panel">
-          <div className="tcm2__panel-head">
-            <h2>
-              <MdSchool aria-hidden />
-              هيكل المنهج
-            </h2>
-            <span>
-              {selectedSubjectUnits.length} وحدة / {totalLessons} درس
-            </span>
-          </div>
+          <section className="tcm2__panel">
+            <div className="tcm2__panel-head">
+              <h2>
+                <MdSchool aria-hidden />
+                هيكل المنهج
+              </h2>
+              <span>
+                {selectedSubjectUnits.length} وحدة / {totalLessons} درس
+              </span>
+            </div>
 
-          <div className="tcm2__selectors">
-            <div className="tcm2__field">
-              <div className="tcm2__selector-row">
-                <label htmlFor="active-class">الصف</label>
-                <div className="tcm2__selector-actions">
+            <div className="tcm2__selectors">
+              <div className="tcm2__field">
+                <div className="tcm2__selector-row">
+                  <label htmlFor="active-class">الصف</label>
+                  <div className="tcm2__selector-actions">
+                    <button
+                      type="button"
+                      className="tcm2__danger tcm2__quick-select-btn"
+                      onClick={() =>
+                        selectedClassId !== ''
+                          ? requestDeleteEntity(
+                              'class',
+                              selectedClassId,
+                              'هذا الصف'
+                            )
+                          : undefined
+                      }
+                      disabled={selectedClassId === ''}
+                    >
+                      <MdDelete aria-hidden />
+                      حذف الصف
+                    </button>
+                  </div>
+                </div>
+                <div className="tcm2__mode-toggle">
                   <button
                     type="button"
-                    className="tcm2__primary-soft tcm2__quick-select-btn"
-                    onClick={openQuickAddClass}
+                    className={
+                      classSelectionMode === 'existing'
+                        ? 'tcm2__mode-active'
+                        : ''
+                    }
+                    onClick={() => setClassSelectionMode('existing')}
                   >
-                    <MdAdd aria-hidden />
+                    اختيار صف محفوظ
+                  </button>
+                  <button
+                    type="button"
+                    className={
+                      classSelectionMode === 'new' ? 'tcm2__mode-active' : ''
+                    }
+                    onClick={() => setClassSelectionMode('new')}
+                  >
                     إنشاء صف جديد
                   </button>
-                  <button
-                    type="button"
-                    className="tcm2__danger tcm2__quick-select-btn"
-                    onClick={() =>
-                      selectedClassId !== ''
-                        ? requestDeleteEntity(
-                            'class',
-                            selectedClassId,
-                            'هذا الصف'
-                          )
-                        : undefined
-                    }
-                    disabled={selectedClassId === ''}
-                  >
-                    <MdDelete aria-hidden />
-                    حذف الصف
-                  </button>
                 </div>
-              </div>
-              <div className="tcm2__mode-toggle">
-                <button
-                  type="button"
-                  className={
-                    classSelectionMode === 'existing' ? 'tcm2__mode-active' : ''
-                  }
-                  onClick={() => setClassSelectionMode('existing')}
-                >
-                  اختيار صف محفوظ
-                </button>
-                <button
-                  type="button"
-                  className={
-                    classSelectionMode === 'new' ? 'tcm2__mode-active' : ''
-                  }
-                  onClick={() => setClassSelectionMode('new')}
-                >
-                  إنشاء صف جديد
-                </button>
-              </div>
 
-              {classSelectionMode === 'existing' ? (
-                <>
-                  <div className="tcm2__class-filter-grid">
-                    <div className="tcm2__field">
-                      <label htmlFor="class-year-filter">العام الدراسي</label>
-                      <select
-                        id="class-year-filter"
-                        value={existingClassYearFilter}
-                        onChange={(event) =>
-                          setExistingClassYearFilter(event.target.value)
-                        }
-                      >
-                        <option value="">الكل</option>
-                        {existingClassYearOptions.map((yearOption) => (
-                          <option key={yearOption} value={yearOption}>
-                            {yearOption}
-                          </option>
-                        ))}
-                      </select>
+                {classSelectionMode === 'existing' ? (
+                  <>
+                    <div className="tcm2__class-filter-grid">
+                      <div className="tcm2__field">
+                        <label htmlFor="class-year-filter">العام الدراسي</label>
+                        <select
+                          id="class-year-filter"
+                          value={existingClassYearFilter}
+                          onChange={(event) =>
+                            setExistingClassYearFilter(event.target.value)
+                          }
+                        >
+                          <option value="">الكل</option>
+                          {existingClassYearOptions.map((yearOption) => (
+                            <option key={yearOption} value={yearOption}>
+                              {yearOption}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="tcm2__field">
+                        <label htmlFor="class-semester-filter">
+                          الفصل الدراسي
+                        </label>
+                        <select
+                          id="class-semester-filter"
+                          value={existingClassSemesterFilter}
+                          onChange={(event) =>
+                            setExistingClassSemesterFilter(event.target.value)
+                          }
+                        >
+                          <option value="">الكل</option>
+                          {SEMESTER_OPTIONS.map((semesterOption) => (
+                            <option key={semesterOption} value={semesterOption}>
+                              {semesterOption}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="tcm2__field">
+                        <label htmlFor="class-grade-filter">الصف الدراسي</label>
+                        <select
+                          id="class-grade-filter"
+                          value={existingClassGradeFilter}
+                          onChange={(event) =>
+                            setExistingClassGradeFilter(event.target.value)
+                          }
+                        >
+                          <option value="">الكل</option>
+                          {GRADE_OPTIONS.map((gradeOption) => (
+                            <option key={gradeOption} value={gradeOption}>
+                              {gradeOption}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
-                    <div className="tcm2__field">
-                      <label htmlFor="class-semester-filter">
-                        الفصل الدراسي
-                      </label>
-                      <select
-                        id="class-semester-filter"
-                        value={existingClassSemesterFilter}
-                        onChange={(event) =>
-                          setExistingClassSemesterFilter(event.target.value)
-                        }
-                      >
-                        <option value="">الكل</option>
-                        {SEMESTER_OPTIONS.map((semesterOption) => (
-                          <option key={semesterOption} value={semesterOption}>
-                            {semesterOption}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="tcm2__field">
-                      <label htmlFor="class-grade-filter">الصف الدراسي</label>
-                      <select
-                        id="class-grade-filter"
-                        value={existingClassGradeFilter}
-                        onChange={(event) =>
-                          setExistingClassGradeFilter(event.target.value)
-                        }
-                      >
-                        <option value="">الكل</option>
-                        {GRADE_OPTIONS.map((gradeOption) => (
-                          <option key={gradeOption} value={gradeOption}>
-                            {gradeOption}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
 
-                  <div className="tcm2__field tcm2__stored-class-field">
-                    <label htmlFor="active-class">الصف المحفوظ</label>
-                    <select
-                      id="active-class"
-                      value={selectedClassBaseKey}
-                      onChange={(event) =>
-                        handleClassGroupChange(event.target.value)
-                      }
-                    >
-                      <option value="">اختر الصف</option>
-                      {classGroups.map((group) => (
-                        <option key={group.key} value={group.key}>
-                          {formatClassBaseSelectLabel(group.baseClass)}
-                        </option>
-                      ))}
-                    </select>
-                    <label htmlFor="active-class-section">
-                      الشعبة المحفوظة
-                    </label>
-                    <select
-                      id="active-class-section"
-                      value={selectedClassId}
-                      onChange={(event) =>
-                        handleClassSectionChange(
-                          event.target.value ? Number(event.target.value) : ''
-                        )
-                      }
-                      disabled={
-                        selectedClassBaseKey === '' ||
-                        selectedClassSections.length === 0
-                      }
-                    >
-                      <option value="">
-                        {selectedClassBaseKey === ''
-                          ? 'يرجى اختيار الصف أولاً ثم الشعبة'
-                          : 'اختر الشعبة'}
-                      </option>
-                      {selectedClassSections.map((classItem) => (
-                        <option key={classItem.id} value={classItem.id}>
-                          {getClassSectionLabel(classItem)}
-                        </option>
-                      ))}
-                    </select>
-                    <small className="tcm2__field-hint">
-                      يتم تمكين الشعبة بعد البدء باختيار الصف المحفوظ أعلاه.
-                    </small>
-                  </div>
-                </>
-              ) : (
-                <div className="tcm2__step tcm2__step--compact">
-                  <h3>إنشاء صف جديد</h3>
-                  <div className="tcm2__inline-grid">
-                    <div className="tcm2__field">
-                      <label htmlFor="new-class-year">1. العام الدراسي *</label>
+                    <div className="tcm2__field tcm2__stored-class-field">
+                      <label htmlFor="active-class">الصف المحفوظ</label>
                       <select
-                        id="new-class-year"
-                        value={newClassAcademicYear}
+                        id="active-class"
+                        value={selectedClassBaseKey}
                         onChange={(event) =>
-                          setNewClassAcademicYear(event.target.value)
-                        }
-                      >
-                        {ACADEMIC_YEAR_OPTIONS.map((yearOption) => (
-                          <option key={yearOption} value={yearOption}>
-                            {yearOption}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="tcm2__field">
-                      <label htmlFor="new-class-semester">
-                        2. الفصل الدراسي *
-                      </label>
-                      <select
-                        id="new-class-semester"
-                        value={newClassSemester}
-                        onChange={(event) =>
-                          setNewClassSemester(event.target.value)
-                        }
-                      >
-                        {SEMESTER_OPTIONS.map((semesterOption) => (
-                          <option key={semesterOption} value={semesterOption}>
-                            {semesterOption}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="tcm2__field">
-                      <label htmlFor="new-class-grade">
-                        3. الصف الدراسي (1-12) *
-                      </label>
-                      <select
-                        id="new-class-grade"
-                        value={newClassGradeLabel}
-                        onChange={(event) =>
-                          setNewClassGradeLabel(event.target.value)
+                          handleClassGroupChange(event.target.value)
                         }
                       >
                         <option value="">اختر الصف</option>
-                        {GRADE_OPTIONS.map((gradeOption) => (
-                          <option key={gradeOption} value={gradeOption}>
-                            {gradeOption}
+                        {classGroups.map((group) => (
+                          <option key={group.key} value={group.key}>
+                            {formatClassBaseSelectLabel(group.baseClass)}
                           </option>
                         ))}
                       </select>
-                    </div>
-                    <div className="tcm2__field">
-                      <label htmlFor="new-class-section">4. الشعبة *</label>
-                      <input
-                        id="new-class-section"
-                        type="text"
-                        value={newClassSectionLabel}
+                      <label htmlFor="active-class-section">
+                        الشعبة المحفوظة
+                      </label>
+                      <select
+                        id="active-class-section"
+                        value={selectedClassId}
                         onChange={(event) =>
-                          setNewClassSectionLabel(event.target.value)
+                          handleClassSectionChange(
+                            event.target.value ? Number(event.target.value) : ''
+                          )
                         }
-                        placeholder="مثال: أ"
-                      />
+                        disabled={
+                          selectedClassBaseKey === '' ||
+                          selectedClassSections.length === 0
+                        }
+                      >
+                        <option value="">
+                          {selectedClassBaseKey === ''
+                            ? 'يرجى اختيار الصف أولاً ثم الشعبة'
+                            : 'اختر الشعبة'}
+                        </option>
+                        {selectedClassSections.map((classItem) => (
+                          <option key={classItem.id} value={classItem.id}>
+                            {getClassSectionLabel(classItem)}
+                          </option>
+                        ))}
+                      </select>
+                      <small className="tcm2__field-hint">
+                        يتم تمكين الشعبة بعد البدء باختيار الصف المحفوظ أعلاه.
+                      </small>
+                    </div>
+                  </>
+                ) : (
+                  <div className="tcm2__step tcm2__step--compact">
+                    <h3>إنشاء صف جديد</h3>
+                    <div className="tcm2__inline-grid">
+                      <div className="tcm2__field">
+                        <label htmlFor="new-class-year">
+                          1. العام الدراسي *
+                        </label>
+                        <select
+                          id="new-class-year"
+                          value={newClassAcademicYear}
+                          onChange={(event) =>
+                            setNewClassAcademicYear(event.target.value)
+                          }
+                        >
+                          {ACADEMIC_YEAR_OPTIONS.map((yearOption) => (
+                            <option key={yearOption} value={yearOption}>
+                              {yearOption}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="tcm2__field">
+                        <label htmlFor="new-class-semester">
+                          2. الفصل الدراسي *
+                        </label>
+                        <select
+                          id="new-class-semester"
+                          value={newClassSemester}
+                          onChange={(event) =>
+                            setNewClassSemester(event.target.value)
+                          }
+                        >
+                          {SEMESTER_OPTIONS.map((semesterOption) => (
+                            <option key={semesterOption} value={semesterOption}>
+                              {semesterOption}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="tcm2__field">
+                        <label htmlFor="new-class-grade">
+                          3. الصف الدراسي (1-12) *
+                        </label>
+                        <select
+                          id="new-class-grade"
+                          value={newClassGradeLabel}
+                          onChange={(event) =>
+                            setNewClassGradeLabel(event.target.value)
+                          }
+                        >
+                          <option value="">اختر الصف</option>
+                          {GRADE_OPTIONS.map((gradeOption) => (
+                            <option key={gradeOption} value={gradeOption}>
+                              {gradeOption}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="tcm2__field">
+                        <label htmlFor="new-class-section">4. الشعبة *</label>
+                        <input
+                          id="new-class-section"
+                          type="text"
+                          value={newClassSectionLabel}
+                          onChange={(event) =>
+                            setNewClassSectionLabel(event.target.value)
+                          }
+                          placeholder="مثال: أ"
+                        />
+                      </div>
+                    </div>
+
+                    {duplicateNewClass ? (
+                      <p className="tcm2__warning">
+                        هذا الصف موجود بالفعل:{' '}
+                        {formatClassSelectLabel(duplicateNewClass)}
+                      </p>
+                    ) : null}
+
+                    <div className="tcm2__form-actions">
+                      <button
+                        type="button"
+                        onClick={() => setClassSelectionMode('existing')}
+                        disabled={saving}
+                      >
+                        رجوع إلى الصفوف المحفوظة
+                      </button>
+                      <button
+                        type="button"
+                        className="tcm2__primary"
+                        onClick={() => void handleCreateClassFromSelector()}
+                        disabled={saving || !isNewClassFormValid}
+                      >
+                        {saving && (
+                          <span className="ui-button-spinner" aria-hidden />
+                        )}
+                        {saving ? 'جارٍ الحفظ...' : 'حفظ الصف'}
+                      </button>
                     </div>
                   </div>
+                )}
+              </div>
 
-                  {duplicateNewClass ? (
-                    <p className="tcm2__warning">
-                      هذا الصف موجود بالفعل:{' '}
-                      {formatClassSelectLabel(duplicateNewClass)}
-                    </p>
-                  ) : null}
-
-                  <div className="tcm2__form-actions">
+              <div className="tcm2__field">
+                <div className="tcm2__selector-row">
+                  <label htmlFor="active-subject">المادة المحفوظة</label>
+                  <div className="tcm2__selector-actions">
                     <button
                       type="button"
-                      onClick={() => setClassSelectionMode('existing')}
-                      disabled={saving}
+                      className="tcm2__primary-soft tcm2__quick-select-btn"
+                      onClick={() =>
+                        selectedClassId !== ''
+                          ? openQuickAddSubject(selectedClassId)
+                          : undefined
+                      }
+                      disabled={selectedClassId === ''}
                     >
-                      رجوع إلى الصفوف المحفوظة
-                    </button>
-                    <button
-                      type="button"
-                      className="tcm2__primary"
-                      onClick={() => void handleCreateClassFromSelector()}
-                      disabled={saving || !isNewClassFormValid}
-                    >
-                      {saving && (
-                        <span className="ui-button-spinner" aria-hidden />
-                      )}
-                      {saving ? 'جارٍ الحفظ...' : 'حفظ الصف'}
+                      <MdAdd aria-hidden />
+                      إضافة مادة
                     </button>
                   </div>
                 </div>
-              )}
+                <select
+                  id="active-subject"
+                  aria-label="اختيار المادة"
+                  value={selectedSubjectId}
+                  onChange={(event) =>
+                    handleSubjectChange(
+                      event.target.value ? Number(event.target.value) : ''
+                    )
+                  }
+                >
+                  <option value="">اختر المادة</option>
+                  {visibleSubjects.map((subjectItem) => (
+                    <option key={subjectItem.id} value={subjectItem.id}>
+                      {formatSubjectSelectLabel(
+                        subjectItem,
+                        classByIdMap.get(subjectItem.class_id) ?? null
+                      )}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            <div className="tcm2__field">
-              <div className="tcm2__selector-row">
-                <label htmlFor="active-subject">المادة المحفوظة</label>
-                <div className="tcm2__selector-actions">
+            {selectedClass && (
+              <div className="tcm2__meta">
+                <div>
+                  <h3>
+                    <MdSchool aria-hidden />
+                    {formatClassShortLabel(selectedClass)}
+                  </h3>
+                  <p>
+                    الصف: {selectedClass.grade_label} | الشعبة:{' '}
+                    {selectedClass.section_label} | الفصل:{' '}
+                    {normalizeSemesterLabel(selectedClass.semester)}
+                  </p>
+                  <p>
+                    العام الدراسي:{' '}
+                    {normalizeAcademicYearLabel(selectedClass.academic_year)} |
+                    المدة الافتراضية: {selectedClass.default_duration_minutes}{' '}
+                    دقيقة
+                  </p>
+                </div>
+                <div className="tcm2__meta-actions">
+                  <button type="button" onClick={openEditForSelectedClass}>
+                    <MdEdit aria-hidden />
+                    تعديل
+                  </button>
                   <button
                     type="button"
-                    className="tcm2__primary-soft tcm2__quick-select-btn"
+                    className="tcm2__danger"
                     onClick={() =>
-                      selectedClassId !== ''
-                        ? openQuickAddSubject(selectedClassId)
-                        : undefined
+                      requestDeleteEntity('class', selectedClass.id, 'هذا الصف')
                     }
-                    disabled={selectedClassId === ''}
+                    disabled={saving}
                   >
-                    <MdAdd aria-hidden />
-                    إضافة مادة
+                    <MdDelete aria-hidden />
+                    حذف
                   </button>
                 </div>
               </div>
-              <select
-                id="active-subject"
-                aria-label="اختيار المادة"
-                value={selectedSubjectId}
-                onChange={(event) =>
-                  handleSubjectChange(
-                    event.target.value ? Number(event.target.value) : ''
-                  )
-                }
-              >
-                <option value="">اختر المادة</option>
-                {visibleSubjects.map((subjectItem) => (
-                  <option key={subjectItem.id} value={subjectItem.id}>
-                    {formatSubjectSelectLabel(
-                      subjectItem,
-                      classByIdMap.get(subjectItem.class_id) ?? null
-                    )}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+            )}
 
-          {selectedClass && (
-            <div className="tcm2__meta">
-              <div>
-                <h3>
-                  <MdSchool aria-hidden />
-                  {formatClassShortLabel(selectedClass)}
-                </h3>
-                <p>
-                  الصف: {selectedClass.grade_label} | الشعبة:{' '}
-                  {selectedClass.section_label} | الفصل:{' '}
-                  {normalizeSemesterLabel(selectedClass.semester)}
-                </p>
-                <p>
-                  العام الدراسي:{' '}
-                  {normalizeAcademicYearLabel(selectedClass.academic_year)} |
-                  المدة الافتراضية: {selectedClass.default_duration_minutes}{' '}
-                  دقيقة
-                </p>
-              </div>
-              <div className="tcm2__meta-actions">
-                <button type="button" onClick={openEditForSelectedClass}>
-                  <MdEdit aria-hidden />
-                  تعديل
-                </button>
-                <button
-                  type="button"
-                  className="tcm2__danger"
-                  onClick={() =>
-                    requestDeleteEntity('class', selectedClass.id, 'هذا الصف')
-                  }
-                  disabled={saving}
-                >
-                  <MdDelete aria-hidden />
-                  حذف
-                </button>
-              </div>
-            </div>
-          )}
-
-          {selectedSubject && (
-            <div className="tcm2__meta">
-              <div>
-                <h3>
-                  <MdSubject aria-hidden />
-                  {selectedSubject.name}
-                </h3>
-                <p>
-                  {selectedSubject.description?.trim() || 'لا يوجد وصف للمادة.'}
-                </p>
-              </div>
-              <div className="tcm2__meta-actions">
-                <button
-                  type="button"
-                  className="tcm2__primary-soft"
-                  onClick={() => openQuickAddUnit(selectedSubject.id)}
-                >
-                  <MdAdd aria-hidden />
-                  إضافة وحدة
-                </button>
-                <button type="button" onClick={openEditForSelectedSubject}>
-                  <MdEdit aria-hidden />
-                  تعديل
-                </button>
-                <button
-                  type="button"
-                  className="tcm2__danger"
-                  onClick={() =>
-                    requestDeleteEntity(
-                      'subject',
-                      selectedSubject.id,
-                      'هذه المادة'
-                    )
-                  }
-                  disabled={saving}
-                >
-                  <MdDelete aria-hidden />
-                  حذف
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div className="tcm2__helper-actions">
-            <button
-              type="button"
-              className="tcm2__primary-soft"
-              onClick={() =>
-                selectedSubject
-                  ? openQuickAddUnit(selectedSubject.id)
-                  : undefined
-              }
-              disabled={!selectedSubject}
-            >
-              <MdAdd aria-hidden />
-              إضافة وحدة للمادة
-            </button>
-            <button
-              type="button"
-              className="tcm2__primary-soft"
-              onClick={() =>
-                selectedSubjectUnits[0]
-                  ? openQuickAddLesson(selectedSubjectUnits[0].id)
-                  : undefined
-              }
-              disabled={!selectedSubject || selectedSubjectUnits.length === 0}
-            >
-              <MdAdd aria-hidden />
-              إضافة درس سريع
-            </button>
-          </div>
-
-          {!selectedSubject ? (
-            <div className="tcm2__empty">اختر الصف أو المادة لعرض الهيكل.</div>
-          ) : selectedSubjectUnits.length === 0 ? (
-            <div className="tcm2__empty">لا توجد وحدات بعد لهذه المادة.</div>
-          ) : (
-            <div className="tcm2__hierarchy">
-              {selectedSubjectUnits.map((unitItem) => {
-                const unitLessons = lessonsByUnit[unitItem.id] ?? [];
-                const isExpanded = expandedUnitIds.has(unitItem.id);
-
-                return (
-                  <article
-                    key={unitItem.id}
-                    className="tcm2__unit animate-fadeIn"
+            {selectedSubject && (
+              <div className="tcm2__meta">
+                <div>
+                  <h3>
+                    <MdSubject aria-hidden />
+                    {selectedSubject.name}
+                  </h3>
+                  <p>
+                    {selectedSubject.description?.trim() ||
+                      'لا يوجد وصف للمادة.'}
+                  </p>
+                </div>
+                <div className="tcm2__meta-actions">
+                  <button
+                    type="button"
+                    className="tcm2__primary-soft"
+                    onClick={() => openQuickAddUnit(selectedSubject.id)}
                   >
-                    <header className="tcm2__unit-head">
-                      <button
-                        type="button"
-                        className="tcm2__unit-toggle"
-                        onClick={() => toggleUnitExpansion(unitItem.id)}
-                      >
-                        {isExpanded ? (
-                          <MdExpandLess aria-hidden />
-                        ) : (
-                          <MdExpandMore aria-hidden />
-                        )}
-                        <span>{unitItem.name}</span>
-                        <small>{unitLessons.length} درس</small>
-                      </button>
-                      <div className="tcm2__row-actions">
-                        <button
-                          type="button"
-                          className="tcm2__primary-soft"
-                          onClick={() => openQuickAddLesson(unitItem.id)}
-                        >
-                          <MdAdd aria-hidden />
-                          درس
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openEditForUnit(unitItem)}
-                        >
-                          <MdEdit aria-hidden />
-                          تعديل
-                        </button>
-                        <button
-                          type="button"
-                          className="tcm2__danger"
-                          onClick={() =>
-                            requestDeleteEntity(
-                              'unit',
-                              unitItem.id,
-                              'هذه الوحدة'
-                            )
-                          }
-                          disabled={saving}
-                        >
-                          <MdDelete aria-hidden />
-                          حذف
-                        </button>
-                      </div>
-                    </header>
+                    <MdAdd aria-hidden />
+                    إضافة وحدة
+                  </button>
+                  <button type="button" onClick={openEditForSelectedSubject}>
+                    <MdEdit aria-hidden />
+                    تعديل
+                  </button>
+                  <button
+                    type="button"
+                    className="tcm2__danger"
+                    onClick={() =>
+                      requestDeleteEntity(
+                        'subject',
+                        selectedSubject.id,
+                        'هذه المادة'
+                      )
+                    }
+                    disabled={saving}
+                  >
+                    <MdDelete aria-hidden />
+                    حذف
+                  </button>
+                </div>
+              </div>
+            )}
 
-                    {isExpanded && (
-                      <div className="tcm2__unit-body">
-                        <p className="tcm2__unit-description">
-                          {unitItem.description?.trim() ||
-                            'لا يوجد وصف للوحدة.'}
-                        </p>
-                        {unitLessons.length === 0 ? (
-                          <p className="tcm2__empty-small">
-                            لا توجد دروس داخل هذه الوحدة.
-                          </p>
-                        ) : (
-                          <ul className="tcm2__lesson-list">
-                            {unitLessons.map((lessonItem) => (
-                              <li
-                                key={lessonItem.id}
-                                className="tcm2__lesson-row animate-fadeIn"
-                              >
-                                <div className="tcm2__lesson-main">
-                                  <MdMenuBook aria-hidden />
-                                  <div>
-                                    <strong>{lessonItem.name}</strong>
-                                    <p>
-                                      {lessonItem.description?.trim() ||
-                                        'لا يوجد وصف للدرس.'}
-                                    </p>
-                                    <small>
-                                      عدد الحصص:{' '}
-                                      {Number(
-                                        lessonItem.number_of_periods ?? 1
-                                      )}
-                                    </small>
-                                  </div>
-                                </div>
-                                <div className="tcm2__row-actions">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      openEditForLesson(lessonItem)
-                                    }
-                                  >
-                                    <MdEdit aria-hidden />
-                                    تعديل
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="tcm2__danger"
-                                    onClick={() =>
-                                      requestDeleteEntity(
-                                        'lesson',
-                                        lessonItem.id,
-                                        'هذا الدرس'
-                                      )
-                                    }
-                                    disabled={saving}
-                                  >
-                                    <MdDelete aria-hidden />
-                                    حذف
-                                  </button>
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    )}
-                  </article>
-                );
-              })}
+            <div className="tcm2__helper-actions">
+              <button
+                type="button"
+                className="tcm2__primary-soft"
+                onClick={() =>
+                  selectedSubject
+                    ? openQuickAddUnit(selectedSubject.id)
+                    : undefined
+                }
+                disabled={!selectedSubject}
+              >
+                <MdAdd aria-hidden />
+                إضافة وحدة للمادة
+              </button>
+              <button
+                type="button"
+                className="tcm2__primary-soft"
+                onClick={() =>
+                  selectedSubjectUnits[0]
+                    ? openQuickAddLesson(selectedSubjectUnits[0].id)
+                    : undefined
+                }
+                disabled={!selectedSubject || selectedSubjectUnits.length === 0}
+              >
+                <MdAdd aria-hidden />
+                إضافة درس سريع
+              </button>
             </div>
-          )}
-        </section>
-      </div>
+
+            {!selectedSubject ? (
+              <div className="tcm2__empty">
+                اختر الصف أو المادة لعرض الهيكل.
+              </div>
+            ) : selectedSubjectUnits.length === 0 ? (
+              <div className="tcm2__empty">لا توجد وحدات بعد لهذه المادة.</div>
+            ) : (
+              <div className="tcm2__hierarchy">
+                {selectedSubjectUnits.map((unitItem) => {
+                  const unitLessons = lessonsByUnit[unitItem.id] ?? [];
+                  const isExpanded = expandedUnitIds.has(unitItem.id);
+
+                  return (
+                    <article
+                      key={unitItem.id}
+                      className="tcm2__unit animate-fadeIn"
+                    >
+                      <header className="tcm2__unit-head">
+                        <button
+                          type="button"
+                          className="tcm2__unit-toggle"
+                          onClick={() => toggleUnitExpansion(unitItem.id)}
+                        >
+                          {isExpanded ? (
+                            <MdExpandLess aria-hidden />
+                          ) : (
+                            <MdExpandMore aria-hidden />
+                          )}
+                          <span>{unitItem.name}</span>
+                          <small>{unitLessons.length} درس</small>
+                        </button>
+                        <div className="tcm2__row-actions">
+                          <button
+                            type="button"
+                            className="tcm2__primary-soft"
+                            onClick={() => openQuickAddLesson(unitItem.id)}
+                          >
+                            <MdAdd aria-hidden />
+                            درس
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openEditForUnit(unitItem)}
+                          >
+                            <MdEdit aria-hidden />
+                            تعديل
+                          </button>
+                          <button
+                            type="button"
+                            className="tcm2__danger"
+                            onClick={() =>
+                              requestDeleteEntity(
+                                'unit',
+                                unitItem.id,
+                                'هذه الوحدة'
+                              )
+                            }
+                            disabled={saving}
+                          >
+                            <MdDelete aria-hidden />
+                            حذف
+                          </button>
+                        </div>
+                      </header>
+
+                      {isExpanded && (
+                        <div className="tcm2__unit-body">
+                          <p className="tcm2__unit-description">
+                            {unitItem.description?.trim() ||
+                              'لا يوجد وصف للوحدة.'}
+                          </p>
+                          {unitLessons.length === 0 ? (
+                            <p className="tcm2__empty-small">
+                              لا توجد دروس داخل هذه الوحدة.
+                            </p>
+                          ) : (
+                            <ul className="tcm2__lesson-list">
+                              {unitLessons.map((lessonItem) => (
+                                <li
+                                  key={lessonItem.id}
+                                  className="tcm2__lesson-row animate-fadeIn"
+                                >
+                                  <div className="tcm2__lesson-main">
+                                    <MdMenuBook aria-hidden />
+                                    <div>
+                                      <strong>{lessonItem.name}</strong>
+                                      <p>
+                                        {lessonItem.description?.trim() ||
+                                          'لا يوجد وصف للدرس.'}
+                                      </p>
+                                      <small>
+                                        عدد الحصص:{' '}
+                                        {Number(
+                                          lessonItem.number_of_periods ?? 1
+                                        )}
+                                      </small>
+                                    </div>
+                                  </div>
+                                  <div className="tcm2__row-actions">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        openEditForLesson(lessonItem)
+                                      }
+                                    >
+                                      <MdEdit aria-hidden />
+                                      تعديل
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="tcm2__danger"
+                                      onClick={() =>
+                                        requestDeleteEntity(
+                                          'lesson',
+                                          lessonItem.id,
+                                          'هذا الدرس'
+                                        )
+                                      }
+                                      disabled={saving}
+                                    >
+                                      <MdDelete aria-hidden />
+                                      حذف
+                                    </button>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </div>
       )}
 
       <ConfirmActionModal
@@ -2548,10 +2521,7 @@ function TeacherCirriculumManager(props: {
               );
             })()}
             <div className="tcm2__form-actions">
-              <button
-                type="button"
-                onClick={() => setViewLessonDetail(null)}
-              >
+              <button type="button" onClick={() => setViewLessonDetail(null)}>
                 إغلاق
               </button>
               <button

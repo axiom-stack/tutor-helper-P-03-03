@@ -170,18 +170,11 @@ export default function ControlDashboard() {
 
   const actions: DashboardAction[] = [
     {
-      path: '/curriculum',
+      path: '/curriculum?tab=structure',
       title: 'إدارة المنهج',
       description:
         'بناء هيكل العام الدراسي والفصل والصف والشعبة والمواد والوحدات والدروس.',
       icon: MdSchool,
-    },
-    {
-      path: '/curriculum?tab=library',
-      title: 'مكتبة الدروس',
-      description:
-        'بحث وفلترة بجميع دروسك (الصف، المادة، الفصل الدراسي) مع المراجعة والتعديل والحذف.',
-      icon: MdCollectionsBookmark,
     },
     {
       path: '/lessons',
@@ -196,6 +189,13 @@ export default function ControlDashboard() {
       description:
         'إعداد اختبار موحّد من الدروس المسجلة مع ضبط العدد والدرجة والمدة.',
       icon: MdQuiz,
+    },
+    {
+      path: '/curriculum?tab=library',
+      title: 'مكتبة الدروس',
+      description:
+        'بحث وفلترة بجميع دروسك (الصف، المادة، الفصل الدراسي) مع المراجعة والتعديل والحذف.',
+      icon: MdCollectionsBookmark,
     },
     {
       path: '/plans',

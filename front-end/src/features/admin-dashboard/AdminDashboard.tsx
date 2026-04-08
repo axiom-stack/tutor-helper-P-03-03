@@ -138,7 +138,7 @@ export default function AdminDashboard() {
       icon: MdPeople,
     },
     {
-      path: '/curriculum',
+      path: '/curriculum?tab=structure',
       title: 'إدارة المنهج',
       description:
         'استعراض هرم المنهج على مستوى المعلمين أو تحريره عند الحاجة.',

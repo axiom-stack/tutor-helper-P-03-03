@@ -9,6 +9,7 @@ import {
 } from 'react-router';
 import {
   MdAutoAwesome,
+  MdAdd,
   MdClose,
   MdDelete,
   MdEdit,
@@ -113,6 +114,13 @@ const PAPER_SECTION_GROUPS = [
     questionTypes: ['fill_blank', 'open_ended'] as const,
   },
 ] as const;
+
+const QUESTION_TYPE_OPTIONS = Object.entries(QUESTION_TYPE_LABELS).map(
+  ([value, label]) => ({
+    value: value as ExamQuestion['question_type'],
+    label,
+  })
+);
 
 const PAPER_OPTION_LABELS = ['أ', 'ب', 'ج', 'د'];
 
@@ -546,6 +554,238 @@ function cloneExamQuestion(question: ExamQuestion): ExamQuestion {
   }
 
   return nextQuestion;
+}
+
+function createQuestionId(): string {
+  const cryptoObject = globalThis.crypto;
+  if (cryptoObject && typeof cryptoObject.randomUUID === 'function') {
+    return cryptoObject.randomUUID();
+  }
+
+  return `q_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function getQuestionTemplateQuestion(
+  questions: ExamQuestion[],
+  preferredType?: ExamQuestion['question_type']
+): ExamQuestion | null {
+  if (preferredType) {
+    const preferred = questions.find(
+      (question) => question.question_type === preferredType
+    );
+    if (preferred) {
+      return preferred;
+    }
+  }
+
+  return questions[questions.length - 1] ?? questions[0] ?? null;
+}
+
+function createQuestionDraft(
+  questions: ExamQuestion[],
+  questionType: ExamQuestion['question_type'] = 'multiple_choice'
+): ExamQuestion {
+  const template = getQuestionTemplateQuestion(questions, questionType);
+  const baseLessonId = template?.lesson_id ?? 1;
+  const baseLessonName = template?.lesson_name ?? 'درس جديد';
+  const baseBloomLevel = template?.bloom_level ?? 'remember';
+  const baseBloomLevelLabel = template?.bloom_level_label ?? 'التذكر';
+  const baseMarks = template?.marks ?? 1;
+  const nextBase: ExamQuestion = {
+    slot_id: createQuestionId(),
+    question_number: questions.length + 1,
+    lesson_id: baseLessonId,
+    lesson_name: baseLessonName,
+    bloom_level: baseBloomLevel,
+    bloom_level_label: baseBloomLevelLabel,
+    question_type: questionType,
+    marks: baseMarks,
+    question_text: '',
+    answer_text: '',
+  };
+
+  if (questionType === 'multiple_choice') {
+    return {
+      ...nextBase,
+      options: ['', '', '', ''],
+      correct_option_index: 0,
+      answer_text: '',
+    };
+  }
+
+  if (questionType === 'true_false') {
+    return {
+      ...nextBase,
+      correct_answer: true,
+      answer_text: 'صحيح',
+    };
+  }
+
+  if (questionType === 'fill_blank') {
+    return {
+      ...nextBase,
+      answer_text: '',
+    };
+  }
+
+  return {
+    ...nextBase,
+    answer_text: '',
+    rubric: [],
+  };
+}
+
+function normalizeQuestionForType(
+  question: ExamQuestion,
+  questionType: ExamQuestion['question_type']
+): ExamQuestion {
+  const baseQuestion: ExamQuestion = {
+    ...cloneExamQuestion(question),
+    question_type: questionType,
+    answer_text: '',
+  };
+
+  if (questionType === 'multiple_choice') {
+    const options =
+      Array.isArray(question.options) && question.options.length > 0
+        ? [...question.options.slice(0, 4)]
+        : ['', '', '', ''];
+    while (options.length < 4) {
+      options.push('');
+    }
+    const nextCorrectIndex =
+      typeof question.correct_option_index === 'number' &&
+      question.correct_option_index >= 0 &&
+      question.correct_option_index < options.length
+        ? question.correct_option_index
+        : 0;
+    return {
+      ...baseQuestion,
+      options,
+      correct_option_index: nextCorrectIndex,
+      correct_answer: undefined,
+      rubric: undefined,
+      answer_text: '',
+    };
+  }
+
+  if (questionType === 'true_false') {
+    const nextCorrectAnswer =
+      typeof question.correct_answer === 'boolean'
+        ? question.correct_answer
+        : true;
+    return {
+      ...baseQuestion,
+      correct_answer: nextCorrectAnswer,
+      options: undefined,
+      correct_option_index: undefined,
+      rubric: undefined,
+      answer_text: nextCorrectAnswer ? 'صحيح' : 'خطأ',
+    };
+  }
+
+  if (questionType === 'fill_blank') {
+    return {
+      ...baseQuestion,
+      options: undefined,
+      correct_option_index: undefined,
+      correct_answer: undefined,
+      rubric: undefined,
+      answer_text: '',
+    };
+  }
+
+  return {
+    ...baseQuestion,
+    options: undefined,
+    correct_option_index: undefined,
+    correct_answer: undefined,
+    answer_text: '',
+    rubric: [],
+  };
+}
+
+function normalizeExamQuestionsForDisplay(
+  questions: ExamQuestion[]
+): ExamQuestion[] {
+  return questions.map((question, index) => ({
+    ...cloneExamQuestion(question),
+    question_number: index + 1,
+  }));
+}
+
+function normalizeQuestionForSave(
+  question: ExamQuestion,
+  index: number
+): ExamQuestion {
+  const common = {
+    ...cloneExamQuestion(question),
+    question_number: index + 1,
+    question_text: question.question_text.trim(),
+    marks: Number(question.marks),
+  };
+
+  if (question.question_type === 'multiple_choice') {
+    const options = (question.options ?? []).map((option) => option.trim());
+    const correctOptionIndex = Number(question.correct_option_index ?? 0);
+    return {
+      ...common,
+      options,
+      correct_option_index: correctOptionIndex,
+      answer_text: options[correctOptionIndex] ?? '',
+      correct_answer: undefined,
+      rubric: undefined,
+    };
+  }
+
+  if (question.question_type === 'true_false') {
+    const correctAnswer = Boolean(question.correct_answer);
+    return {
+      ...common,
+      correct_answer: correctAnswer,
+      answer_text: correctAnswer ? 'صحيح' : 'خطأ',
+      options: undefined,
+      correct_option_index: undefined,
+      rubric: undefined,
+    };
+  }
+
+  if (question.question_type === 'fill_blank') {
+    return {
+      ...common,
+      answer_text: question.answer_text.trim(),
+      options: undefined,
+      correct_option_index: undefined,
+      correct_answer: undefined,
+      rubric: undefined,
+    };
+  }
+
+  return {
+    ...common,
+    answer_text: question.answer_text.trim(),
+    rubric: (question.rubric ?? [])
+      .map((item) => item.trim())
+      .filter(Boolean),
+    options: undefined,
+    correct_option_index: undefined,
+    correct_answer: undefined,
+  };
+}
+
+function calculateExamTotals(questions: ExamQuestion[]): {
+  totalQuestions: number;
+  totalMarks: number;
+} {
+  return questions.reduce(
+    (accumulator, question) => ({
+      totalQuestions: accumulator.totalQuestions + 1,
+      totalMarks: Number(
+        (accumulator.totalMarks + (Number(question.marks) || 0)).toFixed(2)
+      ),
+    }),
+    { totalQuestions: 0, totalMarks: 0 }
+  );
 }
 
 function createExamDraft(exam: Exam): ExamDraft {
@@ -1580,6 +1820,55 @@ export default function Quizzes() {
     }
   };
 
+  const handleAddQuestion = () => {
+    setExamDraft((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const nextQuestion = createQuestionDraft(current.questions);
+      return {
+        ...current,
+        questions: [...current.questions, nextQuestion],
+      };
+    });
+  };
+
+  const handleRemoveQuestion = (slotId: string) => {
+    setExamDraft((current) => {
+      if (!current) {
+        return current;
+      }
+
+      return {
+        ...current,
+        questions: current.questions.filter(
+          (question) => question.slot_id !== slotId
+        ),
+      };
+    });
+  };
+
+  const handleChangeQuestionType = (
+    slotId: string,
+    questionType: ExamQuestion['question_type']
+  ) => {
+    setExamDraft((current) => {
+      if (!current) {
+        return current;
+      }
+
+      return {
+        ...current,
+        questions: current.questions.map((question) =>
+          question.slot_id === slotId
+            ? normalizeQuestionForType(question, questionType)
+            : question
+        ),
+      };
+    });
+  };
+
   const updateDraftQuestion = (
     slotId: string,
     updater: (question: ExamQuestion) => ExamQuestion
@@ -1614,39 +1903,16 @@ export default function Quizzes() {
     setSuccessMessage(null);
 
     try {
-      const normalizedQuestions = examDraft.questions.map((question) => {
-        if (question.question_type === 'multiple_choice') {
-          return {
-            ...cloneExamQuestion(question),
-            question_text: question.question_text.trim(),
-            options: (question.options ?? []).map((option) => option.trim()),
-          };
-        }
+      const normalizedQuestions = examDraft.questions.map(
+        (question, index) => normalizeQuestionForSave(question, index)
+      );
 
-        if (question.question_type === 'true_false') {
-          return {
-            ...cloneExamQuestion(question),
-            question_text: question.question_text.trim(),
-          };
-        }
-
-        if (question.question_type === 'fill_blank') {
-          return {
-            ...cloneExamQuestion(question),
-            question_text: question.question_text.trim(),
-            answer_text: question.answer_text.trim(),
-          };
-        }
-
-        return {
-          ...cloneExamQuestion(question),
-          question_text: question.question_text.trim(),
-          answer_text: question.answer_text.trim(),
-          rubric: (question.rubric ?? [])
-            .map((item) => item.trim())
-            .filter(Boolean),
-        };
-      });
+      if (normalizedQuestions.length < 1) {
+        setError({
+          message: 'أضف سؤالاً واحداً على الأقل قبل الحفظ.',
+        });
+        return;
+      }
 
       const response = await updateExam(selectedExam.public_id, {
         title: trimmedTitle,
@@ -1691,8 +1957,9 @@ export default function Quizzes() {
   };
 
   const displayedExamQuestions = isEditingExam
-    ? (examDraft?.questions ?? [])
+    ? normalizeExamQuestionsForDisplay(examDraft?.questions ?? [])
     : (selectedExam?.questions ?? []);
+  const displayedExamTotals = calculateExamTotals(displayedExamQuestions);
   const groupedEditorQuestions = useMemo(
     () => groupEditorQuestions(displayedExamQuestions),
     [displayedExamQuestions]
@@ -1732,8 +1999,18 @@ export default function Quizzes() {
                 </div>
               )}
               <p>
-                {formatArabicNumber(selectedExam.total_questions)} سؤال |{' '}
-                {formatArabicNumber(selectedExam.total_marks)} درجة
+                {formatArabicNumber(
+                  isEditingExam
+                    ? displayedExamTotals.totalQuestions
+                    : selectedExam.total_questions
+                )}{' '}
+                سؤال |{' '}
+                {formatArabicNumber(
+                  isEditingExam
+                    ? displayedExamTotals.totalMarks
+                    : selectedExam.total_marks
+                )}{' '}
+                درجة
                 {selectedExam.duration_minutes != null
                   ? ` | مدة: ${formatArabicNumber(selectedExam.duration_minutes)} دقيقة`
                   : ''}
@@ -1755,7 +2032,11 @@ export default function Quizzes() {
                     type="button"
                     className="qz__details-action-btn qz__details-action-btn--primary"
                     onClick={() => void handleSaveExam()}
-                    disabled={isSavingExam || !examDraft}
+                    disabled={
+                      isSavingExam ||
+                      !examDraft ||
+                      examDraft.questions.length === 0
+                    }
                   >
                     {isSavingExam && (
                       <span className="ui-button-spinner" aria-hidden />
@@ -1770,7 +2051,12 @@ export default function Quizzes() {
                     type="button"
                     className="qz__details-action-btn qz__details-action-btn--primary"
                     onClick={() => void handleSaveExam()}
-                    disabled={isSavingExam || !examDraft || !selectedExam}
+                    disabled={
+                      isSavingExam ||
+                      !examDraft ||
+                      !selectedExam ||
+                      examDraft.questions.length === 0
+                    }
                   >
                     {isSavingExam && (
                       <span className="ui-button-spinner" aria-hidden />
@@ -1846,7 +2132,20 @@ export default function Quizzes() {
           {isEditingExam ? (
             <>
               <section className="qz__questions qz__questions--editor">
-                <h5>الأسئلة والإجابات</h5>
+                <div className="qz__questions-toolbar">
+                  <div>
+                    <h5>الأسئلة والإجابات</h5>
+                    <p>يمكنك إضافة سؤال جديد أو حذف أي سؤال موجود أو تعديل نوعه.</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="qz__details-action-btn qz__details-action-btn--primary"
+                    onClick={handleAddQuestion}
+                  >
+                    <MdAdd aria-hidden />
+                    إضافة سؤال
+                  </button>
+                </div>
                 {displayedExamQuestions.length > 0 ? (
                   groupedEditorQuestions.map((questionGroup) => (
                     <section
@@ -1861,15 +2160,47 @@ export default function Quizzes() {
                           key={question.slot_id}
                           className="qz__question-card"
                         >
-                          <div className="qz__question-meta">
-                            <strong>س{question.question_number}</strong>
-                            <span>
-                              {QUESTION_TYPE_LABELS[question.question_type]}
-                            </span>
-                            <span>{question.bloom_level_label}</span>
-                            <span>{question.lesson_name}</span>
+                          <div className="qz__question-card-top">
+                            <div className="qz__question-meta">
+                              <strong>س{question.question_number}</strong>
+                              <span>
+                                {QUESTION_TYPE_LABELS[question.question_type]}
+                              </span>
+                              <span>{question.bloom_level_label}</span>
+                              <span>{question.lesson_name}</span>
+                            </div>
+                            <button
+                              type="button"
+                              className="qz__details-action-btn qz__details-action-btn--secondary qz__details-action-btn--danger qz__question-remove-btn"
+                              onClick={() => handleRemoveQuestion(question.slot_id)}
+                            >
+                              <MdDelete aria-hidden />
+                              حذف السؤال
+                            </button>
                           </div>
                           <div className="qz__question-editor">
+                            <div className="qz__question-edit-grid">
+                              <label className="qz__editor-label">
+                                نوع السؤال
+                              </label>
+                              <select
+                                className="qz__edit-select"
+                                value={question.question_type}
+                                onChange={(event) =>
+                                  handleChangeQuestionType(
+                                    question.slot_id,
+                                    event.target
+                                      .value as ExamQuestion['question_type']
+                                  )
+                                }
+                              >
+                                {QUESTION_TYPE_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
                             <div className="qz__question-edit-grid">
                               <label className="qz__editor-label">الدرجة</label>
                               <input

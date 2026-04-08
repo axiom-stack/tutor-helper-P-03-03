@@ -8,8 +8,7 @@ import {
   validateListExamsQuery,
   validateUpdateExamRequest,
 } from "../exams/requestModel.js";
-import { QUESTION_TYPES } from "../exams/types.js";
-import { validateGeneratedExamOutput } from "../exams/validators/examOutputValidator.js";
+import { validateEditableExamQuestions } from "../exams/validators/editableExamValidator.js";
 import { createExamsRepository } from "../exams/repositories/exams.repository.js";
 import { createArtifactRevisionsRepository } from "../refinements/repositories/artifactRevisions.repository.js";
 import { REVISION_SOURCES } from "../refinements/types.js";
@@ -31,61 +30,6 @@ function buildExamPayload(exam) {
     created_at: exam.created_at,
     updated_at: exam.updated_at,
   };
-}
-
-function buildExamSlotsFromQuestions(questions = []) {
-  return questions.map((question, index) => ({
-    slot_id: question.slot_id,
-    question_type: question.question_type,
-    question_number: Number(question.question_number || index + 1),
-    marks: Number(question.marks || 0),
-  }));
-}
-
-function mergeExamQuestions(existingQuestions = [], normalizedQuestions = []) {
-  const bySlotId = new Map(normalizedQuestions.map((item) => [item.slot_id, item]));
-
-  return existingQuestions.map((question) => {
-    const incoming = bySlotId.get(question.slot_id);
-    if (!incoming) {
-      return question;
-    }
-
-    if (question.question_type === QUESTION_TYPES.MULTIPLE_CHOICE) {
-      const answerText = incoming.options[incoming.correct_option_index] || "";
-      return {
-        ...question,
-        question_text: incoming.question_text,
-        options: incoming.options,
-        correct_option_index: incoming.correct_option_index,
-        answer_text: answerText,
-      };
-    }
-
-    if (question.question_type === QUESTION_TYPES.TRUE_FALSE) {
-      return {
-        ...question,
-        question_text: incoming.question_text,
-        correct_answer: incoming.correct_answer,
-        answer_text: incoming.correct_answer ? "صحيح" : "خطأ",
-      };
-    }
-
-    if (question.question_type === QUESTION_TYPES.FILL_BLANK) {
-      return {
-        ...question,
-        question_text: incoming.question_text,
-        answer_text: incoming.answer_text,
-      };
-    }
-
-    return {
-      ...question,
-      question_text: incoming.question_text,
-      answer_text: incoming.answer_text,
-      rubric: incoming.rubric || [],
-    };
-  });
 }
 
 export function createExamsController(dependencies = {}) {
@@ -329,44 +273,16 @@ export function createExamsController(dependencies = {}) {
           });
         }
 
-        const existingQuestions = Array.isArray(existingExam.questions)
-          ? existingExam.questions
-          : [];
+        const questionValidation = validateEditableExamQuestions(
+          requestValidation.value.questions,
+        );
 
-        let mergedQuestions = existingQuestions;
-        if (existingQuestions.length > 0) {
-          const slots = buildExamSlotsFromQuestions(existingQuestions);
-          const questionValidation = validateGeneratedExamOutput(
-            { questions: requestValidation.value.questions },
-            slots,
-          );
-
-          if (!questionValidation.isValid) {
-            return res.status(422).json({
-              error: {
-                code: "invalid_exam_questions",
-                message: "Updated exam questions failed validation",
-                details: questionValidation.errors,
-              },
-            });
-          }
-
-          mergedQuestions = mergeExamQuestions(
-            existingQuestions,
-            questionValidation.questions,
-          );
-        } else if (requestValidation.value.questions.length > 0) {
+        if (!questionValidation.isValid) {
           return res.status(422).json({
             error: {
               code: "invalid_exam_questions",
-              message: "This exam does not support replacing questions",
-              details: [
-                {
-                  code: "schema.questions.unsupported",
-                  path: "$.questions",
-                  message: "questions must be an empty array when the exam has no stored questions",
-                },
-              ],
+              message: "Updated exam questions failed validation",
+              details: questionValidation.errors,
             },
           });
         }
@@ -375,7 +291,9 @@ export function createExamsController(dependencies = {}) {
           examPublicId,
           {
             title: requestValidation.value.title,
-            questions: mergedQuestions,
+            questions: questionValidation.questions,
+            totalQuestions: questionValidation.totalQuestions,
+            totalMarks: questionValidation.totalMarks,
           },
           accessContext,
         );

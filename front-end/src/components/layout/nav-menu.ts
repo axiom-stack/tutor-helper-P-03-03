@@ -18,14 +18,18 @@ export interface HeaderNavItem {
 
 const TEACHER_HEADER_NAV_ITEMS: HeaderNavItem[] = [
   { key: 'home', label: 'الرئيسية', path: '/' },
-  { key: 'curriculum', label: 'إدارة المنهج', path: '/curriculum' },
+  {
+    key: 'curriculum',
+    label: 'إدارة المنهج',
+    path: '/curriculum?tab=structure',
+  },
+  { key: 'lesson_create', label: 'إنشاء خطة درس', path: '/lessons' },
+  { key: 'exam_create', label: 'إنشاء اختبار', path: '/quizzes/create' },
   {
     key: 'lesson_library',
     label: 'مكتبة الدروس',
     path: '/curriculum?tab=library',
   },
-  { key: 'lesson_create', label: 'إنشاء خطة درس', path: '/lessons' },
-  { key: 'exam_create', label: 'إنشاء اختبار', path: '/quizzes/create' },
   { key: 'plan_library', label: 'مكتبة الخطط', path: '/plans' },
   { key: 'exam_library', label: 'مكتبة الاختبارات', path: '/quizzes' },
   { key: 'reports', label: 'التقارير والأداء', path: '/stats' },

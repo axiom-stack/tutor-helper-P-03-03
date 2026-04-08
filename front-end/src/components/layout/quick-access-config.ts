@@ -25,6 +25,19 @@ export const TEACHER_QUICK_ACCESS: QuickAccessItem[] = [
     description: 'صمم خطة درس ذكية متكاملة الأركان بمساعدة الذكاء الاصطناعي بناءً على محتوى دروسك.',
   },
   {
+    icon: MdSchool,
+    title: 'المنهج الدراسي',
+    description: 'نظم هيكل دروسك، موادك، ووحداتك التعليمية لسهولة الوصول إليها في عمليات التوليد.',
+    path: '/curriculum?tab=structure',
+  },
+  {
+    path: '/curriculum?tab=library',
+    icon: MdCollectionsBookmark,
+    title: 'مكتبة الدروس',
+    description:
+      'استعرض جميع دروسك مع البحث والفلترة بالصف أو المادة أو الفصل، ثم راجعها أو عدّلها أو احذفها.',
+  },
+  {
     path: '/plans',
     icon: MdMenuBook,
     title: 'الخطط المولدة',
@@ -41,19 +54,6 @@ export const TEACHER_QUICK_ACCESS: QuickAccessItem[] = [
     icon: MdQuiz,
     title: 'الاختبارات الذكية',
     description: 'ولد اختبارات موزونة بجدول مواصفات آلي يغطي أهداف التعلم لدروس مختارة بدقة.',
-  },
-  {
-    path: '/curriculum',
-    icon: MdSchool,
-    title: 'المنهج الدراسي',
-    description: 'نظم هيكل دروسك، موادك، ووحداتك التعليمية لسهولة الوصول إليها في عمليات التوليد.',
-  },
-  {
-    path: '/curriculum?tab=library',
-    icon: MdCollectionsBookmark,
-    title: 'مكتبة الدروس',
-    description:
-      'استعرض جميع دروسك مع البحث والفلترة بالصف أو المادة أو الفصل، ثم راجعها أو عدّلها أو احذفها.',
   },
   {
     path: '/stats',
@@ -83,7 +83,7 @@ export const ADMIN_QUICK_ACCESS: QuickAccessItem[] = [
     description: 'استعرض الاختبارات التي تم توليدها من قبل المعلمين وتابع توزيع مستويات الصعوبة.',
   },
   {
-    path: '/curriculum',
+    path: '/curriculum?tab=structure',
     icon: MdSchool,
     title: 'استعراض المنهج',
     description: 'استعرض الهيكل التعليمي لجميع المواد والصفوف المسجلة في النظام لمختلف المعلمين.',
