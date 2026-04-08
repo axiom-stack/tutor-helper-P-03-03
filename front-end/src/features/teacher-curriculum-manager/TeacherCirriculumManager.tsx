@@ -1657,7 +1657,10 @@ function TeacherCirriculumManager(props: {
 
           <section className="tcm2__library-filters" aria-label="فلترة الدروس">
             <div className="tcm2__library-search-field">
-              <label className="tcm2__library-field-label" htmlFor="tcm-lib-search">
+              <label
+                className="tcm2__library-field-label"
+                htmlFor="tcm-lib-search"
+              >
                 <span>بحث باسم الدرس</span>
               </label>
               <input
@@ -1665,9 +1668,7 @@ function TeacherCirriculumManager(props: {
                 type="search"
                 className="tcm2__library-search-input"
                 value={librarySearchQuery}
-                onChange={(event) =>
-                  setLibrarySearchQuery(event.target.value)
-                }
+                onChange={(event) => setLibrarySearchQuery(event.target.value)}
                 placeholder="اكتب جزءًا من اسم الدرس"
                 autoComplete="off"
               />
@@ -1675,14 +1676,19 @@ function TeacherCirriculumManager(props: {
 
             <div className="tcm2__library-filters-row">
               <div className="tcm2__library-filter-item">
-                <label className="tcm2__library-field-label" htmlFor="tcm-lib-grade">
+                <label
+                  className="tcm2__library-field-label"
+                  htmlFor="tcm-lib-grade"
+                >
                   <span>قلبة بالصف</span>
                 </label>
                 <select
                   id="tcm-lib-grade"
                   className="tcm2__library-select"
                   value={libraryGradeFilter}
-                  onChange={(event) => setLibraryGradeFilter(event.target.value)}
+                  onChange={(event) =>
+                    setLibraryGradeFilter(event.target.value)
+                  }
                 >
                   <option value="">الكل</option>
                   {libraryGradeOptions.map((gradeOption) => (
@@ -1694,7 +1700,10 @@ function TeacherCirriculumManager(props: {
               </div>
 
               <div className="tcm2__library-filter-item">
-                <label className="tcm2__library-field-label" htmlFor="tcm-lib-subject">
+                <label
+                  className="tcm2__library-field-label"
+                  htmlFor="tcm-lib-subject"
+                >
                   <span>قلبة بالمادة</span>
                 </label>
                 <select
@@ -1724,7 +1733,10 @@ function TeacherCirriculumManager(props: {
               </div>
 
               <div className="tcm2__library-filter-item">
-                <label className="tcm2__library-field-label" htmlFor="tcm-lib-semester">
+                <label
+                  className="tcm2__library-field-label"
+                  htmlFor="tcm-lib-semester"
+                >
                   <span>قلبة بالفصل الدراسي</span>
                 </label>
                 <select
