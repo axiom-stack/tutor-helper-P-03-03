@@ -27,6 +27,7 @@ import {
   getPlanById,
   getSubjectsByClass,
   getUnitsBySubject,
+  exportPlan,
   type GeneratePlanErrorResponse,
   type GeneratedPlanResponse,
   type PlanType,
@@ -810,7 +811,6 @@ function LessonCreator() {
 
     setIsExportingPlan(true);
     try {
-      const { exportPlan } = await import('./lesson-creator.services');
       await exportPlan(generatedPlan.id, format);
       toast.success('تم تصدير الخطة بنجاح.');
       setIsExportModalOpen(false);

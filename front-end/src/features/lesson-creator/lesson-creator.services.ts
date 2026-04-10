@@ -5,6 +5,7 @@ import { enqueueOfflineAction } from '../../offline/queue';
 import { cachePlan, getCachedPlanById } from '../../offline/plans';
 import { getReference, putReference } from '../../offline/references';
 import { isLocalOnlyId } from '../../offline/utils';
+import { exportCachedLessonPlanToBlob } from '../../offline/exportGenerator';
 
 const api = () => authAxios();
 
@@ -306,7 +307,6 @@ export async function exportPlan(planId: string, format: 'pdf' | 'docx'): Promis
   if (!cached) {
     throw new Error('تعذّر التصدير دون اتصال: الخطة غير محفوظة محليًا.');
   }
-  const { exportCachedLessonPlanToBlob } = await import('../../offline/exportGenerator');
   const blob = await exportCachedLessonPlanToBlob(cached, format);
   downloadBlob(blob);
 }

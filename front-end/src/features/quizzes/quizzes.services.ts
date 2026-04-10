@@ -20,7 +20,9 @@ import {
   getCachedExams,
   saveExamOffline,
 } from '../../offline/exams';
+import { exportCachedExamToBlob } from '../../offline/exportGenerator';
 import { isLocalOnlyId } from '../../offline/utils';
+import { shareOrDownload } from '../../utils/share';
 
 const api = () => authAxios();
 
@@ -287,7 +289,6 @@ export async function getExamExportBlob(
   if (!cached) {
     throw new Error('تعذّر التصدير دون اتصال: الاختبار غير محفوظ محليًا.');
   }
-  const { exportCachedExamToBlob } = await import('../../offline/exportGenerator');
   return exportCachedExamToBlob(cached, format, type);
 }
 
@@ -324,6 +325,5 @@ export async function shareExam(
   const blob = await getExamExportBlob(examId, format, type);
   const ext = format === 'pdf' ? 'pdf' : 'docx';
   const filename = `exam_${examId}_${type}.${ext}`;
-  const { shareOrDownload } = await import('../../utils/share');
   await shareOrDownload(blob, filename, title ?? filename);
 }

@@ -2,9 +2,11 @@ import { authAxios } from '../auth/auth.services';
 import type { LessonPlanRecord, PlanType } from '../../types';
 import { getIsOnline, isOfflineError } from '../../offline/network';
 import { getCachedPlanById, getCachedPlans, cachePlan, cachePlans, deletePlanLocally, duplicatePlanLocally, savePlanOffline } from '../../offline/plans';
+import { exportCachedLessonPlanToBlob } from '../../offline/exportGenerator';
 import { upsertPendingEntityAction } from '../../offline/queue';
 import { isLocalOnlyId } from '../../offline/utils';
 import { normalizeApiError } from '../../utils/apiErrors';
+import { shareOrDownload } from '../../utils/share';
 
 const api = () => authAxios();
 
@@ -159,7 +161,6 @@ export async function getPlanExportBlob(planId: string, format: 'pdf' | 'docx'):
   if (!cached) {
     throw new Error('تعذّر التصدير دون اتصال: الخطة غير محفوظة محليًا.');
   }
-  const { exportCachedLessonPlanToBlob } = await import('../../offline/exportGenerator');
   return exportCachedLessonPlanToBlob(cached, format);
 }
 
@@ -181,6 +182,5 @@ export async function sharePlan(planId: string, format: 'pdf' | 'docx', title?: 
   const blob = await getPlanExportBlob(planId, format);
   const ext = format === 'pdf' ? 'pdf' : 'docx';
   const filename = `plan_${planId}.${ext}`;
-  const { shareOrDownload } = await import('../../utils/share');
   await shareOrDownload(blob, filename, title ?? filename);
 }

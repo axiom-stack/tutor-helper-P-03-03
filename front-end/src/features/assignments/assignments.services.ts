@@ -14,12 +14,14 @@ import {
   getCachedAssignments,
   saveAssignmentOffline,
 } from '../../offline/assignments';
+import { exportCachedAssignmentToBlob } from '../../offline/exportGenerator';
 import {
   enqueueOfflineAction,
   upsertPendingEntityAction,
 } from '../../offline/queue';
 import { getReference, putReference } from '../../offline/references';
 import { isLocalOnlyId } from '../../offline/utils';
+import { shareOrDownload } from '../../utils/share';
 
 const api = () => authAxios();
 
@@ -261,8 +263,6 @@ export async function getAssignmentExportBlob(
   if (!cached) {
     throw new Error('تعذّر التصدير دون اتصال: الواجب غير محفوظ محليًا.');
   }
-
-  const { exportCachedAssignmentToBlob } = await import('../../offline/exportGenerator');
   return exportCachedAssignmentToBlob(cached, format);
 }
 
@@ -297,6 +297,5 @@ export async function shareAssignment(
   const blob = await getAssignmentExportBlob(assignmentId, format);
   const ext = format === 'pdf' ? 'pdf' : 'docx';
   const filename = `assignment_${assignmentId}.${ext}`;
-  const { shareOrDownload } = await import('../../utils/share');
   await shareOrDownload(blob, filename, title ?? filename);
 }
