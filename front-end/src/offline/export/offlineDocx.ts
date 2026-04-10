@@ -1,6 +1,7 @@
 /**
- * Offline DOCX generation (browser). Simplified layout vs server `docxBuilders.js`
- * but same content fields for plans and exams.
+ * Offline DOCX generation (browser).
+ * - Exams use the real Word template bundled with the app.
+ * - Plans and assignments stay on the structured `docx` layout for now.
  */
 import {
   AlignmentType,
@@ -17,6 +18,7 @@ import {
 import { toDisplayText, toTextList, extractHeaderValue } from './planHelpers';
 import { buildExamExportViewModel } from './examViewModel';
 import { formatUnitOrdinalText } from '../../utils/unitDisplay';
+import { buildOfflineExamTemplateDocx } from './examTemplateDocx';
 
 function arPara(
   text: string,
@@ -143,6 +145,10 @@ export async function buildOfflineExamDocx(
   enrichedExam: Record<string, unknown>,
   type: 'answer_key' | 'questions_only' | 'answer_form'
 ): Promise<Blob> {
+  if (type === 'questions_only') {
+    return buildOfflineExamTemplateDocx(enrichedExam);
+  }
+
   const vm = buildExamExportViewModel(enrichedExam);
   const meta = vm.examMeta;
   const showAnswers = type === 'answer_key';
@@ -165,7 +171,7 @@ export async function buildOfflineExamDocx(
     );
   }
 
-  for (const section of vm.sections) {
+  for (const section of vm.sections ?? []) {
     children.push(arPara(section.title, { bold: true }));
     for (const q of section.questions) {
       const lines: Paragraph[] = [

@@ -100,6 +100,8 @@ const EXAM_BASE_STYLES = `
     color: #000000;
     line-height: 1.4;
     text-align: center;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 
   .exam-header-line {
@@ -107,6 +109,8 @@ const EXAM_BASE_STYLES = `
     font-weight: 700;
     line-height: 1.5;
     text-align: center;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 
   .exam-header-school-lines {
@@ -115,6 +119,8 @@ const EXAM_BASE_STYLES = `
     font-weight: 700;
     line-height: 1.5;
     color: #000000;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 
   .answer-form-brand {
@@ -134,6 +140,8 @@ const EXAM_BASE_STYLES = `
     font-size: 0.9rem;
     font-weight: 700;
     line-height: 1.45;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 
   .exam-student-row {
@@ -219,7 +227,9 @@ const EXAM_BASE_STYLES = `
     display: flex;
     align-items: flex-start;
     gap: 0.2rem;
-    overflow-wrap: anywhere;
+    min-width: 0;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 
   .exam-question-lines {
@@ -234,7 +244,9 @@ const EXAM_BASE_STYLES = `
     display: flex;
     align-items: flex-start;
     gap: 6px;
-    overflow-wrap: anywhere;
+    min-width: 0;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 
   .exam-question-line-index {
@@ -245,6 +257,9 @@ const EXAM_BASE_STYLES = `
 
   .exam-question-line-text {
     flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 
   .exam-options {
@@ -259,12 +274,20 @@ const EXAM_BASE_STYLES = `
     display: flex;
     align-items: flex-start;
     gap: 6px;
-    overflow-wrap: anywhere;
+    min-width: 0;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 
   .exam-option-label {
     min-width: 18px;
     font-weight: 700;
+  }
+
+  .exam-option-text {
+    min-width: 0;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 
   .exam-blank {
@@ -389,6 +412,8 @@ const EXAM_BASE_STYLES = `
     font-size: 13px;
     font-weight: 600;
     min-height: 18px;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 
   .answer-form-instructions ul {

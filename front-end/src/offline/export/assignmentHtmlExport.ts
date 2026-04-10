@@ -83,7 +83,8 @@ export function buildOfflineAssignmentHtml(enrichedAssignment: Record<string, un
       font-size: 15px;
       line-height: 1.7;
       white-space: pre-wrap;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
+      word-break: normal;
     }
     .section {
       border: 1px solid #000;
@@ -99,6 +100,7 @@ export function buildOfflineAssignmentHtml(enrichedAssignment: Record<string, un
       margin: 0;
       white-space: pre-wrap;
       word-break: break-word;
+      overflow-wrap: break-word;
       font-family: inherit;
       font-size: 15px;
       line-height: 1.75;

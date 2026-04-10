@@ -1,7 +1,8 @@
 /**
  * Offline export: PDF/DOCX blobs from IndexedDB-cached plans, exams, and assignments.
  * PDF uses the same HTML templates as the server (ported) + html2canvas + jsPDF.
- * DOCX uses a simplified `docx` layout. `jspdf-autotable` is linked for bundling/extensions.
+ * DOCX uses the bundled Word template for exams and a structured `docx` layout for plans/assignments.
+ * `jspdf-autotable` is linked for bundling/extensions.
  */
 import autoTable from 'jspdf-autotable';
 import { getStoredUser } from '../features/auth/auth.services';

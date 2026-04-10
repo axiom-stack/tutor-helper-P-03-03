@@ -76,7 +76,8 @@ const BASE_STYLES = `
     line-height: 1.55;
     font-weight: 600;
     color: #000000;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 
   .lpdv__traditional-intro,
@@ -104,7 +105,8 @@ const BASE_STYLES = `
     margin: 6px 0 0;
     line-height: 1.75;
     color: #000000;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 
   .lpdv__traditional-intro ul,
@@ -164,7 +166,8 @@ const BASE_STYLES = `
     margin: 0;
     line-height: 1.7;
     color: #000000;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 
   .lpdv__active-footer {
@@ -198,7 +201,8 @@ const BASE_STYLES = `
     text-align: right;
     vertical-align: top;
     color: #000000;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 
   .lpdv__flow-table thead th {
