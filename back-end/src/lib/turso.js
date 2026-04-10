@@ -1,13 +1,42 @@
 import { createClient } from "@libsql/client";
 
-if (!process.env.TURSO_DATABASE_URL || !process.env.TURSO_AUTH_TOKEN) {
-  throw new Error("TURSO_DATABASE_URL and TURSO_AUTH_TOKEN must be set");
+function createUnavailableClient() {
+  const error = new Error("TURSO_DATABASE_URL and TURSO_AUTH_TOKEN must be set");
+
+  return {
+    async execute() {
+      throw error;
+    },
+  };
 }
 
-export const turso = createClient({
-  url: process.env.TURSO_DATABASE_URL,
-  authToken: process.env.TURSO_AUTH_TOKEN,
-});
+let cachedClient = null;
+
+function getTursoClient() {
+  if (cachedClient) {
+    return cachedClient;
+  }
+
+  const url = process.env.TURSO_DATABASE_URL;
+  const authToken = process.env.TURSO_AUTH_TOKEN;
+  if (!url || !authToken) {
+    cachedClient = createUnavailableClient();
+    return cachedClient;
+  }
+
+  cachedClient = createClient({
+    url,
+    authToken,
+  });
+
+  return cachedClient;
+}
+
+export const turso = {
+  execute(query) {
+    return getTursoClient().execute(query);
+  },
+};
 
 // Ensure relational integrity checks run in SQLite/libSQL connections.
 try {
