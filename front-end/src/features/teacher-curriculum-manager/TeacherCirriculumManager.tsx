@@ -63,9 +63,7 @@ import {
   normalizeAcademicYearLabel,
   normalizeSemesterLabel,
 } from '../../utils/classDisplay';
-import {
-  formatUnitDisplayLabel,
-} from '../../utils/unitDisplay';
+import { formatUnitDisplayLabel } from '../../utils/unitDisplay';
 import {
   getScopedLessons,
   getScopedUnits,
@@ -1649,32 +1647,39 @@ function TeacherCirriculumManager(props: {
             </p>
           </div>
 
-          <section className="tcm2__library-filters" aria-label="فلترة الدروس">
-            <div className="tcm2__library-search-field">
-              <label
-                className="tcm2__library-field-label"
-                htmlFor="tcm-lib-search"
-              >
-                <span>بحث باسم الدرس</span>
-              </label>
-              <input
-                id="tcm-lib-search"
-                type="search"
-                className="tcm2__library-search-input"
-                value={librarySearchQuery}
-                onChange={(event) => setLibrarySearchQuery(event.target.value)}
-                placeholder="اكتب جزءًا من اسم الدرس"
-                autoComplete="off"
-              />
-            </div>
+          <section
+            className="tcm2__library-filters"
+            aria-label="فلترة و بحث الدروس"
+          >
+            <h2>فلترة عرض الدروس</h2>
 
             <div className="tcm2__library-filters-row">
+              <div className="tcm2__library-search-field tcm2__library-filter-item">
+                <label
+                  className="tcm2__library-field-label"
+                  htmlFor="tcm-lib-search"
+                >
+                  <span>بحث بعنوان الدرس</span>
+                </label>
+                <input
+                  id="tcm-lib-search"
+                  type="search"
+                  className="tcm2__library-search-input"
+                  value={librarySearchQuery}
+                  onChange={(event) =>
+                    setLibrarySearchQuery(event.target.value)
+                  }
+                  placeholder="ابحث بعنوان الدرس أو جزء منه"
+                  autoComplete="off"
+                />
+              </div>
+
               <div className="tcm2__library-filter-item">
                 <label
                   className="tcm2__library-field-label"
                   htmlFor="tcm-lib-grade"
                 >
-                  <span>قلبة بالصف</span>
+                  <span>فلترة بالصف</span>
                 </label>
                 <select
                   id="tcm-lib-grade"
@@ -1698,7 +1703,7 @@ function TeacherCirriculumManager(props: {
                   className="tcm2__library-field-label"
                   htmlFor="tcm-lib-subject"
                 >
-                  <span>قلبة بالمادة</span>
+                  <span>فلترة بالمادة</span>
                 </label>
                 <select
                   id="tcm-lib-subject"
@@ -1731,7 +1736,7 @@ function TeacherCirriculumManager(props: {
                   className="tcm2__library-field-label"
                   htmlFor="tcm-lib-semester"
                 >
-                  <span>قلبة بالفصل الدراسي</span>
+                  <span>فلترة بالفصل الدراسي</span>
                 </label>
                 <select
                   id="tcm-lib-semester"
@@ -1754,7 +1759,7 @@ function TeacherCirriculumManager(props: {
             <div className="tcm2__library-actions">
               <button
                 type="button"
-                className="tcm2__library-btn"
+                className="tcm2__library-btn tcm2__library-btn--outline"
                 onClick={() => {
                   setLibrarySearchQuery('');
                   setLibraryGradeFilter('');
@@ -1772,7 +1777,7 @@ function TeacherCirriculumManager(props: {
               </button>
               <button
                 type="button"
-                className="tcm2__library-btn"
+                className="tcm2__library-btn tcm2__library-btn--primary"
                 onClick={() => void loadCurriculumData()}
                 disabled={loading || saving}
               >
@@ -1794,7 +1799,7 @@ function TeacherCirriculumManager(props: {
                 </caption>
                 <thead>
                   <tr>
-                    <th scope="col">اسم الدرس</th>
+                    <th scope="col">عنوان الدرس</th>
                     <th scope="col">الصف والمادة والوحدة</th>
                     <th scope="col">الوصف</th>
                     <th scope="col">الإجراءات</th>
@@ -1823,7 +1828,7 @@ function TeacherCirriculumManager(props: {
                     const descText = lessonItem.description?.trim() || '—';
                     return (
                       <tr key={lessonItem.id} className="animate-fadeIn">
-                        <td data-label="اسم الدرس">
+                        <td data-label="عنوان الدرس">
                           <span className="tcm2__library-table-lesson-name">
                             {lessonItem.name}
                           </span>
@@ -2338,7 +2343,7 @@ function TeacherCirriculumManager(props: {
                           ) : (
                             <MdExpandMore aria-hidden />
                           )}
-                        <span>{formatUnitDisplayLabel(unitItem.name)}</span>
+                          <span>{formatUnitDisplayLabel(unitItem.name)}</span>
                           <small>{unitLessons.length} درس</small>
                         </button>
                         <div className="tcm2__row-actions">
@@ -2500,7 +2505,9 @@ function TeacherCirriculumManager(props: {
                       <li>المادة: {detailRow.subject.name}</li>
                     ) : null}
                     {detailRow?.unit ? (
-                      <li>الوحدة: {formatUnitDisplayLabel(detailRow.unit.name)}</li>
+                      <li>
+                        الوحدة: {formatUnitDisplayLabel(detailRow.unit.name)}
+                      </li>
                     ) : null}
                     <li>
                       الحصة: {Number(viewLessonDetail.period_number ?? 1)} | عدد
@@ -2634,7 +2641,11 @@ function TeacherCirriculumManager(props: {
                   </div>
                 ) : (
                   <div className="tcm2__field">
-                    <label htmlFor="quick-add-name">الاسم *</label>
+                    <label htmlFor="quick-add-name">
+                      {quickAddDraft.kind === 'lesson'
+                        ? 'عنوان الدرس *'
+                        : 'الاسم *'}
+                    </label>
                     <input
                       id="quick-add-name"
                       type="text"
@@ -2773,31 +2784,6 @@ function TeacherCirriculumManager(props: {
 
             {quickAddDraft.kind === 'lesson' && (
               <>
-                <div className="tcm2__field">
-                  <label htmlFor="quick-add-lesson-period-number">
-                    الحصة *
-                  </label>
-                  <select
-                    id="quick-add-lesson-period-number"
-                    value={quickAddDraft.periodNumber ?? 1}
-                    onChange={(event) =>
-                      setQuickAddDraft((previous) =>
-                        previous
-                          ? {
-                              ...previous,
-                              periodNumber: Number(event.target.value),
-                            }
-                          : previous
-                      )
-                    }
-                  >
-                    {PERIOD_OPTIONS.map((periodOption, index) => (
-                      <option key={periodOption} value={index + 1}>
-                        {periodOption}
-                      </option>
-                    ))}
-                  </select>
-                </div>
                 <div className="tcm2__field">
                   <label htmlFor="quick-add-lesson-periods">عدد الحصص *</label>
                   <select
@@ -3073,8 +3059,8 @@ function TeacherCirriculumManager(props: {
                           {semesterOption}
                         </option>
                       ))}
-                        </select>
-                      </div>
+                    </select>
+                  </div>
                 </div>
               </>
             )}

@@ -777,9 +777,7 @@ function normalizeQuestionForSave(
   return {
     ...common,
     answer_text: question.answer_text.trim(),
-    rubric: (question.rubric ?? [])
-      .map((item) => item.trim())
-      .filter(Boolean),
+    rubric: (question.rubric ?? []).map((item) => item.trim()).filter(Boolean),
     options: undefined,
     correct_option_index: undefined,
     correct_answer: undefined,
@@ -886,7 +884,7 @@ function describeDraftValidationField(
     return `${questionLabel} - الدرس`;
   }
   if (field === 'lesson_name') {
-    return `${questionLabel} - اسم الدرس`;
+    return `${questionLabel} - عنوان الدرس`;
   }
   if (field === 'bloom_level') {
     return `${questionLabel} - مستوى بلوم`;
@@ -2083,8 +2081,8 @@ export default function Quizzes() {
     setSuccessMessage(null);
 
     try {
-      const normalizedQuestions = examDraft.questions.map(
-        (question, index) => normalizeQuestionForSave(question, index)
+      const normalizedQuestions = examDraft.questions.map((question, index) =>
+        normalizeQuestionForSave(question, index)
       );
 
       const response = await updateExam(selectedExam.public_id, {
@@ -2150,7 +2148,10 @@ export default function Quizzes() {
             <div className="qz__details-heading">
               {isEditingExam && examDraft ? (
                 <div className="qz__question-edit-grid qz__question-edit-grid--title">
-                  <label className="qz__editor-label" htmlFor="qz-exam-title-edit">
+                  <label
+                    className="qz__editor-label"
+                    htmlFor="qz-exam-title-edit"
+                  >
                     عنوان الاختبار <RequiredMark />
                   </label>
                   <input
@@ -2161,8 +2162,10 @@ export default function Quizzes() {
                     required
                     aria-required="true"
                     aria-invalid={
-                      getValidationMessagesForPath(draftValidationErrors, 'title')
-                        .length > 0
+                      getValidationMessagesForPath(
+                        draftValidationErrors,
+                        'title'
+                      ).length > 0
                     }
                     onChange={(event) =>
                       setExamDraft((current) =>
@@ -2339,8 +2342,14 @@ export default function Quizzes() {
                   </p>
                 </div>
                 <div className="qz__questions-summary" aria-live="polite">
-                  <span>عدد الأسئلة: {formatArabicNumber(displayedExamQuestions.length)}</span>
-                  <span>الدرجة الكلية: {formatArabicNumber(displayedExamTotals.totalMarks)}</span>
+                  <span>
+                    عدد الأسئلة:{' '}
+                    {formatArabicNumber(displayedExamQuestions.length)}
+                  </span>
+                  <span>
+                    الدرجة الكلية:{' '}
+                    {formatArabicNumber(displayedExamTotals.totalMarks)}
+                  </span>
                 </div>
               </div>
 
@@ -2370,7 +2379,9 @@ export default function Quizzes() {
                       <div className="qz__question-card-top">
                         <div className="qz__question-meta">
                           <strong>س{question.question_number}</strong>
-                          <span>{QUESTION_TYPE_LABELS[question.question_type]}</span>
+                          <span>
+                            {QUESTION_TYPE_LABELS[question.question_type]}
+                          </span>
                           <span>{question.bloom_level_label}</span>
                           <span>{question.lesson_name}</span>
                         </div>
@@ -2401,7 +2412,8 @@ export default function Quizzes() {
                             onChange={(event) =>
                               handleChangeQuestionType(
                                 question.slot_id,
-                                event.target.value as ExamQuestion['question_type']
+                                event.target
+                                  .value as ExamQuestion['question_type']
                               )
                             }
                           >
@@ -2430,10 +2442,13 @@ export default function Quizzes() {
                             required
                             aria-required="true"
                             onChange={(event) =>
-                              updateDraftQuestion(question.slot_id, (current) => ({
-                                ...current,
-                                marks: Number(event.target.value),
-                              }))
+                              updateDraftQuestion(
+                                question.slot_id,
+                                (current) => ({
+                                  ...current,
+                                  marks: Number(event.target.value),
+                                })
+                              )
                             }
                           />
                         </div>
@@ -2453,10 +2468,13 @@ export default function Quizzes() {
                             required
                             aria-required="true"
                             onChange={(event) =>
-                              updateDraftQuestion(question.slot_id, (current) => ({
-                                ...current,
-                                question_text: event.target.value,
-                              }))
+                              updateDraftQuestion(
+                                question.slot_id,
+                                (current) => ({
+                                  ...current,
+                                  question_text: event.target.value,
+                                })
+                              )
                             }
                           />
                         </div>
@@ -2477,10 +2495,15 @@ export default function Quizzes() {
                                 required
                                 aria-required="true"
                                 onChange={(event) =>
-                                  updateDraftQuestion(question.slot_id, (current) => ({
-                                    ...current,
-                                    correct_option_index: Number(event.target.value),
-                                  }))
+                                  updateDraftQuestion(
+                                    question.slot_id,
+                                    (current) => ({
+                                      ...current,
+                                      correct_option_index: Number(
+                                        event.target.value
+                                      ),
+                                    })
+                                  )
                                 }
                               >
                                 {(question.options ?? []).map((_, index) => (
@@ -2516,14 +2539,20 @@ export default function Quizzes() {
                                     required
                                     aria-required="true"
                                     onChange={(event) =>
-                                      updateDraftQuestion(question.slot_id, (current) => {
-                                        const nextOptions = [...(current.options ?? [])];
-                                        nextOptions[index] = event.target.value;
-                                        return {
-                                          ...current,
-                                          options: nextOptions,
-                                        };
-                                      })
+                                      updateDraftQuestion(
+                                        question.slot_id,
+                                        (current) => {
+                                          const nextOptions = [
+                                            ...(current.options ?? []),
+                                          ];
+                                          nextOptions[index] =
+                                            event.target.value;
+                                          return {
+                                            ...current,
+                                            options: nextOptions,
+                                          };
+                                        }
+                                      )
                                     }
                                   />
                                 </label>
@@ -2547,10 +2576,14 @@ export default function Quizzes() {
                               required
                               aria-required="true"
                               onChange={(event) =>
-                                updateDraftQuestion(question.slot_id, (current) => ({
-                                  ...current,
-                                  correct_answer: event.target.value === 'true',
-                                }))
+                                updateDraftQuestion(
+                                  question.slot_id,
+                                  (current) => ({
+                                    ...current,
+                                    correct_answer:
+                                      event.target.value === 'true',
+                                  })
+                                )
                               }
                             >
                               <option value="true">صحيح</option>
@@ -2575,10 +2608,13 @@ export default function Quizzes() {
                               required
                               aria-required="true"
                               onChange={(event) =>
-                                updateDraftQuestion(question.slot_id, (current) => ({
-                                  ...current,
-                                  answer_text: event.target.value,
-                                }))
+                                updateDraftQuestion(
+                                  question.slot_id,
+                                  (current) => ({
+                                    ...current,
+                                    answer_text: event.target.value,
+                                  })
+                                )
                               }
                             />
                           </div>
@@ -2601,10 +2637,13 @@ export default function Quizzes() {
                                 required
                                 aria-required="true"
                                 onChange={(event) =>
-                                  updateDraftQuestion(question.slot_id, (current) => ({
-                                    ...current,
-                                    answer_text: event.target.value,
-                                  }))
+                                  updateDraftQuestion(
+                                    question.slot_id,
+                                    (current) => ({
+                                      ...current,
+                                      answer_text: event.target.value,
+                                    })
+                                  )
                                 }
                               />
                             </div>
@@ -2623,10 +2662,13 @@ export default function Quizzes() {
                                 required
                                 aria-required="true"
                                 onChange={(event) =>
-                                  updateDraftQuestion(question.slot_id, (current) => ({
-                                    ...current,
-                                    rubric: splitLines(event.target.value),
-                                  }))
+                                  updateDraftQuestion(
+                                    question.slot_id,
+                                    (current) => ({
+                                      ...current,
+                                      rubric: splitLines(event.target.value),
+                                    })
+                                  )
                                 }
                               />
                             </div>
