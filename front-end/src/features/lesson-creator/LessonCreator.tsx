@@ -15,7 +15,6 @@ import ExportFormatModal from '../../components/common/ExportFormatModal';
 import { useAuth } from '../../context/AuthContext';
 import {
   LESSON_DURATION_OPTIONS,
-  PERIOD_OPTIONS,
   PLAN_TYPE_OPTIONS,
 } from '../../constants/dropdown-options';
 import type { Class, Lesson, Subject, Unit } from '../../types';
@@ -173,7 +172,6 @@ function LessonCreator() {
   const [selectedSubjectId, setSelectedSubjectId] = useState<SelectValue>('');
   const [selectedUnitId, setSelectedUnitId] = useState<SelectValue>('');
   const [selectedLessonId, setSelectedLessonId] = useState<SelectValue>('');
-  const [selectedPeriodOrder, setSelectedPeriodOrder] = useState('');
 
   const [planType, setPlanType] = useState<PlanType>(
     () => user?.profile?.default_plan_type ?? 'traditional'
@@ -239,7 +237,6 @@ function LessonCreator() {
     setSelectedSubjectId('');
     setSelectedUnitId('');
     setSelectedLessonId('');
-    setSelectedPeriodOrder('');
     setUnits([]);
     setLessons([]);
     setSubjects([]);
@@ -524,7 +521,6 @@ function LessonCreator() {
     selectedSubjectId !== '' &&
     selectedUnitId !== '' &&
     selectedLessonId !== '' &&
-    selectedPeriodOrder !== '' &&
     !isGenerating;
 
   const clearTimelineTimers = () => {
@@ -562,7 +558,6 @@ function LessonCreator() {
     setSelectedSubjectId('');
     setSelectedUnitId('');
     setSelectedLessonId('');
-    setSelectedPeriodOrder('');
     setUnits([]);
     setLessons([]);
 
@@ -582,7 +577,6 @@ function LessonCreator() {
     setSelectedSubjectId('');
     setSelectedUnitId('');
     setSelectedLessonId('');
-    setSelectedPeriodOrder('');
     setUnits([]);
     setLessons([]);
 
@@ -690,7 +684,7 @@ function LessonCreator() {
         unit: unitName,
         duration_minutes: safeDurationMinutes,
         plan_type: planType,
-        period_order: selectedPeriodOrder,
+        period_order: null,
         preparation_type: user?.profile?.preparation_type ?? null,
         class_id: selectedClass.id,
         class_name: classLabel || undefined,
@@ -1129,25 +1123,6 @@ function LessonCreator() {
                     {LESSON_DURATION_OPTIONS.map((duration) => (
                       <option key={duration} value={duration}>
                         {duration} دقيقة
-                      </option>
-                    ))}
-                  </select>
-                </li>
-
-                <li className="lcp__classic-row">
-                  <label htmlFor="lcp-period-order">ترتيب الحصة</label>
-                  <select
-                    id="lcp-period-order"
-                    value={selectedPeriodOrder}
-                    onChange={(event) =>
-                      setSelectedPeriodOrder(event.target.value)
-                    }
-                    disabled={selectedLessonId === '' || isGenerating}
-                  >
-                    <option value="">اختر ترتيب الحصة...</option>
-                    {PERIOD_OPTIONS.map((period) => (
-                      <option key={period} value={period}>
-                        {period}
                       </option>
                     ))}
                   </select>

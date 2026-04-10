@@ -5,7 +5,7 @@ import type {
   GenerateAssignmentsRequest,
 } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
-import { isOfflineError } from '../../offline/network';
+import { getIsOnline, isOfflineError } from '../../offline/network';
 import {
   cacheAssignment,
   cacheAssignments,
@@ -249,11 +249,21 @@ export async function getAssignmentExportBlob(
   assignmentId: string,
   format: 'pdf' | 'docx'
 ): Promise<Blob> {
-  const response = await api().get(`/api/assignments/${assignmentId}/export`, {
-    params: { format },
-    responseType: 'blob',
-  });
-  return response.data as Blob;
+  if (getIsOnline()) {
+    const response = await api().get(`/api/assignments/${assignmentId}/export`, {
+      params: { format },
+      responseType: 'blob',
+    });
+    return response.data as Blob;
+  }
+
+  const cached = await getCachedAssignmentById(assignmentId);
+  if (!cached) {
+    throw new Error('تعذّر التصدير دون اتصال: الواجب غير محفوظ محليًا.');
+  }
+
+  const { exportCachedAssignmentToBlob } = await import('../../offline/exportGenerator');
+  return exportCachedAssignmentToBlob(cached, format);
 }
 
 /**
@@ -284,11 +294,7 @@ export async function shareAssignment(
   format: 'pdf' | 'docx',
   title?: string
 ): Promise<void> {
-  const response = await api().get(`/api/assignments/${assignmentId}/export`, {
-    params: { format },
-    responseType: 'blob',
-  });
-  const blob = response.data as Blob;
+  const blob = await getAssignmentExportBlob(assignmentId, format);
   const ext = format === 'pdf' ? 'pdf' : 'docx';
   const filename = `assignment_${assignmentId}.${ext}`;
   const { shareOrDownload } = await import('../../utils/share');

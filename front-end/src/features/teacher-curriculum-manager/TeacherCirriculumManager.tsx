@@ -19,7 +19,6 @@ import {
   GRADE_OPTIONS,
   LESSON_PERIOD_COUNT_OPTIONS,
   LESSON_DURATION_OPTIONS,
-  PERIOD_OPTIONS,
   UNIT_OPTIONS,
   SEMESTER_OPTIONS,
 } from '../../constants/dropdown-options';
@@ -2922,7 +2921,9 @@ function TeacherCirriculumManager(props: {
             {editDraft.kind !== 'class' && (
               <>
                 <div className="tcm2__field">
-                  <label htmlFor="edit-name">الاسم</label>
+                  <label htmlFor="edit-name">
+                    {editDraft.kind === 'lesson' ? 'عنوان الدرس' : 'الاسم'}
+                  </label>
                   <input
                     id="edit-name"
                     type="text"
@@ -3164,30 +3165,6 @@ function TeacherCirriculumManager(props: {
                     <small>الحد الأقصى 25 ميجابايت.</small>
                   </div>
                 )}
-
-                <div className="tcm2__field">
-                  <label htmlFor="edit-lesson-period-number">الحصة *</label>
-                  <select
-                    id="edit-lesson-period-number"
-                    value={editDraft.periodNumber ?? 1}
-                    onChange={(event) =>
-                      setEditDraft((previous) =>
-                        previous
-                          ? {
-                              ...previous,
-                              periodNumber: Number(event.target.value),
-                            }
-                          : previous
-                      )
-                    }
-                  >
-                    {PERIOD_OPTIONS.map((periodOption, index) => (
-                      <option key={periodOption} value={index + 1}>
-                        {periodOption}
-                      </option>
-                    ))}
-                  </select>
-                </div>
                 <div className="tcm2__field">
                   <label htmlFor="edit-lesson-periods">عدد الحصص *</label>
                   <select

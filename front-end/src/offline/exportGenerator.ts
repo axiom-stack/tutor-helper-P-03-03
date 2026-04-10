@@ -1,20 +1,26 @@
 /**
- * Offline export: PDF/DOCX blobs from IndexedDB-cached plans and exams.
+ * Offline export: PDF/DOCX blobs from IndexedDB-cached plans, exams, and assignments.
  * PDF uses the same HTML templates as the server (ported) + html2canvas + jsPDF.
  * DOCX uses a simplified `docx` layout. `jspdf-autotable` is linked for bundling/extensions.
  */
 import autoTable from 'jspdf-autotable';
 import { getStoredUser } from '../features/auth/auth.services';
-import type { Exam, LessonPlanRecord } from '../types';
+import type { Assignment, Exam, Lesson, LessonPlanRecord } from '../types';
 import {
   buildExamAnswerFormHtml,
   buildExamAnswerKeyHtml,
   buildExamPaperHtml,
 } from './export/examHtmlExport';
+import { buildOfflineAssignmentHtml } from './export/assignmentHtmlExport';
 import { htmlDocumentToPdfBlob } from './export/htmlToPdf';
 import { parseImageDataUrl } from './export/imageDataUrl';
-import { buildOfflinePlanDocx, buildOfflineExamDocx } from './export/offlineDocx';
+import {
+  buildOfflineAssignmentDocx,
+  buildOfflinePlanDocx,
+  buildOfflineExamDocx,
+} from './export/offlineDocx';
 import { buildOfflinePlanHtml } from './export/planHtmlExport';
+import { getReference } from './references';
 
 /** Keeps `jspdf-autotable` in the bundle for future tabular PDF exports. */
 export const jspdfAutotable = autoTable;
@@ -76,6 +82,23 @@ function enrichExamForOfflineExport(exam: Exam): Record<string, unknown> {
   };
 }
 
+async function enrichAssignmentForOfflineExport(
+  assignment: Assignment
+): Promise<Record<string, unknown>> {
+  const user = getStoredUser();
+  const lesson = assignment.lesson_id
+    ? await getReference<Lesson>(`lesson:${assignment.lesson_id}`)
+    : null;
+  return {
+    ...assignment,
+    teacher_name: user?.display_name ?? user?.username ?? '—',
+    lesson_name:
+      lesson?.name?.trim() || (assignment.lesson_id ? `#${assignment.lesson_id}` : '—'),
+    school_name: user?.profile?.school_name ?? null,
+    school_logo_url: user?.profile?.school_logo_url ?? null,
+  };
+}
+
 export async function exportCachedLessonPlanToBlob(
   plan: LessonPlanRecord,
   format: 'pdf' | 'docx'
@@ -110,5 +133,18 @@ export async function exportCachedExamToBlob(
   } else {
     html = buildExamAnswerKeyHtml(enriched);
   }
+  return htmlDocumentToPdfBlob(html, { landscape: false, contentWidthPx: 900 });
+}
+
+export async function exportCachedAssignmentToBlob(
+  assignment: Assignment,
+  format: 'pdf' | 'docx'
+): Promise<Blob> {
+  const enriched = await enrichAssignmentForOfflineExport(assignment);
+  if (format === 'docx') {
+    return buildOfflineAssignmentDocx(enriched);
+  }
+
+  const html = buildOfflineAssignmentHtml(enriched);
   return htmlDocumentToPdfBlob(html, { landscape: false, contentWidthPx: 900 });
 }

@@ -197,3 +197,46 @@ export async function buildOfflineExamDocx(
   });
   return Packer.toBlob(doc);
 }
+
+export async function buildOfflineAssignmentDocx(
+  enrichedAssignment: Record<string, unknown>
+): Promise<Blob> {
+  const typeLabel =
+    enrichedAssignment.type === 'written'
+      ? 'تحريري'
+      : enrichedAssignment.type === 'varied'
+        ? 'متنوع'
+        : 'عملي';
+  const updatedAt = enrichedAssignment.updated_at
+    ? new Date(String(enrichedAssignment.updated_at)).toLocaleString('ar-SA', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '—';
+
+  const children: (Paragraph | Table)[] = [
+    arPara(String(enrichedAssignment.name ?? '—'), {
+      bold: true,
+      heading: HeadingLevel.TITLE,
+    }),
+    arPara(`المعلم: ${String(enrichedAssignment.teacher_name ?? '—')}`),
+    arPara(`الدرس: ${String(enrichedAssignment.lesson_name ?? '—')}`),
+    arPara(`نوع الواجب: ${typeLabel}`),
+    arPara(`آخر تعديل: ${updatedAt}`),
+    arPara('الوصف', { bold: true }),
+    arPara(
+      String(enrichedAssignment.description ?? '').trim() ||
+        'لا يوجد وصف إضافي لهذا الواجب.'
+    ),
+    arPara('المحتوى', { bold: true }),
+    arPara(String(enrichedAssignment.content ?? '—')),
+  ];
+
+  const doc = new Document({
+    sections: [{ properties: {}, children }],
+  });
+  return Packer.toBlob(doc);
+}
