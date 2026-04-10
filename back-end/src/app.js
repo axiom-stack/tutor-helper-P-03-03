@@ -2,11 +2,58 @@ import express from "express";
 import helmet from "helmet";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import { createRequire } from "node:module";
 
 import routes from "./routes/index.js";
 
 const app = express();
 const JSON_BODY_LIMIT = "5mb";
+const require = createRequire(import.meta.url);
+
+function hasModule(moduleName) {
+  try {
+    require.resolve(moduleName);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function createLoggerOptions() {
+  const loggerOptions = {
+    customLogLevel: (req, res, err) => {
+      if (res.statusCode >= 400 && res.statusCode < 500) {
+        return "warn";
+      } else if (res.statusCode >= 500 || err) {
+        return "error";
+      }
+      return "info";
+    },
+    customSuccessMessage: (req, res) => {
+      return `${req.method} ${req.url} - ${res.statusCode}`;
+    },
+    customErrorMessage: (req, res, err) => {
+      return `${req.method} ${req.url} - ${res.statusCode} - Error: ${err?.message || "Unknown error"}`;
+    },
+  };
+
+  const shouldUsePrettyLogs =
+    process.env.NODE_ENV !== "production" && hasModule("pino-pretty");
+
+  if (shouldUsePrettyLogs) {
+    loggerOptions.transport = {
+      target: "pino-pretty",
+      options: {
+        colorize: true,
+        translateTime: "SYS:standard",
+        ignore:
+          "pid,hostname,req.id,req.remoteAddress,req.remotePort,res.headers",
+      },
+    };
+  }
+
+  return loggerOptions;
+}
 
 function isPayloadTooLargeError(error) {
   if (!error || typeof error !== "object") {
@@ -27,34 +74,8 @@ app.use(cors());
 app.use(express.json({ limit: JSON_BODY_LIMIT }));
 app.use(express.urlencoded({ extended: true, limit: JSON_BODY_LIMIT }));
 
-// Configure pino-http for cleaner, more readable logs
-app.use(
-  pinoHttp({
-    transport: {
-      target: "pino-pretty",
-      options: {
-        colorize: true,
-        translateTime: "SYS:standard",
-        ignore:
-          "pid,hostname,req.id,req.remoteAddress,req.remotePort,res.headers",
-      },
-    },
-    customLogLevel: (req, res, err) => {
-      if (res.statusCode >= 400 && res.statusCode < 500) {
-        return "warn";
-      } else if (res.statusCode >= 500 || err) {
-        return "error";
-      }
-      return "info";
-    },
-    customSuccessMessage: (req, res) => {
-      return `${req.method} ${req.url} - ${res.statusCode}`;
-    },
-    customErrorMessage: (req, res, err) => {
-      return `${req.method} ${req.url} - ${res.statusCode} - Error: ${err?.message || "Unknown error"}`;
-    },
-  }),
-);
+// Configure pino-http with pretty output in development, plain logs in production.
+app.use(pinoHttp(createLoggerOptions()));
 
 app.use("/api", routes);
 

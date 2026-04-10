@@ -13,6 +13,7 @@ const IMAGE_MODULE_NAME = 'open-xml-templating/docxtemplater-image-module';
 const SCHOOL_LOGO_SIZE = Object.freeze<[number, number]>([44, 44]);
 const BIDI_CONTROL_CHAR_PATTERN = /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu;
 const MIME_DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const TEMPLATE_CACHE_NAME = 'offline-docx-template-v1';
 
 type TemplateQuestion = {
   number: string;
@@ -259,13 +260,37 @@ function decodeBase64ToBytes(base64: string): Uint8Array {
   return new Uint8Array();
 }
 
-function readTemplateBuffer(): Promise<ArrayBuffer> {
-  return fetch(examTemplateUrl).then(async (response) => {
-    if (!response.ok) {
-      throw new Error(`Failed to load offline DOCX template: ${response.status}`);
+async function readTemplateBuffer(): Promise<ArrayBuffer> {
+  if (typeof caches !== 'undefined') {
+    try {
+      const cache = await caches.open(TEMPLATE_CACHE_NAME);
+      const cached = await cache.match(examTemplateUrl);
+      if (cached) {
+        return await cached.arrayBuffer();
+      }
+    } catch {
+      // Cache lookup is best-effort only.
     }
-    return await response.arrayBuffer();
-  });
+  }
+
+  const response = await fetch(examTemplateUrl, { cache: 'no-store' });
+  if (!response.ok) {
+    throw new Error(`Failed to load offline DOCX template: ${response.status}`);
+  }
+
+  const clonedResponse = response.clone();
+  const templateBuffer = await response.arrayBuffer();
+
+  if (typeof caches !== 'undefined') {
+    try {
+      const cache = await caches.open(TEMPLATE_CACHE_NAME);
+      void cache.put(examTemplateUrl, clonedResponse).catch(() => {});
+    } catch {
+      // Ignore cache write failures and return the fetched bytes.
+    }
+  }
+
+  return templateBuffer;
 }
 
 function buildTemplateContext(enrichedExam: Record<string, unknown>): TemplateContext {

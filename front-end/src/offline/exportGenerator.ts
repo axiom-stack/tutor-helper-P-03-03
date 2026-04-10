@@ -6,7 +6,7 @@
  */
 import autoTable from 'jspdf-autotable';
 import { getStoredUser } from '../features/auth/auth.services';
-import type { Assignment, Exam, Lesson, LessonPlanRecord } from '../types';
+import type { Assignment, Class, Exam, Lesson, LessonPlanRecord } from '../types';
 import {
   buildExamAnswerFormHtml,
   buildExamAnswerKeyHtml,
@@ -33,6 +33,15 @@ function escapeHtmlAttr(value: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function normalizeTrimmedText(value: string | null | undefined): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 function injectSchoolBrandingIntoPlanHtml(
@@ -73,11 +82,47 @@ function enrichPlanForOfflineExport(plan: LessonPlanRecord): Record<string, unkn
   };
 }
 
-function enrichExamForOfflineExport(exam: Exam): Record<string, unknown> {
+async function resolveExamClassForOfflineExport(exam: Exam): Promise<Class | null> {
+  const [mineClasses, allClasses] = await Promise.all([
+    getReference<Class[]>('classes:mine'),
+    getReference<Class[]>('classes:all'),
+  ]);
+
+  const candidates = [...(mineClasses ?? []), ...(allClasses ?? [])];
+  return candidates.find((classItem) => classItem.id === exam.class_id) ?? null;
+}
+
+async function enrichExamForOfflineExport(exam: Exam): Promise<Record<string, unknown>> {
   const user = getStoredUser();
+  const classItem = await resolveExamClassForOfflineExport(exam);
+  const examLike = exam as Exam & {
+    academic_year?: string | null;
+    class_section_label?: string | null;
+    semester?: string | null;
+    term?: string | null;
+  };
+  const gradeLabel = normalizeTrimmedText(classItem?.grade_label ?? examLike.class_grade_label);
+  const sectionLabel = normalizeTrimmedText(
+    classItem?.section_label ?? classItem?.section ?? examLike.class_section_label
+  );
+  const semester = normalizeTrimmedText(
+    classItem?.semester ?? examLike.semester ?? examLike.term
+  );
+  const academicYear = normalizeTrimmedText(classItem?.academic_year ?? examLike.academic_year);
+  const className =
+    gradeLabel && sectionLabel
+      ? `${gradeLabel} - ${sectionLabel}`
+      : gradeLabel ?? sectionLabel ?? normalizeTrimmedText(examLike.class_name);
+
   return {
     ...exam,
     teacher_name: user?.display_name ?? user?.username ?? '—',
+    class_name: className ?? examLike.class_name ?? null,
+    class_grade_label: gradeLabel ?? examLike.class_grade_label ?? null,
+    class_section_label: sectionLabel ?? null,
+    academic_year: academicYear ?? null,
+    semester,
+    term: semester,
     school_name: user?.profile?.school_name ?? null,
     school_logo_url: user?.profile?.school_logo_url ?? null,
   };
@@ -122,7 +167,7 @@ export async function exportCachedExamToBlob(
   format: 'pdf' | 'docx',
   type: 'answer_key' | 'questions_only' | 'answer_form' = 'answer_key'
 ): Promise<Blob> {
-  const enriched = enrichExamForOfflineExport(exam);
+  const enriched = await enrichExamForOfflineExport(exam);
   if (format === 'docx') {
     return buildOfflineExamDocx(enriched, type);
   }

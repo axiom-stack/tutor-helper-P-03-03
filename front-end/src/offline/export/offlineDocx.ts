@@ -146,7 +146,11 @@ export async function buildOfflineExamDocx(
   type: 'answer_key' | 'questions_only' | 'answer_form'
 ): Promise<Blob> {
   if (type === 'questions_only') {
-    return buildOfflineExamTemplateDocx(enrichedExam);
+    try {
+      return await buildOfflineExamTemplateDocx(enrichedExam);
+    } catch (error) {
+      console.warn('Offline exam Word template unavailable, using structured fallback.', error);
+    }
   }
 
   const vm = buildExamExportViewModel(enrichedExam);
