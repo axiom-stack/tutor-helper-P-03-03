@@ -553,7 +553,9 @@ export function createExamGenerationService(dependencies = {}) {
         role: context.role || "teacher",
       };
 
-      return examsRepository.list(filters, accessContext);
+      return examsRepository.list(filters, accessContext, {
+        includePayload: true,
+      });
     },
 
     async getByPublicId(publicId, context = {}) {

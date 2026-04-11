@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="مساعد المعلم الذكي">
+  <defs>
+    <linearGradient id="accent" x1="168" y1="150" x2="344" y2="360" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#34d399" />
+      <stop offset="1" stop-color="#22c55e" />
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="#18467a" />
+  <circle cx="390" cy="128" r="50" fill="#7dd3fc" opacity=".14" />
+  <circle cx="130" cy="372" r="66" fill="#34d399" opacity=".1" />
+
+  <path
+    d="M146 170c0-26 21-47 47-47h60c19 0 37 6 53 18v187c-16-12-34-18-53-18h-60c-26 0-47-21-47-47V170z"
+    fill="#ebf4ff"
+  />
+  <path
+    d="M366 170c0-26-21-47-47-47h-60c-19 0-37 6-53 18v187c16-12 34-18 53-18h60c26 0 47-21 47-47V170z"
+    fill="#ffffff"
+  />
+  <path
+    d="M256 123v229"
+    stroke="#0f172a"
+    stroke-opacity=".16"
+    stroke-width="12"
+    stroke-linecap="round"
+  />
+
+  <path
+    d="M177 186c0-13 10-23 23-23h55c13 0 24 4 34 12v111c-10-8-21-12-34-12h-55c-13 0-23-10-23-23V186z"
+    fill="#dbeafe"
+  />
+  <path
+    d="M335 186c0-13-10-23-23-23h-55c-13 0-24 4-34 12v111c10-8 21-12 34-12h55c13 0 23-10 23-23V186z"
+    fill="#f8fbff"
+  />
+
+  <path d="M206 286h100" stroke="url(#accent)" stroke-width="14" stroke-linecap="round" />
+  <path d="M214 318h82" stroke="#60a5fa" stroke-width="10" stroke-linecap="round" opacity=".72" />
+  <path d="M214 346h62" stroke="#cbd5e1" stroke-width="10" stroke-linecap="round" opacity=".72" />
+
+  <path
+    d="M282 305l25-25 21 21-25 25z"
+    fill="#22c55e"
+  />
+  <path
+    d="M304 283l17-17 12 12-17 17z"
+    fill="#e2fbe8"
+  />
+</svg>

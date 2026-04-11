@@ -1,6 +1,14 @@
-const CACHE_NAME = 'tutor-helper-shell-v2';
+const CACHE_NAME = 'tutor-helper-shell-v3';
 const BUILD_MANIFEST_URL = '/asset-manifest.json';
-const CORE_URLS = ['/', '/index.html', '/manifest.json', '/vite.svg'];
+const CORE_URLS = [
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/app-icon.svg',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/apple-touch-icon.png',
+];
 
 function normalizeAssetUrl(path) {
   if (typeof path !== 'string' || path.length === 0) {

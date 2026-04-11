@@ -221,3 +221,51 @@ test("fails when a selected lesson has no generated plan", async () => {
     },
   );
 });
+
+test("lists exams with payload for offline caching", async () => {
+  const calls = [];
+  const { service } = createBaseService({
+    examsRepository: {
+      async list(filters, accessContext, options) {
+        calls.push({ filters, accessContext, options });
+        return [
+          {
+            public_id: "exm_5",
+            teacher_id: 2,
+            class_id: 3,
+            subject_id: 4,
+            title: "اختبار الكسور",
+            total_questions: 4,
+            total_marks: 20,
+            lesson_ids: [11],
+            blueprint: { cells: [] },
+            questions: [
+              {
+                slot_id: "q_1",
+                question_number: 1,
+                lesson_id: 11,
+                lesson_name: "الكسور",
+                bloom_level: "remember",
+                bloom_level_label: "التذكر",
+                question_type: "multiple_choice",
+                marks: 5,
+                question_text: "ما ناتج 1/2 + 1/2؟",
+                options: ["0", "1", "2", "3"],
+                correct_option_index: 1,
+                answer_text: "1",
+              },
+            ],
+            created_at: "2026-03-09T00:00:00.000Z",
+            updated_at: "2026-03-09T00:00:00.000Z",
+          },
+        ];
+      },
+    },
+  });
+
+  const exams = await service.list({}, { teacherId: 2, role: "teacher" });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].options?.includePayload, true);
+  assert.equal(exams[0].questions?.length, 1);
+});

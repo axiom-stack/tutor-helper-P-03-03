@@ -4,10 +4,20 @@ import { getOfflineDb } from './db';
 import { bumpRevision, cloneJson, createLocalId, dispatchOfflineRecordsChanged, nowIso } from './utils';
 
 function withExamMeta(exam: Exam, existing?: OfflineExamRecord | null): OfflineExamRecord {
+  // List responses omit question payloads, so preserve any richer cached copy.
+  const hasIncomingQuestions = Array.isArray(exam.questions);
+  const hasIncomingBlueprint = exam.blueprint !== undefined;
+
   return {
     ...exam,
-    questions: cloneJson(exam.questions ?? []),
-    blueprint: exam.blueprint ? cloneJson(exam.blueprint) : undefined,
+    questions: hasIncomingQuestions
+      ? cloneJson(exam.questions)
+      : cloneJson(existing?.questions ?? []),
+    blueprint: hasIncomingBlueprint
+      ? cloneJson(exam.blueprint)
+      : existing?.blueprint !== undefined
+        ? cloneJson(existing.blueprint)
+        : undefined,
     local_id: existing?.local_id ?? createLocalId('exam'),
     server_id: exam.public_id,
     sync_status: existing?.sync_status === 'pending_sync' || existing?.sync_status === 'conflict'
@@ -84,10 +94,18 @@ export async function saveExamOffline(input: {
 export async function replaceExamFromServer(localId: string, exam: Exam) {
   const db = await getOfflineDb();
   const existing = (await db.get('exams', localId)) as OfflineExamRecord | undefined;
+  const hasIncomingQuestions = Array.isArray(exam.questions);
+  const hasIncomingBlueprint = exam.blueprint !== undefined;
   const next: OfflineExamRecord = {
     ...exam,
-    questions: cloneJson(exam.questions ?? []),
-    blueprint: exam.blueprint ? cloneJson(exam.blueprint) : undefined,
+    questions: hasIncomingQuestions
+      ? cloneJson(exam.questions)
+      : cloneJson(existing?.questions ?? []),
+    blueprint: hasIncomingBlueprint
+      ? cloneJson(exam.blueprint)
+      : existing?.blueprint !== undefined
+        ? cloneJson(existing.blueprint)
+        : undefined,
     local_id: existing?.local_id ?? localId,
     server_id: exam.public_id,
     sync_status: 'synced',

@@ -166,7 +166,7 @@ export function createExamsRepository(dbClient = turso) {
       return record;
     },
 
-    async list(filters = {}, accessContext) {
+    async list(filters = {}, accessContext, options = {}) {
       const whereClauses = [];
       const args = [];
 
@@ -212,7 +212,9 @@ export function createExamsRepository(dbClient = turso) {
 
       const list = [];
       for (const row of result.rows) {
-        const record = toExamRecord(row, { includePayload: false });
+        const record = toExamRecord(row, {
+          includePayload: options.includePayload === true,
+        });
         record.lesson_ids = await getLessonIdsByExamDbId(
           dbClient,
           record.db_id,
