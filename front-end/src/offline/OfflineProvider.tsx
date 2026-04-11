@@ -3,6 +3,7 @@ import { OfflineContext, type OfflineContextValue } from './OfflineContext';
 import { getPendingQueueCount } from './queue';
 import { getIsOnline } from './network';
 import { processOfflineQueue } from './queueProcessor';
+import { warmOfflineExamTemplate } from './templateWarmup';
 
 export function OfflineProvider({ children }: { children: ReactNode }) {
   const [isOnline, setIsOnline] = useState(getIsOnline());
@@ -37,6 +38,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
+      void warmOfflineExamTemplate();
       void processQueueNow();
     };
     const handleOffline = () => {
@@ -57,6 +59,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     window.addEventListener('offline-sync-complete', handleSyncComplete);
 
     if (getIsOnline()) {
+      void warmOfflineExamTemplate();
       void processQueueNow();
     }
 

@@ -146,11 +146,9 @@ export async function buildOfflineExamDocx(
   type: 'answer_key' | 'questions_only' | 'answer_form'
 ): Promise<Blob> {
   if (type === 'questions_only') {
-    try {
-      return await buildOfflineExamTemplateDocx(enrichedExam);
-    } catch (error) {
-      console.warn('Offline exam Word template unavailable, using structured fallback.', error);
-    }
+    // Keep the student-facing paper on the bundled RTL template so offline
+    // output matches the online export instead of degrading to raw paragraphs.
+    return await buildOfflineExamTemplateDocx(enrichedExam);
   }
 
   const vm = buildExamExportViewModel(enrichedExam);

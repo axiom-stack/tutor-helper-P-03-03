@@ -2,6 +2,7 @@ import Docxtemplater from 'docxtemplater/build/docxtemplater.js';
 import ImageModule from 'docxtemplater-image-module-free/build/imagemodule.js';
 import PizZip from 'pizzip';
 
+import { TEMPLATE_CACHE_NAME } from '../examTemplateCache';
 import examTemplateUrl from './templates/examTemplate.docx?url';
 import { buildExamExportViewModel, toArabicDigits } from './examViewModel';
 import { parseImageDataUrl } from './imageDataUrl';
@@ -13,7 +14,6 @@ const IMAGE_MODULE_NAME = 'open-xml-templating/docxtemplater-image-module';
 const SCHOOL_LOGO_SIZE = Object.freeze<[number, number]>([44, 44]);
 const BIDI_CONTROL_CHAR_PATTERN = /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu;
 const MIME_DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-const TEMPLATE_CACHE_NAME = 'offline-docx-template-v1';
 
 type TemplateQuestion = {
   number: string;
