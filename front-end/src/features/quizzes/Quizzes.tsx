@@ -1782,7 +1782,17 @@ export default function Quizzes() {
   );
 
   useEffect(() => {
-    if (!selectedExamIdFromRoute || isCreateRoute || isEditingExam) {
+    if (isCreateRoute) {
+      return;
+    }
+
+    if (!selectedExamIdFromRoute) {
+      setSelectedExam(null);
+      setIsEditingExam(false);
+      return;
+    }
+
+    if (isEditingExam) {
       return;
     }
 
