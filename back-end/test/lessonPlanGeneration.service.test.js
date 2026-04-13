@@ -651,6 +651,35 @@ test("throws 422 when retry also fails validation", async () => {
   );
 });
 
+test("recovers retry candidate when objective mixes Bloom levels", async () => {
+  const mixedBloomPlan = createTraditionalPlan();
+  mixedBloomPlan.learning_outcomes[0] =
+    "أن يشرح الطالب خطوات دورة الماء ويستخدم بطاقات التسلسل في النشاط بدقة.";
+
+  const llmResponses = [
+    { ok: true, data: createTraditionalPlan(), rawText: JSON.stringify(createTraditionalPlan()) },
+    { ok: true, data: mixedBloomPlan, rawText: JSON.stringify(mixedBloomPlan) },
+  ];
+
+  const service = createLessonPlanGenerationService(
+    createBaseDependencies({
+      llmClient: {
+        generateJson: async () => llmResponses.shift(),
+      },
+    }),
+  );
+
+  const result = await service.generate(requestPayload, {
+    teacherId: 2,
+    logger: { info() {}, warn() {}, error() {} },
+  });
+
+  assert.equal(result.validation_status, "passed");
+  assert.equal(result.retry_occurred, false);
+  assert.doesNotMatch(result.plan_json.learning_outcomes[0], /ويستخدم/u);
+  assert.match(result.plan_json.learning_outcomes[0], /^أن يشرح/u);
+});
+
 test("logs upstream diagnostics when retry LLM call fails", async () => {
   const invalidActive = createActivePlan();
   invalidActive.lesson_flow = invalidActive.lesson_flow.filter(

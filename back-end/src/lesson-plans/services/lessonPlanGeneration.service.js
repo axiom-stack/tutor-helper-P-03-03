@@ -422,6 +422,107 @@ function appendObjectiveCriterion(text) {
   return `${base} بوضوح`;
 }
 
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function buildBloomVerbEntries(bloomVerbsGeneration = {}) {
+  const entries = [];
+  for (const [level, verbs] of Object.entries(bloomVerbsGeneration || {})) {
+    if (!Array.isArray(verbs)) {
+      continue;
+    }
+
+    for (const verb of verbs) {
+      if (typeof verb !== "string" || !verb.trim()) {
+        continue;
+      }
+
+      entries.push({
+        verb: verb.trim(),
+        normalizedVerb: normalizeArabicForMatching(verb),
+        level,
+      });
+    }
+  }
+
+  return entries;
+}
+
+function detectObjectiveVerbsByLevel(text, bloomVerbEntries = []) {
+  const normalizedText = normalizeArabicForMatching(text);
+  if (!normalizedText) {
+    return [];
+  }
+
+  const paddedText = ` ${normalizedText} `;
+  const tokens = new Set(normalizedText.split(" ").filter(Boolean));
+
+  return bloomVerbEntries.filter((entry) => {
+    if (!entry?.normalizedVerb) {
+      return false;
+    }
+
+    if (entry.normalizedVerb.includes(" ")) {
+      return (
+        paddedText.includes(` ${entry.normalizedVerb} `) ||
+        paddedText.includes(` و${entry.normalizedVerb} `)
+      );
+    }
+
+    return tokens.has(entry.normalizedVerb) || tokens.has(`و${entry.normalizedVerb}`);
+  });
+}
+
+function rewriteObjectiveSingleBloomLevel(text, bloomVerbsGeneration = {}) {
+  if (typeof text !== "string" || !text.trim()) {
+    return text;
+  }
+
+  const leadingVerbMatch = text.match(/^أن\s+(\S+)/u);
+  const leadingVerb = leadingVerbMatch?.[1];
+  const normalizedLeadingVerb = normalizeArabicForMatching(leadingVerb);
+  if (!normalizedLeadingVerb) {
+    return text;
+  }
+
+  const bloomVerbEntries = buildBloomVerbEntries(bloomVerbsGeneration);
+  const leadingEntry = bloomVerbEntries.find(
+    (entry) => entry.normalizedVerb === normalizedLeadingVerb,
+  );
+  if (!leadingEntry?.level) {
+    return text;
+  }
+
+  const detectedVerbs = detectObjectiveVerbsByLevel(text, bloomVerbEntries);
+  const conflictingEntries = detectedVerbs.filter(
+    (entry) =>
+      entry.level &&
+      entry.level !== leadingEntry.level &&
+      entry.normalizedVerb !== normalizedLeadingVerb,
+  );
+  if (conflictingEntries.length === 0) {
+    return text;
+  }
+
+  let nextText = text;
+  const seenNormalized = new Set();
+  for (const entry of conflictingEntries) {
+    if (seenNormalized.has(entry.normalizedVerb)) {
+      continue;
+    }
+    seenNormalized.add(entry.normalizedVerb);
+
+    const replacementPattern = new RegExp(
+      `(^|\\s)و?${escapeRegExp(entry.verb)}(?=\\s|[.,،؛:!?؟]|$)`,
+      "gu",
+    );
+    nextText = nextText.replace(replacementPattern, `$1${leadingVerb}`);
+  }
+
+  return nextText.replace(/\s+/gu, " ").trim();
+}
+
 function pickActiveFlowRow(plan, preferredTypes = []) {
   const rows = Array.isArray(plan?.lesson_flow) ? plan.lesson_flow : [];
   for (const preferredType of preferredTypes) {
@@ -459,7 +560,12 @@ function injectObjectiveIntoActiveRow(row, objectiveText, mode) {
   return false;
 }
 
-function applyDeterministicValidationRecovery(planCandidate, planType, validationResult) {
+function applyDeterministicValidationRecovery(
+  planCandidate,
+  planType,
+  validationResult,
+  bloomVerbsGeneration = {},
+) {
   if (!validationResult || validationResult.isValid) {
     return null;
   }
@@ -497,6 +603,40 @@ function applyDeterministicValidationRecovery(planCandidate, planType, validatio
         "recovery.objective.criterion_marker",
         error.path,
         "Appended a criterion marker to the objective",
+      );
+    }
+
+    continue;
+  }
+
+  for (const error of validationResult.errors || []) {
+    if (error?.code !== "business.objectives.multiple_bloom_levels") {
+      continue;
+    }
+
+    const objectivePathPrefix =
+      planType === "traditional" ? "learning_outcomes" : "objectives";
+    const objectiveIndex = readIndexedPath(error.path, objectivePathPrefix);
+    if (objectiveIndex == null) {
+      continue;
+    }
+
+    const objectiveList =
+      planType === "traditional" ? recoveredPlan.learning_outcomes : recoveredPlan.objectives;
+    if (!Array.isArray(objectiveList) || typeof objectiveList[objectiveIndex] !== "string") {
+      continue;
+    }
+
+    const nextObjective = rewriteObjectiveSingleBloomLevel(
+      objectiveList[objectiveIndex],
+      bloomVerbsGeneration,
+    );
+    if (nextObjective !== objectiveList[objectiveIndex]) {
+      objectiveList[objectiveIndex] = nextObjective;
+      addRecovery(
+        "recovery.objective.single_bloom_level",
+        error.path,
+        "Rewrote objective to keep one Bloom level centered on the leading measurable verb",
       );
     }
   }
@@ -870,6 +1010,7 @@ export function createLessonPlanGenerationService(dependencies = {}) {
           planCandidate,
           request.plan_type,
           currentValidationResult,
+          knowledge.bloom_verbs_generation,
         );
 
         if (!recoveryAttempt) {

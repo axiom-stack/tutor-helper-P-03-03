@@ -285,6 +285,10 @@ function buildNormalizedVerbBank(bloomVerbsGeneration = {}) {
 
 function detectMatchedVerbs(text, normalizedVerbBank) {
   const normalizedText = normalizeArabicForMatching(text);
+  return detectMatchedVerbsInNormalizedText(normalizedText, normalizedVerbBank);
+}
+
+function detectMatchedVerbsInNormalizedText(normalizedText, normalizedVerbBank) {
   if (!normalizedText) {
     return [];
   }
@@ -323,6 +327,27 @@ function detectLeadingBehavioralVerb(text, normalizedVerbBank) {
         strippedObjectivePrefix.startsWith(`${verb} `),
     ) || null
   );
+}
+
+function extractObjectiveBehaviorSegment(text) {
+  if (typeof text !== "string") {
+    return "";
+  }
+
+  const normalizedText = normalizeArabicForMatching(text);
+  if (!normalizedText) {
+    return "";
+  }
+
+  const withoutPrefix = normalizedText.replace(/^ان\s+/u, "");
+  const boundaryPattern =
+    /\b(?:من خلال|باستخدام|اثناء|خلال|عند|بعد|ضمن|وفق|استنادا|اعتمادا|شفهيا|كتابيا|عمليا|بدقه|بنجاح|بوضوح|بشكل صحيح|دون اخطاء|على الاقل|في زمن|مع مثال|معيار|معيارا|بنسبه|بنسبه صحه|لا تقل عن|لا يزيد عن|مع توضيح)\b/u;
+  const boundaryMatch = withoutPrefix.match(boundaryPattern);
+  if (!boundaryMatch || typeof boundaryMatch.index !== "number") {
+    return withoutPrefix;
+  }
+
+  return withoutPrefix.slice(0, boundaryMatch.index).trim();
 }
 
 function containsMarker(text, markers) {
@@ -693,8 +718,13 @@ function validateObjectives({
       );
     }
 
+    const behaviorSegment = extractObjectiveBehaviorSegment(text);
+    const behaviorSegmentVerbs = detectMatchedVerbsInNormalizedText(
+      behaviorSegment,
+      normalizedVerbBank,
+    );
     const matchedLevels = new Set(
-      matchedVerbs
+      (behaviorSegmentVerbs.length > 0 ? behaviorSegmentVerbs : matchedVerbs)
         .map((verb) => verbLevelIndex.get(verb))
         .filter((level) => typeof level === "string" && level.length > 0),
     );
