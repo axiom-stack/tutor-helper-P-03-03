@@ -360,9 +360,11 @@ function buildLessonTopicText(lessonContext = {}) {
 function buildLessonContextKeywords(lessonContext = {}) {
   return new Set(
     [
+      lessonContext.lessonTitle,
       lessonContext.lessonContent,
       lessonContext.subject,
       lessonContext.unit,
+      lessonContext.grade,
     ]
       .flatMap((value) =>
         extractKeywords(value, { extraStopwords: OBJECTIVE_KEYWORD_STOPWORDS }),

@@ -5,6 +5,10 @@ import {
   validateGenerateAssignmentsOutput,
   validateModifyAssignmentOutput,
 } from "../src/assignments/validators/assignmentValidator.js";
+import {
+  buildGeneratePrompt,
+  buildModifyPrompt,
+} from "../src/assignments/prompts/assignmentsPromptBuilder.js";
 
 test("validateSingleAssignment accepts valid object", () => {
   const a = { name: "واجب", description: "وصف", type: "written", content: "محتوى" };
@@ -60,4 +64,29 @@ test("validateModifyAssignmentOutput accepts valid output", () => {
 test("validateModifyAssignmentOutput rejects invalid assignment shape", () => {
   const result = validateModifyAssignmentOutput({ assignment: { name: "x", type: "wrong" } });
   assert.equal(result.isValid, false);
+});
+
+test("buildGeneratePrompt adds validation_errors when retrying", () => {
+  const { userPrompt } = buildGeneratePrompt({
+    lessonPlanJson: {},
+    lessonContent: "محتوى الدرس",
+    lessonName: "عنوان",
+    validationErrors: [{ code: "schema.type", path: "$.assignments[0].type", message: "invalid type" }],
+  });
+  const payload = JSON.parse(userPrompt);
+  assert.equal(payload.validation_errors.length, 1);
+  assert.ok(typeof payload.retry_instruction === "string");
+});
+
+test("buildModifyPrompt adds validation_errors when retrying", () => {
+  const { userPrompt } = buildModifyPrompt({
+    lessonPlanJson: {},
+    lessonContent: "نص",
+    currentAssignment: { name: "واجب", description: "", type: "written", content: "محتوى" },
+    modificationRequest: "وسع الواجب",
+    validationErrors: [{ code: "schema.content", path: "$.assignment.content", message: "too short" }],
+  });
+  const payload = JSON.parse(userPrompt);
+  assert.equal(payload.validation_errors.length, 1);
+  assert.ok(typeof payload.retry_instruction === "string");
 });

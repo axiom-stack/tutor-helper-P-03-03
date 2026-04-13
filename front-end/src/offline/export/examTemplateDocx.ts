@@ -1,4 +1,5 @@
 import Docxtemplater from 'docxtemplater';
+// @ts-expect-error No type declarations available for docxtemplater-image-module-free
 import ImageModule from 'docxtemplater-image-module-free';
 import PizZip from 'pizzip';
 
@@ -12,8 +13,10 @@ const EMPTY_LOGO_PNG_BASE64 =
 const EMPTY_LOGO_DATA_URL = `data:image/png;base64,${EMPTY_LOGO_PNG_BASE64}`;
 const IMAGE_MODULE_NAME = 'open-xml-templating/docxtemplater-image-module';
 const SCHOOL_LOGO_SIZE = Object.freeze<[number, number]>([44, 44]);
-const BIDI_CONTROL_CHAR_PATTERN = /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu;
-const MIME_DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const BIDI_CONTROL_CHAR_PATTERN =
+  /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu;
+const MIME_DOCX =
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 type TemplateQuestion = {
   number: string;
@@ -75,7 +78,10 @@ function rawText(value: unknown): string {
   return String(value).replace(/\r\n/g, '\n');
 }
 
-function splitFillBlankQuestionText(questionText: unknown): { prefix: string; suffix: string } {
+function splitFillBlankQuestionText(questionText: unknown): {
+  prefix: string;
+  suffix: string;
+} {
   const text = rawText(questionText);
   const match = text.match(/^(.*?)(_+)(.*)$/s);
 
@@ -92,8 +98,14 @@ function splitFillBlankQuestionText(questionText: unknown): { prefix: string; su
   };
 }
 
-function getSectionQuestions(vm: ReturnType<typeof buildExamExportViewModel>, sectionId: string) {
-  return vm.sections?.find((section: SectionLike) => section.id === sectionId)?.questions ?? [];
+function getSectionQuestions(
+  vm: ReturnType<typeof buildExamExportViewModel>,
+  sectionId: string
+) {
+  return (
+    vm.sections?.find((section: SectionLike) => section.id === sectionId)
+      ?.questions ?? []
+  );
 }
 
 function getFirstMatchingSectionQuestions(
@@ -114,7 +126,9 @@ function normalizeQuestionNumber(question: QuestionLike): string {
   return toArabicDigits(question.displayNumber ?? question.number ?? '');
 }
 
-function normalizeTrueFalseQuestions(questions: QuestionLike[]): TemplateQuestion[] {
+function normalizeTrueFalseQuestions(
+  questions: QuestionLike[]
+): TemplateQuestion[] {
   return questions.map((question) => ({
     number: normalizeQuestionNumber(question),
     text: displayText(question.text, ''),
@@ -128,22 +142,24 @@ function normalizeMcqQuestions(questions: QuestionLike[]): TemplateQuestion[] {
       number: normalizeQuestionNumber(question),
       text: displayText(question.text, ''),
       option_a: displayText(
-        typeof options[0] === 'string' ? options[0] : options[0]?.text ?? ''
+        typeof options[0] === 'string' ? options[0] : (options[0]?.text ?? '')
       ),
       option_b: displayText(
-        typeof options[1] === 'string' ? options[1] : options[1]?.text ?? ''
+        typeof options[1] === 'string' ? options[1] : (options[1]?.text ?? '')
       ),
       option_c: displayText(
-        typeof options[2] === 'string' ? options[2] : options[2]?.text ?? ''
+        typeof options[2] === 'string' ? options[2] : (options[2]?.text ?? '')
       ),
       option_d: displayText(
-        typeof options[3] === 'string' ? options[3] : options[3]?.text ?? ''
+        typeof options[3] === 'string' ? options[3] : (options[3]?.text ?? '')
       ),
     };
   });
 }
 
-function normalizeFillBlankQuestions(questions: QuestionLike[]): TemplateQuestion[] {
+function normalizeFillBlankQuestions(
+  questions: QuestionLike[]
+): TemplateQuestion[] {
   return questions.map((question) => {
     const parts = splitFillBlankQuestionText(question.text);
     return {
@@ -155,7 +171,9 @@ function normalizeFillBlankQuestions(questions: QuestionLike[]): TemplateQuestio
   });
 }
 
-function normalizeWrittenQuestions(questions: QuestionLike[]): TemplateQuestion[] {
+function normalizeWrittenQuestions(
+  questions: QuestionLike[]
+): TemplateQuestion[] {
   return questions.map((question) => ({
     number: normalizeQuestionNumber(question),
     text: displayText(question.text, ''),
@@ -163,7 +181,11 @@ function normalizeWrittenQuestions(questions: QuestionLike[]): TemplateQuestion[
 }
 
 function sumMarks(questions: QuestionLike[]): number {
-  return questions.reduce((sum, question) => sum + (Number((question as { marks?: unknown }).marks) || 0), 0);
+  return questions.reduce(
+    (sum, question) =>
+      sum + (Number((question as { marks?: unknown }).marks) || 0),
+    0
+  );
 }
 
 function normalizeSchoolLogoPlaceholderTag(placeHolderContent: string) {
@@ -198,7 +220,8 @@ function createSchoolLogoModule() {
     centered: false,
     fileType: 'docx',
     setParser(placeHolderContent: string) {
-      const normalizedTag = normalizeSchoolLogoPlaceholderTag(placeHolderContent);
+      const normalizedTag =
+        normalizeSchoolLogoPlaceholderTag(placeHolderContent);
       if (normalizedTag) {
         return {
           type: 'placeholder',
@@ -217,7 +240,10 @@ function createSchoolLogoModule() {
         return decodeBase64ToBytes(EMPTY_LOGO_PNG_BASE64);
       }
 
-      if (parsedLogo.mimeType === 'image/jpeg' || parsedLogo.mimeType === 'image/jpg') {
+      if (
+        parsedLogo.mimeType === 'image/jpeg' ||
+        parsedLogo.mimeType === 'image/jpg'
+      ) {
         runtimeState.nextImageExtension = 'jpg';
         return decodeBase64ToBytes(parsedLogo.base64Data);
       }
@@ -293,9 +319,13 @@ async function readTemplateBuffer(): Promise<ArrayBuffer> {
   return templateBuffer;
 }
 
-function buildTemplateContext(enrichedExam: Record<string, unknown>): TemplateContext {
+function buildTemplateContext(
+  enrichedExam: Record<string, unknown>
+): TemplateContext {
   const vm = buildExamExportViewModel(enrichedExam);
-  const trueFalseQuestions = normalizeTrueFalseQuestions(getSectionQuestions(vm, 'true_false'));
+  const trueFalseQuestions = normalizeTrueFalseQuestions(
+    getSectionQuestions(vm, 'true_false')
+  );
   const mcqQuestions = normalizeMcqQuestions(getSectionQuestions(vm, 'mcq'));
   const fillBlankQuestions = normalizeFillBlankQuestions(
     getFirstMatchingSectionQuestions(vm, ['other_fill_blank', 'fill_blank'])
@@ -311,13 +341,20 @@ function buildTemplateContext(enrichedExam: Record<string, unknown>): TemplateCo
     grade_level: displayText(vm.examMeta.grade ?? vm.examMeta.className, '—'),
     semester: displayText(vm.examMeta.semester ?? vm.examMeta.term, '—'),
     school_logo: safeText(enrichedExam.school_logo_url, EMPTY_LOGO_DATA_URL),
-    school_name: displayText(vm.examMeta.schoolName ?? vm.examMeta.institutionName, ''),
+    school_name: displayText(
+      vm.examMeta.schoolName ?? vm.examMeta.institutionName,
+      ''
+    ),
     total_marks: toArabicDigits(totalMarks),
     q1_marks: toArabicDigits(sumMarks(getSectionQuestions(vm, 'true_false'))),
     q2_marks: toArabicDigits(sumMarks(getSectionQuestions(vm, 'mcq'))),
     q3_marks: toArabicDigits(
-      sumMarks(getFirstMatchingSectionQuestions(vm, ['other_fill_blank', 'fill_blank'])) +
-        sumMarks(getFirstMatchingSectionQuestions(vm, ['written', 'other_open_ended']))
+      sumMarks(
+        getFirstMatchingSectionQuestions(vm, ['other_fill_blank', 'fill_blank'])
+      ) +
+        sumMarks(
+          getFirstMatchingSectionQuestions(vm, ['written', 'other_open_ended'])
+        )
     ),
     true_false_questions: trueFalseQuestions,
     mcq_questions: mcqQuestions,
@@ -326,7 +363,9 @@ function buildTemplateContext(enrichedExam: Record<string, unknown>): TemplateCo
   };
 }
 
-async function renderTemplateDocx(enrichedExam: Record<string, unknown>): Promise<Blob> {
+async function renderTemplateDocx(
+  enrichedExam: Record<string, unknown>
+): Promise<Blob> {
   const templateBuffer = await readTemplateBuffer();
   const zip = new PizZip(templateBuffer);
   const imageModule = createSchoolLogoModule();
@@ -343,7 +382,11 @@ async function renderTemplateDocx(enrichedExam: Record<string, unknown>): Promis
     await doc.renderAsync(context);
   } catch (error: unknown) {
     const message =
-      error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown DOCX render error';
+      error instanceof Error
+        ? error.message
+        : typeof error === 'string'
+          ? error
+          : 'Unknown DOCX render error';
     throw new Error(`Failed to render offline exam Word template: ${message}`);
   }
 

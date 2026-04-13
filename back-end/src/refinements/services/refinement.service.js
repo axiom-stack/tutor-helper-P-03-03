@@ -644,11 +644,15 @@ export function createRefinementService(dependencies = {}) {
       knowledge,
     );
     const lessonContent = await loadLessonContent(planRecord.lesson_id, accessContext);
+    const lessonValidationContext = buildLessonValidationContext(planRecord, lessonContent);
     const normalizedDraftPlan = normalizeLessonPlan({
       plan: planRecord.plan_json,
       planType: planRecord.plan_type,
       durationMinutes: planRecord.duration_minutes,
       pedagogicalRules: knowledge.pedagogical_rules,
+      bloomVerbsGeneration: knowledge.bloom_verbs_generation || {},
+      lessonContext: lessonValidationContext,
+      strategyBank,
     }).normalizedPlan;
 
     const basePrompt = buildPrompt2PedagogicalTuner({
@@ -717,11 +721,15 @@ export function createRefinementService(dependencies = {}) {
     const expectedKeys = Object.keys(runtime.targetSchema || {});
     const extractedPlan =
       extractLessonPlanObject(result.data, expectedKeys) || result.data;
+    const lessonValidationContext = buildLessonValidationContext(planRecord, runtime.lessonContent);
     const normalizationResult = normalizeLessonPlan({
       plan: extractedPlan,
       planType: planRecord.plan_type,
       durationMinutes: planRecord.duration_minutes,
       pedagogicalRules: runtime.knowledge?.pedagogical_rules,
+      bloomVerbsGeneration: runtime.knowledge?.bloom_verbs_generation || {},
+      lessonContext: lessonValidationContext,
+      strategyBank: runtime.strategyBank,
     });
 
     const validation = validateLessonPlan({
@@ -733,7 +741,7 @@ export function createRefinementService(dependencies = {}) {
       durationMinutes: planRecord.duration_minutes,
       pedagogicalRules: runtime.knowledge?.pedagogical_rules || {},
       bloomVerbsGeneration: runtime.knowledge?.bloom_verbs_generation || {},
-      lessonContext: buildLessonValidationContext(planRecord, runtime.lessonContent),
+      lessonContext: lessonValidationContext,
       normalizationResult,
     });
 

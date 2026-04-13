@@ -191,13 +191,70 @@ function buildLessonContext({ lessonContext = {} }) {
 function buildLessonContextKeywords(lessonContext) {
   return new Set(
     [
+      lessonContext.lessonTitle,
       lessonContext.lessonContent,
       lessonContext.subject,
       lessonContext.unit,
+      lessonContext.grade,
     ]
       .flatMap((value) => extractKeywords(value))
       .filter(Boolean),
   );
+}
+
+const MIN_LESSON_SCOPE_PHRASE_LEN = 4;
+
+function lessonContextHasScopeText(lessonContext) {
+  const fields = [
+    lessonContext.lessonTitle,
+    lessonContext.lessonContent,
+    lessonContext.subject,
+    lessonContext.unit,
+    lessonContext.grade,
+  ];
+  return fields.some(
+    (value) => normalizeArabicForMatching(typeof value === "string" ? value : "").length >= MIN_LESSON_SCOPE_PHRASE_LEN,
+  );
+}
+
+function collectLessonScopePhrases(lessonContext) {
+  const phrases = new Set();
+  const addPhrase = (raw) => {
+    const normalized = normalizeArabicForMatching(typeof raw === "string" ? raw.trim() : "");
+    if (normalized.length >= MIN_LESSON_SCOPE_PHRASE_LEN) {
+      phrases.add(normalized);
+    }
+  };
+
+  addPhrase(lessonContext.lessonTitle);
+  addPhrase(lessonContext.subject);
+  addPhrase(lessonContext.unit);
+  addPhrase(lessonContext.grade);
+
+  const content = typeof lessonContext.lessonContent === "string" ? lessonContext.lessonContent.trim() : "";
+  if (content) {
+    const clause = content
+      .split(/[.!؟،\n]+/u)
+      .map((part) => part.trim())
+      .find((part) => normalizeArabicForMatching(part).length >= MIN_LESSON_SCOPE_PHRASE_LEN);
+    if (clause) {
+      addPhrase(clause);
+    }
+  }
+
+  return phrases;
+}
+
+function normalizedTextOverlapsLessonScope(normalizedText, lessonContext) {
+  if (!normalizedText) {
+    return false;
+  }
+  for (const phrase of collectLessonScopePhrases(lessonContext)) {
+    if (normalizedText.includes(phrase)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function validateTraditionalSource(plan, lessonContext, errors) {
@@ -633,6 +690,7 @@ function validateObjectives({
   forbiddenVerbs = [],
   bloomVerbsGeneration = {},
   lessonContextKeywords,
+  lessonContext = {},
   errors,
 }) {
   const objectives = buildObjectiveDiagnostics(plan, planType);
@@ -747,7 +805,12 @@ function validateObjectives({
       );
     }
 
-    if (lessonContextKeywords.size > 0 && lessonKeywordOverlap.length === 0) {
+    const canCheckLessonScope =
+      lessonContextKeywords.size > 0 || lessonContextHasScopeText(lessonContext);
+    const overlapsLessonByKeywords = lessonKeywordOverlap.length > 0;
+    const overlapsLessonByPhrase = normalizedTextOverlapsLessonScope(normalizedText, lessonContext);
+
+    if (canCheckLessonScope && !overlapsLessonByKeywords && !overlapsLessonByPhrase) {
       addError(
         errors,
         "business.objectives.lesson_scope_mismatch",
@@ -1239,7 +1302,7 @@ function detectAssessmentType(text, assessmentQuestionTypes = []) {
   return null;
 }
 
-function validateHomework(plan, lessonContextKeywords, errors) {
+function validateHomework(plan, lessonContextKeywords, lessonContext = {}, errors) {
   if (typeof plan.homework !== "string" || plan.homework.trim().length === 0) {
     addError(errors, "business.homework.required", "homework", "homework is required");
     return;
@@ -1269,19 +1332,20 @@ function validateHomework(plan, lessonContextKeywords, errors) {
     );
   }
 
-  if (lessonContextKeywords.size > 0) {
-    const homeworkKeywordOverlap = extractKeywords(homeworkText).filter((keyword) =>
-      lessonContextKeywords.has(keyword),
-    );
+  const canCheckLessonScope =
+    lessonContextKeywords.size > 0 || lessonContextHasScopeText(lessonContext);
+  const overlapsByKeywords = extractKeywords(homeworkText).some((keyword) =>
+    lessonContextKeywords.has(keyword),
+  );
+  const overlapsByPhrase = normalizedTextOverlapsLessonScope(normalizedHomework, lessonContext);
 
-    if (homeworkKeywordOverlap.length === 0) {
-      addError(
-        errors,
-        "business.homework.scope_mismatch",
-        "homework",
-        "homework must overlap with lesson title or content keywords",
-      );
-    }
+  if (canCheckLessonScope && !overlapsByKeywords && !overlapsByPhrase) {
+    addError(
+      errors,
+      "business.homework.scope_mismatch",
+      "homework",
+      "homework must overlap with lesson title or content keywords",
+    );
   }
 }
 
@@ -1616,6 +1680,7 @@ export function validateLessonPlan({
     forbiddenVerbs,
     bloomVerbsGeneration,
     lessonContextKeywords,
+    lessonContext: resolvedLessonContext,
     errors,
   });
 
@@ -1633,7 +1698,7 @@ export function validateLessonPlan({
   }
 
   validateAssessment(normalizedPlan, planType, assessmentQuestionTypes, errors);
-  validateHomework(normalizedPlan, lessonContextKeywords, errors);
+  validateHomework(normalizedPlan, lessonContextKeywords, resolvedLessonContext, errors);
   validateArabicPhrasing(normalizedPlan, planType, errors);
 
   const alignmentDiagnostics = validateAlignment(

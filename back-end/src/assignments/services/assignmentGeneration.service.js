@@ -125,7 +125,7 @@ export function createAssignmentGenerationService(dependencies = {}) {
         }
       })();
 
-      const { systemPrompt, userPrompt } = buildGeneratePrompt({
+      let prompt = buildGeneratePrompt({
         lessonPlanJson: planJson,
         lessonContent,
         lessonName,
@@ -133,19 +133,43 @@ export function createAssignmentGenerationService(dependencies = {}) {
 
       logger.info({ lesson_plan_public_id: request.lesson_plan_public_id, lesson_id: request.lesson_id }, "assignment generation request");
 
-      const result = await llmClient.generateJson({ systemPrompt, userPrompt });
+      let result = await llmClient.generateJson({
+        systemPrompt: prompt.systemPrompt,
+        userPrompt: prompt.userPrompt,
+      });
       ensureLlmSuccess(result, "Assignments generation");
 
-      const rawAssignments = extractAssignmentsArray(result.data);
-      const payloadToValidate = rawAssignments != null ? { assignments: rawAssignments } : result.data;
-      const validation = validateGenerateAssignmentsOutput(payloadToValidate);
+      let rawAssignments = extractAssignmentsArray(result.data);
+      let payloadToValidate = rawAssignments != null ? { assignments: rawAssignments } : result.data;
+      let validation = validateGenerateAssignmentsOutput(payloadToValidate);
 
       if (!validation.isValid || !validation.assignments?.length) {
-        logger.warn({ validation_errors: validation.errors }, "assignments validation failed");
+        logger.warn({ validation_errors: validation.errors }, "assignments validation failed, retrying once");
+
+        prompt = buildGeneratePrompt({
+          lessonPlanJson: planJson,
+          lessonContent,
+          lessonName,
+          validationErrors: validation.errors,
+        });
+
+        result = await llmClient.generateJson({
+          systemPrompt: prompt.systemPrompt,
+          userPrompt: prompt.userPrompt,
+        });
+        ensureLlmSuccess(result, "Assignments generation retry");
+
+        rawAssignments = extractAssignmentsArray(result.data);
+        payloadToValidate = rawAssignments != null ? { assignments: rawAssignments } : result.data;
+        validation = validateGenerateAssignmentsOutput(payloadToValidate);
+      }
+
+      if (!validation.isValid || !validation.assignments?.length) {
+        logger.warn({ validation_errors: validation.errors }, "assignments validation failed after retry");
         throw new AssignmentPipelineError(
           422,
           "assignments_validation_failed",
-          "Generated assignments are invalid",
+          "Generated assignments are invalid after one retry",
           validation.errors
         );
       }
@@ -225,7 +249,7 @@ export function createAssignmentGenerationService(dependencies = {}) {
         content: assignment.content,
       };
 
-      const { systemPrompt, userPrompt } = buildModifyPrompt({
+      let prompt = buildModifyPrompt({
         lessonPlanJson: planJson,
         lessonContent: lessonRow.content ?? "",
         currentAssignment,
@@ -234,19 +258,44 @@ export function createAssignmentGenerationService(dependencies = {}) {
 
       logger.info({ assignment_id: request.assignment_id }, "assignment modify request");
 
-      const result = await llmClient.generateJson({ systemPrompt, userPrompt });
+      let result = await llmClient.generateJson({
+        systemPrompt: prompt.systemPrompt,
+        userPrompt: prompt.userPrompt,
+      });
       ensureLlmSuccess(result, "Assignment modify");
 
-      const rawAssignment = extractSingleAssignment(result.data);
-      const payloadToValidate = rawAssignment != null ? { assignment: rawAssignment } : result.data;
-      const validation = validateModifyAssignmentOutput(payloadToValidate);
+      let rawAssignment = extractSingleAssignment(result.data);
+      let payloadToValidate = rawAssignment != null ? { assignment: rawAssignment } : result.data;
+      let validation = validateModifyAssignmentOutput(payloadToValidate);
 
       if (!validation.isValid || !validation.assignment) {
-        logger.warn({ validation_errors: validation.errors }, "modify assignment validation failed");
+        logger.warn({ validation_errors: validation.errors }, "modify assignment validation failed, retrying once");
+
+        prompt = buildModifyPrompt({
+          lessonPlanJson: planJson,
+          lessonContent: lessonRow.content ?? "",
+          currentAssignment,
+          modificationRequest: request.modification_request,
+          validationErrors: validation.errors,
+        });
+
+        result = await llmClient.generateJson({
+          systemPrompt: prompt.systemPrompt,
+          userPrompt: prompt.userPrompt,
+        });
+        ensureLlmSuccess(result, "Assignment modify retry");
+
+        rawAssignment = extractSingleAssignment(result.data);
+        payloadToValidate = rawAssignment != null ? { assignment: rawAssignment } : result.data;
+        validation = validateModifyAssignmentOutput(payloadToValidate);
+      }
+
+      if (!validation.isValid || !validation.assignment) {
+        logger.warn({ validation_errors: validation.errors }, "modify assignment validation failed after retry");
         throw new AssignmentPipelineError(
           422,
           "assignment_validation_failed",
-          "Modified assignment is invalid",
+          "Modified assignment is invalid after one retry",
           validation.errors
         );
       }

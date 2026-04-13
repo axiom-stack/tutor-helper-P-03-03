@@ -205,3 +205,51 @@ test("deleteTeacherById deletes teacher by deleting from Users", async () => {
     calls.some((call) => call.sql.includes("DELETE FROM Users WHERE id = ?")),
   );
 });
+
+test("deleteTeacherById uses one write batch when the client supports batch()", async () => {
+  const batchCalls = [];
+  const repository = createUsersRepository({
+    async execute({ sql, args }) {
+      if (
+        sql.includes("SELECT id, username, display_name, role, created_at") &&
+        sql.includes("FROM Users")
+      ) {
+        return {
+          rows: [
+            {
+              id: 22,
+              username: "teacher_22",
+              display_name: "Teacher 22",
+              role: "teacher",
+              created_at: "2026-03-10T00:00:00.000Z",
+            },
+          ],
+        };
+      }
+
+      return { rows: [] };
+    },
+    async batch(statements, mode) {
+      batchCalls.push({ statements, mode });
+      return [];
+    },
+  });
+
+  const deleted = await repository.deleteTeacherById(22);
+
+  assert.equal(deleted?.id, 22);
+  assert.equal(batchCalls.length, 1);
+  assert.equal(batchCalls[0].mode, "write");
+  const sqls = batchCalls[0].statements.map((s) => s.sql);
+  assert.ok(
+    sqls.some((sql) =>
+      sql.includes("UPDATE ArtifactRevisions SET refinement_request_id = NULL"),
+    ),
+  );
+  assert.ok(
+    sqls.some((sql) =>
+      sql.includes("DELETE FROM RefinementRequests WHERE created_by_user_id = ?"),
+    ),
+  );
+  assert.ok(sqls.some((sql) => sql.includes("DELETE FROM Users WHERE id = ?")));
+});

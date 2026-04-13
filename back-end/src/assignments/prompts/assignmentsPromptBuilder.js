@@ -13,7 +13,12 @@ function truncate(str, max) {
  * type must be one of: written, varied, practical
  * (written = واجبات كتابية, varied = أسئلة تقويم متنوعة, practical = أنشطة تطبيقية)
  */
-export function buildGeneratePrompt({ lessonPlanJson, lessonContent, lessonName = "" }) {
+export function buildGeneratePrompt({
+  lessonPlanJson,
+  lessonContent,
+  lessonName = "",
+  validationErrors = [],
+}) {
   const systemPrompt = [
     "You are an expert educational assistant that suggests assignments for a lesson.",
     "Return exactly one JSON object with a single key: \"assignments\", whose value is an array of assignment objects.",
@@ -41,6 +46,12 @@ export function buildGeneratePrompt({ lessonPlanJson, lessonContent, lessonName 
     allowed_types: VALID_ASSIGNMENT_TYPES,
   };
 
+  if (Array.isArray(validationErrors) && validationErrors.length > 0) {
+    userPayload.validation_errors = validationErrors;
+    userPayload.retry_instruction =
+      "Fix the JSON so every validation_error is resolved. Keep the same pedagogical intent; output only valid assignments aligned with the lesson plan and lesson content.";
+  }
+
   return {
     systemPrompt,
     userPrompt: JSON.stringify(userPayload, null, 2),
@@ -56,6 +67,7 @@ export function buildModifyPrompt({
   lessonContent,
   currentAssignment,
   modificationRequest,
+  validationErrors = [],
 }) {
   const systemPrompt = [
     "You are an expert educational assistant that modifies an existing assignment according to the teacher's request.",
@@ -80,6 +92,12 @@ export function buildModifyPrompt({
     },
     allowed_types: VALID_ASSIGNMENT_TYPES,
   };
+
+  if (Array.isArray(validationErrors) && validationErrors.length > 0) {
+    userPayload.validation_errors = validationErrors;
+    userPayload.retry_instruction =
+      "Fix the JSON so every validation_error is resolved while still honoring modification_request.";
+  }
 
   return {
     systemPrompt,

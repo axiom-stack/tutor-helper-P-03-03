@@ -7,6 +7,9 @@ function createUnavailableClient() {
     async execute() {
       throw error;
     },
+    async batch() {
+      throw error;
+    },
   };
 }
 
@@ -35,6 +38,9 @@ function getTursoClient() {
 export const turso = {
   execute(query) {
     return getTursoClient().execute(query);
+  },
+  batch(statements, mode) {
+    return getTursoClient().batch(statements, mode);
   },
 };
 

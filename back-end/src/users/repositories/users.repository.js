@@ -1,5 +1,49 @@
 import { turso } from "../../lib/turso.js";
 
+/**
+ * Runs statements atomically: prefers libSQL batch, then interactive transaction, then BEGIN/COMMIT.
+ */
+async function runWriteTransaction(dbClient, statements) {
+  if (typeof dbClient.batch === "function") {
+    await dbClient.batch(statements, "write");
+    return;
+  }
+
+  if (typeof dbClient.transaction === "function") {
+    const tx = await dbClient.transaction("write");
+    try {
+      for (const stmt of statements) {
+        await tx.execute(stmt);
+      }
+      await tx.commit();
+    } catch (err) {
+      await tx.rollback();
+      throw err;
+    }
+    return;
+  }
+
+  if (typeof dbClient.execute === "function") {
+    try {
+      await dbClient.execute({ sql: "BEGIN IMMEDIATE", args: [] });
+      for (const stmt of statements) {
+        await dbClient.execute(stmt);
+      }
+      await dbClient.execute({ sql: "COMMIT", args: [] });
+    } catch (err) {
+      try {
+        await dbClient.execute({ sql: "ROLLBACK", args: [] });
+      } catch {
+        // ignore secondary rollback failures
+      }
+      throw err;
+    }
+    return;
+  }
+
+  throw new Error("Database client must support batch(), transaction(), or execute()");
+}
+
 function toNumber(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -474,13 +518,19 @@ export function createUsersRepository(dbClient = turso) {
           args: [parsedUserId],
         },
 
-        // 4. Clear refinement requests created by this user
+        // 4. Detach artifact revisions from this user's refinement requests (FK has no ON DELETE CASCADE)
+        {
+          sql: "UPDATE ArtifactRevisions SET refinement_request_id = NULL WHERE refinement_request_id IN (SELECT id FROM RefinementRequests WHERE created_by_user_id = ?)",
+          args: [parsedUserId],
+        },
+
+        // 5. Clear refinement requests created by this user
         {
           sql: "DELETE FROM RefinementRequests WHERE created_by_user_id = ?",
           args: [parsedUserId],
         },
 
-        // 5. Unlink self-referencing parent revisions to avoid constraint errors, then delete revisions made by this user
+        // 6. Unlink self-referencing parent revisions to avoid constraint errors, then delete revisions made by this user
         {
           sql: "UPDATE ArtifactRevisions SET parent_revision_id = NULL WHERE created_by_user_id = ?",
           args: [parsedUserId],
@@ -494,7 +544,7 @@ export function createUsersRepository(dbClient = turso) {
           args: [parsedUserId],
         },
 
-        // 6. Deep curriculum cleanup for this teacher to prevent FK constraint failures.
+        // 7. Deep curriculum cleanup for this teacher to prevent FK constraint failures.
         {
           sql: "DELETE FROM ExamLessons WHERE exam_id IN (SELECT id FROM Exams WHERE teacher_id = ?)",
           args: [parsedUserId],
@@ -530,7 +580,7 @@ export function createUsersRepository(dbClient = turso) {
           args: [parsedUserId],
         },
 
-        // 7. Profile and User deletion
+        // 8. Profile and User deletion
         {
           sql: "DELETE FROM UserProfiles WHERE user_id = ?",
           args: [parsedUserId],
@@ -539,13 +589,7 @@ export function createUsersRepository(dbClient = turso) {
       ];
 
       try {
-        if (typeof dbClient.batch === "function") {
-          await dbClient.batch(statements, "write");
-        } else {
-          for (const stmt of statements) {
-            await dbClient.execute(stmt);
-          }
-        }
+        await runWriteTransaction(dbClient, statements);
         console.log(
           `[users.repository.js] deleteTeacherById - deletions successfully executed.`,
         );
