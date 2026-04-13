@@ -16,6 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
   LESSON_DURATION_OPTIONS,
   PLAN_TYPE_OPTIONS,
+  PERIOD_OPTIONS,
 } from '../../constants/dropdown-options';
 import type { Class, Lesson, Subject, Unit } from '../../types';
 import {
@@ -186,6 +187,7 @@ function LessonCreator() {
       ? profileDuration
       : 45;
   });
+  const [selectedPeriod, setSelectedPeriod] = useState<string>('');
 
   const [initialLoading, setInitialLoading] = useState(true);
   const [subjectsLoading, setSubjectsLoading] = useState(false);
@@ -249,6 +251,7 @@ function LessonCreator() {
         ? defaultDurationMinutes
         : 45
     );
+    setSelectedPeriod('');
     setPageError(null);
     setGenerationError(null);
     setScreen('creator');
@@ -522,6 +525,7 @@ function LessonCreator() {
     selectedSubjectId !== '' &&
     selectedUnitId !== '' &&
     selectedLessonId !== '' &&
+    selectedPeriod !== '' &&
     !isGenerating;
 
   const clearTimelineTimers = () => {
@@ -685,7 +689,7 @@ function LessonCreator() {
         unit: unitName,
         duration_minutes: safeDurationMinutes,
         plan_type: planType,
-        period_order: null,
+        period_order: selectedPeriod,
         preparation_type: user?.profile?.preparation_type ?? null,
         class_id: selectedClass.id,
         class_name: classLabel || undefined,
@@ -1145,6 +1149,25 @@ function LessonCreator() {
                     ))}
                   </select>
                 </li>
+
+                <li className="lcp__classic-row">
+                  <label htmlFor="lcp-period-select">الحصة</label>
+                  <select
+                    id="lcp-period-select"
+                    value={selectedPeriod}
+                    onChange={(event) => {
+                      setSelectedPeriod(event.target.value);
+                    }}
+                    disabled={selectedLessonId === '' || isGenerating}
+                  >
+                    <option value="">اختر الحصة...</option>
+                    {PERIOD_OPTIONS.map((period) => (
+                      <option key={period} value={period}>
+                        {period}
+                      </option>
+                    ))}
+                  </select>
+                </li>
               </ol>
 
               <div className="lcp__classic-actions">
@@ -1259,15 +1282,15 @@ function LessonCreator() {
                       )
                   : undefined
               }
-                fallback={{
-                  lessonTitle: selectedLesson?.name,
-                  subject: selectedSubject?.name,
-                  grade: selectedClass?.grade_label,
-                  section: selectedClass?.section_label,
-                  unit: formatUnitOrdinalText(selectedUnit?.name ?? ''),
-                  durationMinutes,
-                }}
-              />
+              fallback={{
+                lessonTitle: selectedLesson?.name,
+                subject: selectedSubject?.name,
+                grade: selectedClass?.grade_label,
+                section: selectedClass?.section_label,
+                unit: formatUnitOrdinalText(selectedUnit?.name ?? ''),
+                durationMinutes,
+              }}
+            />
           </article>
 
           <section className="lcp__refinement-row">

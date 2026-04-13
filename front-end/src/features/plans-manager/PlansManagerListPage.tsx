@@ -63,6 +63,21 @@ function getPlanAcademicYear(plan: OfflineLessonPlanRecord): string | null {
   );
 }
 
+function getPlanPeriod(plan: OfflineLessonPlanRecord): string | null {
+  const header = getPlanHeader(plan);
+  const timeValue = toOptionalText(header.time);
+
+  // Check if it's one of the period options (الأولى, الثانية, etc.)
+  if (
+    timeValue &&
+    /^ال(أولى|ثانية|ثالثة|رابعة|خامسة|سادسة|سابعة)$/.test(timeValue)
+  ) {
+    return `حصة ${timeValue}`;
+  }
+
+  return null;
+}
+
 function getClassSemesterLabel(
   classItem: Class | null | undefined
 ): string | null {
@@ -90,6 +105,7 @@ function buildPlanMeta(plan: OfflineLessonPlanRecord): string[] {
     toOptionalText(plan.subject),
     toOptionalText(plan.grade),
     toOptionalText(header.section),
+    getPlanPeriod(plan),
     getPlanSemester(plan),
     getPlanAcademicYear(plan),
   ];
