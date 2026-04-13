@@ -201,6 +201,7 @@ export interface LessonPlanRecord {
   grade: string;
   unit: string;
   duration_minutes: number;
+  period_order: string | null;
   plan_type: PlanType;
   plan_json: Record<string, unknown> | null;
   validation_status: string;

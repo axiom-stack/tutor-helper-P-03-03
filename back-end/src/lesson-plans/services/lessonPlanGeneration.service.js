@@ -59,7 +59,9 @@ function hasAllExpectedTopLevelKeys(value, expectedKeys) {
     return false;
   }
 
-  return expectedKeys.every((key) => Object.prototype.hasOwnProperty.call(value, key));
+  return expectedKeys.every((key) =>
+    Object.prototype.hasOwnProperty.call(value, key),
+  );
 }
 
 function projectToExpectedTopLevelKeys(value, expectedKeys) {
@@ -104,7 +106,12 @@ function extractPlanObject(value, expectedKeys, path = "$", depth = 0) {
     }
 
     const nestedValue = value[key];
-    const extracted = extractPlanObject(nestedValue, expectedKeys, `${path}.${key}`, depth + 1);
+    const extracted = extractPlanObject(
+      nestedValue,
+      expectedKeys,
+      `${path}.${key}`,
+      depth + 1,
+    );
 
     if (extracted) {
       return extracted;
@@ -120,7 +127,12 @@ function extractPlanObject(value, expectedKeys, path = "$", depth = 0) {
       continue;
     }
 
-    const extracted = extractPlanObject(nestedValue, expectedKeys, `${path}.${key}`, depth + 1);
+    const extracted = extractPlanObject(
+      nestedValue,
+      expectedKeys,
+      `${path}.${key}`,
+      depth + 1,
+    );
 
     if (extracted) {
       return extracted;
@@ -130,7 +142,12 @@ function extractPlanObject(value, expectedKeys, path = "$", depth = 0) {
   return null;
 }
 
-function normalizeGeneratedPlanOutput(rawOutput, targetSchema, logger, stepName) {
+function normalizeGeneratedPlanOutput(
+  rawOutput,
+  targetSchema,
+  logger,
+  stepName,
+) {
   const expectedTopLevelKeys = Object.keys(targetSchema || {});
   if (expectedTopLevelKeys.length === 0) {
     return rawOutput;
@@ -192,15 +209,20 @@ function readConfiguredModel(value) {
 }
 
 export function resolveLessonPlanStepModels(env = process.env) {
-  const sharedModel = readConfiguredModel(env.GROQ_MODEL) || "llama-3.3-70b-versatile";
-  const prompt1Model = readConfiguredModel(env.GROQ_PROMPT1_MODEL) || sharedModel;
-  const prompt2Model = readConfiguredModel(env.GROQ_PROMPT2_MODEL) || sharedModel;
+  const sharedModel =
+    readConfiguredModel(env.GROQ_MODEL) || "llama-3.3-70b-versatile";
+  const prompt1Model =
+    readConfiguredModel(env.GROQ_PROMPT1_MODEL) || sharedModel;
+  const prompt2Model =
+    readConfiguredModel(env.GROQ_PROMPT2_MODEL) || sharedModel;
 
   return {
     prompt1: prompt1Model,
     prompt2: prompt2Model,
-    prompt1Retry: readConfiguredModel(env.GROQ_PROMPT1_MODEL_RETRY) || prompt1Model,
-    prompt2Retry: readConfiguredModel(env.GROQ_PROMPT2_MODEL_RETRY) || prompt2Model,
+    prompt1Retry:
+      readConfiguredModel(env.GROQ_PROMPT1_MODEL_RETRY) || prompt1Model,
+    prompt2Retry:
+      readConfiguredModel(env.GROQ_PROMPT2_MODEL_RETRY) || prompt2Model,
   };
 }
 
@@ -306,7 +328,12 @@ function buildLlmFailureDetails(result, stepName) {
   return details;
 }
 
-function buildLlmFailureLogContext(result, stepName, prompt, extraContext = {}) {
+function buildLlmFailureLogContext(
+  result,
+  stepName,
+  prompt,
+  extraContext = {},
+) {
   return {
     step: stepName,
     ...extraContext,
@@ -322,7 +349,8 @@ function buildLlmFailureLogContext(result, stepName, prompt, extraContext = {}) 
       upstream_error: result?.upstreamError || null,
       prompt: buildPromptDiagnostics(prompt),
       raw_excerpt:
-        truncateForLog(result?.raw, 800) || truncateForLog(result?.rawText, 800),
+        truncateForLog(result?.raw, 800) ||
+        truncateForLog(result?.rawText, 800),
     },
   };
 }
@@ -348,19 +376,20 @@ function ensureLlmSuccess(result, stepName, logger, prompt, extraContext = {}) {
 function buildJsonRecoveryPrompt(prompt, failureResult, stepName) {
   const failureMessage = failureResult?.message || "Unknown LLM error";
   const failureType = failureResult?.errorType || "llm_error";
-  const userPrompt = typeof prompt?.userPrompt === "string" ? prompt.userPrompt : "";
+  const userPrompt =
+    typeof prompt?.userPrompt === "string" ? prompt.userPrompt : "";
   const isPrompt2 =
     /Prompt 2/iu.test(stepName) ||
-    userPrompt.includes("\"draft_plan_json\"") ||
-    userPrompt.includes("\"validation_errors\"");
+    userPrompt.includes('"draft_plan_json"') ||
+    userPrompt.includes('"validation_errors"');
   const isTraditional =
     userPrompt.includes("traditional_shape_contract") ||
     userPrompt.includes("traditional_repair_contract") ||
-    userPrompt.includes("\"learning_outcomes\"");
+    userPrompt.includes('"learning_outcomes"');
   const isActive =
     userPrompt.includes("active_shape_contract") ||
     userPrompt.includes("active_repair_contract") ||
-    userPrompt.includes("\"lesson_flow\"");
+    userPrompt.includes('"lesson_flow"');
   const compactRetry = buildCompactJsonRetryAppendix({
     stepName,
     failureType,
@@ -374,15 +403,21 @@ function buildJsonRecoveryPrompt(prompt, failureResult, stepName) {
     isActive
       ? "Active: top-level header, objectives, lesson_flow, homework; each lesson_flow row has time, content, activity_type, teacher_activity, student_activity, learning_resources."
       : null,
-    failureType === "malformed_json" ? "Malformed prior output: return the full JSON object with no truncation." : null,
+    failureType === "malformed_json"
+      ? "Malformed prior output: return the full JSON object with no truncation."
+      : null,
   ]
     .filter(Boolean)
     .join(" ");
 
   return {
     ...prompt,
-    systemPrompt: [prompt?.systemPrompt || "", compactRetry, shapeHint].filter(Boolean).join("\n\n"),
-    userPrompt: [prompt?.userPrompt || "", compactRetry, shapeHint].filter(Boolean).join("\n\n"),
+    systemPrompt: [prompt?.systemPrompt || "", compactRetry, shapeHint]
+      .filter(Boolean)
+      .join("\n\n"),
+    userPrompt: [prompt?.userPrompt || "", compactRetry, shapeHint]
+      .filter(Boolean)
+      .join("\n\n"),
   };
 }
 
@@ -483,7 +518,9 @@ function detectObjectiveVerbsByLevel(text, bloomVerbEntries = []) {
       );
     }
 
-    return tokens.has(entry.normalizedVerb) || tokens.has(`و${entry.normalizedVerb}`);
+    return (
+      tokens.has(entry.normalizedVerb) || tokens.has(`و${entry.normalizedVerb}`)
+    );
   });
 }
 
@@ -558,13 +595,19 @@ function injectObjectiveIntoActiveRow(row, objectiveText, mode) {
       ? `ويقيس هذا الجزء الهدف التالي: ${objectiveText}`
       : `ويرتبط هذا الجزء بالهدف التالي: ${objectiveText}`;
 
-  const nextTeacherActivity = appendDistinctText(row.teacher_activity, extraText);
+  const nextTeacherActivity = appendDistinctText(
+    row.teacher_activity,
+    extraText,
+  );
   if (nextTeacherActivity !== row.teacher_activity) {
     row.teacher_activity = nextTeacherActivity;
     return true;
   }
 
-  const nextContent = appendDistinctText(row.content, `مرتبط بالهدف: ${objectiveText}`);
+  const nextContent = appendDistinctText(
+    row.content,
+    `مرتبط بالهدف: ${objectiveText}`,
+  );
   if (nextContent !== row.content) {
     row.content = nextContent;
     return true;
@@ -664,13 +707,20 @@ function applyDeterministicValidationRecovery(
     }
 
     const objectiveList =
-      planType === "traditional" ? recoveredPlan.learning_outcomes : recoveredPlan.objectives;
+      planType === "traditional"
+        ? recoveredPlan.learning_outcomes
+        : recoveredPlan.objectives;
 
-    if (!Array.isArray(objectiveList) || typeof objectiveList[objectiveIndex] !== "string") {
+    if (
+      !Array.isArray(objectiveList) ||
+      typeof objectiveList[objectiveIndex] !== "string"
+    ) {
       continue;
     }
 
-    const nextObjective = appendObjectiveCriterion(objectiveList[objectiveIndex]);
+    const nextObjective = appendObjectiveCriterion(
+      objectiveList[objectiveIndex],
+    );
     if (nextObjective !== objectiveList[objectiveIndex]) {
       objectiveList[objectiveIndex] = nextObjective;
       addRecovery(
@@ -696,8 +746,13 @@ function applyDeterministicValidationRecovery(
     }
 
     const objectiveList =
-      planType === "traditional" ? recoveredPlan.learning_outcomes : recoveredPlan.objectives;
-    if (!Array.isArray(objectiveList) || typeof objectiveList[objectiveIndex] !== "string") {
+      planType === "traditional"
+        ? recoveredPlan.learning_outcomes
+        : recoveredPlan.objectives;
+    if (
+      !Array.isArray(objectiveList) ||
+      typeof objectiveList[objectiveIndex] !== "string"
+    ) {
       continue;
     }
 
@@ -716,7 +771,8 @@ function applyDeterministicValidationRecovery(
   }
 
   if (planType === "active_learning") {
-    const objectiveDiagnostics = validationResult?.alignmentDiagnostics?.objectives || [];
+    const objectiveDiagnostics =
+      validationResult?.alignmentDiagnostics?.objectives || [];
 
     objectiveDiagnostics.forEach((diagnostic, index) => {
       const objectiveText = objectiveToText(recoveredPlan?.objectives?.[index]);
@@ -724,11 +780,16 @@ function applyDeterministicValidationRecovery(
         return;
       }
 
-      if (Array.isArray(diagnostic?.activityMatches) && diagnostic.activityMatches.length === 0) {
-        const row = pickActiveFlowRow(recoveredPlan, ["activity", "presentation", "intro"]);
-        if (
-          injectObjectiveIntoActiveRow(row, objectiveText, "activity")
-        ) {
+      if (
+        Array.isArray(diagnostic?.activityMatches) &&
+        diagnostic.activityMatches.length === 0
+      ) {
+        const row = pickActiveFlowRow(recoveredPlan, [
+          "activity",
+          "presentation",
+          "intro",
+        ]);
+        if (injectObjectiveIntoActiveRow(row, objectiveText, "activity")) {
           addRecovery(
             "recovery.active_alignment.objective_activity",
             diagnostic.objectivePath,
@@ -737,11 +798,12 @@ function applyDeterministicValidationRecovery(
         }
       }
 
-      if (Array.isArray(diagnostic?.assessmentMatches) && diagnostic.assessmentMatches.length === 0) {
+      if (
+        Array.isArray(diagnostic?.assessmentMatches) &&
+        diagnostic.assessmentMatches.length === 0
+      ) {
         const row = pickActiveFlowRow(recoveredPlan, ["assessment"]);
-        if (
-          injectObjectiveIntoActiveRow(row, objectiveText, "assessment")
-        ) {
+        if (injectObjectiveIntoActiveRow(row, objectiveText, "assessment")) {
           addRecovery(
             "recovery.active_alignment.objective_assessment",
             diagnostic.objectivePath,
@@ -763,7 +825,10 @@ function applyDeterministicValidationRecovery(
     }
 
     const nextText = stripAwkwardArabicTemplates(currentText);
-    if (nextText !== currentText && writeValueAtPlanPath(recoveredPlan, error.path, nextText)) {
+    if (
+      nextText !== currentText &&
+      writeValueAtPlanPath(recoveredPlan, error.path, nextText)
+    ) {
       addRecovery(
         "recovery.arabic.awkward_removed",
         error.path,
@@ -775,14 +840,17 @@ function applyDeterministicValidationRecovery(
   if (planType === "traditional" && lessonContext) {
     const needsSourceFix = (validationResult.errors || []).some(
       (err) =>
-        err?.code === "business.source.required" || err?.code === "business.source.mismatch",
+        err?.code === "business.source.required" ||
+        err?.code === "business.source.mismatch",
     );
 
     if (needsSourceFix) {
       const expectedSource = buildLessonSourceText(lessonContext);
       if (expectedSource) {
         const previous =
-          typeof recoveredPlan.source === "string" ? recoveredPlan.source.trim() : "";
+          typeof recoveredPlan.source === "string"
+            ? recoveredPlan.source.trim()
+            : "";
         if (previous !== expectedSource) {
           recoveredPlan.source = expectedSource;
           addRecovery(
@@ -861,15 +929,21 @@ async function generateStepWithFallback({
     model: fallbackModel,
   });
 
-  ensureLlmSuccess(retryResult, `${stepName} fallback retry`, logger, retryPrompt, {
-    ...extraContext,
-    model_selection: {
-      initial: primaryModel,
-      retry: fallbackModel,
+  ensureLlmSuccess(
+    retryResult,
+    `${stepName} fallback retry`,
+    logger,
+    retryPrompt,
+    {
+      ...extraContext,
+      model_selection: {
+        initial: primaryModel,
+        retry: fallbackModel,
+      },
+      initial_error_type: initialResult?.errorType || null,
+      initial_error_message: initialResult?.message || null,
     },
-    initial_error_type: initialResult?.errorType || null,
-    initial_error_message: initialResult?.message || null,
-  });
+  );
 
   logLlmUsage(logger, `${stepName} fallback retry`, retryResult.usage, {
     ...extraContext,
@@ -899,7 +973,9 @@ async function generateStepWithFallback({
 
 function buildClassLabel(classRow) {
   const gradeLabel =
-    typeof classRow?.grade_label === "string" ? classRow.grade_label.trim() : "";
+    typeof classRow?.grade_label === "string"
+      ? classRow.grade_label.trim()
+      : "";
   const sectionLabel =
     typeof classRow?.section_label === "string"
       ? classRow.section_label.trim()
@@ -942,10 +1018,14 @@ async function resolveClassInfo(request, teacherId) {
 }
 
 export function createLessonPlanGenerationService(dependencies = {}) {
-  const knowledgeLoader = dependencies.knowledgeLoader || loadLessonPlanKnowledge;
-  const resourceSelector = dependencies.resourceSelector || selectPlanRuntimeResources;
-  const prompt1Builder = dependencies.prompt1Builder || buildPrompt1DraftGenerator;
-  const prompt2Builder = dependencies.prompt2Builder || buildPrompt2PedagogicalTuner;
+  const knowledgeLoader =
+    dependencies.knowledgeLoader || loadLessonPlanKnowledge;
+  const resourceSelector =
+    dependencies.resourceSelector || selectPlanRuntimeResources;
+  const prompt1Builder =
+    dependencies.prompt1Builder || buildPrompt1DraftGenerator;
+  const prompt2Builder =
+    dependencies.prompt2Builder || buildPrompt2PedagogicalTuner;
   const llmClient = dependencies.llmClient || createGroqClient();
   const stepModels = dependencies.stepModels || resolveLessonPlanStepModels();
   const normalizer = dependencies.normalizer || normalizeLessonPlan;
@@ -977,7 +1057,10 @@ export function createLessonPlanGenerationService(dependencies = {}) {
       }
 
       const knowledge = knowledgeLoader();
-      const { targetSchema, strategyBank } = resourceSelector(request.plan_type, knowledge);
+      const { targetSchema, strategyBank } = resourceSelector(
+        request.plan_type,
+        knowledge,
+      );
 
       const { className, sectionLabel, section } = await resolveClassInfo(
         request,
@@ -1040,11 +1123,16 @@ export function createLessonPlanGenerationService(dependencies = {}) {
           normalizationResult,
         });
 
-        if (Array.isArray(result?.repairSummary) && result.repairSummary.length > 0) {
+        if (
+          Array.isArray(result?.repairSummary) &&
+          result.repairSummary.length > 0
+        ) {
           logger.info(
             {
               repair_summary: result.repairSummary,
-              step: result?.isValid ? "validation_passed_after_safe_repairs" : "validation_failed_after_safe_repairs",
+              step: result?.isValid
+                ? "validation_passed_after_safe_repairs"
+                : "validation_failed_after_safe_repairs",
             },
             "lesson plan safe repairs applied before validation",
           );
@@ -1052,8 +1140,11 @@ export function createLessonPlanGenerationService(dependencies = {}) {
 
         return {
           ...result,
-          normalizedPlan: result?.normalizedPlan || normalizationResult.normalizedPlan,
-          normalizationRepairSummary: Array.isArray(normalizationResult.repairSummary)
+          normalizedPlan:
+            result?.normalizedPlan || normalizationResult.normalizedPlan,
+          normalizationRepairSummary: Array.isArray(
+            normalizationResult.repairSummary,
+          )
             ? normalizationResult.repairSummary
             : [],
         };
@@ -1080,7 +1171,9 @@ export function createLessonPlanGenerationService(dependencies = {}) {
           "lesson plan deterministic recovery applied before retry",
         );
 
-        const recoveredValidationResult = validateCandidatePlan(recoveryAttempt.recoveredPlan);
+        const recoveredValidationResult = validateCandidatePlan(
+          recoveryAttempt.recoveredPlan,
+        );
         return {
           ...recoveryAttempt,
           validationResult: recoveredValidationResult,
@@ -1113,12 +1206,21 @@ export function createLessonPlanGenerationService(dependencies = {}) {
       });
       retryOccurred = retryOccurred || prompt1Step.retryOccurred;
       const draftResult = prompt1Step.result;
-      ensureLlmSuccess(draftResult, "Prompt 1 draft generation", logger, prompt1, {
-        lesson_id: request.lesson_id,
-        plan_type: request.plan_type,
-        attempt: "initial",
-      });
-      logger.info({ raw_prompt_1_output: draftResult.rawText }, "prompt 1 raw output");
+      ensureLlmSuccess(
+        draftResult,
+        "Prompt 1 draft generation",
+        logger,
+        prompt1,
+        {
+          lesson_id: request.lesson_id,
+          plan_type: request.plan_type,
+          attempt: "initial",
+        },
+      );
+      logger.info(
+        { raw_prompt_1_output: draftResult.rawText },
+        "prompt 1 raw output",
+      );
       const normalizedDraftPlan = normalizeGeneratedPlanOutput(
         draftResult.data,
         targetSchema,
@@ -1133,14 +1235,20 @@ export function createLessonPlanGenerationService(dependencies = {}) {
         let postP1Validation = validateCandidatePlan(candidatePlan);
         candidatePlan = postP1Validation.normalizedPlan || candidatePlan;
         if (!postP1Validation.isValid) {
-          const recovered = recoverCandidatePlan(candidatePlan, postP1Validation);
+          const recovered = recoverCandidatePlan(
+            candidatePlan,
+            postP1Validation,
+          );
           if (recovered) {
-            candidatePlan = recovered.validationResult.normalizedPlan || recovered.recoveredPlan;
+            candidatePlan =
+              recovered.validationResult.normalizedPlan ||
+              recovered.recoveredPlan;
             postP1Validation = recovered.validationResult;
           }
         }
 
-        const normalizationRepairs = postP1Validation.normalizationRepairSummary || [];
+        const normalizationRepairs =
+          postP1Validation.normalizationRepairSummary || [];
         if (postP1Validation.isValid && normalizationRepairs.length === 0) {
           prompt2Skipped = true;
           logger.info(
@@ -1179,12 +1287,21 @@ export function createLessonPlanGenerationService(dependencies = {}) {
         });
         retryOccurred = retryOccurred || prompt2Step.retryOccurred;
         const tunedResult = prompt2Step.result;
-        ensureLlmSuccess(tunedResult, "Prompt 2 pedagogical tuning", logger, prompt2Initial, {
-          lesson_id: request.lesson_id,
-          plan_type: request.plan_type,
-          attempt: "initial",
-        });
-        logger.info({ raw_prompt_2_output: tunedResult.rawText }, "prompt 2 raw output");
+        ensureLlmSuccess(
+          tunedResult,
+          "Prompt 2 pedagogical tuning",
+          logger,
+          prompt2Initial,
+          {
+            lesson_id: request.lesson_id,
+            plan_type: request.plan_type,
+            attempt: "initial",
+          },
+        );
+        logger.info(
+          { raw_prompt_2_output: tunedResult.rawText },
+          "prompt 2 raw output",
+        );
 
         candidatePlan = normalizeGeneratedPlanOutput(
           tunedResult.data,
@@ -1200,7 +1317,9 @@ export function createLessonPlanGenerationService(dependencies = {}) {
       if (!validationResult.isValid) {
         const recovered = recoverCandidatePlan(candidatePlan, validationResult);
         if (recovered) {
-          candidatePlan = recovered.validationResult.normalizedPlan || recovered.recoveredPlan;
+          candidatePlan =
+            recovered.validationResult.normalizedPlan ||
+            recovered.recoveredPlan;
           validationResult = recovered.validationResult;
         }
       }
@@ -1239,13 +1358,21 @@ export function createLessonPlanGenerationService(dependencies = {}) {
             validation_error_count: validationResult.errors.length,
           },
         );
-        logLlmUsage(logger, "Prompt 2 retry with validation errors", retryResult.usage, {
-          lesson_id: request.lesson_id,
-          plan_type: request.plan_type,
-          attempt: "retry",
-          validation_error_count: validationResult.errors.length,
-        });
-        logger.info({ raw_prompt_2_retry_output: retryResult.rawText }, "prompt 2 retry raw output");
+        logLlmUsage(
+          logger,
+          "Prompt 2 retry with validation errors",
+          retryResult.usage,
+          {
+            lesson_id: request.lesson_id,
+            plan_type: request.plan_type,
+            attempt: "retry",
+            validation_error_count: validationResult.errors.length,
+          },
+        );
+        logger.info(
+          { raw_prompt_2_retry_output: retryResult.rawText },
+          "prompt 2 retry raw output",
+        );
 
         candidatePlan = normalizeGeneratedPlanOutput(
           retryResult.data,
@@ -1258,9 +1385,14 @@ export function createLessonPlanGenerationService(dependencies = {}) {
         candidatePlan = validationResult.normalizedPlan || candidatePlan;
 
         if (!validationResult.isValid) {
-          const recovered = recoverCandidatePlan(candidatePlan, validationResult);
+          const recovered = recoverCandidatePlan(
+            candidatePlan,
+            validationResult,
+          );
           if (recovered) {
-            candidatePlan = recovered.validationResult.normalizedPlan || recovered.recoveredPlan;
+            candidatePlan =
+              recovered.validationResult.normalizedPlan ||
+              recovered.recoveredPlan;
             validationResult = recovered.validationResult;
           }
         }
@@ -1298,11 +1430,13 @@ export function createLessonPlanGenerationService(dependencies = {}) {
         typeof request.period_order === "string"
           ? request.period_order.trim()
           : "";
-      candidatePlan.header.time = normalizedPeriodOrder || now.toLocaleTimeString("ar-SA", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      });
+      candidatePlan.header.time =
+        normalizedPeriodOrder ||
+        now.toLocaleTimeString("ar-SA", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
 
       const savedPlan = await repository.create({
         teacherId,
@@ -1314,6 +1448,7 @@ export function createLessonPlanGenerationService(dependencies = {}) {
         durationMinutes: request.duration_minutes,
         planType: request.plan_type,
         planJson: candidatePlan,
+        periodOrder: normalizedPeriodOrder || null,
         validationStatus: "passed",
         retryOccurred,
       });

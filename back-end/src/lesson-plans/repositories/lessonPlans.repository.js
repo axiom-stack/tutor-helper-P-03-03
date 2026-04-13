@@ -28,6 +28,7 @@ function toPlanRecord(row, planType) {
     grade: row.grade,
     unit: row.unit,
     duration_minutes: Number(row.duration_minutes),
+    period_order: row.period_order || null,
     plan_type: planType,
     plan_json: parsedJson,
     validation_status: row.validation_status,
@@ -106,6 +107,7 @@ export function createLessonPlansRepository(dbClient = turso) {
       durationMinutes,
       planType,
       planJson,
+      periodOrder = null,
       validationStatus = "passed",
       retryOccurred = false,
     }) {
@@ -119,8 +121,8 @@ export function createLessonPlansRepository(dbClient = turso) {
       const insertResult = await dbClient.execute({
         sql: `
           INSERT INTO ${tableName}
-            (public_id, teacher_id, lesson_id, lesson_title, subject, grade, unit, duration_minutes, plan_json, validation_status, retry_occurred)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (public_id, teacher_id, lesson_id, lesson_title, subject, grade, unit, duration_minutes, period_order, plan_json, validation_status, retry_occurred)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         args: [
           null,
@@ -131,6 +133,7 @@ export function createLessonPlansRepository(dbClient = turso) {
           grade,
           unit,
           durationMinutes,
+          periodOrder || null,
           JSON.stringify(planJson),
           validationStatus,
           retryOccurred ? 1 : 0,

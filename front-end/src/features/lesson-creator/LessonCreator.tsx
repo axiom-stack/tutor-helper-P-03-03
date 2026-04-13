@@ -1133,24 +1133,6 @@ function LessonCreator() {
                 </li>
 
                 <li className="lcp__classic-row">
-                  <label htmlFor="lcp-plan-type">نوع الخطة</label>
-                  <select
-                    id="lcp-plan-type"
-                    value={planType}
-                    onChange={(event) =>
-                      setPlanType(event.target.value as PlanType)
-                    }
-                    disabled={selectedLessonId === '' || isGenerating}
-                  >
-                    {PLAN_TYPE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </li>
-
-                <li className="lcp__classic-row">
                   <label htmlFor="lcp-period-select">الحصة</label>
                   <select
                     id="lcp-period-select"
@@ -1164,6 +1146,24 @@ function LessonCreator() {
                     {PERIOD_OPTIONS.map((period) => (
                       <option key={period} value={period}>
                         {period}
+                      </option>
+                    ))}
+                  </select>
+                </li>
+
+                <li className="lcp__classic-row">
+                  <label htmlFor="lcp-plan-type">نوع الخطة</label>
+                  <select
+                    id="lcp-plan-type"
+                    value={planType}
+                    onChange={(event) =>
+                      setPlanType(event.target.value as PlanType)
+                    }
+                    disabled={selectedLessonId === '' || isGenerating}
+                  >
+                    {PLAN_TYPE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
                       </option>
                     ))}
                   </select>
