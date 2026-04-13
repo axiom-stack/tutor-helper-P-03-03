@@ -1,5 +1,5 @@
-import Docxtemplater from 'docxtemplater/build/docxtemplater.js';
-import ImageModule from 'docxtemplater-image-module-free/build/imagemodule.js';
+import Docxtemplater from 'docxtemplater';
+import ImageModule from 'docxtemplater-image-module-free';
 import PizZip from 'pizzip';
 
 import { TEMPLATE_CACHE_NAME } from '../examTemplateCache';
