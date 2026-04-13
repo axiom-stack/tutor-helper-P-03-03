@@ -60,9 +60,7 @@ function buildProfileUpdates(body = {}, options = {}) {
   if (Object.prototype.hasOwnProperty.call(body, "school_logo_url")) {
     const parsedValue = normalizeOptionalImageDataUrl(body.school_logo_url);
     if (Number.isNaN(parsedValue)) {
-      errors.push(
-        "school_logo_url must be a base64 image data URL or null",
-      );
+      errors.push("school_logo_url must be a base64 image data URL or null");
     } else {
       updates.school_logo_url = parsedValue;
     }
@@ -149,9 +147,13 @@ export function createUsersController(
         }
 
         const rawUsername =
-          typeof req.body?.username === "string" ? req.body.username.trim() : "";
+          typeof req.body?.username === "string"
+            ? req.body.username.trim()
+            : "";
         const displayName =
-          typeof req.body?.display_name === "string" ? req.body.display_name.trim() : rawUsername;
+          typeof req.body?.display_name === "string"
+            ? req.body.display_name.trim()
+            : rawUsername;
         const password =
           typeof req.body?.password === "string" ? req.body.password : "";
 
@@ -329,7 +331,9 @@ export function createUsersController(
 
         if (hasDisplayNameField) {
           if (typeof req.body.display_name !== "string") {
-            return res.status(400).json({ error: "display_name must be a string" });
+            return res
+              .status(400)
+              .json({ error: "display_name must be a string" });
           }
 
           normalizedDisplayName = req.body.display_name.trim();
@@ -366,9 +370,8 @@ export function createUsersController(
         }
 
         if (hasUsernameField) {
-          const existingUser = await usersRepository.getUserByUsername(
-            normalizedUsername,
-          );
+          const existingUser =
+            await usersRepository.getUserByUsername(normalizedUsername);
           if (existingUser && Number(existingUser.id) !== teacherId) {
             return res.status(409).json({ error: "Username already exists" });
           }
@@ -399,43 +402,70 @@ export function createUsersController(
     },
 
     async deleteTeacher(req, res) {
-      console.log(`[users.controller.js] deleteTeacher called. req.params:`, req.params, `req.user:`, req.user);
+      console.log(
+        `[users.controller.js] deleteTeacher called. req.params:`,
+        req.params,
+        `req.user:`,
+        req.user,
+      );
       try {
         if (req.user.role !== "admin") {
-          console.log(`[users.controller.js] deleteTeacher - user is not admin (role: ${req.user.role}). Returning 403.`);
+          console.log(
+            `[users.controller.js] deleteTeacher - user is not admin (role: ${req.user.role}). Returning 403.`,
+          );
           return res.status(403).json({ error: "Unauthorized" });
         }
 
         const teacherId = parsePositiveInteger(req.params.teacherId);
-        console.log(`[users.controller.js] deleteTeacher - parsed teacherId: ${teacherId}`);
+        console.log(
+          `[users.controller.js] deleteTeacher - parsed teacherId: ${teacherId}`,
+        );
         if (!teacherId) {
-          console.log(`[users.controller.js] deleteTeacher - invalid teacherId. Returning 400.`);
+          console.log(
+            `[users.controller.js] deleteTeacher - invalid teacherId. Returning 400.`,
+          );
           return res
             .status(400)
             .json({ error: "teacherId must be a positive integer" });
         }
 
         const teacher = await usersRepository.getUserById(teacherId);
-        console.log(`[users.controller.js] deleteTeacher - fetched teacher:`, teacher);
+        console.log(
+          `[users.controller.js] deleteTeacher - fetched teacher:`,
+          teacher,
+        );
         if (!teacher) {
-          console.log(`[users.controller.js] deleteTeacher - no teacher found. Returning 404.`);
+          console.log(
+            `[users.controller.js] deleteTeacher - no teacher found. Returning 404.`,
+          );
           return res.status(404).json({ error: "Teacher not found" });
         }
 
         if (teacher.role !== "teacher") {
-          console.log(`[users.controller.js] deleteTeacher - fetched user is not a teacher (role: ${teacher.role}). Returning 400.`);
+          console.log(
+            `[users.controller.js] deleteTeacher - fetched user is not a teacher (role: ${teacher.role}). Returning 400.`,
+          );
           return res
             .status(400)
             .json({ error: "Provided user is not a teacher" });
         }
 
-        console.log(`[users.controller.js] deleteTeacher - calling usersRepository.deleteTeacherById(${teacherId})...`);
-        const deletedTeacher = await usersRepository.deleteTeacherById(teacherId);
-        console.log(`[users.controller.js] deleteTeacher - deletedTeacher result:`, deletedTeacher);
-        
+        console.log(
+          `[users.controller.js] deleteTeacher - calling usersRepository.deleteTeacherById(${teacherId})...`,
+        );
+        const deletedTeacher =
+          await usersRepository.deleteTeacherById(teacherId);
+        console.log(
+          `[users.controller.js] deleteTeacher - deletedTeacher result:`,
+          deletedTeacher,
+        );
+
         return res.status(200).json({ teacher: deletedTeacher });
       } catch (error) {
-        console.error(`[users.controller.js] deleteTeacher - Error occurred:`, error);
+        console.error(
+          `[users.controller.js] deleteTeacher - Error occurred:`,
+          error,
+        );
         req.log?.error?.({ error }, "Failed to delete teacher");
         return res.status(500).json({ error: "Internal server error" });
       }
@@ -465,9 +495,10 @@ export function createUsersController(
             .json({ error: "Provided user is not a teacher" });
         }
 
-        const newPassword = typeof req.body?.new_password === "string"
-          ? req.body.new_password.trim()
-          : "";
+        const newPassword =
+          typeof req.body?.new_password === "string"
+            ? req.body.new_password.trim()
+            : "";
         if (newPassword.length < MIN_PASSWORD_LENGTH) {
           return res.status(400).json({
             error: `new_password must be at least ${MIN_PASSWORD_LENGTH} characters`,
@@ -478,7 +509,8 @@ export function createUsersController(
         await usersRepository.updatePasswordByUserId(teacherId, hashedPassword);
 
         return res.status(200).json({
-          message: "Password has been reset. The teacher can log in and change it.",
+          message:
+            "Password has been reset. The teacher can log in and change it.",
         });
       } catch (error) {
         req.log?.error?.({ error }, "Failed to reset teacher password");
