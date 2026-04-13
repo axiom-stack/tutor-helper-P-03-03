@@ -302,6 +302,47 @@ test("extracts nested plan object from wrapped Prompt 2 output", async () => {
   assert.deepEqual(result.plan_json, validPlan);
 });
 
+test("skips Prompt 2 when skip flag is enabled and Prompt 1 draft validates with no normalization repairs", async () => {
+  const validPlan = createTraditionalPlan();
+  const llmCalls = [];
+  const service = createLessonPlanGenerationService(
+    createBaseDependencies({
+      skipPrompt2WhenValid: () => true,
+      llmClient: {
+        generateJson: async (payload) => {
+          llmCalls.push(payload);
+          return {
+            ok: true,
+            data: validPlan,
+            rawText: JSON.stringify(validPlan),
+            usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
+          };
+        },
+      },
+      normalizer: ({ plan }) => ({
+        normalizedPlan: plan,
+        repairSummary: [],
+        issues: [],
+        phaseBudgets: {},
+      }),
+      validator: ({ plan }) => ({
+        isValid: true,
+        errors: [],
+        normalizedPlan: plan,
+        repairSummary: [],
+      }),
+    }),
+  );
+
+  const result = await service.generate(requestPayload, {
+    teacherId: 2,
+    logger: { info() {}, warn() {}, error() {} },
+  });
+
+  assert.equal(llmCalls.length, 1);
+  assert.equal(result.id, "trd_1");
+});
+
 test("uses period_order as header.time when provided", async () => {
   const llmResponses = [createTraditionalPlan(), createTraditionalPlan()].map((plan) => ({
     ok: true,
@@ -481,8 +522,8 @@ test("retries Prompt 1 once with the configured fallback model on malformed JSON
   assert.equal(llmCalls[0].model, "primary-prompt1-model");
   assert.equal(llmCalls[1].model, "retry-prompt1-model");
   assert.equal(llmCalls[2].model, "primary-prompt2-model");
-  assert.match(llmCalls[1].systemPrompt, /CRITICAL OUTPUT CONTRACT:/u);
-  assert.match(llmCalls[1].systemPrompt, /Prompt 1 retry rule:/u);
+  assert.match(llmCalls[1].systemPrompt, /JSON_CONTRACT_RETRY:/u);
+  assert.match(llmCalls[1].systemPrompt, /P1:/u);
 });
 
 test("retries Prompt 2 once with the configured fallback model on malformed JSON", async () => {
@@ -526,8 +567,8 @@ test("retries Prompt 2 once with the configured fallback model on malformed JSON
   assert.equal(llmCalls[0].model, "primary-prompt1-model");
   assert.equal(llmCalls[1].model, "primary-prompt2-model");
   assert.equal(llmCalls[2].model, "retry-prompt2-model");
-  assert.match(llmCalls[2].systemPrompt, /CRITICAL OUTPUT CONTRACT:/u);
-  assert.match(llmCalls[2].systemPrompt, /Prompt 2 retry rule:/u);
+  assert.match(llmCalls[2].systemPrompt, /JSON_CONTRACT_RETRY:/u);
+  assert.match(llmCalls[2].systemPrompt, /P2:/u);
 });
 
 test("retries once when initial candidate is not safely repairable", async () => {

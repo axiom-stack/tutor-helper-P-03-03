@@ -3,8 +3,17 @@ import { loadLessonPlanKnowledge } from "../knowledgeLoader.js";
 import { selectPlanRuntimeResources } from "../selectors.js";
 import { buildPrompt1DraftGenerator } from "../prompts/prompt1Builder.js";
 import { buildPrompt2PedagogicalTuner } from "../prompts/prompt2Builder.js";
+import {
+  buildCompactJsonRetryAppendix,
+  readLessonPlanSkipPrompt2WhenValid,
+} from "../prompts/promptShared.js";
 import { createGroqClient } from "../llm/groqClient.js";
-import { normalizeArabicForMatching, normalizeLessonPlan, objectiveToText } from "../lessonPlanNormalizer.js";
+import {
+  buildLessonSourceText,
+  normalizeArabicForMatching,
+  normalizeLessonPlan,
+  objectiveToText,
+} from "../lessonPlanNormalizer.js";
 import { validateLessonPlan } from "../validators/lessonPlanValidator.js";
 import { createLessonPlansRepository } from "../repositories/lessonPlans.repository.js";
 
@@ -195,6 +204,27 @@ export function resolveLessonPlanStepModels(env = process.env) {
   };
 }
 
+export { readLessonPlanSkipPrompt2WhenValid };
+
+function logLlmUsage(logger, stepName, usage, extraContext = {}) {
+  if (!usage || typeof usage !== "object") {
+    return;
+  }
+
+  logger?.info?.(
+    {
+      step: stepName,
+      llm_usage: {
+        prompt_tokens: usage.prompt_tokens ?? null,
+        completion_tokens: usage.completion_tokens ?? null,
+        total_tokens: usage.total_tokens ?? null,
+      },
+      ...extraContext,
+    },
+    "lesson plan LLM usage",
+  );
+}
+
 function buildLlmFailureDetails(result, stepName) {
   const details = [
     {
@@ -331,45 +361,28 @@ function buildJsonRecoveryPrompt(prompt, failureResult, stepName) {
     userPrompt.includes("active_shape_contract") ||
     userPrompt.includes("active_repair_contract") ||
     userPrompt.includes("\"lesson_flow\"");
-  const strictJsonReminder = [
-    "CRITICAL OUTPUT CONTRACT:",
-    "Return exactly one valid JSON object.",
-    "The first character must be { and the last character must be }.",
-    "Do not wrap the JSON in markdown fences.",
-    "Do not include any explanation before or after the JSON object.",
-    "Use strict JSON syntax with double-quoted keys and strings only.",
-    "Do not use trailing commas.",
-  ].join(" ");
-  const stepSpecificReminder = [
-    isPrompt2
-      ? "Prompt 2 retry rule: output the repaired lesson-plan object itself only and never return wrapper keys such as task, inputs, draft_plan_json, validation_errors, or metadata."
-      : "Prompt 1 retry rule: follow the requested schema exactly and do not invent wrapper keys, commentary, or prose outside the JSON object.",
+  const compactRetry = buildCompactJsonRetryAppendix({
+    stepName,
+    failureType,
+    failureMessage,
+    isPrompt2,
+  });
+  const shapeHint = [
     isTraditional
-      ? "Traditional contract reminder: keep the exact top-level keys header, intro, concepts, learning_outcomes, teaching_strategies, activities, learning_resources, assessment, homework, source. learning_outcomes, activities, and assessment must stay arrays of plain strings."
+      ? "Traditional: top-level keys header, intro, concepts, learning_outcomes, teaching_strategies, activities, learning_resources, assessment, homework, source; learning_outcomes/activities/assessment = arrays of plain strings only."
       : null,
     isActive
-      ? "Active-learning contract reminder: keep the exact top-level keys header, objectives, lesson_flow, homework. Each lesson_flow row must keep exactly the keys time, content, activity_type, teacher_activity, student_activity, learning_resources."
+      ? "Active: top-level header, objectives, lesson_flow, homework; each lesson_flow row has time, content, activity_type, teacher_activity, student_activity, learning_resources."
       : null,
-    failureType === "malformed_json"
-      ? "The previous response was malformed JSON, so return the full corrected object with no truncation."
-      : null,
+    failureType === "malformed_json" ? "Malformed prior output: return the full JSON object with no truncation." : null,
   ]
     .filter(Boolean)
     .join(" ");
 
   return {
     ...prompt,
-    systemPrompt: [prompt?.systemPrompt || "", strictJsonReminder, stepSpecificReminder]
-      .filter(Boolean)
-      .join("\n\n"),
-    userPrompt: [
-      prompt?.userPrompt || "",
-      `Retry context for ${stepName}: the previous attempt failed with ${failureType}. ${failureMessage}`,
-      stepSpecificReminder,
-      "Return the corrected response now as JSON only.",
-    ]
-      .filter(Boolean)
-      .join("\n\n"),
+    systemPrompt: [prompt?.systemPrompt || "", compactRetry, shapeHint].filter(Boolean).join("\n\n"),
+    userPrompt: [prompt?.userPrompt || "", compactRetry, shapeHint].filter(Boolean).join("\n\n"),
   };
 }
 
@@ -560,11 +573,72 @@ function injectObjectiveIntoActiveRow(row, objectiveText, mode) {
   return false;
 }
 
+const AWKWARD_TEMPLATE_PHRASES = ["ستستمر المحاضرة", "سوف تستمر المحاضرة"];
+
+function stripAwkwardArabicTemplates(text) {
+  if (typeof text !== "string") {
+    return text;
+  }
+
+  let next = text;
+  for (const phrase of AWKWARD_TEMPLATE_PHRASES) {
+    next = next.split(phrase).join(" ");
+  }
+
+  return next.replace(/\s+/gu, " ").trim();
+}
+
+function readValueAtPlanPath(plan, path) {
+  if (typeof path !== "string" || !path) {
+    return undefined;
+  }
+
+  const segments = path.split(".");
+  let cur = plan;
+  for (const seg of segments) {
+    const idx = Number(seg);
+    cur = Number.isInteger(idx) ? cur?.[idx] : cur?.[seg];
+    if (cur === undefined || cur === null) {
+      return undefined;
+    }
+  }
+
+  return cur;
+}
+
+function writeValueAtPlanPath(plan, path, value) {
+  if (typeof path !== "string" || !path) {
+    return false;
+  }
+
+  const segments = path.split(".");
+  if (segments.length === 0) {
+    return false;
+  }
+
+  let parent = plan;
+  for (let i = 0; i < segments.length - 1; i++) {
+    const seg = segments[i];
+    const idx = Number(seg);
+    parent = Number.isInteger(idx) ? parent?.[idx] : parent?.[seg];
+    if (parent == null || typeof parent !== "object") {
+      return false;
+    }
+  }
+
+  const last = segments[segments.length - 1];
+  const lastIdx = Number(last);
+  const key = Number.isInteger(lastIdx) ? lastIdx : last;
+  parent[key] = value;
+  return true;
+}
+
 function applyDeterministicValidationRecovery(
   planCandidate,
   planType,
   validationResult,
   bloomVerbsGeneration = {},
+  lessonContext = null,
 ) {
   if (!validationResult || validationResult.isValid) {
     return null;
@@ -678,6 +752,49 @@ function applyDeterministicValidationRecovery(
     });
   }
 
+  for (const error of validationResult.errors || []) {
+    if (error?.code !== "business.arabic.awkward_phrase") {
+      continue;
+    }
+
+    const currentText = readValueAtPlanPath(recoveredPlan, error.path);
+    if (typeof currentText !== "string") {
+      continue;
+    }
+
+    const nextText = stripAwkwardArabicTemplates(currentText);
+    if (nextText !== currentText && writeValueAtPlanPath(recoveredPlan, error.path, nextText)) {
+      addRecovery(
+        "recovery.arabic.awkward_removed",
+        error.path,
+        "Removed awkward classroom template phrase",
+      );
+    }
+  }
+
+  if (planType === "traditional" && lessonContext) {
+    const needsSourceFix = (validationResult.errors || []).some(
+      (err) =>
+        err?.code === "business.source.required" || err?.code === "business.source.mismatch",
+    );
+
+    if (needsSourceFix) {
+      const expectedSource = buildLessonSourceText(lessonContext);
+      if (expectedSource) {
+        const previous =
+          typeof recoveredPlan.source === "string" ? recoveredPlan.source.trim() : "";
+        if (previous !== expectedSource) {
+          recoveredPlan.source = expectedSource;
+          addRecovery(
+            "recovery.source.canonical",
+            "source",
+            "Set source to canonical subject - unit - lesson title",
+          );
+        }
+      }
+    }
+  }
+
   if (recoverySummary.length === 0) {
     return null;
   }
@@ -703,6 +820,7 @@ async function generateStepWithFallback({
   });
 
   if (initialResult?.ok) {
+    logLlmUsage(logger, stepName, initialResult.usage, extraContext);
     return {
       result: initialResult,
       retryOccurred: false,
@@ -751,6 +869,15 @@ async function generateStepWithFallback({
     },
     initial_error_type: initialResult?.errorType || null,
     initial_error_message: initialResult?.message || null,
+  });
+
+  logLlmUsage(logger, `${stepName} fallback retry`, retryResult.usage, {
+    ...extraContext,
+    model_selection: {
+      initial: primaryModel,
+      retry: fallbackModel,
+    },
+    initial_error_type: initialResult?.errorType || null,
   });
 
   logger?.info?.(
@@ -824,6 +951,8 @@ export function createLessonPlanGenerationService(dependencies = {}) {
   const normalizer = dependencies.normalizer || normalizeLessonPlan;
   const validator = dependencies.validator || validateLessonPlan;
   const repository = dependencies.repository || createLessonPlansRepository();
+  const skipPrompt2WhenValid =
+    dependencies.skipPrompt2WhenValid || readLessonPlanSkipPrompt2WhenValid;
 
   return {
     async generate(request, context = {}) {
@@ -879,84 +1008,6 @@ export function createLessonPlanGenerationService(dependencies = {}) {
         "lesson plan generation request received",
       );
 
-      const prompt1 = prompt1Builder({
-        request: enrichedRequest,
-        planType: request.plan_type,
-        targetSchema,
-        pedagogicalRules: knowledge.pedagogical_rules,
-        bloomVerbsGeneration: knowledge.bloom_verbs_generation,
-        strategyBank,
-      });
-
-      let retryOccurred = false;
-
-      const prompt1Step = await generateStepWithFallback({
-        llmClient,
-        prompt: prompt1,
-        stepName: "Prompt 1 draft generation",
-        logger,
-        primaryModel: stepModels.prompt1,
-        fallbackModel: stepModels.prompt1Retry,
-        extraContext: {
-          lesson_id: request.lesson_id,
-          plan_type: request.plan_type,
-          attempt: "initial",
-        },
-      });
-      retryOccurred = retryOccurred || prompt1Step.retryOccurred;
-      const draftResult = prompt1Step.result;
-      ensureLlmSuccess(draftResult, "Prompt 1 draft generation", logger, prompt1, {
-        lesson_id: request.lesson_id,
-        plan_type: request.plan_type,
-        attempt: "initial",
-      });
-      logger.info({ raw_prompt_1_output: draftResult.rawText }, "prompt 1 raw output");
-      const normalizedDraftPlan = normalizeGeneratedPlanOutput(
-        draftResult.data,
-        targetSchema,
-        logger,
-        "prompt_1",
-      );
-
-      const prompt2Initial = prompt2Builder({
-        request: enrichedRequest,
-        planType: request.plan_type,
-        draftPlanJson: normalizedDraftPlan,
-        pedagogicalRules: knowledge.pedagogical_rules,
-        bloomVerbsGeneration: knowledge.bloom_verbs_generation,
-        strategyBank,
-        targetSchema,
-      });
-
-      const prompt2Step = await generateStepWithFallback({
-        llmClient,
-        prompt: prompt2Initial,
-        stepName: "Prompt 2 pedagogical tuning",
-        logger,
-        primaryModel: stepModels.prompt2,
-        fallbackModel: stepModels.prompt2Retry,
-        extraContext: {
-          lesson_id: request.lesson_id,
-          plan_type: request.plan_type,
-          attempt: "initial",
-        },
-      });
-      retryOccurred = retryOccurred || prompt2Step.retryOccurred;
-      const tunedResult = prompt2Step.result;
-      ensureLlmSuccess(tunedResult, "Prompt 2 pedagogical tuning", logger, prompt2Initial, {
-        lesson_id: request.lesson_id,
-        plan_type: request.plan_type,
-        attempt: "initial",
-      });
-      logger.info({ raw_prompt_2_output: tunedResult.rawText }, "prompt 2 raw output");
-
-      let candidatePlan = normalizeGeneratedPlanOutput(
-        tunedResult.data,
-        targetSchema,
-        logger,
-        "prompt_2_initial",
-      );
-
       const lessonValidationContext = {
         lessonTitle: enrichedRequest.lesson_title,
         lessonContent: enrichedRequest.lesson_content,
@@ -1002,6 +1053,9 @@ export function createLessonPlanGenerationService(dependencies = {}) {
         return {
           ...result,
           normalizedPlan: result?.normalizedPlan || normalizationResult.normalizedPlan,
+          normalizationRepairSummary: Array.isArray(normalizationResult.repairSummary)
+            ? normalizationResult.repairSummary
+            : [],
         };
       }
 
@@ -1011,6 +1065,7 @@ export function createLessonPlanGenerationService(dependencies = {}) {
           request.plan_type,
           currentValidationResult,
           knowledge.bloom_verbs_generation,
+          lessonValidationContext,
         );
 
         if (!recoveryAttempt) {
@@ -1030,6 +1085,113 @@ export function createLessonPlanGenerationService(dependencies = {}) {
           ...recoveryAttempt,
           validationResult: recoveredValidationResult,
         };
+      }
+
+      const prompt1 = prompt1Builder({
+        request: enrichedRequest,
+        planType: request.plan_type,
+        targetSchema,
+        pedagogicalRules: knowledge.pedagogical_rules,
+        bloomVerbsGeneration: knowledge.bloom_verbs_generation,
+        strategyBank,
+      });
+
+      let retryOccurred = false;
+
+      const prompt1Step = await generateStepWithFallback({
+        llmClient,
+        prompt: prompt1,
+        stepName: "Prompt 1 draft generation",
+        logger,
+        primaryModel: stepModels.prompt1,
+        fallbackModel: stepModels.prompt1Retry,
+        extraContext: {
+          lesson_id: request.lesson_id,
+          plan_type: request.plan_type,
+          attempt: "initial",
+        },
+      });
+      retryOccurred = retryOccurred || prompt1Step.retryOccurred;
+      const draftResult = prompt1Step.result;
+      ensureLlmSuccess(draftResult, "Prompt 1 draft generation", logger, prompt1, {
+        lesson_id: request.lesson_id,
+        plan_type: request.plan_type,
+        attempt: "initial",
+      });
+      logger.info({ raw_prompt_1_output: draftResult.rawText }, "prompt 1 raw output");
+      const normalizedDraftPlan = normalizeGeneratedPlanOutput(
+        draftResult.data,
+        targetSchema,
+        logger,
+        "prompt_1",
+      );
+
+      let candidatePlan = normalizedDraftPlan;
+      let prompt2Skipped = false;
+
+      if (skipPrompt2WhenValid()) {
+        let postP1Validation = validateCandidatePlan(candidatePlan);
+        candidatePlan = postP1Validation.normalizedPlan || candidatePlan;
+        if (!postP1Validation.isValid) {
+          const recovered = recoverCandidatePlan(candidatePlan, postP1Validation);
+          if (recovered) {
+            candidatePlan = recovered.validationResult.normalizedPlan || recovered.recoveredPlan;
+            postP1Validation = recovered.validationResult;
+          }
+        }
+
+        const normalizationRepairs = postP1Validation.normalizationRepairSummary || [];
+        if (postP1Validation.isValid && normalizationRepairs.length === 0) {
+          prompt2Skipped = true;
+          logger.info(
+            {
+              lesson_id: request.lesson_id,
+              plan_type: request.plan_type,
+            },
+            "lesson plan skipped Prompt 2: draft already valid (LESSON_PLAN_SKIP_PROMPT2_WHEN_VALID)",
+          );
+        }
+      }
+
+      if (!prompt2Skipped) {
+        const prompt2Initial = prompt2Builder({
+          request: enrichedRequest,
+          planType: request.plan_type,
+          draftPlanJson: candidatePlan,
+          pedagogicalRules: knowledge.pedagogical_rules,
+          bloomVerbsGeneration: knowledge.bloom_verbs_generation,
+          strategyBank,
+          targetSchema,
+        });
+
+        const prompt2Step = await generateStepWithFallback({
+          llmClient,
+          prompt: prompt2Initial,
+          stepName: "Prompt 2 pedagogical tuning",
+          logger,
+          primaryModel: stepModels.prompt2,
+          fallbackModel: stepModels.prompt2Retry,
+          extraContext: {
+            lesson_id: request.lesson_id,
+            plan_type: request.plan_type,
+            attempt: "initial",
+          },
+        });
+        retryOccurred = retryOccurred || prompt2Step.retryOccurred;
+        const tunedResult = prompt2Step.result;
+        ensureLlmSuccess(tunedResult, "Prompt 2 pedagogical tuning", logger, prompt2Initial, {
+          lesson_id: request.lesson_id,
+          plan_type: request.plan_type,
+          attempt: "initial",
+        });
+        logger.info({ raw_prompt_2_output: tunedResult.rawText }, "prompt 2 raw output");
+
+        candidatePlan = normalizeGeneratedPlanOutput(
+          tunedResult.data,
+          targetSchema,
+          logger,
+          "prompt_2_initial",
+        );
       }
 
       let validationResult = validateCandidatePlan(candidatePlan);
@@ -1077,6 +1239,12 @@ export function createLessonPlanGenerationService(dependencies = {}) {
             validation_error_count: validationResult.errors.length,
           },
         );
+        logLlmUsage(logger, "Prompt 2 retry with validation errors", retryResult.usage, {
+          lesson_id: request.lesson_id,
+          plan_type: request.plan_type,
+          attempt: "retry",
+          validation_error_count: validationResult.errors.length,
+        });
         logger.info({ raw_prompt_2_retry_output: retryResult.rawText }, "prompt 2 retry raw output");
 
         candidatePlan = normalizeGeneratedPlanOutput(

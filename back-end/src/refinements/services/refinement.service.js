@@ -685,7 +685,7 @@ export function createRefinementService(dependencies = {}) {
 
     return {
       systemPrompt: basePrompt.systemPrompt,
-      userPrompt: JSON.stringify(payload, null, 2),
+      userPrompt: JSON.stringify(payload),
       targetSchema,
       strategyBank,
       knowledge,

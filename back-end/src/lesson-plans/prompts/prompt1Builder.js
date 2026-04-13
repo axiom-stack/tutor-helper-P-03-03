@@ -1,58 +1,26 @@
 import { buildPhaseBudgets } from "../lessonPlanNormalizer.js";
 import { PLAN_TYPES } from "../types.js";
-
-const OBJECTIVE_MARKER_HINTS = [
-  "من خلال",
-  "باستخدام",
-  "خلال",
-  "وفق",
-  "بدقة",
-  "بوضوح",
-  "مع مثال",
-  "لا تقل عن",
-];
-
-const ARABIC_STYLE_HINTS = {
-  teacher_action_examples: ["يشرح المعلم", "يعرض المعلم", "يوجه المعلم"],
-  student_action_examples: ["يناقش الطلاب", "يستنتج الطلاب", "يطبق الطلاب"],
-  avoid_templates: ["ستستمر المحاضرة", "سوف تستمر المحاضرة"],
-};
-
-function getPreparationTypeDescription(type) {
-  const descriptions = {
-    active_learning:
-      "يُعدّ هذا التحضير وفق منهجية التعلم النشط، مع التركيز على دور الطالب وتفاعله في الحصة",
-    traditional:
-      "يُعدّ هذا التحضير وفق المنهجية التقليدية، مع التركيز على شرح المعلم ونقل المعرفة",
-    other: "نوع الخطة المعتمده غير محدد، استخدم الأسلوب المناسب حسب المحتوى",
-  };
-  return descriptions[type] || descriptions.other;
-}
+import {
+  ARABIC_STYLE_HINTS,
+  OBJECTIVE_MARKER_HINTS,
+  buildJsonOutputContractPayload,
+  buildLessonContentAuthorityPayload,
+  getPreparationTypeDescription,
+} from "./promptShared.js";
 
 function buildCommonPayload({
   request,
   planType,
-  targetSchema,
   pedagogicalRules = {},
   bloomVerbsGeneration = {},
   strategyBank = [],
 }) {
-  const outputKeys = Object.keys(targetSchema ?? {});
   const lessonContent = typeof request.lesson_content === "string" ? request.lesson_content.trim() : "";
   const maxLessonContentChars = 7000;
   const boundedLessonContent = lessonContent.slice(0, maxLessonContentChars);
 
   return {
-    json_output_contract: {
-      output_json_only: true,
-      first_character_must_be: "{",
-      last_character_must_be: "}",
-      use_double_quoted_json_keys_and_strings: true,
-      no_markdown_code_fences: true,
-      no_explanatory_text_before_or_after_json: true,
-      no_trailing_commas: true,
-    },
-    required_top_level_keys: outputKeys,
+    ...buildJsonOutputContractPayload(),
     plan_type: planType,
     lesson_metadata: {
       lesson_title: request.lesson_title,
@@ -65,33 +33,11 @@ function buildCommonPayload({
       section_label: request.section_label || null,
       section: request.section || null,
     },
-    lesson_content: boundedLessonContent,
-    lesson_content_truncated: lessonContent.length > maxLessonContentChars,
-    lesson_scope_priority: {
-      authoritative_source: "lesson_content",
-      lesson_title_role: "display_label_only",
-      conflict_rule: "if lesson_title and lesson_content disagree, follow lesson_content",
-      anti_hallucination_rule:
-        "never invent lesson scope, examples, objectives, or activities from lesson_title when lesson_content provides the real content",
-    },
-    content_dominance_rules: {
-      rank_1_source: "lesson_content",
-      rank_2_source: "lesson_title_only_if_content_is_missing",
-      content_driven_decisions: [
-        "topic",
-        "scope",
-        "examples",
-        "objectives",
-        "activities",
-        "assessment",
-        "keywords",
-        "vocabulary",
-        "pacing",
-      ],
-      title_conflict_policy: "ignore_lesson_title_for_scope_when_lesson_content_exists",
-      fallback_policy: "use_lesson_title_only_when_lesson_content_is_missing_or_empty",
-    },
-    target_output_schema: targetSchema,
+    ...buildLessonContentAuthorityPayload({
+      lessonContent: boundedLessonContent,
+      maxLessonContentChars,
+      lessonContentTruncated: lessonContent.length > maxLessonContentChars,
+    }),
     preparation_context: request.preparation_type
       ? {
           type: request.preparation_type,
@@ -135,6 +81,16 @@ function buildTraditionalDraftShapeContract() {
       homework: "string",
       source: "string",
     },
+    expected_header_keys: [
+      "date",
+      "day",
+      "time",
+      "grade",
+      "section",
+      "lesson_title",
+      "unit",
+      "duration",
+    ],
     critical_rules: [
       "learning_outcomes items must be plain strings only, never objects",
       "activities items must be plain Arabic strings only, never objects",
@@ -175,6 +131,17 @@ function buildActiveDraftShapeContract() {
       lesson_flow: "array of objects",
       homework: "string",
     },
+    expected_header_keys: [
+      "date",
+      "day",
+      "time",
+      "subject",
+      "grade",
+      "section",
+      "lesson_title",
+      "unit",
+      "duration",
+    ],
     critical_rules: [
       "objectives items must be plain strings only, never objects",
       "lesson_flow items must be objects with exactly the schema keys",
@@ -205,28 +172,18 @@ function buildActiveDraftShapeContract() {
 
 export function buildPrompt1TraditionalDraftGenerator({
   request,
-  targetSchema,
+  targetSchema: _targetSchema,
   pedagogicalRules,
   bloomVerbsGeneration,
   strategyBank,
 }) {
+  void _targetSchema;
   const minimumTraditionalStrategies = request.duration_minutes >= 40 ? 2 : 1;
   const systemPrompt = [
     "You are a traditional lesson-plan draft generator.",
-    "Return exactly one JSON object only.",
-    "The first character must be { and the last character must be }.",
-    "No markdown, no comments, no extra text.",
-    "Use strict JSON syntax with double-quoted keys and strings.",
-    "Do not use trailing commas.",
-    "All natural-language fields must be written in Arabic.",
-    "Follow the provided traditional target schema exactly.",
-    "Do not add extra keys and do not omit required keys.",
-    "This is a draft, but it must already satisfy the pedagogical rules as closely as possible.",
-    "LESSON_CONTENT IS THE NUMBER 1 DOMINANT SOURCE OF TRUTH FOR THE LESSON SCOPE.",
-    "lesson_content is the top priority input for topic, scope, examples, objectives, activities, assessment, wording, and pacing.",
-    "lesson_title is a label only; it must never override lesson_content.",
-    "If lesson_title and lesson_content conflict, ignore lesson_title for scope and follow lesson_content only.",
-    "Do not hallucinate a plan from the title alone when lesson_content exists.",
+    "Return exactly one JSON object only; strict JSON; Arabic for natural-language fields.",
+    "Follow traditional_shape_contract and pedagogical_constraints in the user JSON.",
+    "LESSON_CONTENT IS AUTHORITATIVE FOR SCOPE; lesson_title is display-only; on conflict follow lesson_content (see lesson_content_authority in user JSON).",
     "Default to 3 learning_outcomes unless the lesson size clearly requires a different count.",
     "Each learning outcome must start with أن followed immediately by one measurable behavioral verb from the provided Bloom bank.",
     "The leading learning-outcome verb should map clearly to one Bloom level only.",
@@ -261,7 +218,6 @@ export function buildPrompt1TraditionalDraftGenerator({
     ...buildCommonPayload({
       request,
       planType: PLAN_TYPES.TRADITIONAL,
-      targetSchema,
       pedagogicalRules,
       bloomVerbsGeneration,
       strategyBank,
@@ -289,8 +245,6 @@ export function buildPrompt1TraditionalDraftGenerator({
       require_assessment_variety: true,
       arabic_style_targets: ARABIC_STYLE_HINTS,
       source_format: "subject - unit - lesson title",
-      scope_priority: "lesson_content > lesson_title",
-      content_priority: "lesson_content_first_always",
     },
   };
 
@@ -302,25 +256,18 @@ export function buildPrompt1TraditionalDraftGenerator({
 
 export function buildPrompt1ActiveLearningDraftGenerator({
   request,
-  targetSchema,
+  targetSchema: _targetSchema,
   pedagogicalRules,
   bloomVerbsGeneration,
   strategyBank,
 }) {
+  void _targetSchema;
   const systemPrompt = [
     "You are an active-learning lesson-plan draft generator.",
-    "Return exactly one JSON object only.",
-    "The first character must be { and the last character must be }.",
-    "No markdown, no comments, no extra text.",
-    "Use strict JSON syntax with double-quoted keys and strings.",
-    "Do not use trailing commas.",
-    "All natural-language fields must be written in Arabic.",
-    "Follow the provided active-learning target schema exactly.",
-    "Do not add extra keys and do not omit required keys.",
+    "Return exactly one JSON object only; strict JSON; Arabic for natural-language fields.",
+    "Follow active_shape_contract and pedagogical_constraints in the user JSON.",
     "Keep the output distinct from the traditional plan format.",
-    "LESSON_CONTENT IS THE NUMBER 1 DOMINANT SOURCE OF TRUTH FOR THE LESSON SCOPE.",
-    "lesson_content is the top priority input for topic, scope, examples, objectives, activities, assessment, wording, and pacing.",
-    "lesson_title is a label only; it must never override lesson_content.",
+    "LESSON_CONTENT IS AUTHORITATIVE FOR SCOPE; lesson_title is display-only; on conflict follow lesson_content (see lesson_content_authority in user JSON).",
     "Each lesson_flow row must be realistic and classroom-executable.",
     "lesson_flow.activity_type must be one of intro, presentation, activity, assessment.",
     "The row order must preserve intro -> presentation -> activity -> assessment.",
@@ -331,8 +278,6 @@ export function buildPrompt1ActiveLearningDraftGenerator({
     "Keep one measurable Bloom verb per objective sentence, and avoid adding second behavioral verbs from other Bloom levels in the same objective.",
     "Each objective must include الطالب, lesson-specific content, and a clear condition or criterion.",
     "Use explicit condition or criterion markers such as من خلال, باستخدام, خلال, وفق, بدقة, بوضوح, مع مثال, or لا تقل عن.",
-    "If lesson_title and lesson_content conflict, ignore lesson_title for scope and follow lesson_content only.",
-    "Do not hallucinate a plan from the title alone when lesson_content exists.",
     "Objectives must stay aligned to the row activities and assessment rows.",
     "Never use forbidden weak verbs.",
     "objectives must be an array of plain Arabic strings only; never objects.",
@@ -354,7 +299,6 @@ export function buildPrompt1ActiveLearningDraftGenerator({
     ...buildCommonPayload({
       request,
       planType: PLAN_TYPES.ACTIVE_LEARNING,
-      targetSchema,
       pedagogicalRules,
       bloomVerbsGeneration,
       strategyBank,
@@ -375,7 +319,6 @@ export function buildPrompt1ActiveLearningDraftGenerator({
       prefer_same_order_objective_support_when_natural: true,
       encode_active_strategy_name_inside_existing_rows: true,
       arabic_style_targets: ARABIC_STYLE_HINTS,
-      content_priority: "lesson_content_first_always",
     },
   };
 

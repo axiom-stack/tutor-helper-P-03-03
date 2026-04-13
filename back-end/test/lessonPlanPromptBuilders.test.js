@@ -81,7 +81,20 @@ test("Prompt 1 traditional includes strict string-only shape contract", () => {
   assert.match(prompt.systemPrompt, /Default to 3 learning_outcomes/u);
   assert.match(prompt.systemPrompt, /Prefer same-order semantic linkage/u);
   assert.equal(payload.lesson_metadata.period_order, "الثالثة");
+  assert.ok(payload.lesson_content_authority?.ar);
+  assert.match(payload.lesson_content_authority?.en || "", /lesson_content is authoritative/u);
+  assert.deepEqual(payload.traditional_shape_contract.expected_header_keys, [
+    "date",
+    "day",
+    "time",
+    "grade",
+    "section",
+    "lesson_title",
+    "unit",
+    "duration",
+  ]);
   assert.equal(payload.traditional_shape_contract.top_level_shape.activities, "array of strings");
+  assert.equal(payload.target_output_schema, undefined);
   assert.equal(
     payload.traditional_shape_contract.valid_item_examples.activity,
     "يناقش الطلاب أثر طريق البخور على ازدهار اليمن مستخدمين الخريطة التاريخية وفق طريقة المناقشة والحوار (14 دقائق)",
@@ -113,6 +126,8 @@ test("Prompt 1 active includes exact row-key contract", () => {
     "learning_resources",
   ]);
   assert.equal(payload.active_shape_contract.valid_row_example.time, "5 دقائق");
+  assert.ok(payload.lesson_content_authority?.ar);
+  assert.equal(payload.target_output_schema, undefined);
 });
 
 test("Prompt 2 traditional includes repair contract for string-only traditional fields", () => {
@@ -145,6 +160,18 @@ test("Prompt 2 traditional includes repair contract for string-only traditional 
   assert.match(prompt.systemPrompt, /must explicitly include one teaching strategy name from teaching_strategies/u);
   assert.match(prompt.systemPrompt, /never objects with name, duration, or description keys/u);
   assert.ok(Array.isArray(payload.inputs.validation_error_summary));
+  assert.ok(payload.inputs.lesson_content_authority?.ar);
+  assert.deepEqual(payload.traditional_repair_contract.expected_header_keys, [
+    "date",
+    "day",
+    "time",
+    "grade",
+    "section",
+    "lesson_title",
+    "unit",
+    "duration",
+  ]);
+  assert.equal(payload.inputs.target_output_schema, undefined);
   assert.ok(
     payload.traditional_repair_contract.hard_constraints.includes(
       "if the draft contains object items in activities or assessment, flatten them into plain strings in the required schema format",
@@ -179,6 +206,8 @@ test("Prompt 2 active includes anti-partial-output contract", () => {
   assert.match(prompt.systemPrompt, /leading objective verb should map clearly to one Bloom level only/u);
   assert.match(prompt.systemPrompt, /Select suitable active-learning strategies from the allowed bank/u);
   assert.equal(payload.inputs.lesson_metadata.period_order, "الثالثة");
+  assert.ok(payload.inputs.lesson_content_authority?.ar);
+  assert.equal(payload.inputs.target_output_schema, undefined);
   assert.equal(payload.active_repair_contract.top_level_shape.lesson_flow, "array of objects");
   assert.equal(payload.active_repair_contract.valid_row_example.activity_type, "intro");
   assert.equal(prompt.userPrompt.includes("\n"), false);

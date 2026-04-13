@@ -1,33 +1,12 @@
 import { buildPhaseBudgets } from "../lessonPlanNormalizer.js";
 import { PLAN_TYPES } from "../types.js";
-
-const OBJECTIVE_MARKER_HINTS = [
-  "من خلال",
-  "باستخدام",
-  "خلال",
-  "وفق",
-  "بدقة",
-  "بوضوح",
-  "مع مثال",
-  "لا تقل عن",
-];
-
-const ARABIC_STYLE_HINTS = {
-  teacher_action_examples: ["يشرح المعلم", "يعرض المعلم", "يوجه المعلم"],
-  student_action_examples: ["يناقش الطلاب", "يستنتج الطلاب", "يطبق الطلاب"],
-  avoid_templates: ["ستستمر المحاضرة", "سوف تستمر المحاضرة"],
-};
-
-function getPreparationTypeDescription(type) {
-  const descriptions = {
-    active_learning:
-      "يُعدّ هذا التحضير وفق منهجية التعلم النشط، مع التركيز على دور الطالب وتفاعله في الحصة",
-    traditional:
-      "يُعدّ هذا التحضير وفق المنهجية التقليدية، مع التركيز على شرح المعلم ونقل المعرفة",
-    other: "نوع الخطة المعتمده غير محدد، استخدم الأسلوب المناسب حسب المحتوى",
-  };
-  return descriptions[type] || descriptions.other;
-}
+import {
+  ARABIC_STYLE_HINTS,
+  OBJECTIVE_MARKER_HINTS,
+  buildLessonContentAuthorityPayload,
+  buildPrompt2OutputRequirementsPayload,
+  getPreparationTypeDescription,
+} from "./promptShared.js";
 
 function buildValidationErrorSummary(validationErrors = []) {
   const summary = [];
@@ -70,18 +49,7 @@ function buildCommonInput({
     : [];
 
   return {
-    output_requirements: {
-      required_top_level_keys: outputKeys,
-      output_json_only: true,
-      first_character_must_be: "{",
-      last_character_must_be: "}",
-      strict_json_syntax: true,
-      double_quoted_keys_and_strings_only: true,
-      no_markdown: true,
-      no_commentary: true,
-      no_trailing_commas: true,
-      keep_top_level_fields_unchanged: true,
-    },
+    ...buildPrompt2OutputRequirementsPayload(outputKeys),
     inputs: {
       plan_type: planType,
       lesson_metadata: {
@@ -95,32 +63,11 @@ function buildCommonInput({
         section_label: request.section_label || null,
         section: request.section || null,
       },
-      lesson_content: boundedLessonContent,
-      lesson_content_truncated: lessonContent.length > maxLessonContentChars,
-      lesson_scope_priority: {
-        authoritative_source: "lesson_content",
-        lesson_title_role: "display_label_only",
-        conflict_rule: "if lesson_title and lesson_content disagree, follow lesson_content",
-        anti_hallucination_rule:
-          "never invent lesson scope, examples, objectives, or activities from lesson_title when lesson_content provides the real content",
-      },
-      content_dominance_rules: {
-        rank_1_source: "lesson_content",
-        rank_2_source: "lesson_title_only_if_content_is_missing",
-        content_driven_decisions: [
-          "topic",
-          "scope",
-          "examples",
-          "objectives",
-          "activities",
-          "assessment",
-          "keywords",
-          "vocabulary",
-          "pacing",
-        ],
-        title_conflict_policy: "ignore_lesson_title_for_scope_when_lesson_content_exists",
-        fallback_policy: "use_lesson_title_only_when_lesson_content_is_missing_or_empty",
-      },
+      ...buildLessonContentAuthorityPayload({
+        lessonContent: boundedLessonContent,
+        maxLessonContentChars,
+        lessonContentTruncated: lessonContent.length > maxLessonContentChars,
+      }),
       preparation_context: request.preparation_type
         ? {
             type: request.preparation_type,
@@ -149,7 +96,6 @@ function buildCommonInput({
             phases: Array.isArray(strategy?.phases) ? strategy.phases : [],
           }))
         : [],
-      target_output_schema: targetSchema,
       validation_errors: normalizedValidationErrors,
       validation_error_summary: buildValidationErrorSummary(normalizedValidationErrors),
       arabic_style_hints: ARABIC_STYLE_HINTS,
@@ -171,6 +117,16 @@ function buildTraditionalRepairContract() {
       homework: "string",
       source: "string",
     },
+    expected_header_keys: [
+      "date",
+      "day",
+      "time",
+      "grade",
+      "section",
+      "lesson_title",
+      "unit",
+      "duration",
+    ],
     hard_constraints: [
       "never return activity objects such as {name, duration, description}",
       "never return assessment objects such as {question, type, duration}",
@@ -211,6 +167,17 @@ function buildActiveRepairContract() {
       lesson_flow: "array of objects",
       homework: "string",
     },
+    expected_header_keys: [
+      "date",
+      "day",
+      "time",
+      "subject",
+      "grade",
+      "section",
+      "lesson_title",
+      "unit",
+      "duration",
+    ],
     hard_constraints: [
       "never return partial objects such as header only",
       "never omit objectives, lesson_flow, or homework",
@@ -241,22 +208,10 @@ export function buildPrompt2TraditionalPedagogicalTuner(args) {
   const minimumTraditionalStrategies = args.request.duration_minutes >= 40 ? 2 : 1;
   const systemPrompt = [
     "You are a pedagogical tuner for a traditional lesson plan.",
-    "Repair and improve the given draft JSON only.",
-    "Do not regenerate from scratch.",
-    "Your output must be the lesson plan object itself, not a wrapper object.",
-    "The first character must be { and the last character must be }.",
-    "Preserve the schema exactly and keep the same top-level fields.",
-    "Do not add or remove top-level keys.",
-    "Use strict JSON syntax with double-quoted keys and strings only.",
-    "Do not use trailing commas.",
-    "All natural-language values must be Arabic.",
-    "Repair weak or invalid values only.",
-    "Keep the plan concise and teacher-facing; do not bloat the text just to sound compliant.",
-    "LESSON_CONTENT IS THE NUMBER 1 DOMINANT SOURCE OF TRUTH FOR THE LESSON SCOPE.",
-    "lesson_content is the top priority input for topic, scope, examples, objectives, activities, assessment, wording, and pacing.",
-    "lesson_title is a label only; it must never override lesson_content.",
-    "If lesson_title and lesson_content conflict, ignore lesson_title for scope and follow lesson_content only.",
-    "Do not hallucinate a plan from the title alone when lesson_content exists.",
+    "Repair and improve the given draft JSON only; do not regenerate from scratch.",
+    "Output must be the lesson plan object itself, not a wrapper; strict JSON; Arabic values.",
+    "Preserve top-level keys exactly; follow traditional_repair_contract and inputs in user JSON.",
+    "LESSON_CONTENT IS AUTHORITATIVE FOR SCOPE; lesson_title is display-only; on conflict follow lesson_content (lesson_content_authority in user JSON).",
     "Every learning_outcome must start with أن followed immediately by one measurable behavioral verb from the provided Bloom bank.",
     "The leading learning_outcome verb should map clearly to one Bloom level only, so avoid stacking verbs from different Bloom levels in one objective.",
     "Keep exactly one measurable Bloom verb focus per learning_outcome sentence; if needed, simplify the sentence instead of adding second verbs from other Bloom levels.",
@@ -284,7 +239,7 @@ export function buildPrompt2TraditionalPedagogicalTuner(args) {
     "Avoid awkward templates such as ستستمر المحاضرة.",
     "When validation_errors are present, repair the exact failing paths first and do not leave a reported failing path unchanged.",
     "Do not include instruction, inputs, output_requirements, draft_plan_json, validation_errors, or metadata wrapper keys in output.",
-    "Return JSON only with no markdown and no commentary.",
+    "Keep the plan concise and teacher-facing; do not bloat the text just to sound compliant.",
   ].join(" ");
 
   const payload = {
@@ -319,7 +274,6 @@ export function buildPrompt2TraditionalPedagogicalTuner(args) {
       prefer_same_order_objective_activity_assessment_mapping: true,
       arabic_style_targets: ARABIC_STYLE_HINTS,
       source_format: "subject - unit - lesson title",
-      content_priority: "lesson_content_first_always",
     },
   };
 
@@ -332,22 +286,10 @@ export function buildPrompt2TraditionalPedagogicalTuner(args) {
 export function buildPrompt2ActiveLearningPedagogicalTuner(args) {
   const systemPrompt = [
     "You are a pedagogical tuner for an active-learning lesson plan.",
-    "Repair and improve the given draft JSON only.",
-    "Do not regenerate from scratch.",
-    "Your output must be the lesson plan object itself, not a wrapper object.",
-    "The first character must be { and the last character must be }.",
-    "Preserve the schema exactly and keep the same top-level fields.",
-    "Do not add or remove top-level keys.",
-    "Use strict JSON syntax with double-quoted keys and strings only.",
-    "Do not use trailing commas.",
-    "All natural-language values must be Arabic.",
-    "Repair weak or invalid values only.",
-    "Keep the plan concise and teacher-facing; do not bloat the rows just to sound compliant.",
-    "LESSON_CONTENT IS THE NUMBER 1 DOMINANT SOURCE OF TRUTH FOR THE LESSON SCOPE.",
-    "lesson_content is the top priority input for topic, scope, examples, objectives, activities, assessment, wording, and pacing.",
-    "lesson_title is a label only; it must never override lesson_content.",
-    "If lesson_title and lesson_content conflict, ignore lesson_title for scope and follow lesson_content only.",
-    "Do not hallucinate a plan from the title alone when lesson_content exists.",
+    "Repair and improve the given draft JSON only; do not regenerate from scratch.",
+    "Output must be the lesson plan object itself, not a wrapper; strict JSON; Arabic values.",
+    "Preserve top-level keys exactly; follow active_repair_contract and inputs in user JSON.",
+    "LESSON_CONTENT IS AUTHORITATIVE FOR SCOPE; lesson_title is display-only; on conflict follow lesson_content (lesson_content_authority in user JSON).",
     "Each objective must start with أن followed immediately by one measurable behavioral verb from the provided Bloom bank.",
     "The leading objective verb should map clearly to one Bloom level only, so avoid stacking verbs from different Bloom levels in one objective.",
     "Keep exactly one measurable Bloom verb focus per objective sentence; if needed, simplify the sentence instead of adding second verbs from other Bloom levels.",
@@ -371,7 +313,7 @@ export function buildPrompt2ActiveLearningPedagogicalTuner(args) {
     "Avoid awkward templates such as ستستمر المحاضرة.",
     "When validation_errors are present, repair the exact failing paths first and never return a partial object such as header only.",
     "Do not include instruction, inputs, output_requirements, draft_plan_json, validation_errors, or metadata wrapper keys in output.",
-    "Return JSON only with no markdown and no commentary.",
+    "Keep the plan concise and teacher-facing; do not bloat the rows just to sound compliant.",
   ].join(" ");
 
   const payload = {
@@ -397,7 +339,6 @@ export function buildPrompt2ActiveLearningPedagogicalTuner(args) {
       prefer_same_order_objective_support_when_natural: true,
       encode_active_strategy_name_inside_existing_rows: true,
       arabic_style_targets: ARABIC_STYLE_HINTS,
-      content_priority: "lesson_content_first_always",
     },
   };
 
