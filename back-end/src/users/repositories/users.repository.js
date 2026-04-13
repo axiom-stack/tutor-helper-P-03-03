@@ -431,20 +431,69 @@ export function createUsersRepository(dbClient = turso) {
     },
 
     async deleteTeacherById(userId) {
+      console.log(`[users.repository.js] deleteTeacherById called with userId: ${userId}`);
       const parsedUserId = Number(userId);
       if (!Number.isInteger(parsedUserId) || parsedUserId <= 0) {
+        console.log(`[users.repository.js] deleteTeacherById - invalid parsedUserId: ${parsedUserId}`);
         return null;
       }
 
+      console.log(`[users.repository.js] deleteTeacherById - calling getUserById(${parsedUserId})`);
       const teacher = await this.getUserById(parsedUserId);
       if (!teacher) {
+        console.log(`[users.repository.js] deleteTeacherById - getUserById returned null. Cannot delete.`);
         return null;
       }
 
-      await dbClient.execute({
-        sql: "DELETE FROM Users WHERE id = ?",
-        args: [parsedUserId],
-      });
+      console.log(`[users.repository.js] deleteTeacherById - executing cascading deletes for user: ${parsedUserId}`);
+      const statements = [
+        // 1. Audit logs
+        { sql: "DELETE FROM AuditLog WHERE user_id = ?", args: [parsedUserId] },
+        
+        // 2. Unlink any decisions made by this user in refinements
+        { sql: "UPDATE RefinementRequests SET decision_by_user_id = NULL WHERE decision_by_user_id = ?", args: [parsedUserId] },
+        
+        // 3. Clear refinement attempts associated with requests made by this user
+        { sql: "DELETE FROM RefinementAttempts WHERE refinement_request_id IN (SELECT id FROM RefinementRequests WHERE created_by_user_id = ?)", args: [parsedUserId] },
+        
+        // 4. Clear refinement requests created by this user
+        { sql: "DELETE FROM RefinementRequests WHERE created_by_user_id = ?", args: [parsedUserId] },
+        
+        // 5. Unlink self-referencing parent revisions to avoid constraint errors, then delete revisions made by this user
+        { sql: "UPDATE ArtifactRevisions SET parent_revision_id = NULL WHERE created_by_user_id = ?", args: [parsedUserId] },
+        { sql: "UPDATE ArtifactRevisions SET parent_revision_id = NULL WHERE parent_revision_id IN (SELECT id FROM ArtifactRevisions WHERE created_by_user_id = ?)", args: [parsedUserId] },
+        { sql: "DELETE FROM ArtifactRevisions WHERE created_by_user_id = ?", args: [parsedUserId] },
+
+        // 6. Deep curriculum cleanup for this teacher to prevent FK constraint failures.
+        { sql: "DELETE FROM ExamLessons WHERE exam_id IN (SELECT id FROM Exams WHERE teacher_id = ?)", args: [parsedUserId] },
+        { sql: "DELETE FROM Exams WHERE teacher_id = ?", args: [parsedUserId] },
+        { sql: "DELETE FROM Assignments WHERE teacher_id = ?", args: [parsedUserId] },
+        { sql: "DELETE FROM AssignmentGroups WHERE teacher_id = ?", args: [parsedUserId] },
+        { sql: "DELETE FROM ActiveLearningLessonPlans WHERE teacher_id = ?", args: [parsedUserId] },
+        { sql: "DELETE FROM TraditionalLessonPlans WHERE teacher_id = ?", args: [parsedUserId] },
+        { sql: "DELETE FROM Lessons WHERE teacher_id = ?", args: [parsedUserId] },
+        { sql: "DELETE FROM Units WHERE teacher_id = ?", args: [parsedUserId] },
+        { sql: "DELETE FROM Subjects WHERE teacher_id = ?", args: [parsedUserId] },
+        { sql: "DELETE FROM Classes WHERE teacher_id = ?", args: [parsedUserId] },
+        
+        // 7. Profile and User deletion
+        { sql: "DELETE FROM UserProfiles WHERE user_id = ?", args: [parsedUserId] },
+        { sql: "DELETE FROM Users WHERE id = ?", args: [parsedUserId] }
+      ];
+
+      try {
+        if (typeof dbClient.batch === "function") {
+          await dbClient.batch(statements, "write");
+        } else {
+          for (const stmt of statements) {
+            await dbClient.execute(stmt);
+          }
+        }
+        console.log(`[users.repository.js] deleteTeacherById - deletions successfully executed.`);
+      } catch (err) {
+        console.error(`[users.repository.js] deleteTeacherById - execution error: `, err);
+        throw err;
+      }
 
       return teacher;
     },

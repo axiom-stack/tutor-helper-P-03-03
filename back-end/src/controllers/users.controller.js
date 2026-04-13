@@ -399,32 +399,43 @@ export function createUsersController(
     },
 
     async deleteTeacher(req, res) {
+      console.log(`[users.controller.js] deleteTeacher called. req.params:`, req.params, `req.user:`, req.user);
       try {
         if (req.user.role !== "admin") {
+          console.log(`[users.controller.js] deleteTeacher - user is not admin (role: ${req.user.role}). Returning 403.`);
           return res.status(403).json({ error: "Unauthorized" });
         }
 
         const teacherId = parsePositiveInteger(req.params.teacherId);
+        console.log(`[users.controller.js] deleteTeacher - parsed teacherId: ${teacherId}`);
         if (!teacherId) {
+          console.log(`[users.controller.js] deleteTeacher - invalid teacherId. Returning 400.`);
           return res
             .status(400)
             .json({ error: "teacherId must be a positive integer" });
         }
 
         const teacher = await usersRepository.getUserById(teacherId);
+        console.log(`[users.controller.js] deleteTeacher - fetched teacher:`, teacher);
         if (!teacher) {
+          console.log(`[users.controller.js] deleteTeacher - no teacher found. Returning 404.`);
           return res.status(404).json({ error: "Teacher not found" });
         }
 
         if (teacher.role !== "teacher") {
+          console.log(`[users.controller.js] deleteTeacher - fetched user is not a teacher (role: ${teacher.role}). Returning 400.`);
           return res
             .status(400)
             .json({ error: "Provided user is not a teacher" });
         }
 
+        console.log(`[users.controller.js] deleteTeacher - calling usersRepository.deleteTeacherById(${teacherId})...`);
         const deletedTeacher = await usersRepository.deleteTeacherById(teacherId);
+        console.log(`[users.controller.js] deleteTeacher - deletedTeacher result:`, deletedTeacher);
+        
         return res.status(200).json({ teacher: deletedTeacher });
       } catch (error) {
+        console.error(`[users.controller.js] deleteTeacher - Error occurred:`, error);
         req.log?.error?.({ error }, "Failed to delete teacher");
         return res.status(500).json({ error: "Internal server error" });
       }
