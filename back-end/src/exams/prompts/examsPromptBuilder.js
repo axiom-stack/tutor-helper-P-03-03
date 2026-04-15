@@ -10,7 +10,13 @@ function truncate(value, max) {
 function getTypeSpecificHint(type) {
   if (type === QUESTION_TYPES.MULTIPLE_CHOICE) {
     return {
-      required_fields: ["slot_id", "question_type", "question_text", "options", "correct_option_index"],
+      required_fields: [
+        "slot_id",
+        "question_type",
+        "question_text",
+        "options",
+        "correct_option_index",
+      ],
       rules: [
         "options must be an array of exactly 4 Arabic strings.",
         "correct_option_index must be an integer between 0 and 3.",
@@ -20,20 +26,36 @@ function getTypeSpecificHint(type) {
 
   if (type === QUESTION_TYPES.TRUE_FALSE) {
     return {
-      required_fields: ["slot_id", "question_type", "question_text", "correct_answer"],
+      required_fields: [
+        "slot_id",
+        "question_type",
+        "question_text",
+        "correct_answer",
+      ],
       rules: ["correct_answer must be boolean true or false."],
     };
   }
 
   if (type === QUESTION_TYPES.FILL_BLANK) {
     return {
-      required_fields: ["slot_id", "question_type", "question_text", "answer_text"],
+      required_fields: [
+        "slot_id",
+        "question_type",
+        "question_text",
+        "answer_text",
+      ],
       rules: ["answer_text must be a concise Arabic answer for the blank."],
     };
   }
 
   return {
-    required_fields: ["slot_id", "question_type", "question_text", "answer_text", "rubric"],
+    required_fields: [
+      "slot_id",
+      "question_type",
+      "question_text",
+      "answer_text",
+      "rubric",
+    ],
     rules: [
       "answer_text must be a model Arabic answer.",
       "rubric must be a non-empty array of Arabic grading criteria.",
@@ -56,13 +78,25 @@ function buildSlotsPayload(slots) {
 }
 
 function buildLessonsPayload(lessons) {
-  return lessons.map((lesson) => ({
-    lesson_id: lesson.id,
-    lesson_name: lesson.name,
-    lesson_content: truncate(lesson.content, MAX_LESSON_CONTENT_CHARS),
-    lesson_content_truncated:
-      typeof lesson.content === "string" && lesson.content.length > MAX_LESSON_CONTENT_CHARS,
-  }));
+  return lessons.map((lesson) => {
+    const truncatedContent = truncate(lesson.content, MAX_LESSON_CONTENT_CHARS);
+    return {
+      lesson_id: lesson.id,
+      lesson_name: lesson.name,
+      lesson_content: truncatedContent,
+      lesson_content_truncated:
+        typeof lesson.content === "string" &&
+        lesson.content.length > MAX_LESSON_CONTENT_CHARS,
+      lesson_content_authority: {
+        en: "lesson_content is authoritative for question scope; lesson_name is display-only. If lesson_name and lesson_content conflict, follow lesson_content only; never invent scope from the lesson_name when lesson_content exists.",
+        lesson_content: truncatedContent,
+        lesson_content_truncated:
+          typeof lesson.content === "string" &&
+          lesson.content.length > MAX_LESSON_CONTENT_CHARS,
+        lesson_content_char_cap: MAX_LESSON_CONTENT_CHARS,
+      },
+    };
+  });
 }
 
 export function buildGenerateExamPrompt({
@@ -76,6 +110,7 @@ export function buildGenerateExamPrompt({
   const systemPrompt = [
     "You are an expert Arabic exam generator.",
     "Generate exam questions and answer keys using only the provided lessons and slots.",
+    "lesson_content is authoritative for question scope; lesson_name is display-only. If lesson_name and lesson_content conflict, follow lesson_content only; never invent scope from the lesson_name when lesson_content exists.",
     "Return exactly one JSON object with one top-level key: questions.",
     "questions must be an array whose length equals the number of requested slots.",
     "Each question must keep the same slot_id and question_type as requested.",
@@ -108,7 +143,8 @@ export function buildGenerateExamPrompt({
       questions: [
         {
           slot_id: "q_1",
-          question_type: "multiple_choice | true_false | fill_blank | open_ended",
+          question_type:
+            "multiple_choice | true_false | fill_blank | open_ended",
           question_text: "string (Arabic)",
           options: ["string (Arabic)"],
           correct_option_index: 0,
