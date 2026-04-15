@@ -323,19 +323,21 @@ export async function getLessonsByUnitId(req, res) {
     }
 
     let sql = "SELECT * FROM Lessons WHERE unit_id = ?";
+    let args = [unitId];
+
     if (has_plan === "true") {
       sql = `
-        SELECT * FROM Lessons l 
-        WHERE l.unit_id = ? AND (
-          EXISTS(SELECT 1 FROM TraditionalLessonPlans WHERE lesson_id = l.id) OR
-          EXISTS(SELECT 1 FROM ActiveLearningLessonPlans WHERE lesson_id = l.id)
-        )
+        SELECT DISTINCT l.* FROM Lessons l
+        LEFT JOIN TraditionalLessonPlans tlp ON l.id = tlp.lesson_id
+        LEFT JOIN ActiveLearningLessonPlans alp ON l.id = alp.lesson_id
+        WHERE l.unit_id = ? AND (tlp.id IS NOT NULL OR alp.id IS NOT NULL)
       `;
+      args = [unitId];
     }
 
     const lessons = await turso.execute({
       sql,
-      args: [unitId],
+      args,
     });
 
     return res.status(200).json({ lessons: lessons.rows });
