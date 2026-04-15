@@ -9,7 +9,10 @@ import type {
 } from '../../types';
 import { normalizeApiError } from '../../utils/apiErrors';
 import { getIsOnline, isOfflineError } from '../../offline/network';
-import { enqueueOfflineAction, upsertPendingEntityAction } from '../../offline/queue';
+import {
+  enqueueOfflineAction,
+  upsertPendingEntityAction,
+} from '../../offline/queue';
 import { getReference, putReference } from '../../offline/references';
 import {
   cacheExam,
@@ -83,8 +86,14 @@ export async function getAllClasses(): Promise<{ classes: Class[] }> {
 
 export async function getMySubjects(): Promise<{ subjects: Subject[] }> {
   try {
-    const response = await api().get<{ subjects: Subject[] }>('/api/subjects/mine');
-    await putReference('subjects:mine', 'subjects', response.data.subjects ?? []);
+    const response = await api().get<{ subjects: Subject[] }>(
+      '/api/subjects/mine'
+    );
+    await putReference(
+      'subjects:mine',
+      'subjects',
+      response.data.subjects ?? []
+    );
     return response.data;
   } catch (error: unknown) {
     if (isOfflineError(error)) {
@@ -98,7 +107,11 @@ export async function getMySubjects(): Promise<{ subjects: Subject[] }> {
 export async function getAllSubjects(): Promise<{ subjects: Subject[] }> {
   try {
     const response = await api().get<{ subjects: Subject[] }>('/api/subjects');
-    await putReference('subjects:all', 'subjects', response.data.subjects ?? []);
+    await putReference(
+      'subjects:all',
+      'subjects',
+      response.data.subjects ?? []
+    );
     return response.data;
   } catch (error: unknown) {
     if (isOfflineError(error)) {
@@ -131,12 +144,17 @@ export async function getUnitsBySubject(
 export async function getLessonsByUnit(
   unitId: number
 ): Promise<{ lessons: Lesson[] }> {
-  const cacheKey = `lessons:unit:${unitId}`;
+  const cacheKey = `lessons:unit:${unitId}:has_plan`;
   try {
     const response = await api().get<{ lessons: Lesson[] }>(
-      `/api/lessons/unit/${unitId}`
+      `/api/lessons/unit/${unitId}?has_plan=true`
     );
-    await putReference(cacheKey, 'lessons', response.data.lessons ?? [], unitId);
+    await putReference(
+      cacheKey,
+      'lessons',
+      response.data.lessons ?? [],
+      unitId
+    );
     return response.data;
   } catch (error: unknown) {
     if (isOfflineError(error)) {
@@ -170,7 +188,8 @@ export async function generateExam(
       return {
         queued: true,
         queue_id: queued.queue_id,
-        message: 'تم حفظ طلب توليد الاختبار محليًا وسيعاد تشغيله عند عودة الاتصال.',
+        message:
+          'تم حفظ طلب توليد الاختبار محليًا وسيعاد تشغيله عند عودة الاتصال.',
       };
     }
     throw normalizeApiError(error, 'فشل توليد الاختبار.');
@@ -226,7 +245,10 @@ export async function updateExam(
       return { exam: local };
     }
 
-    const response = await api().put<UpdateExamResponse>(`/api/exams/${local.server_id}`, payload);
+    const response = await api().put<UpdateExamResponse>(
+      `/api/exams/${local.server_id}`,
+      payload
+    );
     const exam = await cacheExam(response.data.exam);
     return { exam };
   } catch (error: unknown) {

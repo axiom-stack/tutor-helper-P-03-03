@@ -70,10 +70,7 @@ export async function createLesson(req, res) {
     if (!content_type) {
       return res.status(400).json({ error: "content_type is required" });
     }
-    if (
-      !Number.isInteger(parsedPeriodNumber) ||
-      parsedPeriodNumber <= 0
-    ) {
+    if (!Number.isInteger(parsedPeriodNumber) || parsedPeriodNumber <= 0) {
       return res.status(400).json({
         error: "period_number must be a positive integer",
       });
@@ -304,6 +301,7 @@ export async function getLessonByLessonId(req, res) {
 export async function getLessonsByUnitId(req, res) {
   try {
     const { unitId } = req.params;
+    const { has_plan } = req.query;
     const { id: userId, role: userRole } = req.user;
 
     // Admin can access all lessons in any unit without ownership check
@@ -324,8 +322,19 @@ export async function getLessonsByUnitId(req, res) {
       }
     }
 
+    let sql = "SELECT * FROM Lessons WHERE unit_id = ?";
+    if (has_plan === "true") {
+      sql = `
+        SELECT * FROM Lessons l 
+        WHERE l.unit_id = ? AND (
+          EXISTS(SELECT 1 FROM TraditionalLessonPlans WHERE lesson_id = l.id) OR
+          EXISTS(SELECT 1 FROM ActiveLearningLessonPlans WHERE lesson_id = l.id)
+        )
+      `;
+    }
+
     const lessons = await turso.execute({
-      sql: "SELECT * FROM Lessons WHERE unit_id = ?",
+      sql,
       args: [unitId],
     });
 
