@@ -67,8 +67,10 @@ export function buildModifyPrompt({
   lessonContent,
   currentAssignment,
   modificationRequest,
+  targetSelector,
   validationErrors = [],
 }) {
+  const isTargetedRefinement = targetSelector && targetSelector !== "full_document";
   const systemPrompt = [
     "You are an expert educational assistant that modifies an existing assignment according to the teacher's request.",
     "Return exactly one JSON object with a single key: \"assignment\", whose value is the modified assignment object.",
@@ -77,7 +79,12 @@ export function buildModifyPrompt({
     "All name, description, and content must be written in Arabic.",
     "No markdown, no comments, no extra text. Output only the JSON object.",
     "Apply the user's modification request to the current assignment while keeping it aligned with the lesson plan and lesson content.",
-  ].join(" ");
+    isTargetedRefinement
+      ? `CRITICAL: You MUST ONLY modify the '${targetSelector}' field of the assignment. All other fields (name, description, type, content) must remain EXACTLY as they are in current_assignment. Only the target field should change based on the modification request.`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const boundedContent = truncate(lessonContent || "", MAX_LESSON_CONTENT_CHARS);
 

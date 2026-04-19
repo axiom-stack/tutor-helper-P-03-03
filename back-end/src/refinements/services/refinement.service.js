@@ -671,12 +671,17 @@ export function createRefinementService(dependencies = {}) {
       strategyBank,
       targetSchema,
       validationErrors,
+      refinement_mode: "controlled_same_rule_refinement",
+      targetSelector: targetSelector || "full_document",
     });
 
     const payload = JSON.parse(basePrompt.userPrompt);
     payload.refinement_request = feedbackText;
     payload.target_selector = targetSelector || "full_document";
     payload.refinement_mode = "controlled_same_rule_refinement";
+    payload.scope_constraint = targetSelector && targetSelector !== "full_document"
+      ? `ONLY MODIFY: ${targetSelector}. Leave all other fields unchanged.`
+      : "Full document feedback - can modify any field."
     payload.immutability_constraints = {
       plan_type_must_stay: planRecord.plan_type,
       lesson_identity: {
@@ -773,10 +778,6 @@ export function createRefinementService(dependencies = {}) {
     }
 
     const lessonContent = await loadLessonContent(assignmentRecord.lesson_id, accessContext);
-    const modifyRequest = targetSelector
-      ? `${feedbackText}\n\nTarget selector: ${targetSelector}`
-      : feedbackText;
-
     const prompt = buildModifyPrompt({
       lessonPlanJson: plan.plan_json || {},
       lessonContent,
@@ -786,7 +787,8 @@ export function createRefinementService(dependencies = {}) {
         type: assignmentRecord.type,
         content: assignmentRecord.content,
       },
-      modificationRequest: modifyRequest,
+      modificationRequest: feedbackText,
+      targetSelector: targetSelector || "full_document",
     });
 
     const payload = JSON.parse(prompt.userPrompt);

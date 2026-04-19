@@ -206,11 +206,15 @@ function buildActiveRepairContract() {
 
 export function buildPrompt2TraditionalPedagogicalTuner(args) {
   const minimumTraditionalStrategies = args.request.duration_minutes >= 40 ? 2 : 1;
+  const isRefinementMode = args.refinement_mode === "controlled_same_rule_refinement";
   const systemPrompt = [
     "You are a pedagogical tuner for a traditional lesson plan.",
     "Repair and improve the given draft JSON only; do not regenerate from scratch.",
     "Output must be the lesson plan object itself, not a wrapper; strict JSON; Arabic values.",
     "Preserve top-level keys exactly; follow traditional_repair_contract and inputs in user JSON.",
+    isRefinementMode && args.targetSelector && args.targetSelector !== "full_document"
+      ? `CRITICAL REFINEMENT CONSTRAINT: You MUST ONLY modify the field(s) specified in target_selector ('${args.targetSelector}'). NEVER change any other fields. Return the complete plan structure with ALL other fields EXACTLY as they appear in draft_plan_json. Only the target field(s) should have modified values. This is non-negotiable.`
+      : null,
     "LESSON_CONTENT IS AUTHORITATIVE FOR SCOPE; lesson_title is display-only; on conflict follow lesson_content (lesson_content_authority in user JSON).",
     "Every learning_outcome must start with أن followed immediately by one measurable behavioral verb from the provided Bloom bank.",
     "The leading learning_outcome verb should map clearly to one Bloom level only, so avoid stacking verbs from different Bloom levels in one objective.",
@@ -240,7 +244,9 @@ export function buildPrompt2TraditionalPedagogicalTuner(args) {
     "When validation_errors are present, repair the exact failing paths first and do not leave a reported failing path unchanged.",
     "Do not include instruction, inputs, output_requirements, draft_plan_json, validation_errors, or metadata wrapper keys in output.",
     "Keep the plan concise and teacher-facing; do not bloat the text just to sound compliant.",
-  ].join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const payload = {
     task: "Repair and pedagogically tune a traditional lesson plan JSON.",
@@ -284,10 +290,14 @@ export function buildPrompt2TraditionalPedagogicalTuner(args) {
 }
 
 export function buildPrompt2ActiveLearningPedagogicalTuner(args) {
+  const isRefinementMode = args.refinement_mode === "controlled_same_rule_refinement";
   const systemPrompt = [
     "You are a pedagogical tuner for an active-learning lesson plan.",
     "Repair and improve the given draft JSON only; do not regenerate from scratch.",
     "Output must be the lesson plan object itself, not a wrapper; strict JSON; Arabic values.",
+    isRefinementMode && args.targetSelector && args.targetSelector !== "full_document"
+      ? `CRITICAL REFINEMENT CONSTRAINT: You MUST ONLY modify the field(s) specified in target_selector ('${args.targetSelector}'). NEVER change any other fields. Return the complete plan structure with ALL other fields EXACTLY as they appear in draft_plan_json. Only the target field(s) should have modified values. This is non-negotiable.`
+      : null,
     "Preserve top-level keys exactly; follow active_repair_contract and inputs in user JSON.",
     "LESSON_CONTENT IS AUTHORITATIVE FOR SCOPE; lesson_title is display-only; on conflict follow lesson_content (lesson_content_authority in user JSON).",
     "Each objective must start with أن followed immediately by one measurable behavioral verb from the provided Bloom bank.",
@@ -314,7 +324,9 @@ export function buildPrompt2ActiveLearningPedagogicalTuner(args) {
     "When validation_errors are present, repair the exact failing paths first and never return a partial object such as header only.",
     "Do not include instruction, inputs, output_requirements, draft_plan_json, validation_errors, or metadata wrapper keys in output.",
     "Keep the plan concise and teacher-facing; do not bloat the rows just to sound compliant.",
-  ].join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const payload = {
     task: "Repair and pedagogically tune an active-learning lesson plan JSON.",
