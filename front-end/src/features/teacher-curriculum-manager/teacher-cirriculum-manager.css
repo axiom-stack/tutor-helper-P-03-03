@@ -749,18 +749,19 @@
   height: 2.65rem;
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 0 var(--space-md);
+  padding: 0 var(--space-md) 0 2.2rem;
+  line-height: 2.65rem;
   font-family: inherit;
   font-size: var(--text-sm);
-  background: var(--surface);
+  background-color: var(--surface);
   color: var(--text-primary);
   box-sizing: border-box;
   cursor: pointer;
   appearance: none;
   background-image: url('data:image/svg+xml;charset=UTF-8,<svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L6 6L11 1" stroke="%23475569" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>');
   background-repeat: no-repeat;
-  background-position: calc(100% - var(--space-md)) center;
-  padding-inline-end: 2.1rem;
+  background-position: 0.5rem center;
+  background-size: 12px 8px;
   transition:
     border-color var(--transition-fast),
     box-shadow var(--transition-fast);
@@ -826,7 +827,11 @@
 
 .tcm2__library-btn--primary {
   width: fit-content;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--primary) 0%,
+    var(--primary-hover) 100%
+  );
   color: #ffffff;
   border-color: transparent;
   box-shadow: 0 10px 24px rgba(37, 99, 235, 0.16);
