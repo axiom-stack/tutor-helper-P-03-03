@@ -1,5 +1,12 @@
 import { authAxios, getStoredUser } from '../auth/auth.services';
-import type { Class, Lesson, LessonPlanRecord, Subject, Unit, PreparationType } from '../../types';
+import type {
+  Class,
+  Lesson,
+  LessonPlanRecord,
+  Subject,
+  Unit,
+  PreparationType,
+} from '../../types';
 import { getIsOnline, isOfflineError } from '../../offline/network';
 import { enqueueOfflineAction } from '../../offline/queue';
 import { cachePlan, getCachedPlanById } from '../../offline/plans';
@@ -90,8 +97,14 @@ export async function getAllClasses(): Promise<{ classes: Class[] }> {
 
 export async function getMySubjects(): Promise<{ subjects: Subject[] }> {
   try {
-    const response = await api().get<{ subjects: Subject[] }>('/api/subjects/mine');
-    await putReference('subjects:mine', 'subjects', response.data.subjects ?? []);
+    const response = await api().get<{ subjects: Subject[] }>(
+      '/api/subjects/mine'
+    );
+    await putReference(
+      'subjects:mine',
+      'subjects',
+      response.data.subjects ?? []
+    );
     return response.data;
   } catch (error: unknown) {
     if (!isOfflineError(error)) {
@@ -106,7 +119,11 @@ export async function getMySubjects(): Promise<{ subjects: Subject[] }> {
 export async function getAllSubjects(): Promise<{ subjects: Subject[] }> {
   try {
     const response = await api().get<{ subjects: Subject[] }>('/api/subjects');
-    await putReference('subjects:all', 'subjects', response.data.subjects ?? []);
+    await putReference(
+      'subjects:all',
+      'subjects',
+      response.data.subjects ?? []
+    );
     return response.data;
   } catch (error: unknown) {
     if (!isOfflineError(error)) {
@@ -126,7 +143,12 @@ export async function getSubjectsByClass(
     const response = await api().get<{ subjects: Subject[] }>(
       `/api/subjects/class/${classId}`
     );
-    await putReference(cacheKey, 'subjects', response.data.subjects ?? [], classId);
+    await putReference(
+      cacheKey,
+      'subjects',
+      response.data.subjects ?? [],
+      classId
+    );
     return response.data;
   } catch (error: unknown) {
     if (!isOfflineError(error)) {
@@ -166,7 +188,12 @@ export async function getLessonsByUnit(
     const response = await api().get<{ lessons: Lesson[] }>(
       `/api/lessons/unit/${unitId}`
     );
-    await putReference(cacheKey, 'lessons', response.data.lessons ?? [], unitId);
+    await putReference(
+      cacheKey,
+      'lessons',
+      response.data.lessons ?? [],
+      unitId
+    );
     return response.data;
   } catch (error: unknown) {
     if (!isOfflineError(error)) {
@@ -183,7 +210,9 @@ export async function getLessonById(
 ): Promise<{ lesson: Lesson }> {
   const cacheKey = `lesson:${lessonId}`;
   try {
-    const response = await api().get<{ lesson: Lesson }>(`/api/lessons/${lessonId}`);
+    const response = await api().get<{ lesson: Lesson }>(
+      `/api/lessons/${lessonId}`
+    );
     await putReference(cacheKey, 'lesson', response.data.lesson, lessonId);
     return response.data;
   } catch (error: unknown) {
@@ -203,7 +232,10 @@ export async function generatePlan(
   payload: GeneratePlanRequest
 ): Promise<GeneratedPlanResponse | QueuedGeneratePlanResponse> {
   try {
-    const response = await api().post<GeneratedPlanResponse>('/api/generate-plan', payload);
+    const response = await api().post<GeneratedPlanResponse>(
+      '/api/generate-plan',
+      payload
+    );
     const storedUser = getStoredUser();
     await cachePlan({
       id: response.data.id,
@@ -216,6 +248,7 @@ export async function generatePlan(
       grade: payload.grade,
       unit: payload.unit,
       duration_minutes: payload.duration_minutes,
+      period_order: null,
       plan_type: response.data.plan_type,
       plan_json: response.data.plan_json,
       validation_status: response.data.validation_status,
@@ -257,7 +290,9 @@ export async function getPlanById(
   }
 
   try {
-    const response = await api().get<{ plan: LessonPlanRecord }>(`/api/plans/${planId}`);
+    const response = await api().get<{ plan: LessonPlanRecord }>(
+      `/api/plans/${planId}`
+    );
     const cached = await cachePlan(response.data.plan);
     return { plan: cached };
   } catch (error: unknown) {
@@ -278,7 +313,10 @@ export async function getPlanById(
  * @param planId - Plan public_id (e.g. trd_1, act_1)
  * @param format - 'pdf' | 'docx'
  */
-export async function exportPlan(planId: string, format: 'pdf' | 'docx'): Promise<void> {
+export async function exportPlan(
+  planId: string,
+  format: 'pdf' | 'docx'
+): Promise<void> {
   const ext = format === 'pdf' ? 'pdf' : 'docx';
   const filename = `plan_${planId}.${ext}`;
 

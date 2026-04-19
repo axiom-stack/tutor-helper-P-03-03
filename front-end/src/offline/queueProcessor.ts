@@ -2,10 +2,31 @@ import { authAxios, getStoredUser } from '../features/auth/auth.services';
 import type { GeneratePlanRequest } from '../features/lesson-creator/lesson-creator.services';
 import { normalizeApiError } from '../utils/apiErrors';
 import { cacheAssignment } from './assignments';
-import { getCachedAssignmentById, markAssignmentConflict, markAssignmentSyncError, replaceAssignmentFromServer } from './assignments';
-import { getCachedExamById, markExamConflict, markExamSyncError, replaceExamFromServer, cacheExam } from './exams';
-import { listQueueActionsByStatus, markQueueActionStatus, deleteCompletedQueueActions } from './queue';
-import { getCachedPlanById, markPlanConflict, markPlanSyncError, replacePlanFromServer, cachePlan } from './plans';
+import {
+  getCachedAssignmentById,
+  markAssignmentConflict,
+  markAssignmentSyncError,
+  replaceAssignmentFromServer,
+} from './assignments';
+import {
+  getCachedExamById,
+  markExamConflict,
+  markExamSyncError,
+  replaceExamFromServer,
+  cacheExam,
+} from './exams';
+import {
+  listQueueActionsByStatus,
+  markQueueActionStatus,
+  deleteCompletedQueueActions,
+} from './queue';
+import {
+  getCachedPlanById,
+  markPlanConflict,
+  markPlanSyncError,
+  replacePlanFromServer,
+  cachePlan,
+} from './plans';
 import { getIsOnline } from './network';
 import { dispatchOfflineSyncCompleted } from './utils';
 import type { OfflineQueueAction } from './types';
@@ -17,7 +38,9 @@ function api() {
 }
 
 async function processPlanUpdate(action: OfflineQueueAction) {
-  const local = action.target_local_id ? await getCachedPlanById(action.target_local_id) : null;
+  const local = action.target_local_id
+    ? await getCachedPlanById(action.target_local_id)
+    : null;
   if (!local || !action.target_server_id) {
     await markQueueActionStatus(action.queue_id, 'stale', {
       last_error: 'المرجع المحلي غير متوفر.',
@@ -33,16 +56,24 @@ async function processPlanUpdate(action: OfflineQueueAction) {
     action.base_server_updated_at &&
     currentRemote.data.plan.updated_at !== action.base_server_updated_at
   ) {
-    await markPlanConflict(local.local_id, 'الخطة تغيّرت على الخادم قبل إعادة المزامنة.');
+    await markPlanConflict(
+      local.local_id,
+      'الخطة تغيّرت على الخادم قبل إعادة المزامنة.'
+    );
     await markQueueActionStatus(action.queue_id, 'conflict', {
       last_error: 'تعارض مع نسخة الخادم.',
     });
     return;
   }
 
-  const response = await api().put(`/api/plans/${action.target_server_id}`, action.request_payload);
+  const response = await api().put(
+    `/api/plans/${action.target_server_id}`,
+    action.request_payload
+  );
   await replacePlanFromServer(local.local_id, response.data.plan);
-  await markQueueActionStatus(action.queue_id, 'completed', { last_error: null });
+  await markQueueActionStatus(action.queue_id, 'completed', {
+    last_error: null,
+  });
 }
 
 async function processAssignmentUpdate(action: OfflineQueueAction) {
@@ -64,7 +95,10 @@ async function processAssignmentUpdate(action: OfflineQueueAction) {
     action.base_server_updated_at &&
     currentRemote.data.assignment.updated_at !== action.base_server_updated_at
   ) {
-    await markAssignmentConflict(local.local_id, 'الواجب تغيّر على الخادم قبل إعادة المزامنة.');
+    await markAssignmentConflict(
+      local.local_id,
+      'الواجب تغيّر على الخادم قبل إعادة المزامنة.'
+    );
     await markQueueActionStatus(action.queue_id, 'conflict', {
       last_error: 'تعارض مع نسخة الخادم.',
     });
@@ -76,11 +110,15 @@ async function processAssignmentUpdate(action: OfflineQueueAction) {
     action.request_payload
   );
   await replaceAssignmentFromServer(local.local_id, response.data.assignment);
-  await markQueueActionStatus(action.queue_id, 'completed', { last_error: null });
+  await markQueueActionStatus(action.queue_id, 'completed', {
+    last_error: null,
+  });
 }
 
 async function processExamUpdate(action: OfflineQueueAction) {
-  const local = action.target_local_id ? await getCachedExamById(action.target_local_id) : null;
+  const local = action.target_local_id
+    ? await getCachedExamById(action.target_local_id)
+    : null;
   if (!local || !action.target_server_id) {
     await markQueueActionStatus(action.queue_id, 'stale', {
       last_error: 'المرجع المحلي غير متوفر.',
@@ -96,16 +134,24 @@ async function processExamUpdate(action: OfflineQueueAction) {
     action.base_server_updated_at &&
     currentRemote.data.exam.updated_at !== action.base_server_updated_at
   ) {
-    await markExamConflict(local.local_id, 'الاختبار تغيّر على الخادم قبل إعادة المزامنة.');
+    await markExamConflict(
+      local.local_id,
+      'الاختبار تغيّر على الخادم قبل إعادة المزامنة.'
+    );
     await markQueueActionStatus(action.queue_id, 'conflict', {
       last_error: 'تعارض مع نسخة الخادم.',
     });
     return;
   }
 
-  const response = await api().put(`/api/exams/${action.target_server_id}`, action.request_payload);
+  const response = await api().put(
+    `/api/exams/${action.target_server_id}`,
+    action.request_payload
+  );
   await replaceExamFromServer(local.local_id, response.data.exam);
-  await markQueueActionStatus(action.queue_id, 'completed', { last_error: null });
+  await markQueueActionStatus(action.queue_id, 'completed', {
+    last_error: null,
+  });
 }
 
 async function processGeneratePlan(action: OfflineQueueAction) {
@@ -131,6 +177,7 @@ async function processGeneratePlan(action: OfflineQueueAction) {
     grade: payload.grade,
     unit: payload.unit,
     duration_minutes: payload.duration_minutes,
+    period_order: null,
     plan_type: response.data.plan_type,
     plan_json: response.data.plan_json,
     validation_status: response.data.validation_status,
@@ -138,19 +185,31 @@ async function processGeneratePlan(action: OfflineQueueAction) {
     created_at: response.data.created_at,
     updated_at: response.data.updated_at,
   });
-  await markQueueActionStatus(action.queue_id, 'completed', { last_error: null });
+  await markQueueActionStatus(action.queue_id, 'completed', {
+    last_error: null,
+  });
 }
 
 async function processGenerateAssignments(action: OfflineQueueAction) {
-  const response = await api().post('/api/assignments/generate', action.request_payload);
+  const response = await api().post(
+    '/api/assignments/generate',
+    action.request_payload
+  );
   await Promise.all((response.data.assignments ?? []).map(cacheAssignment));
-  await markQueueActionStatus(action.queue_id, 'completed', { last_error: null });
+  await markQueueActionStatus(action.queue_id, 'completed', {
+    last_error: null,
+  });
 }
 
 async function processGenerateExam(action: OfflineQueueAction) {
-  const response = await api().post('/api/exams/generate', action.request_payload);
+  const response = await api().post(
+    '/api/exams/generate',
+    action.request_payload
+  );
   await cacheExam(response.data.exam);
-  await markQueueActionStatus(action.queue_id, 'completed', { last_error: null });
+  await markQueueActionStatus(action.queue_id, 'completed', {
+    last_error: null,
+  });
 }
 
 async function processCreateRefinement(action: OfflineQueueAction) {
@@ -169,7 +228,9 @@ async function processCreateRefinement(action: OfflineQueueAction) {
   }
 
   await api().post('/api/refinements', action.request_payload);
-  await markQueueActionStatus(action.queue_id, 'completed', { last_error: null });
+  await markQueueActionStatus(action.queue_id, 'completed', {
+    last_error: null,
+  });
 }
 
 async function processRetryRefinement(action: OfflineQueueAction) {
@@ -180,7 +241,9 @@ async function processRetryRefinement(action: OfflineQueueAction) {
     return;
   }
   await api().post(`/api/refinements/${action.target_server_id}/retry`);
-  await markQueueActionStatus(action.queue_id, 'completed', { last_error: null });
+  await markQueueActionStatus(action.queue_id, 'completed', {
+    last_error: null,
+  });
 }
 
 async function processAction(action: OfflineQueueAction) {
@@ -229,7 +292,10 @@ export async function processOfflineQueue() {
       try {
         await processAction(action);
       } catch (error: unknown) {
-        const message = normalizeApiError(error, 'فشلت إعادة المزامنة.').message;
+        const message = normalizeApiError(
+          error,
+          'فشلت إعادة المزامنة.'
+        ).message;
 
         switch (action.action_type) {
           case 'sync_plan_update':
