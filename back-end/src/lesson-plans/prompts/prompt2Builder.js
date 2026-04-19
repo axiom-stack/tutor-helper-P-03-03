@@ -13,7 +13,9 @@ function buildValidationErrorSummary(validationErrors = []) {
   const seen = new Set();
 
   validationErrors.forEach((error) => {
-    const entry = [error?.path, error?.message || error?.code].filter(Boolean).join(": ");
+    const entry = [error?.path, error?.message || error?.code]
+      .filter(Boolean)
+      .join(": ");
     const normalizedEntry = entry.trim();
     if (!normalizedEntry || seen.has(normalizedEntry)) {
       return;
@@ -36,8 +38,14 @@ function buildCommonInput({
   targetSchema,
   validationErrors = [],
 }) {
-  const lessonContent = typeof request.lesson_content === "string" ? request.lesson_content.trim() : "";
-  const maxLessonContentChars = Array.isArray(validationErrors) && validationErrors.length > 0 ? 4000 : 6000;
+  const lessonContent =
+    typeof request.lesson_content === "string"
+      ? request.lesson_content.trim()
+      : "";
+  const maxLessonContentChars =
+    Array.isArray(validationErrors) && validationErrors.length > 0
+      ? 4000
+      : 6000;
   const boundedLessonContent = lessonContent.slice(0, maxLessonContentChars);
   const outputKeys = Object.keys(targetSchema ?? {});
   const normalizedValidationErrors = Array.isArray(validationErrors)
@@ -71,7 +79,9 @@ function buildCommonInput({
       preparation_context: request.preparation_type
         ? {
             type: request.preparation_type,
-            description: getPreparationTypeDescription(request.preparation_type),
+            description: getPreparationTypeDescription(
+              request.preparation_type,
+            ),
           }
         : null,
       draft_plan_json: draftPlanJson,
@@ -97,7 +107,9 @@ function buildCommonInput({
           }))
         : [],
       validation_errors: normalizedValidationErrors,
-      validation_error_summary: buildValidationErrorSummary(normalizedValidationErrors),
+      validation_error_summary: buildValidationErrorSummary(
+        normalizedValidationErrors,
+      ),
       arabic_style_hints: ARABIC_STYLE_HINTS,
     },
   };
@@ -198,21 +210,26 @@ function buildActiveRepairContract() {
       content: "تمهيد حول أهمية طريق البخور في التجارة القديمة.",
       activity_type: "intro",
       teacher_activity: "يعرض المعلم خريطة تمهيدية ويطرح سؤالا محفزا.",
-      student_activity: "يجيب الطلاب عن السؤال ويحددون مواقع أولية على الخريطة.",
+      student_activity:
+        "يجيب الطلاب عن السؤال ويحددون مواقع أولية على الخريطة.",
       learning_resources: ["خريطة", "بطاقة تمهيد"],
     },
   };
 }
 
 export function buildPrompt2TraditionalPedagogicalTuner(args) {
-  const minimumTraditionalStrategies = args.request.duration_minutes >= 40 ? 2 : 1;
-  const isRefinementMode = args.refinement_mode === "controlled_same_rule_refinement";
+  const minimumTraditionalStrategies =
+    args.request.duration_minutes >= 40 ? 2 : 1;
+  const isRefinementMode =
+    args.refinement_mode === "controlled_same_rule_refinement";
   const systemPrompt = [
     "You are a pedagogical tuner for a traditional lesson plan.",
     "Repair and improve the given draft JSON only; do not regenerate from scratch.",
     "Output must be the lesson plan object itself, not a wrapper; strict JSON; Arabic values.",
     "Preserve top-level keys exactly; follow traditional_repair_contract and inputs in user JSON.",
-    isRefinementMode && args.targetSelector && args.targetSelector !== "full_document"
+    isRefinementMode &&
+    args.targetSelector &&
+    args.targetSelector !== "full_document"
       ? `CRITICAL REFINEMENT CONSTRAINT: You MUST ONLY modify the field(s) specified in target_selector ('${args.targetSelector}'). NEVER change any other fields. Return the complete plan structure with ALL other fields EXACTLY as they appear in draft_plan_json. Only the target field(s) should have modified values. This is non-negotiable.`
       : null,
     "LESSON_CONTENT IS AUTHORITATIVE FOR SCOPE; lesson_title is display-only; on conflict follow lesson_content (lesson_content_authority in user JSON).",
@@ -290,12 +307,15 @@ export function buildPrompt2TraditionalPedagogicalTuner(args) {
 }
 
 export function buildPrompt2ActiveLearningPedagogicalTuner(args) {
-  const isRefinementMode = args.refinement_mode === "controlled_same_rule_refinement";
+  const isRefinementMode =
+    args.refinement_mode === "controlled_same_rule_refinement";
   const systemPrompt = [
     "You are a pedagogical tuner for an active-learning lesson plan.",
     "Repair and improve the given draft JSON only; do not regenerate from scratch.",
     "Output must be the lesson plan object itself, not a wrapper; strict JSON; Arabic values.",
-    isRefinementMode && args.targetSelector && args.targetSelector !== "full_document"
+    isRefinementMode &&
+    args.targetSelector &&
+    args.targetSelector !== "full_document"
       ? `CRITICAL REFINEMENT CONSTRAINT: You MUST ONLY modify the field(s) specified in target_selector ('${args.targetSelector}'). NEVER change any other fields. Return the complete plan structure with ALL other fields EXACTLY as they appear in draft_plan_json. Only the target field(s) should have modified values. This is non-negotiable.`
       : null,
     "Preserve top-level keys exactly; follow active_repair_contract and inputs in user JSON.",
@@ -340,8 +360,14 @@ export function buildPrompt2ActiveLearningPedagogicalTuner(args) {
       default_objectives_count: 3,
       minimum_lesson_flow_rows: 4,
       must_include_assessment_row: true,
-      allowed_activity_types: ["intro", "presentation", "activity", "assessment"],
-      objective_behavioral_format_hint: "أن + فعل سلوكي + الطالب + محتوى + شرط/معيار",
+      allowed_activity_types: [
+        "intro",
+        "presentation",
+        "activity",
+        "assessment",
+      ],
+      objective_behavioral_format_hint:
+        "أن + فعل سلوكي + الطالب + محتوى + شرط/معيار",
       require_student_reference_in_objective: true,
       require_condition_or_criterion_in_objective: true,
       avoid_forbidden_verbs: true,

@@ -21,7 +21,7 @@ export function buildGeneratePrompt({
 }) {
   const systemPrompt = [
     "You are an expert educational assistant that suggests assignments for a lesson.",
-    "Return exactly one JSON object with a single key: \"assignments\", whose value is an array of assignment objects.",
+    'Return exactly one JSON object with a single key: "assignments", whose value is an array of assignment objects.',
     "Each assignment object must have exactly: name (string), description (string), type (string), content (string).",
     "type must be exactly one of: written, varied, practical.",
     "written = واجبات كتابية (written assignments), varied = أسئلة تقويم متنوعة (varied assessment questions), practical = أنشطة تطبيقية (practical activities).",
@@ -31,16 +31,25 @@ export function buildGeneratePrompt({
     "Assignments must align with the lesson plan and lesson content.",
   ].join(" ");
 
-  const boundedContent = truncate(lessonContent || "", MAX_LESSON_CONTENT_CHARS);
+  const boundedContent = truncate(
+    lessonContent || "",
+    MAX_LESSON_CONTENT_CHARS,
+  );
 
   const userPayload = {
-    instruction: "Generate suggested assignments (assignments array) based on the lesson plan and lesson content.",
+    instruction:
+      "Generate suggested assignments (assignments array) based on the lesson plan and lesson content.",
     lesson_name: lessonName || undefined,
     lesson_plan: lessonPlanJson ?? undefined,
     lesson_content: boundedContent,
     required_output_shape: {
       assignments: [
-        { name: "string, Arabic", description: "string, Arabic", type: "written | varied | practical", content: "string, Arabic" },
+        {
+          name: "string, Arabic",
+          description: "string, Arabic",
+          type: "written | varied | practical",
+          content: "string, Arabic",
+        },
       ],
     },
     allowed_types: VALID_ASSIGNMENT_TYPES,
@@ -70,10 +79,11 @@ export function buildModifyPrompt({
   targetSelector,
   validationErrors = [],
 }) {
-  const isTargetedRefinement = targetSelector && targetSelector !== "full_document";
+  const isTargetedRefinement =
+    targetSelector && targetSelector !== "full_document";
   const systemPrompt = [
     "You are an expert educational assistant that modifies an existing assignment according to the teacher's request.",
-    "Return exactly one JSON object with a single key: \"assignment\", whose value is the modified assignment object.",
+    'Return exactly one JSON object with a single key: "assignment", whose value is the modified assignment object.',
     "The assignment object must have exactly: name (string), description (string), type (string), content (string).",
     "type must be exactly one of: written, varied, practical.",
     "All name, description, and content must be written in Arabic.",
@@ -86,16 +96,25 @@ export function buildModifyPrompt({
     .filter(Boolean)
     .join(" ");
 
-  const boundedContent = truncate(lessonContent || "", MAX_LESSON_CONTENT_CHARS);
+  const boundedContent = truncate(
+    lessonContent || "",
+    MAX_LESSON_CONTENT_CHARS,
+  );
 
   const userPayload = {
-    instruction: "Modify the current assignment according to the modification_request. Return the full modified assignment.",
+    instruction:
+      "Modify the current assignment according to the modification_request. Return the full modified assignment.",
     lesson_plan: lessonPlanJson ?? undefined,
     lesson_content: boundedContent,
     current_assignment: currentAssignment,
     modification_request: modificationRequest,
     required_output_shape: {
-      assignment: { name: "string, Arabic", description: "string, Arabic", type: "written | varied | practical", content: "string, Arabic" },
+      assignment: {
+        name: "string, Arabic",
+        description: "string, Arabic",
+        type: "written | varied | practical",
+        content: "string, Arabic",
+      },
     },
     allowed_types: VALID_ASSIGNMENT_TYPES,
   };

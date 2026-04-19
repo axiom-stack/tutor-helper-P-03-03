@@ -1,7 +1,5 @@
 import { turso } from "../../lib/turso.js";
-import {
-  createLessonPlansRepository,
-} from "../../lesson-plans/repositories/lessonPlans.repository.js";
+import { createLessonPlansRepository } from "../../lesson-plans/repositories/lessonPlans.repository.js";
 import { loadLessonPlanKnowledge } from "../../lesson-plans/knowledgeLoader.js";
 import { selectPlanRuntimeResources } from "../../lesson-plans/selectors.js";
 import { buildPrompt2PedagogicalTuner } from "../../lesson-plans/prompts/prompt2Builder.js";
@@ -107,7 +105,9 @@ function hasExactTopLevelKeys(value, expectedKeys) {
 
 function hasAllExpectedTopLevelKeys(value, expectedKeys) {
   if (!isPlainObject(value)) return false;
-  return expectedKeys.every((key) => Object.prototype.hasOwnProperty.call(value, key));
+  return expectedKeys.every((key) =>
+    Object.prototype.hasOwnProperty.call(value, key),
+  );
 }
 
 function projectToExpectedTopLevelKeys(value, expectedKeys) {
@@ -135,7 +135,11 @@ function extractLessonPlanObject(value, expectedKeys, depth = 0) {
 
   for (const nestedValue of Object.values(value)) {
     if (!isPlainObject(nestedValue)) continue;
-    const nested = extractLessonPlanObject(nestedValue, expectedKeys, depth + 1);
+    const nested = extractLessonPlanObject(
+      nestedValue,
+      expectedKeys,
+      depth + 1,
+    );
     if (nested) return nested;
   }
 
@@ -153,7 +157,11 @@ function extractBatchAssignments(rawOutput) {
   for (const key of wrapperKeys) {
     const value = rawOutput[key];
     if (Array.isArray(value)) return value;
-    if (value && typeof value === "object" && Array.isArray(value.assignments)) {
+    if (
+      value &&
+      typeof value === "object" &&
+      Array.isArray(value.assignments)
+    ) {
       return value.assignments;
     }
   }
@@ -232,9 +240,15 @@ function buildExamPayload(exam) {
   };
 }
 
-function summarizeChangeReason({ artifactType, targetSelector, changedFields }) {
+function summarizeChangeReason({
+  artifactType,
+  targetSelector,
+  changedFields,
+}) {
   const changedCount = changedFields.length;
-  const scopeText = targetSelector ? `targeted "${targetSelector}"` : "targeted feedback";
+  const scopeText = targetSelector
+    ? `targeted "${targetSelector}"`
+    : "targeted feedback";
   if (artifactType === ARTIFACT_TYPES.LESSON_PLAN) {
     return `Applied ${scopeText} while preserving lesson-plan schema and pedagogical rules. Changed fields: ${changedCount}.`;
   }
@@ -263,7 +277,9 @@ function buildBatchBasePayload(artifacts) {
 }
 
 function sortAssignmentsForDeterminism(assignments) {
-  return [...assignments].sort((a, b) => a.public_id.localeCompare(b.public_id));
+  return [...assignments].sort((a, b) =>
+    a.public_id.localeCompare(b.public_id),
+  );
 }
 
 async function loadLessonContent(lessonId, accessContext) {
@@ -274,7 +290,10 @@ async function loadLessonContent(lessonId, accessContext) {
   });
   const row = result.rows[0];
   if (!row) return "";
-  if (accessContext.role !== "admin" && Number(row.teacher_id) !== Number(accessContext.userId)) {
+  if (
+    accessContext.role !== "admin" &&
+    Number(row.teacher_id) !== Number(accessContext.userId)
+  ) {
     throw new RefinementPipelineError(403, "forbidden", "Lesson access denied");
   }
   return typeof row.content === "string" ? row.content : "";
@@ -289,7 +308,9 @@ function buildExamSlotsFromQuestions(questions = []) {
 }
 
 function mergeExamQuestions(existingQuestions = [], normalizedQuestions = []) {
-  const bySlotId = new Map(normalizedQuestions.map((item) => [item.slot_id, item]));
+  const bySlotId = new Map(
+    normalizedQuestions.map((item) => [item.slot_id, item]),
+  );
 
   return existingQuestions.map((question) => {
     const incoming = bySlotId.get(question.slot_id);
@@ -373,7 +394,8 @@ function validateBatchAssignmentOutput(rawOutput, expectedAssignments) {
       continue;
     }
 
-    const assignmentId = typeof item.assignment_id === "string" ? item.assignment_id.trim() : "";
+    const assignmentId =
+      typeof item.assignment_id === "string" ? item.assignment_id.trim() : "";
     if (!assignmentId || !/^asn_\d+$/.test(assignmentId)) {
       errors.push({
         code: "schema.assignment.assignment_id",
@@ -420,7 +442,8 @@ function validateBatchAssignmentOutput(rawOutput, expectedAssignments) {
     normalized.push({
       assignment_id: assignmentId,
       name: String(item.name).trim(),
-      description: item.description != null ? String(item.description).trim() : "",
+      description:
+        item.description != null ? String(item.description).trim() : "",
       type: item.type,
       content: String(item.content).trim(),
     });
@@ -449,8 +472,10 @@ export function createRefinementService(dependencies = {}) {
   const assignmentsRepository =
     dependencies.assignmentsRepository || createAssignmentsRepository();
   const assignmentGroupsRepository =
-    dependencies.assignmentGroupsRepository || createAssignmentGroupsRepository();
-  const examsRepository = dependencies.examsRepository || createExamsRepository();
+    dependencies.assignmentGroupsRepository ||
+    createAssignmentGroupsRepository();
+  const examsRepository =
+    dependencies.examsRepository || createExamsRepository();
   const revisionsRepository =
     dependencies.revisionsRepository || createArtifactRevisionsRepository();
   const requestsRepository =
@@ -552,7 +577,11 @@ export function createRefinementService(dependencies = {}) {
         accessContext,
       );
       if (!plan) {
-        throw new RefinementPipelineError(404, "artifact_not_found", "Lesson plan not found");
+        throw new RefinementPipelineError(
+          404,
+          "artifact_not_found",
+          "Lesson plan not found",
+        );
       }
       const revision = await ensureRevisionForArtifact({
         artifactType: ARTIFACT_TYPES.LESSON_PLAN,
@@ -581,7 +610,11 @@ export function createRefinementService(dependencies = {}) {
         accessContext,
       );
       if (!assignment) {
-        throw new RefinementPipelineError(404, "artifact_not_found", "Assignment not found");
+        throw new RefinementPipelineError(
+          404,
+          "artifact_not_found",
+          "Assignment not found",
+        );
       }
       const revision = await ensureRevisionForArtifact({
         artifactType: ARTIFACT_TYPES.ASSIGNMENT,
@@ -604,11 +637,19 @@ export function createRefinementService(dependencies = {}) {
       };
     }
 
-    const exam = await examsRepository.getByPublicId(request.artifact_id, accessContext, {
-      includePayload: true,
-    });
+    const exam = await examsRepository.getByPublicId(
+      request.artifact_id,
+      accessContext,
+      {
+        includePayload: true,
+      },
+    );
     if (!exam) {
-      throw new RefinementPipelineError(404, "artifact_not_found", "Exam not found");
+      throw new RefinementPipelineError(
+        404,
+        "artifact_not_found",
+        "Exam not found",
+      );
     }
     const revision = await ensureRevisionForArtifact({
       artifactType: ARTIFACT_TYPES.EXAM,
@@ -643,8 +684,14 @@ export function createRefinementService(dependencies = {}) {
       planRecord.plan_type,
       knowledge,
     );
-    const lessonContent = await loadLessonContent(planRecord.lesson_id, accessContext);
-    const lessonValidationContext = buildLessonValidationContext(planRecord, lessonContent);
+    const lessonContent = await loadLessonContent(
+      planRecord.lesson_id,
+      accessContext,
+    );
+    const lessonValidationContext = buildLessonValidationContext(
+      planRecord,
+      lessonContent,
+    );
     const normalizedDraftPlan = normalizeLessonPlan({
       plan: planRecord.plan_json,
       planType: planRecord.plan_type,
@@ -679,9 +726,10 @@ export function createRefinementService(dependencies = {}) {
     payload.refinement_request = feedbackText;
     payload.target_selector = targetSelector || "full_document";
     payload.refinement_mode = "controlled_same_rule_refinement";
-    payload.scope_constraint = targetSelector && targetSelector !== "full_document"
-      ? `ONLY MODIFY: ${targetSelector}. Leave all other fields unchanged.`
-      : "Full document feedback - can modify any field."
+    payload.scope_constraint =
+      targetSelector && targetSelector !== "full_document"
+        ? `ONLY MODIFY: ${targetSelector}. Leave all other fields unchanged.`
+        : "Full document feedback - can modify any field.";
     payload.immutability_constraints = {
       plan_type_must_stay: planRecord.plan_type,
       lesson_identity: {
@@ -726,7 +774,10 @@ export function createRefinementService(dependencies = {}) {
     const expectedKeys = Object.keys(runtime.targetSchema || {});
     const extractedPlan =
       extractLessonPlanObject(result.data, expectedKeys) || result.data;
-    const lessonValidationContext = buildLessonValidationContext(planRecord, runtime.lessonContent);
+    const lessonValidationContext = buildLessonValidationContext(
+      planRecord,
+      runtime.lessonContent,
+    );
     const normalizationResult = normalizeLessonPlan({
       plan: extractedPlan,
       planType: planRecord.plan_type,
@@ -742,7 +793,8 @@ export function createRefinementService(dependencies = {}) {
       planType: planRecord.plan_type,
       targetSchema: runtime.targetSchema,
       allowedStrategies: runtime.strategyBank,
-      forbiddenVerbs: runtime.knowledge?.pedagogical_rules?.forbidden_verbs || [],
+      forbiddenVerbs:
+        runtime.knowledge?.pedagogical_rules?.forbidden_verbs || [],
       durationMinutes: planRecord.duration_minutes,
       pedagogicalRules: runtime.knowledge?.pedagogical_rules || {},
       bloomVerbsGeneration: runtime.knowledge?.bloom_verbs_generation || {},
@@ -756,7 +808,8 @@ export function createRefinementService(dependencies = {}) {
       rawOutput: result.rawText || JSON.stringify(result.data),
       candidatePayload: {
         ...buildLessonPlanPayload(planRecord),
-        plan_json: validation.normalizedPlan || normalizationResult.normalizedPlan,
+        plan_json:
+          validation.normalizedPlan || normalizationResult.normalizedPlan,
       },
       validation: validation,
     };
@@ -774,10 +827,17 @@ export function createRefinementService(dependencies = {}) {
       accessContext,
     );
     if (!plan) {
-      throw new RefinementPipelineError(404, "plan_not_found", "Linked lesson plan not found");
+      throw new RefinementPipelineError(
+        404,
+        "plan_not_found",
+        "Linked lesson plan not found",
+      );
     }
 
-    const lessonContent = await loadLessonContent(assignmentRecord.lesson_id, accessContext);
+    const lessonContent = await loadLessonContent(
+      assignmentRecord.lesson_id,
+      accessContext,
+    );
     const prompt = buildModifyPrompt({
       lessonPlanJson: plan.plan_json || {},
       lessonContent,
@@ -905,7 +965,8 @@ export function createRefinementService(dependencies = {}) {
     ].join(" ");
 
     const userPayload = {
-      instruction: "Refine existing exam questions according to teacher feedback.",
+      instruction:
+        "Refine existing exam questions according to teacher feedback.",
       feedback_text: feedbackText,
       target_selector: targetSelector || "questions",
       include_alternatives: Boolean(includeAlternatives),
@@ -921,7 +982,8 @@ export function createRefinementService(dependencies = {}) {
         questions: [
           {
             slot_id: "q_1",
-            question_type: "multiple_choice | true_false | fill_blank | open_ended",
+            question_type:
+              "multiple_choice | true_false | fill_blank | open_ended",
             question_text: "string",
             options: ["string"],
             correct_option_index: 0,
@@ -943,7 +1005,10 @@ export function createRefinementService(dependencies = {}) {
     const candidatePayload = validation.isValid
       ? {
           ...buildExamPayload(examRecord),
-          questions: mergeExamQuestions(examRecord.questions || [], validation.questions),
+          questions: mergeExamQuestions(
+            examRecord.questions || [],
+            validation.questions,
+          ),
         }
       : null;
 
@@ -1029,9 +1094,19 @@ export function createRefinementService(dependencies = {}) {
       );
 
       const immutableErrors = [];
-      const immutableKeys = ["lesson_title", "subject", "grade", "unit", "duration_minutes", "plan_type"];
+      const immutableKeys = [
+        "lesson_title",
+        "subject",
+        "grade",
+        "unit",
+        "duration_minutes",
+        "plan_type",
+      ];
       for (const key of immutableKeys) {
-        if (candidatePayload[key] !== undefined && candidatePayload[key] !== planRecord[key]) {
+        if (
+          candidatePayload[key] !== undefined &&
+          candidatePayload[key] !== planRecord[key]
+        ) {
           immutableErrors.push({
             code: "immutable_field_changed",
             path: key,
@@ -1057,7 +1132,8 @@ export function createRefinementService(dependencies = {}) {
           }),
         ),
       });
-      candidatePayload.plan_json = validation.normalizedPlan || candidatePayload.plan_json;
+      candidatePayload.plan_json =
+        validation.normalizedPlan || candidatePayload.plan_json;
 
       return {
         isValid: validation.isValid && immutableErrors.length === 0,
@@ -1067,7 +1143,10 @@ export function createRefinementService(dependencies = {}) {
 
     if (targetContext.artifact_type === ARTIFACT_TYPES.ASSIGNMENT) {
       if (targetContext.target_mode === "batch") {
-        return validateBatchAssignmentOutput(candidatePayload, targetContext.artifacts.map((item) => item.record));
+        return validateBatchAssignmentOutput(
+          candidatePayload,
+          targetContext.artifacts.map((item) => item.record),
+        );
       }
 
       const validation = validateSingleAssignment(
@@ -1087,7 +1166,8 @@ export function createRefinementService(dependencies = {}) {
 
     const examRecord = targetContext.artifacts[0].record;
     if (
-      Number(candidatePayload.total_questions) !== Number(examRecord.total_questions) ||
+      Number(candidatePayload.total_questions) !==
+        Number(examRecord.total_questions) ||
       Number(candidatePayload.total_marks) !== Number(examRecord.total_marks)
     ) {
       return {
@@ -1105,7 +1185,9 @@ export function createRefinementService(dependencies = {}) {
     const slots = buildExamSlotsFromQuestions(examRecord.questions || []);
     const validation = validateGeneratedExamOutput(
       {
-        questions: Array.isArray(candidatePayload.questions) ? candidatePayload.questions : [],
+        questions: Array.isArray(candidatePayload.questions)
+          ? candidatePayload.questions
+          : [],
       },
       slots,
     );
@@ -1115,7 +1197,12 @@ export function createRefinementService(dependencies = {}) {
     };
   }
 
-  async function runGenerationWithRetry({ targetContext, requestRecord, accessContext, logger }) {
+  async function runGenerationWithRetry({
+    targetContext,
+    requestRecord,
+    accessContext,
+    logger,
+  }) {
     let pipelineResult = await runAdapter({
       targetContext,
       requestRecord,
@@ -1125,7 +1212,10 @@ export function createRefinementService(dependencies = {}) {
 
     if (!pipelineResult.validation?.isValid) {
       logger.warn(
-        { request_id: requestRecord.public_id, validation_errors: pipelineResult.validation?.errors },
+        {
+          request_id: requestRecord.public_id,
+          validation_errors: pipelineResult.validation?.errors,
+        },
         "refinement validation failed on first pass; retrying once",
       );
       pipelineResult = await runAdapter({
@@ -1187,12 +1277,11 @@ export function createRefinementService(dependencies = {}) {
       };
     }
 
-    const reasonSummary =
-      summarizeChangeReason({
-        artifactType: targetContext.artifact_type,
-        targetSelector: requestRecord.target_selector,
-        changedFields,
-      });
+    const reasonSummary = summarizeChangeReason({
+      artifactType: targetContext.artifact_type,
+      targetSelector: requestRecord.target_selector,
+      changedFields,
+    });
 
     return {
       requestStatus: REQUEST_STATUSES.PENDING_APPROVAL,
@@ -1214,7 +1303,12 @@ export function createRefinementService(dependencies = {}) {
     expectedBaseRevisionIds,
     accessContext,
   }) {
-    if (!arraysEqualAsSequence(expectedBaseRevisionIds, requestRecord.base_revision_ids)) {
+    if (
+      !arraysEqualAsSequence(
+        expectedBaseRevisionIds,
+        requestRecord.base_revision_ids,
+      )
+    ) {
       throw new RefinementPipelineError(
         409,
         "stale_request",
@@ -1233,7 +1327,9 @@ export function createRefinementService(dependencies = {}) {
     );
 
     const currentBaseIds = targetContext.base_revision_ids;
-    if (!arraysEqualAsSequence(currentBaseIds, requestRecord.base_revision_ids)) {
+    if (
+      !arraysEqualAsSequence(currentBaseIds, requestRecord.base_revision_ids)
+    ) {
       throw new RefinementPipelineError(
         409,
         "stale_request",
@@ -1260,7 +1356,11 @@ export function createRefinementService(dependencies = {}) {
         accessContext,
       );
       if (!updated) {
-        throw new RefinementPipelineError(404, "artifact_not_found", "Lesson plan not found");
+        throw new RefinementPipelineError(
+          404,
+          "artifact_not_found",
+          "Lesson plan not found",
+        );
       }
       updatedRecords.push(updated);
     } else if (
@@ -1278,14 +1378,20 @@ export function createRefinementService(dependencies = {}) {
         accessContext,
       );
       if (!updated) {
-        throw new RefinementPipelineError(404, "artifact_not_found", "Assignment not found");
+        throw new RefinementPipelineError(
+          404,
+          "artifact_not_found",
+          "Assignment not found",
+        );
       }
       updatedRecords.push(updated);
     } else if (
       targetContext.artifact_type === ARTIFACT_TYPES.ASSIGNMENT &&
       targetContext.target_mode === "batch"
     ) {
-      const byId = new Map(candidatePayload.assignments.map((item) => [item.assignment_id, item]));
+      const byId = new Map(
+        candidatePayload.assignments.map((item) => [item.assignment_id, item]),
+      );
       for (const artifact of targetContext.artifacts) {
         const candidate = byId.get(artifact.artifact_id);
         if (!candidate) {
@@ -1306,7 +1412,11 @@ export function createRefinementService(dependencies = {}) {
           accessContext,
         );
         if (!updated) {
-          throw new RefinementPipelineError(404, "artifact_not_found", "Assignment not found");
+          throw new RefinementPipelineError(
+            404,
+            "artifact_not_found",
+            "Assignment not found",
+          );
         }
         updatedRecords.push(updated);
       }
@@ -1317,7 +1427,11 @@ export function createRefinementService(dependencies = {}) {
         accessContext,
       );
       if (!updated) {
-        throw new RefinementPipelineError(404, "artifact_not_found", "Exam not found");
+        throw new RefinementPipelineError(
+          404,
+          "artifact_not_found",
+          "Exam not found",
+        );
       }
       updatedRecords.push(updated);
     }
@@ -1356,11 +1470,16 @@ export function createRefinementService(dependencies = {}) {
       return true;
     }
 
-    if (Number(requestRecord.created_by_user_id) === Number(accessContext.userId)) {
+    if (
+      Number(requestRecord.created_by_user_id) === Number(accessContext.userId)
+    ) {
       return true;
     }
 
-    if (requestRecord.target_mode === "batch" && requestRecord.assignment_group_public_id) {
+    if (
+      requestRecord.target_mode === "batch" &&
+      requestRecord.assignment_group_public_id
+    ) {
       const group = await assignmentGroupsRepository.getByPublicId(
         requestRecord.assignment_group_public_id,
         accessContext,
@@ -1397,7 +1516,11 @@ export function createRefinementService(dependencies = {}) {
       const logger = normalizeLogger(context.logger);
       const teacherId = Number(context.teacherId);
       if (!teacherId) {
-        throw new RefinementPipelineError(400, "invalid_teacher_id", "teacherId is required");
+        throw new RefinementPipelineError(
+          400,
+          "invalid_teacher_id",
+          "teacherId is required",
+        );
       }
 
       const accessContext = {
@@ -1414,7 +1537,13 @@ export function createRefinementService(dependencies = {}) {
           409,
           "pending_request_exists",
           "A pending refinement request already exists for this target",
-          [{ code: "pending_request_exists", path: "target_key", message: pendingRequest.public_id }],
+          [
+            {
+              code: "pending_request_exists",
+              path: "target_key",
+              message: pendingRequest.public_id,
+            },
+          ],
         );
       }
 
@@ -1446,8 +1575,11 @@ export function createRefinementService(dependencies = {}) {
           attemptNumber: 1,
           status: ATTEMPT_STATUSES.BLOCKED,
           modelName: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
-          rulesHash: hashPayload({ artifact_type: createdRequest.artifact_type }),
-          reasonSummary: "Refinement blocked due to conflicting feedback directions.",
+          rulesHash: hashPayload({
+            artifact_type: createdRequest.artifact_type,
+          }),
+          reasonSummary:
+            "Refinement blocked due to conflicting feedback directions.",
           warnings,
           validation: {
             is_valid: false,
@@ -1463,11 +1595,14 @@ export function createRefinementService(dependencies = {}) {
           },
         });
 
-        const updatedRequest = await requestsRepository.updateAfterAttempt(createdRequest.public_id, {
-          status: REQUEST_STATUSES.BLOCKED,
-          reasonSummary: blockedAttempt.reason_summary,
-          warnings,
-        });
+        const updatedRequest = await requestsRepository.updateAfterAttempt(
+          createdRequest.public_id,
+          {
+            status: REQUEST_STATUSES.BLOCKED,
+            reasonSummary: blockedAttempt.reason_summary,
+            warnings,
+          },
+        );
 
         return {
           refinement_request: updatedRequest,
@@ -1521,11 +1656,14 @@ export function createRefinementService(dependencies = {}) {
         warnings: generationResult.warnings,
       });
 
-      const updatedRequest = await requestsRepository.updateAfterAttempt(createdRequest.public_id, {
-        status: generationResult.requestStatus,
-        reasonSummary: generationResult.reasonSummary,
-        warnings: generationResult.warnings,
-      });
+      const updatedRequest = await requestsRepository.updateAfterAttempt(
+        createdRequest.public_id,
+        {
+          status: generationResult.requestStatus,
+          reasonSummary: generationResult.reasonSummary,
+          warnings: generationResult.warnings,
+        },
+      );
 
       return {
         refinement_request: updatedRequest,
@@ -1544,7 +1682,11 @@ export function createRefinementService(dependencies = {}) {
     async getRefinementByPublicId(publicId, context = {}) {
       const teacherId = Number(context.teacherId);
       if (!teacherId) {
-        throw new RefinementPipelineError(400, "invalid_teacher_id", "teacherId is required");
+        throw new RefinementPipelineError(
+          400,
+          "invalid_teacher_id",
+          "teacherId is required",
+        );
       }
 
       const accessContext = {
@@ -1554,15 +1696,25 @@ export function createRefinementService(dependencies = {}) {
 
       const requestRecord = await requestsRepository.getByPublicId(publicId);
       if (!requestRecord) {
-        throw new RefinementPipelineError(404, "refinement_not_found", "Refinement request not found");
+        throw new RefinementPipelineError(
+          404,
+          "refinement_not_found",
+          "Refinement request not found",
+        );
       }
 
       const allowed = await checkRequestAccess(requestRecord, accessContext);
       if (!allowed) {
-        throw new RefinementPipelineError(403, "forbidden", "Refinement access denied");
+        throw new RefinementPipelineError(
+          403,
+          "forbidden",
+          "Refinement access denied",
+        );
       }
 
-      const latestAttempt = await attemptsRepository.getLatestByRequestId(requestRecord.db_id);
+      const latestAttempt = await attemptsRepository.getLatestByRequestId(
+        requestRecord.db_id,
+      );
 
       return {
         refinement_request: requestRecord,
@@ -1587,7 +1739,11 @@ export function createRefinementService(dependencies = {}) {
       const logger = normalizeLogger(context.logger);
       const teacherId = Number(context.teacherId);
       if (!teacherId) {
-        throw new RefinementPipelineError(400, "invalid_teacher_id", "teacherId is required");
+        throw new RefinementPipelineError(
+          400,
+          "invalid_teacher_id",
+          "teacherId is required",
+        );
       }
       const accessContext = {
         userId: teacherId,
@@ -1596,14 +1752,26 @@ export function createRefinementService(dependencies = {}) {
 
       const requestRecord = await requestsRepository.getByPublicId(publicId);
       if (!requestRecord) {
-        throw new RefinementPipelineError(404, "refinement_not_found", "Refinement request not found");
+        throw new RefinementPipelineError(
+          404,
+          "refinement_not_found",
+          "Refinement request not found",
+        );
       }
       const allowed = await checkRequestAccess(requestRecord, accessContext);
       if (!allowed) {
-        throw new RefinementPipelineError(403, "forbidden", "Refinement access denied");
+        throw new RefinementPipelineError(
+          403,
+          "forbidden",
+          "Refinement access denied",
+        );
       }
 
-      if ([REQUEST_STATUSES.APPROVED, REQUEST_STATUSES.REJECTED].includes(requestRecord.status)) {
+      if (
+        [REQUEST_STATUSES.APPROVED, REQUEST_STATUSES.REJECTED].includes(
+          requestRecord.status,
+        )
+      ) {
         throw new RefinementPipelineError(
           409,
           "invalid_request_state",
@@ -1617,7 +1785,9 @@ export function createRefinementService(dependencies = {}) {
         accessContext,
       });
 
-      const latestAttempt = await attemptsRepository.getLatestByRequestId(requestRecord.db_id);
+      const latestAttempt = await attemptsRepository.getLatestByRequestId(
+        requestRecord.db_id,
+      );
       const nextAttemptNumber = (latestAttempt?.attempt_number || 0) + 1;
 
       const generationResult = await runGenerationWithRetry({
@@ -1655,11 +1825,14 @@ export function createRefinementService(dependencies = {}) {
         warnings: generationResult.warnings,
       });
 
-      const updatedRequest = await requestsRepository.updateAfterAttempt(requestRecord.public_id, {
-        status: generationResult.requestStatus,
-        reasonSummary: generationResult.reasonSummary,
-        warnings: generationResult.warnings,
-      });
+      const updatedRequest = await requestsRepository.updateAfterAttempt(
+        requestRecord.public_id,
+        {
+          status: generationResult.requestStatus,
+          reasonSummary: generationResult.reasonSummary,
+          warnings: generationResult.warnings,
+        },
+      );
 
       return {
         refinement_request: updatedRequest,
@@ -1678,7 +1851,11 @@ export function createRefinementService(dependencies = {}) {
     async approveRefinement(publicId, requestBody, context = {}) {
       const teacherId = Number(context.teacherId);
       if (!teacherId) {
-        throw new RefinementPipelineError(400, "invalid_teacher_id", "teacherId is required");
+        throw new RefinementPipelineError(
+          400,
+          "invalid_teacher_id",
+          "teacherId is required",
+        );
       }
       const accessContext = {
         userId: teacherId,
@@ -1687,11 +1864,19 @@ export function createRefinementService(dependencies = {}) {
 
       const requestRecord = await requestsRepository.getByPublicId(publicId);
       if (!requestRecord) {
-        throw new RefinementPipelineError(404, "refinement_not_found", "Refinement request not found");
+        throw new RefinementPipelineError(
+          404,
+          "refinement_not_found",
+          "Refinement request not found",
+        );
       }
       const allowed = await checkRequestAccess(requestRecord, accessContext);
       if (!allowed) {
-        throw new RefinementPipelineError(403, "forbidden", "Refinement access denied");
+        throw new RefinementPipelineError(
+          403,
+          "forbidden",
+          "Refinement access denied",
+        );
       }
 
       if (requestRecord.status !== REQUEST_STATUSES.PENDING_APPROVAL) {
@@ -1708,7 +1893,9 @@ export function createRefinementService(dependencies = {}) {
         accessContext,
       });
 
-      const latestAttempt = await attemptsRepository.getLatestByRequestId(requestRecord.db_id);
+      const latestAttempt = await attemptsRepository.getLatestByRequestId(
+        requestRecord.db_id,
+      );
       if (!latestAttempt || latestAttempt.status !== ATTEMPT_STATUSES.SUCCESS) {
         throw new RefinementPipelineError(
           409,
@@ -1743,11 +1930,14 @@ export function createRefinementService(dependencies = {}) {
         },
       });
 
-      const updatedRequest = await requestsRepository.markApproved(requestRecord.public_id, {
-        decisionNote: requestBody.decision_note || null,
-        userId: teacherId,
-        role: accessContext.role,
-      });
+      const updatedRequest = await requestsRepository.markApproved(
+        requestRecord.public_id,
+        {
+          decisionNote: requestBody.decision_note || null,
+          userId: teacherId,
+          role: accessContext.role,
+        },
+      );
 
       return {
         refinement_request: updatedRequest,
@@ -1758,7 +1948,11 @@ export function createRefinementService(dependencies = {}) {
     async rejectRefinement(publicId, requestBody, context = {}) {
       const teacherId = Number(context.teacherId);
       if (!teacherId) {
-        throw new RefinementPipelineError(400, "invalid_teacher_id", "teacherId is required");
+        throw new RefinementPipelineError(
+          400,
+          "invalid_teacher_id",
+          "teacherId is required",
+        );
       }
       const accessContext = {
         userId: teacherId,
@@ -1767,12 +1961,20 @@ export function createRefinementService(dependencies = {}) {
 
       const requestRecord = await requestsRepository.getByPublicId(publicId);
       if (!requestRecord) {
-        throw new RefinementPipelineError(404, "refinement_not_found", "Refinement request not found");
+        throw new RefinementPipelineError(
+          404,
+          "refinement_not_found",
+          "Refinement request not found",
+        );
       }
 
       const allowed = await checkRequestAccess(requestRecord, accessContext);
       if (!allowed) {
-        throw new RefinementPipelineError(403, "forbidden", "Refinement access denied");
+        throw new RefinementPipelineError(
+          403,
+          "forbidden",
+          "Refinement access denied",
+        );
       }
 
       if (requestRecord.status !== REQUEST_STATUSES.PENDING_APPROVAL) {
@@ -1783,18 +1985,25 @@ export function createRefinementService(dependencies = {}) {
         );
       }
 
-      const updated = await requestsRepository.markRejected(requestRecord.public_id, {
-        decisionNote: requestBody.decision_note || null,
-        userId: teacherId,
-        role: accessContext.role,
-      });
+      const updated = await requestsRepository.markRejected(
+        requestRecord.public_id,
+        {
+          decisionNote: requestBody.decision_note || null,
+          userId: teacherId,
+          role: accessContext.role,
+        },
+      );
       return { refinement_request: updated };
     },
 
     async listHistory(filters = {}, context = {}) {
       const teacherId = Number(context.teacherId);
       if (!teacherId) {
-        throw new RefinementPipelineError(400, "invalid_teacher_id", "teacherId is required");
+        throw new RefinementPipelineError(
+          400,
+          "invalid_teacher_id",
+          "teacherId is required",
+        );
       }
       const accessContext = {
         userId: teacherId,
@@ -1824,7 +2033,11 @@ export function createRefinementService(dependencies = {}) {
     async listArtifactRevisions(filters = {}, context = {}) {
       const teacherId = Number(context.teacherId);
       if (!teacherId) {
-        throw new RefinementPipelineError(400, "invalid_teacher_id", "teacherId is required");
+        throw new RefinementPipelineError(
+          400,
+          "invalid_teacher_id",
+          "teacherId is required",
+        );
       }
       const accessContext = {
         userId: teacherId,
@@ -1854,16 +2067,26 @@ export function createRefinementService(dependencies = {}) {
     async revertToRevision(payload, context = {}) {
       const teacherId = Number(context.teacherId);
       if (!teacherId) {
-        throw new RefinementPipelineError(400, "invalid_teacher_id", "teacherId is required");
+        throw new RefinementPipelineError(
+          400,
+          "invalid_teacher_id",
+          "teacherId is required",
+        );
       }
       const accessContext = {
         userId: teacherId,
         role: context.role || "teacher",
       };
 
-      const targetRevision = await revisionsRepository.getById(payload.target_revision_id);
+      const targetRevision = await revisionsRepository.getById(
+        payload.target_revision_id,
+      );
       if (!targetRevision) {
-        throw new RefinementPipelineError(404, "revision_not_found", "Target revision not found");
+        throw new RefinementPipelineError(
+          404,
+          "revision_not_found",
+          "Target revision not found",
+        );
       }
       if (
         targetRevision.artifact_type !== payload.artifact_type ||
@@ -1878,9 +2101,16 @@ export function createRefinementService(dependencies = {}) {
 
       let updatedArtifact = null;
       if (payload.artifact_type === ARTIFACT_TYPES.LESSON_PLAN) {
-        const existing = await lessonPlansRepository.getByPublicId(payload.artifact_id, accessContext);
+        const existing = await lessonPlansRepository.getByPublicId(
+          payload.artifact_id,
+          accessContext,
+        );
         if (!existing) {
-          throw new RefinementPipelineError(404, "artifact_not_found", "Lesson plan not found");
+          throw new RefinementPipelineError(
+            404,
+            "artifact_not_found",
+            "Lesson plan not found",
+          );
         }
         updatedArtifact = await lessonPlansRepository.updatePlanJsonByPublicId(
           payload.artifact_id,
@@ -1888,9 +2118,16 @@ export function createRefinementService(dependencies = {}) {
           accessContext,
         );
       } else if (payload.artifact_type === ARTIFACT_TYPES.ASSIGNMENT) {
-        const existing = await assignmentsRepository.getByPublicId(payload.artifact_id, accessContext);
+        const existing = await assignmentsRepository.getByPublicId(
+          payload.artifact_id,
+          accessContext,
+        );
         if (!existing) {
-          throw new RefinementPipelineError(404, "artifact_not_found", "Assignment not found");
+          throw new RefinementPipelineError(
+            404,
+            "artifact_not_found",
+            "Assignment not found",
+          );
         }
         updatedArtifact = await assignmentsRepository.update(
           payload.artifact_id,
@@ -1903,11 +2140,19 @@ export function createRefinementService(dependencies = {}) {
           accessContext,
         );
       } else {
-        const existing = await examsRepository.getByPublicId(payload.artifact_id, accessContext, {
-          includePayload: true,
-        });
+        const existing = await examsRepository.getByPublicId(
+          payload.artifact_id,
+          accessContext,
+          {
+            includePayload: true,
+          },
+        );
         if (!existing) {
-          throw new RefinementPipelineError(404, "artifact_not_found", "Exam not found");
+          throw new RefinementPipelineError(
+            404,
+            "artifact_not_found",
+            "Exam not found",
+          );
         }
         updatedArtifact = await examsRepository.updateQuestionsByPublicId(
           payload.artifact_id,
