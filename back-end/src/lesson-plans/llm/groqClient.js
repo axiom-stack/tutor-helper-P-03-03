@@ -1,7 +1,7 @@
 const DEFAULT_GROQ_API_URL =
   process.env.GROQ_API_URL || "https://api.groq.com/openai/v1/chat/completions";
-const DEFAULT_GROQ_MODEL =
-  process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+export const DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b";
+export const FALLBACK_GROQ_MODEL = "openai/gpt-oss-20b";
 const DEFAULT_TIMEOUT_MS = Number(process.env.GROQ_TIMEOUT_MS || 30000);
 
 function parseJsonContent(rawText) {

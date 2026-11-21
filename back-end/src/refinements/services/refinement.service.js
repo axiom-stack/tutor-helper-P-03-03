@@ -5,7 +5,7 @@ import { selectPlanRuntimeResources } from "../../lesson-plans/selectors.js";
 import { buildPrompt2PedagogicalTuner } from "../../lesson-plans/prompts/prompt2Builder.js";
 import { normalizeLessonPlan } from "../../lesson-plans/lessonPlanNormalizer.js";
 import { validateLessonPlan } from "../../lesson-plans/validators/lessonPlanValidator.js";
-import { createGroqClient } from "../../lesson-plans/llm/groqClient.js";
+import { createGroqClient, DEFAULT_GROQ_MODEL } from "../../lesson-plans/llm/groqClient.js";
 import { createAssignmentsRepository } from "../../assignments/repositories/assignments.repository.js";
 import { createAssignmentGroupsRepository } from "../../assignments/repositories/assignmentGroups.repository.js";
 import { buildModifyPrompt } from "../../assignments/prompts/assignmentsPromptBuilder.js";
@@ -1574,7 +1574,7 @@ export function createRefinementService(dependencies = {}) {
           refinementRequestDbId: createdRequest.db_id,
           attemptNumber: 1,
           status: ATTEMPT_STATUSES.BLOCKED,
-          modelName: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+          modelName: DEFAULT_GROQ_MODEL,
           rulesHash: hashPayload({
             artifact_type: createdRequest.artifact_type,
           }),
@@ -1632,7 +1632,7 @@ export function createRefinementService(dependencies = {}) {
         refinementRequestDbId: createdRequest.db_id,
         attemptNumber: 1,
         status: generationResult.attemptStatus,
-        modelName: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+        modelName: DEFAULT_GROQ_MODEL,
         rulesHash: hashPayload({
           artifact_type: targetContext.artifact_type,
           target_selector: createdRequest.target_selector,
@@ -1801,7 +1801,7 @@ export function createRefinementService(dependencies = {}) {
         refinementRequestDbId: requestRecord.db_id,
         attemptNumber: nextAttemptNumber,
         status: generationResult.attemptStatus,
-        modelName: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+        modelName: DEFAULT_GROQ_MODEL,
         rulesHash: hashPayload({
           artifact_type: targetContext.artifact_type,
           target_selector: requestRecord.target_selector,

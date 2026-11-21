@@ -7,7 +7,7 @@ import {
   buildCompactJsonRetryAppendix,
   readLessonPlanSkipPrompt2WhenValid,
 } from "../prompts/promptShared.js";
-import { createGroqClient } from "../llm/groqClient.js";
+import { createGroqClient, DEFAULT_GROQ_MODEL, FALLBACK_GROQ_MODEL } from "../llm/groqClient.js";
 import {
   buildLessonSourceText,
   normalizeArabicForMatching,
@@ -199,30 +199,12 @@ function cloneJsonValue(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-function readConfiguredModel(value) {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-export function resolveLessonPlanStepModels(env = process.env) {
-  const sharedModel =
-    readConfiguredModel(env.GROQ_MODEL) || "llama-3.3-70b-versatile";
-  const prompt1Model =
-    readConfiguredModel(env.GROQ_PROMPT1_MODEL) || sharedModel;
-  const prompt2Model =
-    readConfiguredModel(env.GROQ_PROMPT2_MODEL) || sharedModel;
-
+export function resolveLessonPlanStepModels() {
   return {
-    prompt1: prompt1Model,
-    prompt2: prompt2Model,
-    prompt1Retry:
-      readConfiguredModel(env.GROQ_PROMPT1_MODEL_RETRY) || prompt1Model,
-    prompt2Retry:
-      readConfiguredModel(env.GROQ_PROMPT2_MODEL_RETRY) || prompt2Model,
+    prompt1: DEFAULT_GROQ_MODEL,
+    prompt2: DEFAULT_GROQ_MODEL,
+    prompt1Retry: FALLBACK_GROQ_MODEL,
+    prompt2Retry: FALLBACK_GROQ_MODEL,
   };
 }
 

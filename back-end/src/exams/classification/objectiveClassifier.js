@@ -1,3 +1,4 @@
+import { FALLBACK_GROQ_MODEL } from "../../lesson-plans/llm/groqClient.js";
 import { BLOOM_LEVELS } from "../types.js";
 
 const FALLBACK_WRAPPER_KEYS = ["items", "classifications", "results", "data", "output"];
@@ -161,7 +162,7 @@ export async function classifyObjectivesWithFallback({
   objectives,
   bloomVerbs,
   llmClient,
-  fallbackModel = process.env.GROQ_FALLBACK_MODEL || process.env.GROQ_MODEL,
+  fallbackModel = FALLBACK_GROQ_MODEL,
 }) {
   const normalizedVerbBank = buildNormalizedVerbBank(bloomVerbs);
 

@@ -6,14 +6,11 @@ This API provides endpoints for managing educational content including classes, 
 
 ## Phase 2 Lesson-Plan Pipeline (MVP)
 
+The Groq model IDs are hardcoded in `src/lesson-plans/llm/groqClient.js`: `openai/gpt-oss-120b` is the main model and `openai/gpt-oss-20b` is used for lesson-plan retries and exam objective classification fallback.
+
 ### Required Environment Variables
 
 - `GROQ_API_KEY`: Groq API key used for lesson-plan generation
-- `GROQ_MODEL` (optional): Groq model name (default: `llama-3.3-70b-versatile`)
-- `GROQ_PROMPT1_MODEL` (optional): model for Prompt 1 draft generation
-- `GROQ_PROMPT2_MODEL` (optional): model for Prompt 2 pedagogical tuning
-- `GROQ_PROMPT1_MODEL_RETRY` (optional): fallback model for Prompt 1 retry on malformed JSON / upstream failure
-- `GROQ_PROMPT2_MODEL_RETRY` (optional): fallback model for Prompt 2 retry on malformed JSON / upstream failure, and for validation-guided Prompt 2 retry
 - `GROQ_TIMEOUT_MS` (optional): request timeout in milliseconds (default: `30000`)
 - `TURSO_DATABASE_URL`: Turso/libSQL database URL
 - `TURSO_AUTH_TOKEN`: Turso auth token

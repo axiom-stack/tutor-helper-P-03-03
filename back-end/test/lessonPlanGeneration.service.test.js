@@ -4,7 +4,17 @@ import assert from "node:assert/strict";
 import {
   createLessonPlanGenerationService,
   LessonPlanPipelineError,
+  resolveLessonPlanStepModels,
 } from "../src/lesson-plans/services/lessonPlanGeneration.service.js";
+
+test("lesson-plan models use the hardcoded main and retry choices", () => {
+  assert.deepEqual(resolveLessonPlanStepModels({ GROQ_MODEL: "ignored" }), {
+    prompt1: "openai/gpt-oss-120b",
+    prompt2: "openai/gpt-oss-120b",
+    prompt1Retry: "openai/gpt-oss-20b",
+    prompt2Retry: "openai/gpt-oss-20b",
+  });
+});
 
 const traditionalSchema = {
   header: {
