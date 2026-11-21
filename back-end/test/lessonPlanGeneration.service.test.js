@@ -581,6 +581,8 @@ test("retries Prompt 2 once with the configured fallback model on malformed JSON
   assert.equal(llmCalls[0].model, "primary-prompt1-model");
   assert.equal(llmCalls[1].model, "primary-prompt2-model");
   assert.equal(llmCalls[2].model, "retry-prompt2-model");
+  assert.equal(llmCalls[1].responseFormat.json_schema.strict, true);
+  assert.deepEqual(llmCalls[2].responseFormat, llmCalls[1].responseFormat);
   assert.match(llmCalls[2].systemPrompt, /JSON_CONTRACT_RETRY:/u);
   assert.match(llmCalls[2].systemPrompt, /P2:/u);
 });
@@ -648,6 +650,8 @@ test("retries once when initial candidate is not safely repairable", async () =>
   assert.equal(result.id, "act_3");
   assert.equal(result.retry_occurred, true);
   assert.equal(prompt2Calls.length, 2);
+  assert.equal(llmCalls[1].responseFormat.json_schema.strict, true);
+  assert.deepEqual(llmCalls[2].responseFormat, llmCalls[1].responseFormat);
   assert.equal(llmCalls.length, 3);
   assert.equal(llmCalls[0].model, "primary-prompt1-model");
   assert.equal(llmCalls[1].model, "primary-prompt2-model");

@@ -1186,7 +1186,7 @@ export function createLessonPlanGenerationService(dependencies = {}) {
         strategyBank,
       });
 
-      prompt1.responseFormat = {
+      const planResponseFormat = {
         type: "json_schema",
         json_schema: {
           name: "lesson_plan_draft",
@@ -1194,6 +1194,8 @@ export function createLessonPlanGenerationService(dependencies = {}) {
           schema: planTemplateToJsonSchema(targetSchema),
         },
       };
+
+      prompt1.responseFormat = planResponseFormat;
 
       let retryOccurred = false;
 
@@ -1278,6 +1280,8 @@ export function createLessonPlanGenerationService(dependencies = {}) {
           targetSchema,
         });
 
+        prompt2Initial.responseFormat = planResponseFormat;
+
         const prompt2Step = await generateStepWithFallback({
           llmClient,
           prompt: prompt2Initial,
@@ -1350,6 +1354,7 @@ export function createLessonPlanGenerationService(dependencies = {}) {
 
         const retryResult = await llmClient.generateJson({
           ...prompt2Retry,
+          responseFormat: planResponseFormat,
           model: stepModels.prompt2Retry,
         });
         ensureLlmSuccess(
