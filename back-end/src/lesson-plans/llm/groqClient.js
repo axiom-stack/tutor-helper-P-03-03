@@ -49,6 +49,31 @@ function matchesSchema(value, schema) {
   return false;
 }
 
+// Remove only unexpected keys; never invent, coerce, or reorder required data.
+function projectOntoSchema(value, schema) {
+  if (schema?.type === "array" && Array.isArray(value)) {
+    return value.map((item) => projectOntoSchema(item, schema.items));
+  }
+  if (schema?.type === "object" && value && typeof value === "object" && !Array.isArray(value)) {
+    const properties = schema.properties || {};
+    return Object.fromEntries(Object.entries(value)
+      .filter(([key]) => Object.hasOwn(properties, key) || schema.additionalProperties !== false)
+      .map(([key, child]) => [key, Object.hasOwn(properties, key) ? projectOntoSchema(child, properties[key]) : child]));
+  }
+  return value;
+}
+
+function recoverSchemaObject(value, schema) {
+  const projected = projectOntoSchema(value, schema);
+  if (matchesSchema(projected, schema)) return projected;
+  // Some models wrap the requested object in a single named field.
+  if (value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 1) {
+    const inner = projectOntoSchema(Object.values(value)[0], schema);
+    if (matchesSchema(inner, schema)) return inner;
+  }
+  return null;
+}
+
 function isJsonValidationFailure(status, error) {
   return status === 400 && (
     error?.code === "json_validate_failed" ||
@@ -111,8 +136,8 @@ export function createGroqClient(options = {}) {
   const apiUrl = options.apiUrl ?? DEFAULT_GROQ_API_URL;
   const fetchImpl = options.fetchImpl ?? fetch;
 
-  return {
-    async generateJson({ systemPrompt, userPrompt, model: overrideModel, responseFormat } = {}) {
+  const client = {
+    async generateJson({ systemPrompt, userPrompt, model: overrideModel, responseFormat, allowSchemaRepair = true } = {}) {
       const resolvedModel = overrideModel || model;
       const baseMetadata = buildGroqMetadata({
         model: resolvedModel,
@@ -182,6 +207,13 @@ export function createGroqClient(options = {}) {
               isJsonValidationFailure(response.status, parsedBody?.error)) {
             recoveredFromJsonValidation = true;
             delete requestBody.response_format;
+            requestBody.messages = [
+              {
+                role: "system",
+                content: `${systemPrompt || ""}\n\nReturn exactly one JSON object that follows this JSON Schema. Include every required field, use the specified types, and do not add extra fields or wrappers:\n${JSON.stringify(responseFormat.json_schema.schema)}`,
+              },
+              { role: "user", content: userPrompt },
+            ];
             continue;
           }
           break;
@@ -209,8 +241,28 @@ export function createGroqClient(options = {}) {
         }
 
         try {
-          const data = parseJsonContent(rawText);
-          if (recoveredFromJsonValidation && !matchesSchema(data, responseFormat.json_schema?.schema)) {
+          const parsed = parseJsonContent(rawText);
+          const data = recoveredFromJsonValidation
+            ? recoverSchemaObject(parsed, responseFormat.json_schema?.schema)
+            : parsed;
+          if (!data) {
+            // Retry only a bounded, parseable schema mismatch. Never accept the
+            // repair unless it also passes the same local schema check.
+            if (allowSchemaRepair && recoveredFromJsonValidation && rawText.length <= 16000) {
+              const repairResult = await client.generateJson({
+                model: resolvedModel,
+                responseFormat: { type: "text" },
+                allowSchemaRepair: false,
+                systemPrompt: "Repair the structure of the provided JSON to match the schema. Preserve the original lesson content, include every required field, and return only the JSON object. Do not invent missing lesson content.",
+                userPrompt: `JSON schema:\n${JSON.stringify(responseFormat.json_schema.schema)}\n\nJSON to repair:\n${rawText}`,
+              });
+              if (repairResult.ok) {
+                const repaired = recoverSchemaObject(repairResult.data, responseFormat.json_schema.schema);
+                if (repaired) return { ...repairResult, data: repaired, recoveredFromJsonValidation: true, repairedSchema: true };
+              } else {
+                return repairResult;
+              }
+            }
             return buildFailure("malformed_json", "Model output did not match the requested lesson-plan structure.", {
               ...baseMetadata,
               responseFormat: "text_recovery",
@@ -255,4 +307,5 @@ export function createGroqClient(options = {}) {
       }
     },
   };
+  return client;
 }

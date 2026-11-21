@@ -51,16 +51,18 @@ test("recovers a Groq JSON validation error with one locally validated text requ
   assert.equal(requests.length, 2);
   assert.deepEqual(requests[0].response_format, strictFormat);
   assert.equal(requests[1].response_format, undefined);
+  assert.match(requests[1].messages[0].content, /JSON Schema/);
+  assert.match(requests[1].messages[0].content, /"required":\["intro"\]/);
   assert.deepEqual(result.data, { intro: "درس" });
 });
 
 test("rejects recovery output that violates the schema or is malformed", async () => {
-  for (const content of ['{"intro":42}', '{"intro":"ok","extra":true}', 'invalid']) {
+  for (const content of ['{"intro":42}', '{"other":"missing"}', 'invalid']) {
     let calls = 0;
     const client = createGroqClient({ apiKey: "test", fetchImpl: async () => ++calls === 1
       ? mockGroqResponse(400, { error: { code: "json_validate_failed" } })
       : mockGroqResponse(200, { choices: [{ message: { content } }] }) });
-    const result = await client.generateJson({ responseFormat: strictFormat });
+    const result = await client.generateJson({ responseFormat: strictFormat, allowSchemaRepair: false });
     assert.equal(result.ok, false);
     assert.equal(result.errorType, "malformed_json");
     assert.equal(calls, 2);
@@ -109,4 +111,49 @@ test("retries one short rate limit after the provider's retry-after", async () =
   const result = await client.generateJson({ responseFormat: strictFormat });
   assert.equal(result.ok, true);
   assert.equal(calls, 2);
+});
+
+
+test("recovers extra fields and a single wrapper without inventing required values", async () => {
+  for (const content of ['{"intro":"ok","extra":true}', '{"plan":{"intro":"ok","extra":true}}']) {
+    let calls = 0;
+    const client = createGroqClient({ apiKey: "test", fetchImpl: async () => ++calls === 1
+      ? mockGroqResponse(400, { error: { code: "json_validate_failed" } })
+      : mockGroqResponse(200, { choices: [{ message: { content } }] }) });
+    const result = await client.generateJson({ responseFormat: strictFormat });
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.data, { intro: "ok" });
+  }
+});
+
+
+test("repairs a schema mismatch once and checks the repaired result", async () => {
+  const requests = [];
+  const replies = [
+    mockGroqResponse(400, { error: { code: "json_validate_failed" } }),
+    mockGroqResponse(200, { choices: [{ message: { content: '{"intro":42}' } }] }),
+    mockGroqResponse(200, { choices: [{ message: { content: '{"intro":"corrected"}' } }] }),
+  ];
+  const client = createGroqClient({ apiKey: "test", fetchImpl: async (_url, options) => {
+    requests.push(JSON.parse(options.body));
+    return replies.shift();
+  } });
+  const result = await client.generateJson({ responseFormat: strictFormat });
+  assert.equal(result.ok, true);
+  assert.equal(result.repairedSchema, true);
+  assert.deepEqual(result.data, { intro: "corrected" });
+  assert.equal(requests.length, 3);
+  assert.match(requests[2].messages[1].content, /JSON schema/);
+});
+
+test("rejects a repair that still does not match the schema", async () => {
+  const replies = [
+    mockGroqResponse(400, { error: { code: "json_validate_failed" } }),
+    mockGroqResponse(200, { choices: [{ message: { content: '{"intro":42}' } }] }),
+    mockGroqResponse(200, { choices: [{ message: { content: '{"intro":43}' } }] }),
+  ];
+  const client = createGroqClient({ apiKey: "test", fetchImpl: async () => replies.shift() });
+  const result = await client.generateJson({ responseFormat: strictFormat });
+  assert.equal(result.ok, false);
+  assert.equal(result.errorType, "malformed_json");
 });
