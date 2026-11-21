@@ -83,7 +83,7 @@ export function createGroqClient(options = {}) {
   const fetchImpl = options.fetchImpl ?? fetch;
 
   return {
-    async generateJson({ systemPrompt, userPrompt, model: overrideModel } = {}) {
+    async generateJson({ systemPrompt, userPrompt, model: overrideModel, responseFormat } = {}) {
       const resolvedModel = overrideModel || model;
       const baseMetadata = buildGroqMetadata({
         model: resolvedModel,
@@ -108,7 +108,7 @@ export function createGroqClient(options = {}) {
           body: JSON.stringify({
             model: resolvedModel,
             temperature: 0,
-            response_format: { type: "json_object" },
+            response_format: responseFormat || { type: "json_object" },
             messages: [
               { role: "system", content: systemPrompt },
               { role: "user", content: userPrompt },

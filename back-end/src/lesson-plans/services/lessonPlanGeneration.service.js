@@ -199,6 +199,21 @@ function cloneJsonValue(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+// Plan templates contain example values, not JSON Schema. Convert their shape
+// to the strict schema Groq uses for constrained JSON generation.
+function planTemplateToJsonSchema(value) {
+  if (Array.isArray(value)) {
+    return { type: "array", items: value.length ? planTemplateToJsonSchema(value[0]) : { type: "string" } };
+  }
+  if (value && typeof value === "object") {
+    const properties = Object.fromEntries(
+      Object.entries(value).map(([key, child]) => [key, planTemplateToJsonSchema(child)]),
+    );
+    return { type: "object", properties, required: Object.keys(properties), additionalProperties: false };
+  }
+  return { type: "string" };
+}
+
 export function resolveLessonPlanStepModels() {
   return {
     prompt1: DEFAULT_GROQ_MODEL,
@@ -1170,6 +1185,15 @@ export function createLessonPlanGenerationService(dependencies = {}) {
         bloomVerbsGeneration: knowledge.bloom_verbs_generation,
         strategyBank,
       });
+
+      prompt1.responseFormat = {
+        type: "json_schema",
+        json_schema: {
+          name: "lesson_plan_draft",
+          strict: true,
+          schema: planTemplateToJsonSchema(targetSchema),
+        },
+      };
 
       let retryOccurred = false;
 
