@@ -1,3 +1,4 @@
+import { localizeGenerationError } from "../lesson-plans/localizeGenerationError.js";
 import { turso } from "../lib/turso.js";
 import { createLessonPlansRepository } from "../lesson-plans/repositories/lessonPlans.repository.js";
 import {
@@ -112,8 +113,7 @@ export function createLessonPlansController(dependencies = {}) {
           return res.status(400).json({
             error: {
               code: "invalid_request",
-              message: "Invalid generate-plan request body",
-              details: validation.errors,
+              ...localizeGenerationError({ code: "invalid_request", details: validation.errors }),
             },
           });
         }
@@ -138,8 +138,7 @@ export function createLessonPlansController(dependencies = {}) {
           return res.status(error.status || 422).json({
             error: {
               code: error.code || "plan_generation_failed",
-              message: error.message,
-              details: error.details,
+              ...localizeGenerationError({ code: error.code, details: error.details }),
             },
           });
         }
@@ -147,7 +146,7 @@ export function createLessonPlansController(dependencies = {}) {
         return res.status(500).json({
           error: {
             code: "internal_error",
-            message: "Unexpected server error while generating plan",
+            message: localizeGenerationError({ code: "internal_error" }).message,
           },
         });
       }
