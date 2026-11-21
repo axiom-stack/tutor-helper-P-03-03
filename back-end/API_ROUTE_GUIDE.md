@@ -11,7 +11,7 @@ The Groq model IDs are hardcoded in `src/lesson-plans/llm/groqClient.js`: `opena
 ### Required Environment Variables
 
 - `GROQ_API_KEY`: Groq API key used for lesson-plan generation
-- `GROQ_TIMEOUT_MS` (optional): request timeout in milliseconds (default: `30000`)
+- `GROQ_TIMEOUT_MS` (optional): request timeout in milliseconds (default: `90000`)
 - `TURSO_DATABASE_URL`: Turso/libSQL database URL
 - `TURSO_AUTH_TOKEN`: Turso auth token
 

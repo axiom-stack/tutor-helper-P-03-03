@@ -344,6 +344,7 @@ function buildLlmFailureLogContext(
       request_id: result?.requestId || null,
       retry_after: result?.retryAfter || null,
       upstream_error: result?.upstreamError || null,
+      response_format: result?.responseFormat || prompt?.responseFormat?.type || "json_object",
       prompt: buildPromptDiagnostics(prompt),
       raw_excerpt:
         truncateForLog(result?.raw, 800) ||
@@ -915,6 +916,8 @@ async function generateStepWithFallback({
         message: initialResult?.message || null,
         status: initialResult?.status || null,
         request_id: initialResult?.requestId || null,
+        upstream_error: initialResult?.upstreamError || null,
+        response_format: initialResult?.responseFormat || prompt?.responseFormat?.type || "json_object",
       },
     },
     "Lesson-plan LLM step failed on first attempt; retrying once with fallback model",
