@@ -1,3 +1,4 @@
+import { logPipelineError } from "../utils/logPipelineError.js";
 import {
   validateApproveRefinementRequest,
   validateCreateRefinementRequest,
@@ -14,8 +15,9 @@ import {
 
 const refinementService = createRefinementService();
 
-function handlePipelineError(error, res) {
+function handlePipelineError(error, req, res) {
   if (error instanceof RefinementPipelineError) {
+    logPipelineError(req, error);
     return res.status(error.status).json({
       error: {
         code: error.code,
@@ -48,7 +50,7 @@ export async function createRefinement(req, res) {
 
     return res.status(201).json(result);
   } catch (error) {
-    const handled = handlePipelineError(error, res);
+    const handled = handlePipelineError(error, req, res);
     if (handled) return handled;
 
     req.log?.error?.({ error }, "Unexpected create-refinement failure");
@@ -80,7 +82,7 @@ export async function getRefinementById(req, res) {
     });
     return res.status(200).json(result);
   } catch (error) {
-    const handled = handlePipelineError(error, res);
+    const handled = handlePipelineError(error, req, res);
     if (handled) return handled;
 
     req.log?.error?.({ error }, "Unexpected get-refinement failure");
@@ -112,7 +114,7 @@ export async function retryRefinement(req, res) {
     });
     return res.status(200).json(result);
   } catch (error) {
-    const handled = handlePipelineError(error, res);
+    const handled = handlePipelineError(error, req, res);
     if (handled) return handled;
     req.log?.error?.({ error }, "Unexpected retry-refinement failure");
     return res.status(500).json({
@@ -158,7 +160,7 @@ export async function approveRefinement(req, res) {
     );
     return res.status(200).json(result);
   } catch (error) {
-    const handled = handlePipelineError(error, res);
+    const handled = handlePipelineError(error, req, res);
     if (handled) return handled;
     req.log?.error?.({ error }, "Unexpected approve-refinement failure");
     return res.status(500).json({
@@ -204,7 +206,7 @@ export async function rejectRefinement(req, res) {
     );
     return res.status(200).json(result);
   } catch (error) {
-    const handled = handlePipelineError(error, res);
+    const handled = handlePipelineError(error, req, res);
     if (handled) return handled;
     req.log?.error?.({ error }, "Unexpected reject-refinement failure");
     return res.status(500).json({
@@ -236,7 +238,7 @@ export async function listRefinementHistory(req, res) {
     });
     return res.status(200).json(result);
   } catch (error) {
-    const handled = handlePipelineError(error, res);
+    const handled = handlePipelineError(error, req, res);
     if (handled) return handled;
     req.log?.error?.({ error }, "Unexpected list-refinements failure");
     return res.status(500).json({
@@ -268,7 +270,7 @@ export async function listArtifactRevisions(req, res) {
     });
     return res.status(200).json(result);
   } catch (error) {
-    const handled = handlePipelineError(error, res);
+    const handled = handlePipelineError(error, req, res);
     if (handled) return handled;
     req.log?.error?.({ error }, "Unexpected list-artifact-revisions failure");
     return res.status(500).json({
@@ -300,7 +302,7 @@ export async function revertArtifactToRevision(req, res) {
     });
     return res.status(200).json(result);
   } catch (error) {
-    const handled = handlePipelineError(error, res);
+    const handled = handlePipelineError(error, req, res);
     if (handled) return handled;
     req.log?.error?.({ error }, "Unexpected refinement revert failure");
     return res.status(500).json({

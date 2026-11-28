@@ -787,6 +787,10 @@ export function localizeApiError(
     return [localizedAiLimitMessage];
   }
 
+  if (error.code === 'llm_generation_failed' && isArabicText(error.message)) {
+    return [error.message.trim()];
+  }
+
   const detailMessages = Array.isArray(error.details)
     ? localizeDetails(artifactType, error.details as Array<Partial<ApiErrorDetail>>, 'error')
     : [];
@@ -795,12 +799,12 @@ export function localizeApiError(
     return detailMessages;
   }
 
-  if (error.code && MESSAGE_CODE_LABELS[error.code]) {
-    return [MESSAGE_CODE_LABELS[error.code]];
-  }
-
   if (typeof error.message === 'string' && isArabicText(error.message)) {
     return [error.message.trim()];
+  }
+
+  if (error.code && MESSAGE_CODE_LABELS[error.code]) {
+    return [MESSAGE_CODE_LABELS[error.code]];
   }
 
   return [buildFallbackMessage(artifactType, undefined, 'error')];

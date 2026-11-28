@@ -10,6 +10,7 @@ import {
 } from './teacher-dashboard.services';
 import type { Class, Lesson, Subject, Unit } from '../../types';
 import './teacher-dashboard.css';
+import { getErrorText } from '../../utils/apiErrors';
 
 const RECENT_LESSONS_LIMIT = 10;
 
@@ -67,8 +68,7 @@ function TeacherDashboard() {
       })
       .catch((err) => {
         if (cancelled) return;
-        const message =
-          err?.response?.data?.error ?? 'حدث خطأ أثناء تحميل البيانات';
+        const message = getErrorText(err, 'تعذر تحميل بيانات الصفحة الرئيسية.');
         setError(message);
         toast.error(message);
       })

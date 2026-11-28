@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import type { PreparationType, UserProfileUpdatePayload } from '../../types';
 import { PREPARATION_TYPE_OPTIONS } from '../../types';
 import { LANGUAGE_OPTIONS } from '../../constants/dropdown-options';
-import { normalizeApiError } from '../../utils/apiErrors';
+import { getErrorText, normalizeApiError } from '../../utils/apiErrors';
 import { normalizeImageUploadError } from '../../utils/imageUploadErrors';
 import { syncDisplayLanguageCookie } from '../../utils/displayLanguage';
 import { getMyProfile, updateMyProfile } from '../users/users.services';
@@ -232,10 +232,10 @@ export default function Settings() {
         setTimeout(() => window.location.reload(), 100);
       }
     } catch (saveError: unknown) {
-      const message = normalizeImageUploadError(
-        saveError,
-        normalizeApiError(saveError, 'فشل حفظ الإعدادات.').message
-      );
+      // Image-specific wording only applies when this save uploaded a logo.
+      const message = payload.school_logo_url
+        ? normalizeImageUploadError(saveError, 'فشل حفظ الإعدادات.')
+        : getErrorText(saveError, 'فشل حفظ الإعدادات.');
       setError(message);
       toast.error(message);
     } finally {

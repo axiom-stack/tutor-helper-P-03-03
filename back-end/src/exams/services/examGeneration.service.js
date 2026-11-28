@@ -46,6 +46,13 @@ function ensureLlmSuccess(result, stepName) {
     });
   }
 
+  if (result?.retryAfter) {
+    details.push({ code: "llm_retry_after", path: "$", message: `Retry-After: ${result.retryAfter}` });
+  }
+  if (result?.requestId) {
+    details.push({ code: "llm_request_id", path: "$", message: `Request id: ${result.requestId}` });
+  }
+
   throw new ExamPipelineError(
     502,
     "llm_generation_failed",

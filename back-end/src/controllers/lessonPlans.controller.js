@@ -1,3 +1,4 @@
+import { logPipelineError } from "../utils/logPipelineError.js";
 import { localizeGenerationError } from "../lesson-plans/localizeGenerationError.js";
 import { turso } from "../lib/turso.js";
 import { createLessonPlansRepository } from "../lesson-plans/repositories/lessonPlans.repository.js";
@@ -135,6 +136,7 @@ export function createLessonPlansController(dependencies = {}) {
         });
       } catch (error) {
         if (error instanceof LessonPlanPipelineError) {
+          logPipelineError(req, error);
           return res.status(error.status || 422).json({
             error: {
               code: error.code || "plan_generation_failed",
@@ -360,7 +362,10 @@ export function createLessonPlansController(dependencies = {}) {
             error: {
               code: "invalid_plan_document",
               message: "Updated lesson plan failed validation",
-              details: validation.errors,
+              details: localizeGenerationError({
+                code: "plan_validation_failed",
+                details: validation.errors,
+              }).details,
             },
           });
         }

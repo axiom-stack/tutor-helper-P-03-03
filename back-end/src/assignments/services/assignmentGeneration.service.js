@@ -35,6 +35,13 @@ function ensureLlmSuccess(result, stepName) {
   if (result?.status) {
     details.push({ code: "llm_http_status", path: "$", message: `Groq API status: ${result.status}` });
   }
+  if (result?.retryAfter) {
+    details.push({ code: "llm_retry_after", path: "$", message: `Retry-After: ${result.retryAfter}` });
+  }
+  if (result?.requestId) {
+    details.push({ code: "llm_request_id", path: "$", message: `Request id: ${result.requestId}` });
+  }
+
   throw new AssignmentPipelineError(502, "llm_generation_failed", `${stepName} failed`, details);
 }
 

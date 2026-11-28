@@ -68,6 +68,7 @@ import {
   getScopedUnits,
 } from '../control-dashboard/control-dashboard.services';
 import './teacher-cirriculum-manager.css';
+import { getErrorText } from '../../utils/apiErrors';
 
 export interface TeacherCirriculumManagerScope {
   role: 'admin';
@@ -82,15 +83,6 @@ interface SearchSuggestion {
   id: number;
   label: string;
   description?: string | null;
-}
-
-interface ApiErrorShape {
-  response?: {
-    data?: {
-      error?: string | { message?: string; code?: string };
-    };
-  };
-  message?: string;
 }
 
 interface EditDraft {
@@ -152,28 +144,7 @@ function getErrorMessage(
   error: unknown,
   fallback = 'حدث خطأ غير متوقع. حاول مرة أخرى.'
 ): string {
-  if (error && typeof error === 'object') {
-    const parsed = error as ApiErrorShape;
-    const backendError = parsed.response?.data?.error;
-    if (typeof backendError === 'string' && backendError.trim().length > 0) {
-      return backendError;
-    }
-    if (
-      backendError &&
-      typeof backendError === 'object' &&
-      typeof backendError.message === 'string' &&
-      backendError.message.trim().length > 0
-    ) {
-      return backendError.message;
-    }
-    if (
-      typeof parsed.message === 'string' &&
-      parsed.message.trim().length > 0
-    ) {
-      return parsed.message;
-    }
-  }
-  return fallback;
+  return getErrorText(error, fallback);
 }
 
 function isPdfFile(file: File): boolean {

@@ -32,7 +32,7 @@ import {
 
 import { listPlans } from '../plans-manager/plans-manager.services';
 import type { NormalizedApiError } from '../../utils/apiErrors';
-import { normalizeApiError } from '../../utils/apiErrors';
+import { getErrorText, normalizeApiError } from '../../utils/apiErrors';
 import { shareDocument } from '../../utils/whatsapp';
 import AssignmentCard from './components/AssignmentCard';
 import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel';
@@ -1310,8 +1310,8 @@ export default function Assignments() {
               );
             }
             setWhatsAppExportOpen(false);
-          } catch {
-            setExportError('فشل تصدير الواجب.');
+          } catch (shareError: unknown) {
+            setExportError(getErrorText(shareError, 'فشل تصدير الواجب.'));
           } finally {
             setExportingAction(null);
           }

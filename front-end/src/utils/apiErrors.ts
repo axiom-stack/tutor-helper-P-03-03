@@ -1,5 +1,16 @@
 import axios from 'axios';
-import type { AssignmentsApiError } from '../types';
+import {
+  AI_RATE_LIMIT_MESSAGE,
+  CODE_MESSAGES,
+  NETWORK_ERROR_MESSAGE,
+  STATUS_MESSAGES,
+  aiSupportReference,
+  describeAiFailure,
+  isArabicText,
+  translateDetails,
+  translateMessage,
+  type RawDetail,
+} from './errorCatalog';
 
 export interface NormalizedApiError {
   message: string;
@@ -7,68 +18,35 @@ export interface NormalizedApiError {
   details?: unknown;
 }
 
-export const AI_FREE_TIER_LIMIT_MESSAGE =
-  'تعذر تنفيذ الطلب الآن لأن الباقة المجانية لخدمة الذكاء الاصطناعي وصلت إلى حدها المؤقت. يرجى الانتظار قليلًا ثم إعادة المحاولة.';
+const DEFAULT_FALLBACK = 'حدث خطأ غير متوقع. حاول مرة أخرى.';
 
-const NETWORK_ERROR_MESSAGE =
-  'تعذر الاتصال بالخادم. يرجى التحقق من الاتصال بالإنترنت ثم إعادة المحاولة.';
-
-const PAYLOAD_TOO_LARGE_MESSAGE =
-  'حجم الصورة أو البيانات المرسلة كبير جدًا. يرجى استخدام نسخة أصغر.';
+const TIMEOUT_MESSAGE = STATUS_MESSAGES[408];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
+// Only plain objects count: Error and AxiosError instances also have a
+// `message`, but it is raw text that still needs translating.
 function isNormalizedApiError(value: unknown): value is NormalizedApiError {
   return (
     isRecord(value) &&
+    Object.getPrototypeOf(value) === Object.prototype &&
+    !value.isAxiosError &&
+    !value.response &&
     typeof value.message === 'string' &&
-    value.message.trim().length > 0
+    isArabicText(value.message)
   );
 }
 
-function extractAssignmentsApiError(
-  payload: unknown
-): AssignmentsApiError['error'] | null {
-  if (!isRecord(payload) || !isRecord(payload.error)) {
-    return null;
-  }
-
-  const code = payload.error.code;
-  const message = payload.error.message;
-  const details = payload.error.details;
-
-  if (typeof code !== 'string' || typeof message !== 'string') {
-    return null;
-  }
-
-  return {
-    code,
-    message,
-    details: Array.isArray(details) ? details : undefined,
-  };
-}
-
 function includesRateLimitSignal(value: string): boolean {
-  const normalized = value.trim().toLowerCase();
-  if (!normalized) {
-    return false;
-  }
-
-  return (
-    normalized.includes('rate limit') ||
-    normalized.includes('limit reached') ||
-    normalized.includes('too many requests') ||
-    normalized.includes('tokens per minute') ||
-    (normalized.includes('requested') && normalized.includes('try again in')) ||
-    normalized.includes('rate_limit') ||
-    normalized.includes('429')
+  return /rate[ _]limit|limit reached|too many requests|tokens per minute|\b429\b/i.test(
+    value
   );
 }
 
 function detailIndicatesAiRateLimit(detail: unknown): boolean {
-  if (!isRecord(detail)) {
+  if (!isRecord(detail) || detail.code === 'llm_request_id') {
     return false;
   }
 
@@ -78,64 +56,9 @@ function detailIndicatesAiRateLimit(detail: unknown): boolean {
   return includesRateLimitSignal(code) || includesRateLimitSignal(message);
 }
 
-function localizeBackendMessage(
-  rawMessage: string,
-  fallback: string,
-  status?: number
-): string {
-  const message = rawMessage.trim();
-  if (!message) {
-    return fallback;
-  }
-
-  const normalized = message.toLowerCase();
-
-  if (
-    normalized.includes('username already exists') ||
-    normalized.includes('duplicate username')
-  ) {
-    return 'اسم المستخدم مستخدم بالفعل. يرجى اختيار اسم مستخدم آخر.';
-  }
-
-  if (
-    normalized.includes('invalid credentials') ||
-    normalized.includes('unauthorized')
-  ) {
-    return 'بيانات الدخول غير صحيحة أو انتهت جلسة العمل.';
-  }
-
-  if (normalized.includes('network error')) {
-    return NETWORK_ERROR_MESSAGE;
-  }
-
-  if (status === 409) {
-    return 'تعذر تنفيذ العملية لأن البيانات موجودة مسبقًا. يرجى مراجعة البيانات والمحاولة مرة أخرى.';
-  }
-  if (status === 401) {
-    return 'بيانات الدخول غير صحيحة أو انتهت جلسة العمل.';
-  }
-  if (status === 403) {
-    return 'ليس لديك صلاحية للوصول إلى هذا المورد.';
-  }
-  if (status === 404) {
-    return 'المورد المطلوب غير موجود.';
-  }
-  if (status === 413) {
-    return PAYLOAD_TOO_LARGE_MESSAGE;
-  }
-  if (status === 422) {
-    return fallback;
-  }
-  if (status === 500) {
-    return 'حدث خطأ في الخادم، يرجى المحاولة لاحقاً.';
-  }
-
-  return fallback;
-}
-
 export function getLocalizedAiLimitMessage(error: unknown): string | null {
   if (typeof error === 'string') {
-    return includesRateLimitSignal(error) ? AI_FREE_TIER_LIMIT_MESSAGE : null;
+    return includesRateLimitSignal(error) ? AI_RATE_LIMIT_MESSAGE : null;
   }
 
   if (!isRecord(error)) {
@@ -144,19 +67,19 @@ export function getLocalizedAiLimitMessage(error: unknown): string | null {
 
   const directMessage = typeof error.message === 'string' ? error.message : '';
   if (includesRateLimitSignal(directMessage)) {
-    return AI_FREE_TIER_LIMIT_MESSAGE;
+    return AI_RATE_LIMIT_MESSAGE;
   }
 
   const directCode = typeof error.code === 'string' ? error.code : '';
   if (includesRateLimitSignal(directCode)) {
-    return AI_FREE_TIER_LIMIT_MESSAGE;
+    return AI_RATE_LIMIT_MESSAGE;
   }
 
   if (
     Array.isArray(error.details) &&
     error.details.some(detailIndicatesAiRateLimit)
   ) {
-    return AI_FREE_TIER_LIMIT_MESSAGE;
+    return AI_RATE_LIMIT_MESSAGE;
   }
 
   if (isRecord(error.error)) {
@@ -170,120 +93,124 @@ export function getLocalizedAiLimitMessage(error: unknown): string | null {
   return null;
 }
 
+/** "What failed" (the caller's fallback) followed by "why / what to do". */
+function withReason(fallback: string, reason: string | undefined): string {
+  if (!reason || fallback === DEFAULT_FALLBACK) {
+    return reason || fallback;
+  }
+  return `${fallback.trim().replace(/[.。]?$/, '.')} ${reason}`;
+}
+
+function normalizeResponseError(
+  status: number,
+  data: unknown,
+  fallback: string
+): NormalizedApiError {
+  // The API answers with {error: {code, message, details}}, {error: "text"}
+  // or {message}. Hosting-level failures send HTML or nothing at all.
+  const body = isRecord(data) ? data : {};
+  const nested = isRecord(body.error) ? body.error : null;
+  const rawCode = nested?.code ?? body.code;
+  const code = typeof rawCode === 'string' ? rawCode : undefined;
+  const rawText = nested?.message ?? body.error ?? body.message;
+  const rawMessage = typeof rawText === 'string' ? rawText : '';
+  const rawDetails = (
+    Array.isArray(nested?.details) ? nested.details : []
+  ) as RawDetail[];
+
+  if (code === 'llm_generation_failed') {
+    const reference = aiSupportReference(rawDetails);
+    return {
+      code,
+      message: [withReason(fallback, describeAiFailure(rawDetails)), reference]
+        .filter(Boolean)
+        .join(' '),
+    };
+  }
+
+  // Objective classification also calls the AI; when it hits the usage limit,
+  // say so instead of asking the teacher to reword the objectives.
+  if (
+    code === 'objective_classification_failed' &&
+    getLocalizedAiLimitMessage(nested)
+  ) {
+    return { code, message: withReason(fallback, AI_RATE_LIMIT_MESSAGE) };
+  }
+
+  const translated = translateMessage(rawMessage);
+  // A specific Arabic message from the server beats the generic code wording.
+  const reason =
+    (isArabicText(rawMessage) ? translated : null) ??
+    (code ? CODE_MESSAGES[code] : undefined) ??
+    translated;
+  const details = translateDetails(rawDetails);
+
+  return {
+    code,
+    message:
+      reason ??
+      withReason(
+        fallback,
+        STATUS_MESSAGES[status] ??
+          (status >= 500 ? STATUS_MESSAGES[500] : undefined)
+      ),
+    details: details.length > 0 ? details : undefined,
+  };
+}
+
+/** One string for toasts and inline errors: the message plus its first details. */
+export function getErrorText(error: unknown, fallback?: string): string {
+  const { message, details } = normalizeApiError(error, fallback);
+  const lines = (Array.isArray(details) ? details : [])
+    .map((item) => (isRecord(item) ? String(item.message ?? '') : ''))
+    .filter(Boolean)
+    .slice(0, 3);
+  return lines.length > 0 ? `${message} ${lines.join(' ')}` : message;
+}
+
 export function normalizeApiError(
   error: unknown,
-  fallback = 'حدث خطأ غير متوقع. حاول مرة أخرى.'
+  fallback = DEFAULT_FALLBACK
 ): NormalizedApiError {
   if (isNormalizedApiError(error)) {
     return error;
   }
 
   if (axios.isAxiosError(error)) {
-    const status = error.response?.status;
-    const apiError = extractAssignmentsApiError(error.response?.data);
-    if (apiError) {
-      const localizedAiLimitMessage = getLocalizedAiLimitMessage(apiError);
-      return {
-        message:
-          localizedAiLimitMessage ||
-          localizeBackendMessage(apiError.message, fallback, status),
-        code: apiError.code,
-        details: apiError.details,
-      };
+    if (error.response) {
+      return normalizeResponseError(
+        error.response.status,
+        error.response.data,
+        fallback
+      );
     }
 
-    // Handle generic axios errors with status codes
-    if (error.response?.data && typeof error.response.data === 'object') {
-      const data = error.response.data as Record<string, unknown>;
-      const code = typeof data.code === 'string' ? data.code : undefined;
-      if (typeof data.error === 'string' && data.error.trim().length > 0) {
-        return {
-          message: localizeBackendMessage(data.error, fallback, status),
-          code,
-        };
-      }
-      if (typeof data.message === 'string' && data.message.trim().length > 0) {
-        return {
-          message: localizeBackendMessage(data.message, fallback, status),
-          code,
-        };
-      }
-    }
-
-    if (status === 401) {
-      return { message: 'بيانات الدخول غير صحيحة أو انتهت جلسة العمل' };
-    }
-    if (status === 403) {
-      return { message: 'ليس لديك صلاحية للوصول إلى هذا المورد' };
-    }
-    if (status === 404) {
-      return { message: 'المورد المطلوب غير موجود.' };
-    }
-    if (status === 409) {
-      return {
-        message:
-          'تعذر تنفيذ العملية لأن البيانات موجودة مسبقًا. يرجى مراجعة البيانات والمحاولة مرة أخرى.',
-      };
-    }
-    if (status === 500) {
-      return { message: 'حدث خطأ في الخادم، يرجى المحاولة لاحقاً' };
-    }
-
-    const localizedAiLimitMessage = getLocalizedAiLimitMessage(error);
-    if (localizedAiLimitMessage) {
-      return { message: localizedAiLimitMessage };
-    }
-
-    const rawMessage =
-      typeof error.message === 'string' ? error.message.trim() : '';
-    const isGenericStatusMessage =
-      /^request failed with status code \d+$/i.test(rawMessage);
-
-    // Handle generic status messages for specific status codes
-    if (isGenericStatusMessage) {
-      if (error.response?.status === 401) {
-        return { message: 'بيانات الدخول غير صحيحة أو انتهت جلسة العمل' };
-      }
-      if (error.response?.status === 413) {
-        return { message: PAYLOAD_TOO_LARGE_MESSAGE };
-      }
-      if (error.response?.status === 422) {
-        return { message: fallback };
-      }
-      // For other status codes, return a generic error
-      if (error.response?.status) {
-        return { message: fallback };
-      }
-    }
-
-    if (rawMessage.length > 0 && !isGenericStatusMessage) {
-      return { message: localizeBackendMessage(rawMessage, fallback, status) };
-    }
-
-    return { message: fallback };
-  }
-
-  if (error instanceof Error && error.message.trim().length > 0) {
-    const localizedAiLimitMessage = getLocalizedAiLimitMessage(error);
-    if (localizedAiLimitMessage) {
-      return { message: localizedAiLimitMessage };
-    }
-
+    const timedOut =
+      error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT';
     return {
-      message: localizeBackendMessage(error.message, fallback),
+      message: withReason(
+        fallback,
+        timedOut ? TIMEOUT_MESSAGE : NETWORK_ERROR_MESSAGE
+      ),
+      code: error.code,
     };
   }
 
-  if (typeof error === 'string' && error.trim().length > 0) {
-    const localizedAiLimitMessage = getLocalizedAiLimitMessage(error);
-    if (localizedAiLimitMessage) {
-      return { message: localizedAiLimitMessage };
-    }
+  const raw =
+    typeof error === 'string'
+      ? error
+      : isRecord(error) && typeof error.message === 'string'
+        ? error.message
+        : '';
 
-    return {
-      message: localizeBackendMessage(error, fallback),
-    };
+  const localizedAiLimitMessage = getLocalizedAiLimitMessage(raw);
+  if (localizedAiLimitMessage) {
+    return { message: localizedAiLimitMessage };
   }
 
-  return { message: fallback };
+  if (/network error|failed to fetch/i.test(raw)) {
+    return { message: withReason(fallback, NETWORK_ERROR_MESSAGE) };
+  }
+
+  return { message: translateMessage(raw) ?? fallback };
 }

@@ -86,7 +86,7 @@ export async function createRefinement(
       return {
         queued: true,
         queue_id: queued.queue_id,
-        message: 'تمت جدولة طلب التحسين وسيعاد تشغيله عند عودة الاتصال.',
+        message: 'تعذر الوصول إلى الخادم، فحفظنا طلب التحسين على جهازك وسنعيد إرساله عند عودة الاتصال.',
       };
     }
     throw normalizeApiError(error, 'تعذر إنشاء طلب التحسين.');

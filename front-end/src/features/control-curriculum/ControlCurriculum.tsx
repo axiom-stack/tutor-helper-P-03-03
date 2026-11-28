@@ -25,6 +25,7 @@ import {
 } from '../../utils/classDisplay';
 import { formatUnitDisplayLabel } from '../../utils/unitDisplay';
 import './control-curriculum.css';
+import { getErrorText } from '../../utils/apiErrors';
 
 type SelectValue = number | '';
 
@@ -148,10 +149,14 @@ function AdminCurriculumExplorer({
           setLessons(lessonsResponse.lessons ?? []);
         }
       )
-      .catch(() => {
+      .catch((loadError: unknown) => {
         if (!cancelled) {
-          setError('تعذر تحميل بيانات المنهج على مستوى النظام.');
-          toast.error('تعذر تحميل بيانات المنهج على مستوى النظام.');
+          const message = getErrorText(
+            loadError,
+            'تعذر تحميل بيانات المنهج على مستوى النظام.'
+          );
+          setError(message);
+          toast.error(message);
         }
       })
       .finally(() => {

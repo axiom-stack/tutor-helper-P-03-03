@@ -4,7 +4,7 @@ import { MdMenuBook, MdRefresh } from 'react-icons/md';
 import './auth.css';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router';
-import { normalizeApiError } from '../../utils/apiErrors';
+import { getErrorText } from '../../utils/apiErrors';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 const HEALTH_URL = `${BACKEND_URL.replace(/\/$/, '')}/health`;
@@ -149,36 +149,7 @@ function Auth() {
       const response = await login(username, password);
       navigate(response.user.userRole === 'admin' ? '/admin' : '/');
     } catch (error: unknown) {
-      // Handle raw axios errors with better user feedback
-      let errorMessage = 'حدث خطأ أثناء تسجيل الدخول';
-
-      if (error && typeof error === 'object') {
-        const err = error as Record<string, unknown>;
-
-        // Check for axios error with status code
-        if (
-          err.code === 'ERR_BAD_REQUEST' ||
-          (err as any).response?.status === 401
-        ) {
-          errorMessage =
-            'اسم المستخدم أو كلمة المرور غير صحيح. يرجى التحقق والمحاولة مرة أخرى.';
-        } else if ((err as any).response?.status === 400) {
-          const responseData = (err as any).response?.data;
-          if (responseData?.error) {
-            errorMessage = responseData.error;
-          }
-        } else {
-          const normalizedError = normalizeApiError(error);
-          if (normalizedError.message.includes('بيانات الدخول')) {
-            errorMessage =
-              'اسم المستخدم أو كلمة المرور غير صحيح. يرجى التحقق والمحاولة مرة أخرى.';
-          } else {
-            errorMessage = normalizedError.message;
-          }
-        }
-      }
-
-      setError(errorMessage);
+      setError(getErrorText(error, 'تعذر تسجيل الدخول.'));
     } finally {
       setIsSubmitting(false);
     }

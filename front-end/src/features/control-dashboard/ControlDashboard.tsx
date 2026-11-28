@@ -20,6 +20,7 @@ import {
 } from './control-dashboard.services';
 import './control-dashboard.css';
 import '../auth/auth.css';
+import { getErrorText } from '../../utils/apiErrors';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 const HEALTH_URL = `${BACKEND_URL.replace(/\/$/, '')}/health`;
@@ -122,9 +123,12 @@ export default function ControlDashboard() {
           setExams(examsResponse.exams ?? []);
         }
       )
-      .catch(() => {
+      .catch((loadError: unknown) => {
         if (!cancelled) {
-          const message = 'تعذر تحميل بيانات الصفحة الرئيسية.';
+          const message = getErrorText(
+            loadError,
+            'تعذر تحميل بيانات الصفحة الرئيسية.'
+          );
           setError(message);
           toast.error(message);
         }

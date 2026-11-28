@@ -1,3 +1,4 @@
+import { logPipelineError } from "../utils/logPipelineError.js";
 import {
   createAssignmentGenerationService,
   AssignmentPipelineError,
@@ -82,6 +83,7 @@ export function createAssignmentsController(dependencies = {}) {
         return res.status(201).json(result);
       } catch (error) {
         if (error instanceof AssignmentPipelineError) {
+          logPipelineError(req, error);
           return res.status(error.status).json({
             error: {
               code: error.code,
@@ -133,6 +135,7 @@ export function createAssignmentsController(dependencies = {}) {
         return res.status(200).json(result);
       } catch (error) {
         if (error instanceof AssignmentPipelineError) {
+          logPipelineError(req, error);
           return res.status(error.status).json({
             error: {
               code: error.code,

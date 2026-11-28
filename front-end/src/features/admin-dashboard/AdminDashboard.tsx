@@ -10,6 +10,7 @@ import {
   MdSettings,
 } from 'react-icons/md';
 import { useAuth } from '../../context/AuthContext';
+import { getErrorText } from '../../utils/apiErrors';
 import type {
   Class,
   Exam,
@@ -89,9 +90,9 @@ export default function AdminDashboard() {
           setSubjects(subjectsResponse.subjects ?? []);
         }
       )
-      .catch(() => {
+      .catch((loadError: unknown) => {
         if (!cancelled) {
-          toast.error('تعذر تحميل لوحة المدير.');
+          toast.error(getErrorText(loadError, 'تعذر تحميل لوحة المدير.'));
         }
       })
       .finally(() => {

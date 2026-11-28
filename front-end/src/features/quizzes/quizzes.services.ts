@@ -189,7 +189,7 @@ export async function generateExam(
         queued: true,
         queue_id: queued.queue_id,
         message:
-          'تم حفظ طلب توليد الاختبار محليًا وسيعاد تشغيله عند عودة الاتصال.',
+          'تعذر الوصول إلى الخادم، فحفظنا طلب توليد الاختبار على جهازك وسنعيد إرساله عند عودة الاتصال.',
       };
     }
     throw normalizeApiError(error, 'فشل توليد الاختبار.');

@@ -1,3 +1,4 @@
+import { logPipelineError } from "../utils/logPipelineError.js";
 import {
   createExamGenerationService,
   ExamPipelineError,
@@ -69,6 +70,7 @@ export function createExamsController(dependencies = {}) {
         return res.status(201).json(result);
       } catch (error) {
         if (error instanceof ExamPipelineError) {
+          logPipelineError(req, error);
           return res.status(error.status).json({
             error: {
               code: error.code,
@@ -110,6 +112,7 @@ export function createExamsController(dependencies = {}) {
         return res.status(200).json({ exams });
       } catch (error) {
         if (error instanceof ExamPipelineError) {
+          logPipelineError(req, error);
           return res.status(error.status).json({
             error: {
               code: error.code,
@@ -159,6 +162,7 @@ export function createExamsController(dependencies = {}) {
         return res.status(200).json({ exam });
       } catch (error) {
         if (error instanceof ExamPipelineError) {
+          logPipelineError(req, error);
           return res.status(error.status).json({
             error: {
               code: error.code,
@@ -211,6 +215,7 @@ export function createExamsController(dependencies = {}) {
         });
       } catch (error) {
         if (error instanceof ExamPipelineError) {
+          logPipelineError(req, error);
           return res.status(error.status).json({
             error: {
               code: error.code,

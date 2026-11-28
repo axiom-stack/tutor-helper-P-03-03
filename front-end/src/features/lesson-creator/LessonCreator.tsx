@@ -29,7 +29,6 @@ import {
   getSubjectsByClass,
   getUnitsBySubject,
   exportPlan,
-  type GeneratePlanErrorResponse,
   type GeneratedPlanResponse,
   type PlanType,
 } from './lesson-creator.services';
@@ -44,7 +43,7 @@ import {
 } from '../plans-manager/plans-manager.services';
 import SmartRefinementPanel from '../refinements/components/SmartRefinementPanel';
 import { getRefinementTargetOptions } from '../refinements/refinementTargets';
-import { getLocalizedAiLimitMessage } from '../../utils/apiErrors';
+import { getErrorText } from '../../utils/apiErrors';
 import {
   formatClassBaseSelectLabel,
   normalizeAcademicYearLabel,
@@ -78,13 +77,6 @@ type GenerationState =
 
 type TimelineStatus = 'pending' | 'active' | 'done' | 'error';
 
-interface ApiErrorShape {
-  response?: {
-    data?: GeneratePlanErrorResponse | { error?: string };
-  };
-  message?: string;
-}
-
 const TIMELINE_STEPS = [
   'استرجاع محتوى الدرس',
   'توليد المسودة الأولية',
@@ -96,63 +88,7 @@ function getErrorMessage(
   error: unknown,
   fallback = 'حدث خطأ غير متوقع. حاول مرة أخرى.'
 ): string {
-  const localizedAiLimitMessage = getLocalizedAiLimitMessage(error);
-  if (localizedAiLimitMessage) {
-    return localizedAiLimitMessage;
-  }
-
-  const extractDetailMessages = (details: unknown): string[] => {
-    if (!Array.isArray(details)) {
-      return [];
-    }
-
-    return details
-      .map((item) => {
-        if (!item || typeof item !== 'object') {
-          return null;
-        }
-
-        const maybeMessage = (item as { message?: unknown }).message;
-        return typeof maybeMessage === 'string' &&
-          maybeMessage.trim().length > 0
-          ? maybeMessage.trim()
-          : null;
-      })
-      .filter((item): item is string => Boolean(item));
-  };
-
-  if (error && typeof error === 'object') {
-    const parsed = error as ApiErrorShape;
-
-    const nested = parsed.response?.data?.error;
-    if (typeof nested === 'string' && nested.trim().length > 0) {
-      return nested;
-    }
-
-    if (nested && typeof nested === 'object' && 'message' in nested) {
-      const maybeMessage = nested.message;
-      if (typeof maybeMessage === 'string' && maybeMessage.trim().length > 0) {
-        const detailMessages = extractDetailMessages(
-          (nested as { details?: unknown }).details
-        );
-
-        if (detailMessages.length > 0) {
-          return `${maybeMessage.trim()}: ${detailMessages.slice(0, 2).join(' | ')}`;
-        }
-
-        return maybeMessage.trim();
-      }
-    }
-
-    if (
-      typeof parsed.message === 'string' &&
-      parsed.message.trim().length > 0
-    ) {
-      return parsed.message;
-    }
-  }
-
-  return fallback;
+  return getErrorText(error, fallback);
 }
 
 function LessonCreator() {

@@ -273,7 +273,7 @@ export async function generatePlan(
     return {
       queued: true,
       queue_id: queued.queue_id,
-      message: 'تم حفظ طلب توليد الخطة محليًا وسيعاد تشغيله عند عودة الاتصال.',
+      message: 'تعذر الوصول إلى الخادم، فحفظنا طلب توليد الخطة على جهازك وسنعيد إرساله عند عودة الاتصال.',
     };
   }
 }

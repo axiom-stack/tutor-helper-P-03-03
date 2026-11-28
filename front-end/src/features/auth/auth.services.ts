@@ -49,7 +49,14 @@ export function authAxios() {
 
   instance.interceptors.response.use(
     (response) => response,
-    (error) => {
+    async (error) => {
+      const data = error?.response?.data;
+      if (data instanceof Blob && data.type.includes('json')) {
+        try {
+          error.response.data = JSON.parse(await data.text());
+        } catch { /* keep the original body */ }
+      }
+
       const status = error?.response?.status;
       if (status === 401) {
         clearClientAuthArtifacts();

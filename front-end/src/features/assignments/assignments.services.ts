@@ -91,7 +91,7 @@ export async function generateAssignments(
         queued: true,
         queue_id: queued.queue_id,
         message:
-          'تم حفظ طلب توليد الواجبات محليًا وسيعاد تشغيله عند عودة الاتصال.',
+          'تعذر الوصول إلى الخادم، فحفظنا طلب توليد الواجبات على جهازك وسنعيد إرساله عند عودة الاتصال.',
       };
     }
     throw normalizeApiError(error, 'فشل توليد الواجبات.');

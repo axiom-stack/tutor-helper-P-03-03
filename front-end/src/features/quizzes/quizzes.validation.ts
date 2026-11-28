@@ -114,7 +114,10 @@ function toValidationErrors(
 ): ExamDraftValidationError[] {
   return issues.map((issue) => ({
     field: normalizeIssuePath(issue.path),
-    message: issue.message,
+    // Zod's built-in messages are English; show a clear Arabic line instead.
+    message: /[\u0600-\u06FF]/.test(issue.message)
+      ? issue.message
+      : 'القيمة ناقصة أو غير صحيحة.',
   }));
 }
 
